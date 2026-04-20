@@ -1,4 +1,4 @@
-import { Link, Outlet, useLocation } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { LayoutDashboard, Plus, ListOrdered, Settings as SettingsIcon, Wallet, PiggyBank } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +17,7 @@ const tabs: Tab[] = [
   { to: "/settings", label: "Settings", icon: SettingsIcon },
 ];
 
-export function AppShell() {
+export function AppShell({ children }: { children: React.ReactNode }) {
   const loc = useLocation();
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -52,7 +52,7 @@ export function AppShell() {
       </header>
 
       <main className="mx-auto max-w-3xl px-4 pb-28 pt-4 md:pb-10 md:pt-6">
-        <Outlet />
+        {children}
       </main>
 
       {/* Mobile bottom tab bar */}
