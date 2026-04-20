@@ -2,13 +2,20 @@ import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import { LayoutDashboard, Plus, ListOrdered, Settings as SettingsIcon, Wallet, PiggyBank } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const tabs = [
+type Tab = {
+  to: "/" | "/transactions" | "/add" | "/envelopes" | "/settings";
+  label: string;
+  icon: typeof LayoutDashboard;
+  exact?: boolean;
+  primary?: boolean;
+};
+const tabs: Tab[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/transactions", label: "Transactions", icon: ListOrdered },
   { to: "/add", label: "Add", icon: Plus, primary: true },
   { to: "/envelopes", label: "Envelopes", icon: PiggyBank },
   { to: "/settings", label: "Settings", icon: SettingsIcon },
-] as const;
+];
 
 export function AppShell() {
   const loc = useLocation();
