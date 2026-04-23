@@ -85,13 +85,13 @@ function EnvelopesPage() {
   return (
     <AppShell>
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Envelopes</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{tr("env.title")}</h1>
 
         <div className="flex items-center justify-between">
           <Button variant="outline" size="sm" onClick={() => setMonth((m) => addMonths(m, -1))}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <div className="font-medium">{format(month, "MMMM yyyy")}</div>
+          <div className="font-medium">{format(month, "MMMM yyyy", { locale })}</div>
           <Button variant="outline" size="sm" onClick={() => setMonth((m) => addMonths(m, 1))}>
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -101,14 +101,16 @@ function EnvelopesPage() {
           <Skeleton className="h-32 w-full" />
         ) : rows.length === 0 ? (
           <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">
-            No envelopes yet. <Link to="/settings" className="text-primary underline-offset-2 hover:underline">Create one in Settings</Link>.
+            {tr("env.no_envelopes")} <Link to="/settings" className="text-primary underline-offset-2 hover:underline">{tr("dashboard.create_in_settings")}</Link>.
           </CardContent></Card>
         ) : groups.map((g) => (
           <Card key={g.name + g.kind}>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 {g.name}
-                <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-muted-foreground">{g.kind}</span>
+                <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-muted-foreground">
+                  {g.kind === "income" ? tr("settings.kind_income") : g.kind === "savings" ? tr("settings.kind_savings") : tr("settings.kind_expense")}
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -124,7 +126,7 @@ function EnvelopesPage() {
                     <div className="flex items-baseline justify-between gap-3">
                       <div className="font-semibold">{r.name}</div>
                       <div className={cn("text-base font-bold tabular-nums", balance < 0 ? "text-destructive" : "text-foreground")}>
-                        Balance {fmtMoney(balance, symbol)}
+                        {tr("env.balance", { x: fmtMoney(balance, symbol) })}
                       </div>
                     </div>
                   );
@@ -161,7 +163,7 @@ function EnvelopesPage() {
                         <div className={cn("h-full transition-all", barTone)} style={{ width: `${pct}%` }} />
                       </div>
                       <div className={cn("mt-1 text-xs tabular-nums", over ? "text-destructive" : "text-muted-foreground")}>
-                        {over ? `Over by ${fmtMoney(-remaining, symbol)}` : `${fmtMoney(remaining, symbol)} remaining`}
+                        {over ? tr("dashboard.over_by", { x: fmtMoney(-remaining, symbol) }) : tr("dashboard.remaining", { x: fmtMoney(remaining, symbol) })}
                       </div>
                     </>
                   );
@@ -175,15 +177,15 @@ function EnvelopesPage() {
                         {items.map((t) => {
                           const isInflow = t.type === "income";
                           const label = g.kind === "income"
-                            ? (isInflow ? "Income" : "Adjustment")
+                            ? (isInflow ? tr("env.income_label") : tr("env.income_adjustment"))
                             : g.kind === "savings"
-                              ? (isInflow ? "Refund" : "Booking")
-                              : (isInflow ? "Reimbursement" : "Expense");
+                              ? (isInflow ? tr("env.savings_refund") : tr("env.savings_booking"))
+                              : (isInflow ? tr("env.reimb_short") : tr("env.expense_label"));
                           return (
                             <li key={t.id} className="flex items-center justify-between gap-3 py-2 text-sm">
                               <div className="min-w-0 flex-1">
                                 <div className="truncate">{t.payee || label}</div>
-                                <div className="text-xs text-muted-foreground">{format(new Date(t.occurred_on), "MMM d")}</div>
+                                <div className="text-xs text-muted-foreground">{format(new Date(t.occurred_on), "MMM d", { locale })}</div>
                               </div>
                               <div className={cn("tabular-nums font-medium", isInflow ? "text-success" : "text-destructive")}>
                                 {isInflow ? "+" : "-"}{fmtMoney(Number(t.amount), symbol).replace("-", "")}
