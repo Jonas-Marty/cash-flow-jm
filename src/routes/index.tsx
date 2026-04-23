@@ -5,16 +5,19 @@ import { format } from "date-fns";
 
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
   fetchAccountBalances,
-  fetchCategoryMonthSpending,
+  fetchCategoryMonthRows,
+  fetchSavingsBalances,
   fetchSettings,
   fetchTransactions,
   fmtMoney,
+  monthKey,
+  type CategoryMonthRow,
+  type CategorySavingsBalance,
 } from "@/lib/finance";
 
 export const Route = createFileRoute("/")({
@@ -22,9 +25,12 @@ export const Route = createFileRoute("/")({
 });
 
 function Dashboard() {
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const m = monthKey(monthStart);
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const balancesQ = useQuery({ queryKey: ["account_balances"], queryFn: fetchAccountBalances });
-  const envelopesQ = useQuery({ queryKey: ["category_month_spending"], queryFn: fetchCategoryMonthSpending });
+  const envelopesQ = useQuery({ queryKey: ["category_month_rows", m], queryFn: () => fetchCategoryMonthRows(m) });
+  const savingsQ = useQuery({ queryKey: ["savings_balance"], queryFn: fetchSavingsBalances });
   const recentQ = useQuery({ queryKey: ["transactions", "recent"], queryFn: () => fetchTransactions(8) });
 
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
@@ -37,6 +43,10 @@ function Dashboard() {
   const netWorth = totalAssets + totalLiabilities; // liabilities are stored as negatives via transfers
 
   const envelopes = envelopesQ.data ?? [];
+  const savings = savingsQ.data ?? [];
+
+  // Group envelopes by group_id, preserving sort order
+  const grouped = React.useMemo(() => groupRows(envelopes), [envelopes]);
 
   return (
     <AppShell>
@@ -95,36 +105,10 @@ function Dashboard() {
               No envelopes yet. <Link to="/settings" className="font-medium text-primary underline-offset-2 hover:underline">Create one in Settings</Link>.
             </CardContent></Card>
           ) : (
-            <div className="space-y-2">
-              {envelopes.map((e) => {
-                const allocated = Number(e.allocated_budget);
-                const spent = Number(e.spent);
-                const pct = allocated > 0 ? Math.min(100, (spent / allocated) * 100) : (spent > 0 ? 100 : 0);
-                const over = allocated > 0 && spent > allocated;
-                const remaining = allocated - spent;
-                const barTone = over
-                  ? "bg-destructive"
-                  : pct >= 80 ? "bg-warning" : "bg-success";
-                return (
-                  <Card key={e.category_id}>
-                    <CardContent className="py-4">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <div className="font-medium">{e.name}</div>
-                        <div className="text-sm tabular-nums text-muted-foreground">
-                          <span className={cn(over && "text-destructive font-semibold")}>{fmtMoney(spent, symbol)}</span>
-                          <span> / {fmtMoney(allocated, symbol)}</span>
-                        </div>
-                      </div>
-                      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-                        <div className={cn("h-full transition-all", barTone)} style={{ width: `${pct}%` }} />
-                      </div>
-                      <div className={cn("mt-1 text-xs tabular-nums", over ? "text-destructive" : "text-muted-foreground")}>
-                        {over ? `Over by ${fmtMoney(-remaining, symbol)}` : `${fmtMoney(remaining, symbol)} remaining`}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+            <div className="space-y-4">
+              {grouped.map((g) => (
+                <GroupBlock key={g.key} group={g} symbol={symbol} savings={savings} />
+              ))}
             </div>
           )}
         </section>
