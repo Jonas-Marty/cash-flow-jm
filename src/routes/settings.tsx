@@ -11,7 +11,10 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAccounts, fetchCategories, fetchSettings, type AccountType } from "@/lib/finance";
+import {
+  fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings,
+  type AccountType, type GroupKind,
+} from "@/lib/finance";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -32,6 +35,7 @@ function SettingsPage() {
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
+  const groupsQ = useQuery({ queryKey: ["category_groups"], queryFn: fetchCategoryGroups });
 
   // Currency
   const setCurrency = async (code: string) => {
