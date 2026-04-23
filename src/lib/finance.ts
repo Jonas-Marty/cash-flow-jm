@@ -77,6 +77,7 @@ export interface Settings {
   id: string;
   currency_code: string;
   currency_symbol: string;
+  language: string;
 }
 
 export const fmtMoney = (n: number, symbol = "CHF") => {

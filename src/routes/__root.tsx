@@ -1,6 +1,10 @@
+import * as React from "react";
 import { Link, Outlet, createRootRouteWithContext, HeadContent, Scripts } from "@tanstack/react-router";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
+import { I18nProvider, type Lang } from "@/i18n";
+import { fetchSettings } from "@/lib/finance";
+import { supabase } from "@/integrations/supabase/client";
 
 import appCss from "../styles.css?url";
 
@@ -32,7 +36,7 @@ function NotFoundComponent() {
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="de">
       <head>
         <HeadContent />
       </head>
@@ -48,9 +52,34 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
-      <Outlet />
-      <Toaster />
+      <I18nGate>
+        <Outlet />
+        <Toaster />
+      </I18nGate>
     </QueryClientProvider>
+  );
+}
+
+function I18nGate({ children }: { children: React.ReactNode }) {
+  const qc = useQueryClient();
+  const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
+  const lang = ((settingsQ.data?.language as Lang | undefined) ?? "de") as Lang;
+  const setLang = React.useCallback(
+    async (l: Lang) => {
+      if (!settingsQ.data) return;
+      const { error } = await supabase
+        .from("settings")
+        .update({ language: l })
+        .eq("id", settingsQ.data.id);
+      if (error) return;
+      qc.invalidateQueries({ queryKey: ["settings"] });
+    },
+    [qc, settingsQ.data],
+  );
+  return (
+    <I18nProvider lang={lang} setLang={setLang}>
+      {children}
+    </I18nProvider>
   );
 }
 
