@@ -138,7 +138,11 @@ function Dashboard() {
                       <Icon className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium">{t.payee || (t.type === "transfer" ? "—" : "—")}</div>
+                      <div className="truncate text-sm font-medium">
+                        {t.payee || (t.type === "transfer"
+                          ? useT("tx.transfer_label")
+                          : t.type === "income" ? useT("add.income") : useT("add.expense"))}
+                      </div>
                       <div className="text-xs text-muted-foreground">{format(new Date(t.occurred_on), "MMM d", { locale })}</div>
                     </div>
                     <div className={cn("text-sm font-semibold tabular-nums", tone)}>
