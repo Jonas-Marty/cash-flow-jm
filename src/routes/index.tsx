@@ -185,3 +185,114 @@ function AccountsCard({
     </Card>
   );
 }
+
+type GroupedBlock = {
+  key: string;
+  name: string;
+  kind: "income" | "expense" | "savings";
+  rows: CategoryMonthRow[];
+};
+
+function groupRows(rows: CategoryMonthRow[]): GroupedBlock[] {
+  const map = new Map<string, GroupedBlock>();
+  for (const r of rows) {
+    const key = r.group_id ?? `__${r.kind}__ungrouped`;
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        name: r.group_name ?? (r.kind === "income" ? "Income" : r.kind === "savings" ? "Savings" : "Uncategorized"),
+        kind: r.kind,
+        rows: [],
+      });
+    }
+    map.get(key)!.rows.push(r);
+  }
+  return Array.from(map.values());
+}
+
+function GroupBlock({
+  group, symbol, savings,
+}: { group: GroupedBlock; symbol: string; savings: CategorySavingsBalance[] }) {
+  const totalAlloc = group.rows.reduce((s, r) => s + Number(r.allocated), 0);
+  const totalActual = group.rows.reduce((s, r) => s + Number(r.spent_or_received), 0);
+  const savingsMap = new Map(savings.map((s) => [s.category_id, s]));
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            {group.name}
+            <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-muted-foreground">
+              {group.kind}
+            </span>
+          </CardTitle>
+          <div className="text-xs tabular-nums text-muted-foreground">
+            {fmtMoney(totalActual, symbol)} / {fmtMoney(totalAlloc, symbol)}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {group.rows.map((r) => {
+          if (group.kind === "savings") {
+            const sav = savingsMap.get(r.category_id);
+            const balance = Number(sav?.balance ?? 0);
+            return (
+              <div key={r.category_id} className="rounded-md border p-3">
+                <div className="flex items-baseline justify-between gap-3">
+                  <div className="font-medium">{r.name}</div>
+                  <div className={cn("text-lg font-semibold tabular-nums", balance < 0 ? "text-destructive" : "text-foreground")}>
+                    {fmtMoney(balance, symbol)}
+                  </div>
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground tabular-nums">
+                  This month: +{fmtMoney(Number(r.allocated), symbol)} alloc · −{fmtMoney(Number(r.spent_or_received), symbol)} spent
+                </div>
+              </div>
+            );
+          }
+          if (group.kind === "income") {
+            const allocated = Number(r.allocated);
+            const received = Number(r.spent_or_received);
+            const variance = received - allocated;
+            const tone = variance >= 0 ? "text-success" : "text-destructive";
+            return (
+              <div key={r.category_id} className="flex items-baseline justify-between gap-3 border-b pb-2 last:border-0 last:pb-0">
+                <div className="font-medium">{r.name}</div>
+                <div className="text-sm tabular-nums">
+                  <span className={cn("font-semibold", tone)}>{fmtMoney(received, symbol)}</span>
+                  <span className="text-muted-foreground"> / {fmtMoney(allocated, symbol)}</span>
+                  <span className={cn("ml-2 text-xs", tone)}>({variance >= 0 ? "+" : ""}{fmtMoney(variance, symbol)})</span>
+                </div>
+              </div>
+            );
+          }
+          // expense
+          const allocated = Number(r.allocated);
+          const spent = Number(r.spent_or_received);
+          const pct = allocated > 0 ? Math.min(100, (spent / allocated) * 100) : (spent > 0 ? 100 : 0);
+          const over = allocated > 0 && spent > allocated;
+          const remaining = allocated - spent;
+          const barTone = over ? "bg-destructive" : pct >= 80 ? "bg-warning" : "bg-success";
+          return (
+            <div key={r.category_id}>
+              <div className="flex items-baseline justify-between gap-3">
+                <div className="font-medium">{r.name}</div>
+                <div className="text-sm tabular-nums text-muted-foreground">
+                  <span className={cn(over && "text-destructive font-semibold")}>{fmtMoney(spent, symbol)}</span>
+                  <span> / {fmtMoney(allocated, symbol)}</span>
+                </div>
+              </div>
+              <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div className={cn("h-full transition-all", barTone)} style={{ width: `${pct}%` }} />
+              </div>
+              <div className={cn("mt-1 text-xs tabular-nums", over ? "text-destructive" : "text-muted-foreground")}>
+                {over ? `Over by ${fmtMoney(-remaining, symbol)}` : `${fmtMoney(remaining, symbol)} remaining`}
+              </div>
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
+  );
+}
