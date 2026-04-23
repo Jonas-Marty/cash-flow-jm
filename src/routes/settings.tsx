@@ -80,21 +80,40 @@ function SettingsPage() {
   // Category form
   const [cName, setCName] = React.useState("");
   const [cBudget, setCBudget] = React.useState("0");
+  const [cGroupId, setCGroupId] = React.useState<string>("");
   const addCategory = async () => {
     if (!cName.trim()) { toast.error("Name required"); return; }
     const sortOrder = (categoriesQ.data ?? []).length;
+    const group = (groupsQ.data ?? []).find((g) => g.id === cGroupId);
+    const isSavings = group?.kind === "savings";
     const { error } = await supabase.from("categories").insert({
-      name: cName.trim(), allocated_budget: Number(cBudget) || 0, sort_order: sortOrder,
+      name: cName.trim(),
+      allocated_budget: Number(cBudget) || 0,
+      sort_order: sortOrder,
+      group_id: cGroupId || null,
+      is_savings: isSavings,
     });
     if (error) { toast.error(error.message); return; }
     toast.success("Envelope added");
-    setCName(""); setCBudget("0");
+    setCName(""); setCBudget("0"); setCGroupId("");
+    qc.invalidateQueries();
+  };
+  const updateCategoryGroup = async (id: string, groupId: string) => {
+    const group = (groupsQ.data ?? []).find((g) => g.id === groupId);
+    const { error } = await supabase.from("categories").update({
+      group_id: groupId || null,
+      is_savings: group?.kind === "savings",
+    }).eq("id", id);
+    if (error) return toast.error(error.message);
     qc.invalidateQueries();
   };
   const updateCategoryBudget = async (id: string, value: string) => {
     const v = Number(value); if (Number.isNaN(v)) return;
     const { error } = await supabase.from("categories").update({ allocated_budget: v }).eq("id", id);
     if (error) return toast.error(error.message);
+    // also update current month's budget row so the change reflects immediately
+    const m = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-01`;
+    await supabase.from("category_budgets").upsert({ category_id: id, month: m, amount: v }, { onConflict: "category_id,month" });
     qc.invalidateQueries();
   };
   const toggleArchiveCategory = async (id: string, archived: boolean) => {
@@ -105,6 +124,28 @@ function SettingsPage() {
   const delCategory = async (id: string) => {
     if (!confirm("Delete this envelope?")) return;
     const { error } = await supabase.from("categories").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("Deleted");
+    qc.invalidateQueries();
+  };
+
+  // Group form
+  const [gName, setGName] = React.useState("");
+  const [gKind, setGKind] = React.useState<GroupKind>("expense");
+  const addGroup = async () => {
+    if (!gName.trim()) { toast.error("Name required"); return; }
+    const sortOrder = (groupsQ.data ?? []).length;
+    const { error } = await supabase.from("category_groups").insert({
+      name: gName.trim(), kind: gKind, sort_order: sortOrder,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Group added");
+    setGName("");
+    qc.invalidateQueries();
+  };
+  const delGroup = async (id: string) => {
+    if (!confirm("Delete this group? Envelopes will become ungrouped.")) return;
+    const { error } = await supabase.from("category_groups").delete().eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Deleted");
     qc.invalidateQueries();
