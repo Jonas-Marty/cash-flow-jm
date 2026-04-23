@@ -110,7 +110,7 @@ function Dashboard() {
           ) : (
             <div className="space-y-4">
               {grouped.map((g) => (
-                <GroupBlock key={g.key} group={g} symbol={symbol} savings={savings} />
+                <GroupBlock key={g.key} group={g} symbol={symbol} savings={savings} tr={t} />
               ))}
             </div>
           )}
@@ -217,11 +217,14 @@ function groupRows(rows: CategoryMonthRow[]): GroupedBlock[] {
 }
 
 function GroupBlock({
-  group, symbol, savings,
-}: { group: GroupedBlock; symbol: string; savings: CategorySavingsBalance[] }) {
+  group, symbol, savings, tr,
+}: { group: GroupedBlock; symbol: string; savings: CategorySavingsBalance[]; tr: (k: string, v?: Record<string, string | number>) => string }) {
   const totalAlloc = group.rows.reduce((s, r) => s + Number(r.allocated), 0);
   const totalActual = group.rows.reduce((s, r) => s + Number(r.spent_or_received), 0);
   const savingsMap = new Map(savings.map((s) => [s.category_id, s]));
+  const groupKindLabel = group.kind === "income" ? tr("settings.kind_income")
+    : group.kind === "savings" ? tr("settings.kind_savings")
+    : tr("settings.kind_expense");
 
   return (
     <Card>
@@ -230,7 +233,7 @@ function GroupBlock({
           <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             {group.name}
             <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-muted-foreground">
-              {group.kind}
+              {groupKindLabel}
             </span>
           </CardTitle>
           <div className="text-xs tabular-nums text-muted-foreground">
@@ -252,7 +255,7 @@ function GroupBlock({
                   </div>
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground tabular-nums">
-                  This month: +{fmtMoney(Number(r.allocated), symbol)} alloc · −{fmtMoney(Number(r.spent_or_received), symbol)} spent
+                  {tr("dashboard.this_month_savings", { a: fmtMoney(Number(r.allocated), symbol), b: fmtMoney(Number(r.spent_or_received), symbol) })}
                 </div>
               </div>
             );
@@ -293,7 +296,7 @@ function GroupBlock({
                 <div className={cn("h-full transition-all", barTone)} style={{ width: `${pct}%` }} />
               </div>
               <div className={cn("mt-1 text-xs tabular-nums", over ? "text-destructive" : "text-muted-foreground")}>
-                {over ? `Over by ${fmtMoney(-remaining, symbol)}` : `${fmtMoney(remaining, symbol)} remaining`}
+                {over ? tr("dashboard.over_by", { x: fmtMoney(-remaining, symbol) }) : tr("dashboard.remaining", { x: fmtMoney(remaining, symbol) })}
               </div>
             </div>
           );
