@@ -128,7 +128,8 @@ function Dashboard() {
             <Card><CardContent className="py-6 text-center text-sm text-muted-foreground">{t("dashboard.no_transactions")}</CardContent></Card>
           ) : (
             <Card><CardContent className="divide-y p-0">
-              {(recentQ.data ?? []).map((t) => {
+              {(recentQ.data ?? []).map((tx) => {
+                const t = tx;
                 const Icon = t.type === "expense" ? ArrowDown : t.type === "income" ? ArrowUp : ArrowLeftRight;
                 const tone = t.type === "expense" ? "text-destructive" : t.type === "income" ? "text-success" : "text-muted-foreground";
                 const sign = t.type === "expense" ? "-" : t.type === "income" ? "+" : "";
