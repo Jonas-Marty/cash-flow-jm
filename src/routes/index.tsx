@@ -129,25 +129,24 @@ function Dashboard() {
           ) : (
             <Card><CardContent className="divide-y p-0">
               {(recentQ.data ?? []).map((tx) => {
-                const t = tx;
-                const Icon = t.type === "expense" ? ArrowDown : t.type === "income" ? ArrowUp : ArrowLeftRight;
-                const tone = t.type === "expense" ? "text-destructive" : t.type === "income" ? "text-success" : "text-muted-foreground";
-                const sign = t.type === "expense" ? "-" : t.type === "income" ? "+" : "";
+                const Icon = tx.type === "expense" ? ArrowDown : tx.type === "income" ? ArrowUp : ArrowLeftRight;
+                const tone = tx.type === "expense" ? "text-destructive" : tx.type === "income" ? "text-success" : "text-muted-foreground";
+                const sign = tx.type === "expense" ? "-" : tx.type === "income" ? "+" : "";
                 return (
-                  <div key={t.id} className="flex items-center gap-3 px-4 py-3">
+                  <div key={tx.id} className="flex items-center gap-3 px-4 py-3">
                     <div className={cn("flex h-9 w-9 items-center justify-center rounded-full bg-muted", tone)}>
                       <Icon className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium">
-                        {t.payee || (t.type === "transfer"
-                          ? useT("tx.transfer_label")
-                          : t.type === "income" ? useT("add.income") : useT("add.expense"))}
+                        {tx.payee || (tx.type === "transfer"
+                          ? t("tx.transfer_label")
+                          : tx.type === "income" ? t("add.income") : t("add.expense"))}
                       </div>
-                      <div className="text-xs text-muted-foreground">{format(new Date(t.occurred_on), "MMM d", { locale })}</div>
+                      <div className="text-xs text-muted-foreground">{format(new Date(tx.occurred_on), "MMM d", { locale })}</div>
                     </div>
                     <div className={cn("text-sm font-semibold tabular-nums", tone)}>
-                      {sign}{fmtMoney(Number(t.amount), symbol).replace("-", "")}
+                      {sign}{fmtMoney(Number(tx.amount), symbol).replace("-", "")}
                     </div>
                   </div>
                 );
