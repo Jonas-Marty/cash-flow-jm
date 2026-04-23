@@ -2,6 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 export type AccountType = "asset" | "liability";
 export type TxType = "expense" | "income" | "transfer";
+export type GroupKind = "income" | "expense" | "savings";
 
 export interface Account {
   id: string;
@@ -24,12 +25,41 @@ export interface Category {
   allocated_budget: number;
   sort_order: number;
   archived: boolean;
+  group_id: string | null;
+  is_savings: boolean;
 }
-export interface CategoryMonthSpending {
+export interface CategoryGroup {
+  id: string;
+  name: string;
+  kind: GroupKind;
+  sort_order: number;
+  archived: boolean;
+}
+export interface CategoryMonthRow {
   category_id: string;
   name: string;
-  allocated_budget: number;
-  spent: number;
+  group_id: string | null;
+  group_name: string | null;
+  kind: GroupKind;
+  is_savings: boolean;
+  sort_order: number;
+  group_sort_order: number;
+  allocated: number;
+  spent_or_received: number;
+  variance: number;
+}
+export interface CategorySavingsBalance {
+  category_id: string;
+  name: string;
+  group_id: string | null;
+  allocated_total: number;
+  spent_total: number;
+  balance: number;
+}
+export interface CategoryBudget {
+  category_id: string;
+  month: string; // YYYY-MM-01
+  amount: number;
 }
 export interface Transaction {
   id: string;
@@ -113,12 +143,54 @@ export async function fetchCategories(): Promise<Category[]> {
   return (data || []) as Category[];
 }
 
-export async function fetchCategoryMonthSpending(): Promise<CategoryMonthSpending[]> {
+export async function fetchCategoryGroups(): Promise<CategoryGroup[]> {
   const { data, error } = await supabase
-    .from("category_month_spending")
+    .from("category_groups")
+    .select("*")
+    .order("sort_order")
+    .order("name");
+  if (error) throw error;
+  return (data || []) as CategoryGroup[];
+}
+
+export const monthKey = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+
+export async function ensureMonthBudgets(month: string): Promise<void> {
+  const { error } = await supabase.rpc("ensure_month_budgets", { p_month: month });
+  if (error) throw error;
+}
+
+export async function fetchCategoryMonthRows(month: string): Promise<CategoryMonthRow[]> {
+  await ensureMonthBudgets(month);
+  const { data, error } = await supabase.rpc("category_month_spending", { p_month: month });
+  if (error) throw error;
+  return (data || []) as CategoryMonthRow[];
+}
+
+export async function fetchSavingsBalances(): Promise<CategorySavingsBalance[]> {
+  const { data, error } = await supabase
+    .from("category_savings_balance")
     .select("*");
   if (error) throw error;
-  return (data || []) as CategoryMonthSpending[];
+  return (data || []) as CategorySavingsBalance[];
+}
+
+export async function fetchCategoryBudgets(categoryId: string): Promise<CategoryBudget[]> {
+  const { data, error } = await supabase
+    .from("category_budgets")
+    .select("*")
+    .eq("category_id", categoryId)
+    .order("month", { ascending: false });
+  if (error) throw error;
+  return (data || []) as CategoryBudget[];
+}
+
+export async function upsertCategoryBudget(categoryId: string, month: string, amount: number): Promise<void> {
+  const { error } = await supabase
+    .from("category_budgets")
+    .upsert({ category_id: categoryId, month, amount }, { onConflict: "category_id,month" });
+  if (error) throw error;
 }
 
 export async function fetchTransactions(limit?: number): Promise<Transaction[]> {
