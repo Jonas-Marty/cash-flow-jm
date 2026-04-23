@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useI18n } from "@/i18n";
 import {
   fetchCategoryMonthRows,
   fetchSavingsBalances,
@@ -39,6 +40,7 @@ async function fetchMonthCategoryTx(monthStart: Date): Promise<Transaction[]> {
 }
 
 function EnvelopesPage() {
+  const { t: tr, locale } = useI18n();
   const [month, setMonth] = React.useState(() => startOfMonth(new Date()));
   const m = monthKey(month);
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });

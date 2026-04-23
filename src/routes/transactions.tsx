@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useI18n } from "@/i18n";
 import {
   fetchAccounts, fetchCategories, fetchSettings, fetchTransactions, fetchTransactionTags,
   fmtMoney, type TxType,
@@ -24,6 +25,7 @@ export const Route = createFileRoute("/transactions")({
 });
 
 function TransactionsPage() {
+  const { t: tr, locale } = useI18n();
   const qc = useQueryClient();
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
@@ -82,55 +84,55 @@ function TransactionsPage() {
   }, [filtered]);
 
   const del = async (id: string) => {
-    if (!confirm("Delete this transaction?")) return;
+    if (!confirm(tr("confirm.delete_transaction"))) return;
     const { error } = await supabase.from("transactions").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
-    toast.success("Deleted");
+    toast.success(tr("toast.deleted"));
     qc.invalidateQueries();
   };
 
   return (
     <AppShell>
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Transactions</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{tr("tx.title")}</h1>
 
         <Card><CardContent className="space-y-3 py-4">
-          <Input placeholder="Search payee or note…" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input placeholder={tr("tx.search_placeholder")} value={search} onChange={(e) => setSearch(e.target.value)} />
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
             <Select value={filterType} onValueChange={(v) => setFilterType(v as "all" | TxType)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All types</SelectItem>
-                <SelectItem value="expense">Expense</SelectItem>
-                <SelectItem value="income">Income</SelectItem>
-                <SelectItem value="transfer">Transfer</SelectItem>
+                <SelectItem value="all">{tr("tx.all_types")}</SelectItem>
+                <SelectItem value="expense">{tr("add.expense")}</SelectItem>
+                <SelectItem value="income">{tr("add.income")}</SelectItem>
+                <SelectItem value="transfer">{tr("add.transfer")}</SelectItem>
               </SelectContent>
             </Select>
             <Select value={filterAccount} onValueChange={setFilterAccount}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All accounts</SelectItem>
+                <SelectItem value="all">{tr("tx.all_accounts")}</SelectItem>
                 {(accountsQ.data ?? []).map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={filterCategory} onValueChange={setFilterCategory}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All categories</SelectItem>
+                <SelectItem value="all">{tr("tx.all_categories")}</SelectItem>
                 {(categoriesQ.data ?? []).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
               </SelectContent>
             </Select>
             <Select value={filterTag} onValueChange={setFilterTag}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All tags</SelectItem>
+                <SelectItem value="all">{tr("tx.all_tags")}</SelectItem>
                 {allTags.map((t) => <SelectItem key={t} value={t}>#{t}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <div><Label className="text-xs text-muted-foreground">From</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
-            <div><Label className="text-xs text-muted-foreground">To</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
+            <div><Label className="text-xs text-muted-foreground">{tr("common.from")}</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
+            <div><Label className="text-xs text-muted-foreground">{tr("common.to")}</Label><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
           </div>
         </CardContent></Card>
 
@@ -138,11 +140,11 @@ function TransactionsPage() {
           <Skeleton className="h-64 w-full" />
         ) : groups.length === 0 ? (
           <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
-            No transactions match these filters. <Link to="/add" className="text-primary underline-offset-2 hover:underline">Add one</Link>.
+            {tr("tx.no_match")} <Link to="/add" className="text-primary underline-offset-2 hover:underline">{tr("tx.add_one")}</Link>.
           </CardContent></Card>
         ) : groups.map(([date, items]) => (
           <div key={date}>
-            <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">{format(new Date(date), "EEE, MMM d, yyyy")}</div>
+            <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">{format(new Date(date), "EEE, MMM d, yyyy", { locale })}</div>
             <Card><CardContent className="divide-y p-0">
               {items.map((t) => {
                 const Icon = t.type === "expense" ? ArrowDown : t.type === "income" ? ArrowUp : ArrowLeftRight;
@@ -161,8 +163,8 @@ function TransactionsPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-2">
                         <div className="truncate text-sm font-medium">
-                          {t.payee || (t.type === "transfer" ? "Transfer" : t.type)}
-                          {isReimb && <span className="ml-2 rounded bg-success/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-success">Reimbursement</span>}
+                          {t.payee || (t.type === "transfer" ? tr("tx.transfer_label") : t.type === "income" ? tr("add.income") : tr("add.expense"))}
+                          {isReimb && <span className="ml-2 rounded bg-success/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-success">{tr("tx.reimbursement")}</span>}
                         </div>
                         <div className={cn("text-sm font-semibold tabular-nums whitespace-nowrap", tone)}>
                           {sign}{fmtMoney(Number(t.amount), symbol).replace("-", "")}
@@ -180,7 +182,7 @@ function TransactionsPage() {
                         </div>
                       )}
                     </div>
-                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => del(t.id)} aria-label="Delete">
+                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => del(t.id)} aria-label={tr("common.delete")}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
