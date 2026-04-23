@@ -186,9 +186,18 @@ function AddTransaction() {
                 <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none">— None —</SelectItem>
-                  {categories.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
+                  {categories.map((c) => {
+                    const kind = c.group_id ? groupKindById.get(c.group_id) : undefined;
+                    const badge = c.is_savings || kind === "savings"
+                      ? "Rückstellung"
+                      : kind === "income" ? "Income" : null;
+                    return (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                        {badge && <span className="ml-2 text-xs text-muted-foreground">· {badge}</span>}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
