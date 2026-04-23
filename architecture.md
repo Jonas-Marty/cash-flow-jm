@@ -134,6 +134,14 @@ No schema change required for the switch.
 
 ## 7. Change log
 
+### 2026-04-23 — Internationalization (i18n)
+- Added `settings.language` column (default `'de'`).
+- Added `src/i18n/index.tsx` with `I18nProvider`, `useI18n` hook, and German + English dictionaries. New languages plug in by extending the `Lang` union and `dicts` map.
+- Root layout now reads the language from settings and provides translation context + a date-fns `Locale` (used by all `format(...)` calls and the calendar).
+- All user-facing strings across AppShell, Dashboard, Add, Transactions, Envelopes, and Settings routes use `t(key)` / `t(key, vars)`.
+- Settings page gained a Language picker (Deutsch / English).
+- App default is German.
+
 ### 2026-04-23 — Groups, monthly budget history, savings envelopes, income variance
 - Added `category_groups` table with `kind` enum (`income | expense | savings`).
 - Added `categories.group_id` and `categories.is_savings`.
