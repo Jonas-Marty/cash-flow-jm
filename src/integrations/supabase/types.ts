@@ -172,6 +172,7 @@ export type Database = {
           currency_code: string
           currency_symbol: string
           id: string
+          language: string
           updated_at: string
           user_id: string | null
         }
@@ -180,6 +181,7 @@ export type Database = {
           currency_code?: string
           currency_symbol?: string
           id?: string
+          language?: string
           updated_at?: string
           user_id?: string | null
         }
@@ -188,6 +190,7 @@ export type Database = {
           currency_code?: string
           currency_symbol?: string
           id?: string
+          language?: string
           updated_at?: string
           user_id?: string | null
         }
