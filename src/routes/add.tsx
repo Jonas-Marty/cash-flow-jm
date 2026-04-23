@@ -17,12 +17,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings, fetchTransactions, extractTags, type TxType } from "@/lib/finance";
+import { useI18n } from "@/i18n";
 
 export const Route = createFileRoute("/add")({
   component: AddTransaction,
 });
 
 function AddTransaction() {
+  const { t: tr, locale } = useI18n();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
@@ -74,10 +76,10 @@ function AddTransaction() {
 
   const save = async (andNew: boolean) => {
     const amt = Number(amount.replace(",", "."));
-    if (!amt || amt <= 0) { toast.error("Enter an amount"); return; }
-    if (!sourceId) { toast.error("Pick an account"); return; }
-    if (type === "transfer" && !destId) { toast.error("Pick a destination account"); return; }
-    if (type === "transfer" && destId === sourceId) { toast.error("Source and destination must differ"); return; }
+    if (!amt || amt <= 0) { toast.error(tr("toast.amount_required")); return; }
+    if (!sourceId) { toast.error(tr("toast.account_required")); return; }
+    if (type === "transfer" && !destId) { toast.error(tr("toast.dest_required")); return; }
+    if (type === "transfer" && destId === sourceId) { toast.error(tr("toast.dest_must_differ")); return; }
 
     setSaving(true);
     const payload = {
@@ -93,7 +95,7 @@ function AddTransaction() {
     const { error } = await supabase.from("transactions").insert(payload);
     setSaving(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("Saved");
+    toast.success(tr("toast.saved"));
     qc.invalidateQueries();
     if (andNew) reset(); else navigate({ to: "/" });
   };
@@ -114,13 +116,13 @@ function AddTransaction() {
   return (
     <AppShell>
       <div className="space-y-5">
-        <h1 className="text-2xl font-semibold tracking-tight">Add transaction</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{tr("add.title")}</h1>
 
         {/* Type segmented control */}
         <div className="flex gap-1 rounded-lg bg-muted p-1">
-          {typeBtn("expense", "Expense", ArrowDown)}
-          {typeBtn("income", "Income", ArrowUp)}
-          {typeBtn("transfer", "Transfer", ArrowLeftRight)}
+          {typeBtn("expense", tr("add.expense"), ArrowDown)}
+          {typeBtn("income", tr("add.income"), ArrowUp)}
+          {typeBtn("transfer", tr("add.transfer"), ArrowLeftRight)}
         </div>
 
         {/* Big amount */}
@@ -147,9 +149,9 @@ function AddTransaction() {
         {/* Account(s) */}
         <div className="space-y-3">
           <div>
-            <Label className="mb-1.5 block">{type === "transfer" ? "From account" : "Account"}</Label>
+            <Label className="mb-1.5 block">{type === "transfer" ? tr("add.from_account") : tr("add.account")}</Label>
             <Select value={sourceId} onValueChange={setSourceId}>
-              <SelectTrigger><SelectValue placeholder={accounts.length ? "Select account" : "No accounts — add one in Settings"} /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={accounts.length ? tr("add.account") : tr("add.no_accounts")} /></SelectTrigger>
               <SelectContent>
                 {accounts.map((a) => (
                   <SelectItem key={a.id} value={a.id}>{a.name} <span className="text-muted-foreground">· {a.type}</span></SelectItem>
@@ -158,16 +160,16 @@ function AddTransaction() {
             </Select>
             {accounts.length === 0 && (
               <p className="mt-1 text-xs text-muted-foreground">
-                <Link to="/settings" className="text-primary underline-offset-2 hover:underline">Create your first account →</Link>
+                <Link to="/settings" className="text-primary underline-offset-2 hover:underline">{tr("add.create_first_account")}</Link>
               </p>
             )}
           </div>
 
           {type === "transfer" && (
             <div>
-              <Label className="mb-1.5 block">To account</Label>
+              <Label className="mb-1.5 block">{tr("add.to_account")}</Label>
               <Select value={destId} onValueChange={setDestId}>
-                <SelectTrigger><SelectValue placeholder="Select destination" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={tr("add.to_account")} /></SelectTrigger>
                 <SelectContent>
                   {accounts.filter((a) => a.id !== sourceId).map((a) => (
                     <SelectItem key={a.id} value={a.id}>{a.name} <span className="text-muted-foreground">· {a.type}</span></SelectItem>
@@ -180,17 +182,17 @@ function AddTransaction() {
           {type !== "transfer" && (
             <div>
               <Label className="mb-1.5 block">
-                Category {type === "income" && <span className="text-xs font-normal text-muted-foreground">(optional — assign for reimbursement)</span>}
+                {tr("add.category")} {type === "income" && <span className="text-xs font-normal text-muted-foreground">{tr("add.category_optional_reimb")}</span>}
               </Label>
               <Select value={categoryId || "__none"} onValueChange={(v) => setCategoryId(v === "__none" ? "" : v)}>
-                <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                <SelectTrigger><SelectValue placeholder={tr("add.select_category")} /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none">— None —</SelectItem>
+                  <SelectItem value="__none">{tr("common.none")}</SelectItem>
                   {categories.map((c) => {
                     const kind = c.group_id ? groupKindById.get(c.group_id) : undefined;
                     const badge = c.is_savings || kind === "savings"
-                      ? "Rückstellung"
-                      : kind === "income" ? "Income" : null;
+                      ? tr("add.savings_badge")
+                      : kind === "income" ? tr("add.income_badge") : null;
                     return (
                       <SelectItem key={c.id} value={c.id}>
                         {c.name}
@@ -205,13 +207,13 @@ function AddTransaction() {
         </div>
 
         <div>
-          <Label htmlFor="payee" className="mb-1.5 block">Payee</Label>
+          <Label htmlFor="payee" className="mb-1.5 block">{tr("add.payee")}</Label>
           <Input
             id="payee"
             list="payee-suggestions"
             value={payee}
             onChange={(e) => setPayee(e.target.value)}
-            placeholder={type === "transfer" ? "(optional)" : "Where / who"}
+            placeholder={type === "transfer" ? tr("common.optional") : tr("add.payee_placeholder")}
           />
           <datalist id="payee-suggestions">
             {payeeSuggestions.map((p) => <option key={p} value={p} />)}
@@ -219,8 +221,8 @@ function AddTransaction() {
         </div>
 
         <div>
-          <Label htmlFor="note" className="mb-1.5 block">Note · use #tags to filter later</Label>
-          <Textarea id="note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. dinner with friends #twint #paris" />
+          <Label htmlFor="note" className="mb-1.5 block">{tr("add.note")}</Label>
+          <Textarea id="note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={tr("add.note_placeholder")} />
           {tags.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {tags.map((t) => (
@@ -231,22 +233,22 @@ function AddTransaction() {
         </div>
 
         <div>
-          <Label className="mb-1.5 block">Date</Label>
+          <Label className="mb-1.5 block">{tr("add.date")}</Label>
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className="w-full justify-start text-left font-normal">
-                <CalendarIcon className="h-4 w-4" /> {format(date, "PPP")}
+                <CalendarIcon className="h-4 w-4" /> {format(date, "PPP", { locale })}
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-auto p-0" align="start">
-              <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus className={cn("p-3 pointer-events-auto")} />
+              <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus locale={locale} className={cn("p-3 pointer-events-auto")} />
             </PopoverContent>
           </Popover>
         </div>
 
         <div className="flex gap-2 pt-2">
-          <Button variant="outline" className="flex-1" disabled={saving} onClick={() => save(true)}>Save & New</Button>
-          <Button className="flex-1" disabled={saving} onClick={() => save(false)}>{saving ? "Saving…" : "Save"}</Button>
+          <Button variant="outline" className="flex-1" disabled={saving} onClick={() => save(true)}>{tr("add.save_new")}</Button>
+          <Button className="flex-1" disabled={saving} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("common.save")}</Button>
         </div>
       </div>
     </AppShell>

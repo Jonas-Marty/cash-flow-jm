@@ -15,6 +15,7 @@ import {
   fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings,
   type AccountType, type GroupKind,
 } from "@/lib/finance";
+import { useI18n, LANGUAGES, type Lang } from "@/i18n";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -31,6 +32,7 @@ const CURRENCIES: { code: string; symbol: string }[] = [
 ];
 
 function SettingsPage() {
+  const { t: tr, lang, setLang } = useI18n();
   const qc = useQueryClient();
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
@@ -46,7 +48,7 @@ function SettingsPage() {
       .update({ currency_code: code, currency_symbol: sym })
       .eq("id", settingsQ.data.id);
     if (error) { toast.error(error.message); return; }
-    toast.success("Currency updated");
+    toast.success(tr("toast.currency_updated"));
     qc.invalidateQueries({ queryKey: ["settings"] });
   };
 
@@ -55,12 +57,12 @@ function SettingsPage() {
   const [aType, setAType] = React.useState<AccountType>("asset");
   const [aOpening, setAOpening] = React.useState("0");
   const addAccount = async () => {
-    if (!aName.trim()) { toast.error("Name required"); return; }
+    if (!aName.trim()) { toast.error(tr("toast.name_required")); return; }
     const { error } = await supabase.from("accounts").insert({
       name: aName.trim(), type: aType, opening_balance: Number(aOpening) || 0,
     });
     if (error) { toast.error(error.message); return; }
-    toast.success("Account added");
+    toast.success(tr("toast.account_added"));
     setAName(""); setAOpening("0");
     qc.invalidateQueries();
   };
@@ -70,10 +72,10 @@ function SettingsPage() {
     qc.invalidateQueries();
   };
   const delAccount = async (id: string) => {
-    if (!confirm("Delete this account? Its transactions must be removed first.")) return;
+    if (!confirm(tr("confirm.delete_account"))) return;
     const { error } = await supabase.from("accounts").delete().eq("id", id);
     if (error) return toast.error(error.message);
-    toast.success("Deleted");
+    toast.success(tr("toast.deleted"));
     qc.invalidateQueries();
   };
 
@@ -82,7 +84,7 @@ function SettingsPage() {
   const [cBudget, setCBudget] = React.useState("0");
   const [cGroupId, setCGroupId] = React.useState<string>("");
   const addCategory = async () => {
-    if (!cName.trim()) { toast.error("Name required"); return; }
+    if (!cName.trim()) { toast.error(tr("toast.name_required")); return; }
     const sortOrder = (categoriesQ.data ?? []).length;
     const group = (groupsQ.data ?? []).find((g) => g.id === cGroupId);
     const isSavings = group?.kind === "savings";
@@ -94,7 +96,7 @@ function SettingsPage() {
       is_savings: isSavings,
     });
     if (error) { toast.error(error.message); return; }
-    toast.success("Envelope added");
+    toast.success(tr("toast.envelope_added"));
     setCName(""); setCBudget("0"); setCGroupId("");
     qc.invalidateQueries();
   };
@@ -122,10 +124,10 @@ function SettingsPage() {
     qc.invalidateQueries();
   };
   const delCategory = async (id: string) => {
-    if (!confirm("Delete this envelope?")) return;
+    if (!confirm(tr("confirm.delete_envelope"))) return;
     const { error } = await supabase.from("categories").delete().eq("id", id);
     if (error) return toast.error(error.message);
-    toast.success("Deleted");
+    toast.success(tr("toast.deleted"));
     qc.invalidateQueries();
   };
 
@@ -133,32 +135,50 @@ function SettingsPage() {
   const [gName, setGName] = React.useState("");
   const [gKind, setGKind] = React.useState<GroupKind>("expense");
   const addGroup = async () => {
-    if (!gName.trim()) { toast.error("Name required"); return; }
+    if (!gName.trim()) { toast.error(tr("toast.name_required")); return; }
     const sortOrder = (groupsQ.data ?? []).length;
     const { error } = await supabase.from("category_groups").insert({
       name: gName.trim(), kind: gKind, sort_order: sortOrder,
     });
     if (error) { toast.error(error.message); return; }
-    toast.success("Group added");
+    toast.success(tr("toast.group_added"));
     setGName("");
     qc.invalidateQueries();
   };
   const delGroup = async (id: string) => {
-    if (!confirm("Delete this group? Envelopes will become ungrouped.")) return;
+    if (!confirm(tr("confirm.delete_group"))) return;
     const { error } = await supabase.from("category_groups").delete().eq("id", id);
     if (error) return toast.error(error.message);
-    toast.success("Deleted");
+    toast.success(tr("toast.deleted"));
     qc.invalidateQueries();
+  };
+
+  const onLangChange = async (l: string) => {
+    await setLang(l as Lang);
+    toast.success(tr("toast.language_updated"));
   };
 
   return (
     <AppShell>
       <div className="space-y-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{tr("settings.title")}</h1>
+
+        {/* Language */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">{tr("settings.language")}</CardTitle></CardHeader>
+          <CardContent>
+            <Select value={lang} onValueChange={onLangChange}>
+              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {LANGUAGES.map((l) => <SelectItem key={l.code} value={l.code}>{l.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
 
         {/* Currency */}
         <Card>
-          <CardHeader><CardTitle className="text-base">Currency</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{tr("settings.currency")}</CardTitle></CardHeader>
           <CardContent>
             <Select value={settingsQ.data?.currency_code ?? "CHF"} onValueChange={setCurrency}>
               <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
@@ -171,22 +191,22 @@ function SettingsPage() {
 
         {/* Accounts */}
         <Card>
-          <CardHeader><CardTitle className="text-base">Accounts</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{tr("settings.accounts")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-2 md:grid-cols-[1fr_140px_140px_auto]">
-              <div><Label className="mb-1 block text-xs text-muted-foreground">Name</Label><Input value={aName} onChange={(e) => setAName(e.target.value)} placeholder="Main Bank" /></div>
+              <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label><Input value={aName} onChange={(e) => setAName(e.target.value)} placeholder="Main Bank" /></div>
               <div>
-                <Label className="mb-1 block text-xs text-muted-foreground">Type</Label>
+                <Label className="mb-1 block text-xs text-muted-foreground">{tr("common.type")}</Label>
                 <Select value={aType} onValueChange={(v) => setAType(v as AccountType)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="asset">Asset</SelectItem>
-                    <SelectItem value="liability">Liability</SelectItem>
+                    <SelectItem value="asset">{tr("settings.account_asset")}</SelectItem>
+                    <SelectItem value="liability">{tr("settings.account_liability")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label className="mb-1 block text-xs text-muted-foreground">Opening balance</Label><Input inputMode="decimal" value={aOpening} onChange={(e) => setAOpening(e.target.value)} /></div>
-              <div className="flex items-end"><Button className="w-full" onClick={addAccount}><Plus className="h-4 w-4" /> Add</Button></div>
+              <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.opening_balance")}</Label><Input inputMode="decimal" value={aOpening} onChange={(e) => setAOpening(e.target.value)} /></div>
+              <div className="flex items-end"><Button className="w-full" onClick={addAccount}><Plus className="h-4 w-4" /> {tr("common.add")}</Button></div>
             </div>
 
             <ul className="divide-y">
@@ -194,79 +214,83 @@ function SettingsPage() {
                 <li key={a.id} className="flex items-center justify-between gap-2 py-2">
                   <div className="min-w-0">
                     <div className={a.archived ? "text-muted-foreground line-through" : "font-medium"}>{a.name}</div>
-                    <div className="text-xs text-muted-foreground">{a.type} · opening {Number(a.opening_balance).toFixed(2)}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {a.type === "asset" ? tr("settings.account_asset") : tr("settings.account_liability")} · {tr("settings.opening_balance")} {Number(a.opening_balance).toFixed(2)}
+                    </div>
                   </div>
                   <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => toggleArchiveAccount(a.id, a.archived)} aria-label="Archive">
+                    <Button variant="ghost" size="icon" onClick={() => toggleArchiveAccount(a.id, a.archived)} aria-label={a.archived ? tr("common.unarchive") : tr("common.archive")}>
                       {a.archived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
                     </Button>
-                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => delAccount(a.id)} aria-label="Delete">
+                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => delAccount(a.id)} aria-label={tr("common.delete")}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </li>
               ))}
-              {(accountsQ.data ?? []).length === 0 && <li className="py-2 text-sm text-muted-foreground">No accounts yet.</li>}
+              {(accountsQ.data ?? []).length === 0 && <li className="py-2 text-sm text-muted-foreground">{tr("settings.no_accounts")}</li>}
             </ul>
           </CardContent>
         </Card>
 
         {/* Categories */}
         <Card>
-          <CardHeader><CardTitle className="text-base">Groups</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{tr("settings.groups")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-2 md:grid-cols-[1fr_180px_auto]">
-              <div><Label className="mb-1 block text-xs text-muted-foreground">Name</Label><Input value={gName} onChange={(e) => setGName(e.target.value)} placeholder="Fixkosten" /></div>
+              <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label><Input value={gName} onChange={(e) => setGName(e.target.value)} placeholder="Fixkosten" /></div>
               <div>
-                <Label className="mb-1 block text-xs text-muted-foreground">Kind</Label>
+                <Label className="mb-1 block text-xs text-muted-foreground">{tr("common.kind")}</Label>
                 <Select value={gKind} onValueChange={(v) => setGKind(v as GroupKind)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="income">Income</SelectItem>
-                    <SelectItem value="expense">Expense</SelectItem>
-                    <SelectItem value="savings">Savings (Rückstellung)</SelectItem>
+                    <SelectItem value="income">{tr("settings.kind_income")}</SelectItem>
+                    <SelectItem value="expense">{tr("settings.kind_expense")}</SelectItem>
+                    <SelectItem value="savings">{tr("settings.kind_savings")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-end"><Button className="w-full" onClick={addGroup}><Plus className="h-4 w-4" /> Add</Button></div>
+              <div className="flex items-end"><Button className="w-full" onClick={addGroup}><Plus className="h-4 w-4" /> {tr("common.add")}</Button></div>
             </div>
             <ul className="divide-y">
               {(groupsQ.data ?? []).map((g) => (
                 <li key={g.id} className="flex items-center justify-between gap-2 py-2">
                   <div className="min-w-0">
                     <div className="font-medium">{g.name}</div>
-                    <div className="text-xs text-muted-foreground">{g.kind}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {g.kind === "income" ? tr("settings.kind_income") : g.kind === "savings" ? tr("settings.kind_savings") : tr("settings.kind_expense")}
+                    </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => delGroup(g.id)} aria-label="Delete">
+                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => delGroup(g.id)} aria-label={tr("common.delete")}>
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </li>
               ))}
-              {(groupsQ.data ?? []).length === 0 && <li className="py-2 text-sm text-muted-foreground">No groups yet. Create groups like “Fixkosten”, “Persönliche Ausgaben”, “Einnahmen”, “Rückstellungen”.</li>}
+              {(groupsQ.data ?? []).length === 0 && <li className="py-2 text-sm text-muted-foreground">{tr("settings.no_groups")}</li>}
             </ul>
           </CardContent>
         </Card>
 
         {/* Categories */}
         <Card>
-          <CardHeader><CardTitle className="text-base">Envelopes (Categories)</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">{tr("settings.envelopes")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-2 md:grid-cols-[1fr_180px_180px_auto]">
-              <div><Label className="mb-1 block text-xs text-muted-foreground">Name</Label><Input value={cName} onChange={(e) => setCName(e.target.value)} placeholder="Groceries" /></div>
+              <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label><Input value={cName} onChange={(e) => setCName(e.target.value)} placeholder="Groceries" /></div>
               <div>
-                <Label className="mb-1 block text-xs text-muted-foreground">Group</Label>
+                <Label className="mb-1 block text-xs text-muted-foreground">{tr("common.group")}</Label>
                 <Select value={cGroupId || "__none"} onValueChange={(v) => setCGroupId(v === "__none" ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="__none">— None —</SelectItem>
+                    <SelectItem value="__none">{tr("common.none")}</SelectItem>
                     {(groupsQ.data ?? []).map((g) => (
                       <SelectItem key={g.id} value={g.id}>{g.name} <span className="text-muted-foreground">· {g.kind}</span></SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label className="mb-1 block text-xs text-muted-foreground">Monthly budget</Label><Input inputMode="decimal" value={cBudget} onChange={(e) => setCBudget(e.target.value)} /></div>
-              <div className="flex items-end"><Button className="w-full" onClick={addCategory}><Plus className="h-4 w-4" /> Add</Button></div>
+              <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.monthly_budget")}</Label><Input inputMode="decimal" value={cBudget} onChange={(e) => setCBudget(e.target.value)} /></div>
+              <div className="flex items-end"><Button className="w-full" onClick={addCategory}><Plus className="h-4 w-4" /> {tr("common.add")}</Button></div>
             </div>
 
             <ul className="divide-y">
@@ -274,13 +298,13 @@ function SettingsPage() {
                 <li key={c.id} className="flex items-center justify-between gap-2 py-2">
                   <div className={c.archived ? "min-w-0 text-muted-foreground line-through" : "min-w-0"}>
                     <div className="font-medium">{c.name}</div>
-                    {c.is_savings && <div className="text-[10px] font-semibold uppercase text-muted-foreground">Rückstellung</div>}
+                    {c.is_savings && <div className="text-[10px] font-semibold uppercase text-muted-foreground">{tr("add.savings_badge")}</div>}
                   </div>
                   <div className="flex items-center gap-2">
                     <Select value={c.group_id ?? "__none"} onValueChange={(v) => updateCategoryGroup(c.id, v === "__none" ? "" : v)}>
                       <SelectTrigger className="w-40"><SelectValue placeholder="—" /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="__none">— None —</SelectItem>
+                        <SelectItem value="__none">{tr("common.none")}</SelectItem>
                         {(groupsQ.data ?? []).map((g) => (
                           <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
                         ))}
@@ -292,23 +316,21 @@ function SettingsPage() {
                       className="w-28 text-right tabular-nums"
                       onBlur={(e) => updateCategoryBudget(c.id, e.target.value)}
                     />
-                    <Button variant="ghost" size="icon" onClick={() => toggleArchiveCategory(c.id, c.archived)} aria-label="Archive">
+                    <Button variant="ghost" size="icon" onClick={() => toggleArchiveCategory(c.id, c.archived)} aria-label={c.archived ? tr("common.unarchive") : tr("common.archive")}>
                       {c.archived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
                     </Button>
-                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => delCategory(c.id)} aria-label="Delete">
+                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => delCategory(c.id)} aria-label={tr("common.delete")}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
                 </li>
               ))}
-              {(categoriesQ.data ?? []).length === 0 && <li className="py-2 text-sm text-muted-foreground">No envelopes yet.</li>}
+              {(categoriesQ.data ?? []).length === 0 && <li className="py-2 text-sm text-muted-foreground">{tr("settings.no_envelopes")}</li>}
             </ul>
           </CardContent>
         </Card>
 
-        <p className="pb-4 text-xs text-muted-foreground">
-          Single-user mode · monthly envelopes reset each calendar month with no rollover · authentication will plug in later.
-        </p>
+        <p className="pb-4 text-xs text-muted-foreground">{tr("settings.footer")}</p>
       </div>
     </AppShell>
   );

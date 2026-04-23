@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n";
 import {
   fetchAccountBalances,
   fetchCategoryMonthRows,
@@ -26,6 +27,7 @@ export const Route = createFileRoute("/")({
 });
 
 function Dashboard() {
+  const { t, locale } = useI18n();
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   const m = monthKey(monthStart);
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
@@ -54,18 +56,18 @@ function Dashboard() {
       <div className="space-y-6">
         <header className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-            <p className="text-sm text-muted-foreground">{format(new Date(), "MMMM yyyy")}</p>
+            <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard.title")}</h1>
+            <p className="text-sm text-muted-foreground">{format(new Date(), "MMMM yyyy", { locale })}</p>
           </div>
           <Button asChild size="sm" className="hidden md:inline-flex">
-            <Link to="/add"><Plus className="h-4 w-4" /> Add transaction</Link>
+            <Link to="/add"><Plus className="h-4 w-4" /> {t("nav.add_transaction")}</Link>
           </Button>
         </header>
 
         {/* Net worth */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Net worth</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.networth")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className={cn(
@@ -76,11 +78,11 @@ function Dashboard() {
             </div>
             <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-md border p-3">
-                <div className="text-muted-foreground">Assets</div>
+                <div className="text-muted-foreground">{t("dashboard.assets")}</div>
                 <div className="mt-1 font-semibold text-success tabular-nums">{fmtMoney(totalAssets, symbol)}</div>
               </div>
               <div className="rounded-md border p-3">
-                <div className="text-muted-foreground">Liabilities</div>
+                <div className="text-muted-foreground">{t("dashboard.liabilities")}</div>
                 <div className="mt-1 font-semibold text-destructive tabular-nums">{fmtMoney(totalLiabilities, symbol)}</div>
               </div>
             </div>
@@ -89,26 +91,26 @@ function Dashboard() {
 
         {/* Accounts */}
         <div className="grid gap-4 md:grid-cols-2">
-          <AccountsCard title="Assets" tone="success" items={assets} symbol={symbol} loading={balancesQ.isLoading} emptyHint="Create your first asset account in Settings." />
-          <AccountsCard title="Liabilities" tone="destructive" items={liabilities} symbol={symbol} loading={balancesQ.isLoading} emptyHint="Add credit cards in Settings." />
+          <AccountsCard title={t("dashboard.assets")} tone="success" items={assets} symbol={symbol} loading={balancesQ.isLoading} emptyHint={t("dashboard.assets_empty")} />
+          <AccountsCard title={t("dashboard.liabilities")} tone="destructive" items={liabilities} symbol={symbol} loading={balancesQ.isLoading} emptyHint={t("dashboard.liab_empty")} />
         </div>
 
         {/* Envelopes */}
         <section>
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Envelopes — this month</h2>
-            <Link to="/envelopes" className="text-sm text-muted-foreground hover:text-foreground">View all</Link>
+            <h2 className="text-lg font-semibold">{t("dashboard.envelopes_month")}</h2>
+            <Link to="/envelopes" className="text-sm text-muted-foreground hover:text-foreground">{t("common.viewAll")}</Link>
           </div>
           {envelopesQ.isLoading ? (
             <div className="space-y-2"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>
           ) : envelopes.length === 0 ? (
             <Card><CardContent className="py-6 text-center text-sm text-muted-foreground">
-              No envelopes yet. <Link to="/settings" className="font-medium text-primary underline-offset-2 hover:underline">Create one in Settings</Link>.
+              {t("dashboard.no_envelopes")} <Link to="/settings" className="font-medium text-primary underline-offset-2 hover:underline">{t("dashboard.create_in_settings")}</Link>.
             </CardContent></Card>
           ) : (
             <div className="space-y-4">
               {grouped.map((g) => (
-                <GroupBlock key={g.key} group={g} symbol={symbol} savings={savings} />
+                <GroupBlock key={g.key} group={g} symbol={symbol} savings={savings} tr={t} />
               ))}
             </div>
           )}
@@ -117,30 +119,34 @@ function Dashboard() {
         {/* Recent transactions */}
         <section>
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Recent transactions</h2>
-            <Link to="/transactions" className="text-sm text-muted-foreground hover:text-foreground">View all</Link>
+            <h2 className="text-lg font-semibold">{t("dashboard.recent")}</h2>
+            <Link to="/transactions" className="text-sm text-muted-foreground hover:text-foreground">{t("common.viewAll")}</Link>
           </div>
           {recentQ.isLoading ? (
             <Skeleton className="h-32 w-full" />
           ) : (recentQ.data ?? []).length === 0 ? (
-            <Card><CardContent className="py-6 text-center text-sm text-muted-foreground">No transactions yet.</CardContent></Card>
+            <Card><CardContent className="py-6 text-center text-sm text-muted-foreground">{t("dashboard.no_transactions")}</CardContent></Card>
           ) : (
             <Card><CardContent className="divide-y p-0">
-              {(recentQ.data ?? []).map((t) => {
-                const Icon = t.type === "expense" ? ArrowDown : t.type === "income" ? ArrowUp : ArrowLeftRight;
-                const tone = t.type === "expense" ? "text-destructive" : t.type === "income" ? "text-success" : "text-muted-foreground";
-                const sign = t.type === "expense" ? "-" : t.type === "income" ? "+" : "";
+              {(recentQ.data ?? []).map((tx) => {
+                const Icon = tx.type === "expense" ? ArrowDown : tx.type === "income" ? ArrowUp : ArrowLeftRight;
+                const tone = tx.type === "expense" ? "text-destructive" : tx.type === "income" ? "text-success" : "text-muted-foreground";
+                const sign = tx.type === "expense" ? "-" : tx.type === "income" ? "+" : "";
                 return (
-                  <div key={t.id} className="flex items-center gap-3 px-4 py-3">
+                  <div key={tx.id} className="flex items-center gap-3 px-4 py-3">
                     <div className={cn("flex h-9 w-9 items-center justify-center rounded-full bg-muted", tone)}>
                       <Icon className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium">{t.payee || (t.type === "transfer" ? "Transfer" : t.type)}</div>
-                      <div className="text-xs text-muted-foreground">{format(new Date(t.occurred_on), "MMM d")}</div>
+                      <div className="truncate text-sm font-medium">
+                        {tx.payee || (tx.type === "transfer"
+                          ? t("tx.transfer_label")
+                          : tx.type === "income" ? t("add.income") : t("add.expense"))}
+                      </div>
+                      <div className="text-xs text-muted-foreground">{format(new Date(tx.occurred_on), "MMM d", { locale })}</div>
                     </div>
                     <div className={cn("text-sm font-semibold tabular-nums", tone)}>
-                      {sign}{fmtMoney(Number(t.amount), symbol).replace("-", "")}
+                      {sign}{fmtMoney(Number(tx.amount), symbol).replace("-", "")}
                     </div>
                   </div>
                 );
@@ -211,11 +217,14 @@ function groupRows(rows: CategoryMonthRow[]): GroupedBlock[] {
 }
 
 function GroupBlock({
-  group, symbol, savings,
-}: { group: GroupedBlock; symbol: string; savings: CategorySavingsBalance[] }) {
+  group, symbol, savings, tr,
+}: { group: GroupedBlock; symbol: string; savings: CategorySavingsBalance[]; tr: (k: string, v?: Record<string, string | number>) => string }) {
   const totalAlloc = group.rows.reduce((s, r) => s + Number(r.allocated), 0);
   const totalActual = group.rows.reduce((s, r) => s + Number(r.spent_or_received), 0);
   const savingsMap = new Map(savings.map((s) => [s.category_id, s]));
+  const groupKindLabel = group.kind === "income" ? tr("settings.kind_income")
+    : group.kind === "savings" ? tr("settings.kind_savings")
+    : tr("settings.kind_expense");
 
   return (
     <Card>
@@ -224,7 +233,7 @@ function GroupBlock({
           <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             {group.name}
             <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-muted-foreground">
-              {group.kind}
+              {groupKindLabel}
             </span>
           </CardTitle>
           <div className="text-xs tabular-nums text-muted-foreground">
@@ -246,7 +255,7 @@ function GroupBlock({
                   </div>
                 </div>
                 <div className="mt-1 text-xs text-muted-foreground tabular-nums">
-                  This month: +{fmtMoney(Number(r.allocated), symbol)} alloc · −{fmtMoney(Number(r.spent_or_received), symbol)} spent
+                  {tr("dashboard.this_month_savings", { a: fmtMoney(Number(r.allocated), symbol), b: fmtMoney(Number(r.spent_or_received), symbol) })}
                 </div>
               </div>
             );
@@ -287,7 +296,7 @@ function GroupBlock({
                 <div className={cn("h-full transition-all", barTone)} style={{ width: `${pct}%` }} />
               </div>
               <div className={cn("mt-1 text-xs tabular-nums", over ? "text-destructive" : "text-muted-foreground")}>
-                {over ? `Over by ${fmtMoney(-remaining, symbol)}` : `${fmtMoney(remaining, symbol)} remaining`}
+                {over ? tr("dashboard.over_by", { x: fmtMoney(-remaining, symbol) }) : tr("dashboard.remaining", { x: fmtMoney(remaining, symbol) })}
               </div>
             </div>
           );
