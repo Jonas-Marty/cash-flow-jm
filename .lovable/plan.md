@@ -1,72 +1,67 @@
 
-# Personal Finance — Cash Flow & Envelope Budgeting (Milestone 1)
+# Monthly budget history, category groups, savings envelopes — final plan
 
-A mobile-first web app to track liquid cash, envelope budgets, and credit-card liabilities. Single-user, no auth yet (DB modeled so Keycloak/OIDC can drop in later). Single configurable currency. Empty by default, managed from Settings. Envelopes reset monthly with no rollover.
+## Business rules
 
-## Data Model (Lovable Cloud / Postgres)
+**Account** = where money physically sits (Bank, Cash, Migros Cumulus credit card).
+**Category / Envelope** = what the money is mentally earmarked for. Three flavours, defined by the parent group's `kind`:
 
-- **accounts** — `id, name, type ('asset'|'liability'), opening_balance, archived, created_at`
-- **categories** — `id, name, allocated_budget (monthly), archived, sort_order, created_at`
-- **transactions** — `id, occurred_on (date), amount (positive decimal), payee, note, type ('expense'|'income'|'transfer'), source_account_id, destination_account_id (nullable), category_id (nullable), created_at`
-- **transaction_tags** — `transaction_id, tag` (extracted from `#hashtags` in note for fast filtering)
-- **settings** — `id, currency_code, currency_symbol`
+| Flavour | Group `kind` | Behaviour | Variance semantics |
+|---|---|---|---|
+| **Income** | `income` | Tracks earnings; allocated = expected monthly income. "Received" = income transactions assigned to it for that month. | **Under budget** = received < expected (red). **Over budget** = received > expected (green, positive). |
+| **Expense** (regular) | `expense` | Resets monthly. `spent = expenses − reimbursements` for the month. | Over budget = spent > allocated (red). |
+| **Savings / Rückstellung** | `savings` | Accumulates across months. Balance = Σ(allocations to date) − Σ(all bookings). Bookings excluded from monthly expense totals and over-budget logic. | Headline = current available balance; negative = under-saved. |
 
-Balances are computed via SQL views (account opening balance ± transaction sums). Category "spent this month" is computed from transactions in the current calendar month: expenses subtract, category-assigned income (reimbursement) adds back. Global Income metrics exclude reimbursements (income with a `category_id`).
+**Booking a savings expense (e.g. SBB GA on Migros Cumulus)**: same Add Transaction screen — Account = Migros Cumulus, Category = Bahnabos. The savings flavour is a property of the category set in Settings; entry UX is identical.
 
-Schema includes a nullable `user_id` column on every table for future Keycloak integration without a migration.
+**Monthly budget history**: budgets stored per `(category_id, month)` in `category_budgets`. Editing the current month overwrites only that month's row; past months stay frozen. On first access of a new month, the most recent prior allocation is copied forward (idempotent SQL function `ensure_month_budgets`).
 
-## Pages & Routes
+## Schema changes
 
-- `/` **Dashboard**
-  - Net worth tile (Assets − Liabilities) with red/green delta
-  - Two columns: **Assets** and **Liabilities** with current balances
-  - **Envelopes** list: each shows allocated vs. spent, progress bar (green → amber → red as it fills, red when over budget), remaining amount
-  - Recent transactions strip
-  - Floating "+" button → Add Transaction
+```text
+category_groups(id, name, kind ENUM('income','expense','savings'), sort_order, archived, created_at, updated_at, user_id)
+categories: + group_id (nullable FK → category_groups), is_savings (bool, default false)
+category_budgets(category_id FK, month DATE /* day=1 */, amount NUMERIC,
+                 PRIMARY KEY(category_id, month), created_at, updated_at)
+```
 
-- `/add` **Add Transaction (mobile-first)**
-  - Big numpad-style amount input at the top
-  - Type segmented control: **Expense / Income / Transfer**
-  - Account dropdown (defaults to most-used) — for Transfer, shows Source + Destination
-  - Category dropdown (hidden for Transfer; optional for Income → reimbursement)
-  - Payee field with autocomplete from history
-  - Note field with `#tag` chip extraction preview
-  - Date (defaults today)
-  - Save & New / Save buttons
+New SQL:
+- `ensure_month_budgets(p_month DATE)` — copies most-recent prior `category_budgets` row per active category into `p_month` if missing; falls back to `categories.allocated_budget` when no history. Idempotent.
+- Replace `category_month_spending` view with function `category_month_spending(p_month DATE)` returning `category_id, name, group_id, kind, is_savings, allocated, spent_or_received, variance` for the month. For income categories, `spent_or_received` sums income transactions; variance = received − allocated (positive = over, negative = under). For expense categories, variance = allocated − spent (positive = remaining, negative = over).
+- View `category_savings_balance(category_id, name, allocated_total, spent_total, balance)` summing all-time allocations minus all-time bookings for `is_savings = true` categories.
 
-- `/transactions` **Transactions**
-  - List grouped by date, color-coded amounts (red expense, green income, neutral transfer)
-  - Filters: account, category, type, tag (from `#hashtags`), date range, free-text payee
-  - Tap row → edit/delete
+Backfill: insert one `category_budgets` row per existing category for the current month using the current `allocated_budget`. The `allocated_budget` column stays as template/default for new categories.
 
-- `/envelopes` **Envelopes detail**
-  - Per-category view with month selector, allocated vs. spent, list of transactions in that envelope, reimbursement entries highlighted
+## UI changes
 
-- `/accounts` **Accounts detail**
-  - Per-account view with running balance ledger
+**Settings**:
+- **Groups** card: CRUD + reorder + `kind` selector (income/expense/savings).
+- **Categories** card: add Group dropdown per category; the group's kind drives savings/income behaviour.
+- **Monthly budgets** card: month picker; per-category editable amount for current/future months; past months read-only with a "View history" mini-list per category.
 
-- `/settings` **Settings**
-  - Currency picker (CHF/EUR/USD/GBP/…) with symbol
-  - Manage Accounts (create/edit/archive, set type and opening balance)
-  - Manage Categories (create/edit/archive, set monthly allocated budget, reorder)
+**Dashboard**:
+- Envelopes section grouped by `category_groups`, ordered by `sort_order`, with subtotals per group.
+- **Income groups**: each row shows received vs. expected with a colored delta (green if over, red if under). Group subtotal: total received vs. total expected.
+- **Expense groups**: existing progress-bar treatment with green→amber→red.
+- **Savings groups**: each card shows **Balance available** as the headline (no progress bar) plus small print "this month: allocated X / spent Y".
 
-## Key Business Rules
+**Envelopes page**: month picker drives `category_month_spending(month)`; sections by group; income sections use the income variance treatment; savings sections show all-time balance alongside the month view.
 
-- **Expense**: source_account balance −amount; category spent +amount
-- **Income (no category)**: source_account balance +amount; counts in global Income
-- **Income (with category)** → Reimbursement: source_account +amount; category spent −amount; **excluded** from global Income totals
-- **Transfer**: source −amount, destination +amount; never touches categories. Paying off a credit card = transfer from Asset → Liability account (liability balance moves toward 0).
-- **Tags**: `#word` tokens parsed from the note on save → stored in `transaction_tags` for indexed filtering
-- **Monthly reset, no rollover**: each calendar month, envelope "spent" recomputes from that month's transactions only; unspent budget from prior months is discarded
+**Add Transaction**: unchanged; small "Rückstellung" / "Income" badge in the category dropdown so the picked envelope flavour is visible.
 
-## UX & Design
+## Architecture document
 
-- Tailwind v4 with the existing design tokens; mobile-first layout, bottom tab bar on small screens (Dashboard / Add / Transactions / Settings), top nav on desktop
-- Numeric keypad input on `/add` (`inputMode="decimal"`) with large tap targets
-- Consistent color semantics: green inflow, red outflow, slate transfer, amber warnings, red over-budget
-- Empty states with one-tap CTAs that link to Settings to create the first account/category
-- Skeleton loaders for lists; toast feedback on save/delete
+Create `architecture.md` at repo root covering:
+1. Overview & milestone scope
+2. Domain model with ascii ERD (accounts, category_groups, categories, category_budgets, transactions, transaction_tags, settings)
+3. Business rules: each transaction type's effect on accounts and categories; reimbursement; savings envelope; income variance; monthly reset & rollover-of-allocation
+4. SQL views & functions (`account_balances`, `category_month_spending(month)`, `category_savings_balance`, `ensure_month_budgets`, `sync_transaction_tags`, `update_updated_at_column`)
+5. UI route map
+6. Future-auth note (nullable `user_id` columns, Keycloak plug-in path)
+7. Change log — first dated entry = this iteration (groups, monthly budget history, savings envelopes, income variance)
 
-## Out of Scope (Milestone 1)
+Going forward, `architecture.md` is updated in the same change set as any feature/design change.
 
-Investments tracking (logged as plain expenses against an "Investments" envelope you create), recurring transactions, multi-currency conversion, attachments, real auth (DB ready for it).
+## Out of scope this round
+
+Editing past-month budgets from UI (read-only history); auto-transferring savings to a real account; multi-currency; recurring transactions.
