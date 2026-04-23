@@ -1,3 +1,4 @@
+import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowDown, ArrowUp, ArrowLeftRight, Plus } from "lucide-react";
@@ -5,16 +6,19 @@ import { format } from "date-fns";
 
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
   fetchAccountBalances,
-  fetchCategoryMonthSpending,
+  fetchCategoryMonthRows,
+  fetchSavingsBalances,
   fetchSettings,
   fetchTransactions,
   fmtMoney,
+  monthKey,
+  type CategoryMonthRow,
+  type CategorySavingsBalance,
 } from "@/lib/finance";
 
 export const Route = createFileRoute("/")({
@@ -22,9 +26,12 @@ export const Route = createFileRoute("/")({
 });
 
 function Dashboard() {
+  const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+  const m = monthKey(monthStart);
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const balancesQ = useQuery({ queryKey: ["account_balances"], queryFn: fetchAccountBalances });
-  const envelopesQ = useQuery({ queryKey: ["category_month_spending"], queryFn: fetchCategoryMonthSpending });
+  const envelopesQ = useQuery({ queryKey: ["category_month_rows", m], queryFn: () => fetchCategoryMonthRows(m) });
+  const savingsQ = useQuery({ queryKey: ["savings_balance"], queryFn: fetchSavingsBalances });
   const recentQ = useQuery({ queryKey: ["transactions", "recent"], queryFn: () => fetchTransactions(8) });
 
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
@@ -37,6 +44,10 @@ function Dashboard() {
   const netWorth = totalAssets + totalLiabilities; // liabilities are stored as negatives via transfers
 
   const envelopes = envelopesQ.data ?? [];
+  const savings = savingsQ.data ?? [];
+
+  // Group envelopes by group_id, preserving sort order
+  const grouped = React.useMemo(() => groupRows(envelopes), [envelopes]);
 
   return (
     <AppShell>
@@ -95,36 +106,10 @@ function Dashboard() {
               No envelopes yet. <Link to="/settings" className="font-medium text-primary underline-offset-2 hover:underline">Create one in Settings</Link>.
             </CardContent></Card>
           ) : (
-            <div className="space-y-2">
-              {envelopes.map((e) => {
-                const allocated = Number(e.allocated_budget);
-                const spent = Number(e.spent);
-                const pct = allocated > 0 ? Math.min(100, (spent / allocated) * 100) : (spent > 0 ? 100 : 0);
-                const over = allocated > 0 && spent > allocated;
-                const remaining = allocated - spent;
-                const barTone = over
-                  ? "bg-destructive"
-                  : pct >= 80 ? "bg-warning" : "bg-success";
-                return (
-                  <Card key={e.category_id}>
-                    <CardContent className="py-4">
-                      <div className="flex items-baseline justify-between gap-3">
-                        <div className="font-medium">{e.name}</div>
-                        <div className="text-sm tabular-nums text-muted-foreground">
-                          <span className={cn(over && "text-destructive font-semibold")}>{fmtMoney(spent, symbol)}</span>
-                          <span> / {fmtMoney(allocated, symbol)}</span>
-                        </div>
-                      </div>
-                      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-                        <div className={cn("h-full transition-all", barTone)} style={{ width: `${pct}%` }} />
-                      </div>
-                      <div className={cn("mt-1 text-xs tabular-nums", over ? "text-destructive" : "text-muted-foreground")}>
-                        {over ? `Over by ${fmtMoney(-remaining, symbol)}` : `${fmtMoney(remaining, symbol)} remaining`}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+            <div className="space-y-4">
+              {grouped.map((g) => (
+                <GroupBlock key={g.key} group={g} symbol={symbol} savings={savings} />
+              ))}
             </div>
           )}
         </section>
@@ -196,6 +181,117 @@ function AccountsCard({
             ))}
           </ul>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+type GroupedBlock = {
+  key: string;
+  name: string;
+  kind: "income" | "expense" | "savings";
+  rows: CategoryMonthRow[];
+};
+
+function groupRows(rows: CategoryMonthRow[]): GroupedBlock[] {
+  const map = new Map<string, GroupedBlock>();
+  for (const r of rows) {
+    const key = r.group_id ?? `__${r.kind}__ungrouped`;
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        name: r.group_name ?? (r.kind === "income" ? "Income" : r.kind === "savings" ? "Savings" : "Uncategorized"),
+        kind: r.kind,
+        rows: [],
+      });
+    }
+    map.get(key)!.rows.push(r);
+  }
+  return Array.from(map.values());
+}
+
+function GroupBlock({
+  group, symbol, savings,
+}: { group: GroupedBlock; symbol: string; savings: CategorySavingsBalance[] }) {
+  const totalAlloc = group.rows.reduce((s, r) => s + Number(r.allocated), 0);
+  const totalActual = group.rows.reduce((s, r) => s + Number(r.spent_or_received), 0);
+  const savingsMap = new Map(savings.map((s) => [s.category_id, s]));
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            {group.name}
+            <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-muted-foreground">
+              {group.kind}
+            </span>
+          </CardTitle>
+          <div className="text-xs tabular-nums text-muted-foreground">
+            {fmtMoney(totalActual, symbol)} / {fmtMoney(totalAlloc, symbol)}
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {group.rows.map((r) => {
+          if (group.kind === "savings") {
+            const sav = savingsMap.get(r.category_id);
+            const balance = Number(sav?.balance ?? 0);
+            return (
+              <div key={r.category_id} className="rounded-md border p-3">
+                <div className="flex items-baseline justify-between gap-3">
+                  <div className="font-medium">{r.name}</div>
+                  <div className={cn("text-lg font-semibold tabular-nums", balance < 0 ? "text-destructive" : "text-foreground")}>
+                    {fmtMoney(balance, symbol)}
+                  </div>
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground tabular-nums">
+                  This month: +{fmtMoney(Number(r.allocated), symbol)} alloc · −{fmtMoney(Number(r.spent_or_received), symbol)} spent
+                </div>
+              </div>
+            );
+          }
+          if (group.kind === "income") {
+            const allocated = Number(r.allocated);
+            const received = Number(r.spent_or_received);
+            const variance = received - allocated;
+            const tone = variance >= 0 ? "text-success" : "text-destructive";
+            return (
+              <div key={r.category_id} className="flex items-baseline justify-between gap-3 border-b pb-2 last:border-0 last:pb-0">
+                <div className="font-medium">{r.name}</div>
+                <div className="text-sm tabular-nums">
+                  <span className={cn("font-semibold", tone)}>{fmtMoney(received, symbol)}</span>
+                  <span className="text-muted-foreground"> / {fmtMoney(allocated, symbol)}</span>
+                  <span className={cn("ml-2 text-xs", tone)}>({variance >= 0 ? "+" : ""}{fmtMoney(variance, symbol)})</span>
+                </div>
+              </div>
+            );
+          }
+          // expense
+          const allocated = Number(r.allocated);
+          const spent = Number(r.spent_or_received);
+          const pct = allocated > 0 ? Math.min(100, (spent / allocated) * 100) : (spent > 0 ? 100 : 0);
+          const over = allocated > 0 && spent > allocated;
+          const remaining = allocated - spent;
+          const barTone = over ? "bg-destructive" : pct >= 80 ? "bg-warning" : "bg-success";
+          return (
+            <div key={r.category_id}>
+              <div className="flex items-baseline justify-between gap-3">
+                <div className="font-medium">{r.name}</div>
+                <div className="text-sm tabular-nums text-muted-foreground">
+                  <span className={cn(over && "text-destructive font-semibold")}>{fmtMoney(spent, symbol)}</span>
+                  <span> / {fmtMoney(allocated, symbol)}</span>
+                </div>
+              </div>
+              <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div className={cn("h-full transition-all", barTone)} style={{ width: `${pct}%` }} />
+              </div>
+              <div className={cn("mt-1 text-xs tabular-nums", over ? "text-destructive" : "text-muted-foreground")}>
+                {over ? `Over by ${fmtMoney(-remaining, symbol)}` : `${fmtMoney(remaining, symbol)} remaining`}
+              </div>
+            </div>
+          );
+        })}
       </CardContent>
     </Card>
   );

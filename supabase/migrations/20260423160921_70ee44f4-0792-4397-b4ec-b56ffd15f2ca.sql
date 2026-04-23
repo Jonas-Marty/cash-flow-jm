@@ -1,0 +1,1 @@
+ALTER VIEW public.category_savings_balance SET (security_invoker = true);

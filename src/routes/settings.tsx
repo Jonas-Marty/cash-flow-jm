@@ -11,7 +11,10 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAccounts, fetchCategories, fetchSettings, type AccountType } from "@/lib/finance";
+import {
+  fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings,
+  type AccountType, type GroupKind,
+} from "@/lib/finance";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -32,6 +35,7 @@ function SettingsPage() {
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
+  const groupsQ = useQuery({ queryKey: ["category_groups"], queryFn: fetchCategoryGroups });
 
   // Currency
   const setCurrency = async (code: string) => {
@@ -76,21 +80,40 @@ function SettingsPage() {
   // Category form
   const [cName, setCName] = React.useState("");
   const [cBudget, setCBudget] = React.useState("0");
+  const [cGroupId, setCGroupId] = React.useState<string>("");
   const addCategory = async () => {
     if (!cName.trim()) { toast.error("Name required"); return; }
     const sortOrder = (categoriesQ.data ?? []).length;
+    const group = (groupsQ.data ?? []).find((g) => g.id === cGroupId);
+    const isSavings = group?.kind === "savings";
     const { error } = await supabase.from("categories").insert({
-      name: cName.trim(), allocated_budget: Number(cBudget) || 0, sort_order: sortOrder,
+      name: cName.trim(),
+      allocated_budget: Number(cBudget) || 0,
+      sort_order: sortOrder,
+      group_id: cGroupId || null,
+      is_savings: isSavings,
     });
     if (error) { toast.error(error.message); return; }
     toast.success("Envelope added");
-    setCName(""); setCBudget("0");
+    setCName(""); setCBudget("0"); setCGroupId("");
+    qc.invalidateQueries();
+  };
+  const updateCategoryGroup = async (id: string, groupId: string) => {
+    const group = (groupsQ.data ?? []).find((g) => g.id === groupId);
+    const { error } = await supabase.from("categories").update({
+      group_id: groupId || null,
+      is_savings: group?.kind === "savings",
+    }).eq("id", id);
+    if (error) return toast.error(error.message);
     qc.invalidateQueries();
   };
   const updateCategoryBudget = async (id: string, value: string) => {
     const v = Number(value); if (Number.isNaN(v)) return;
     const { error } = await supabase.from("categories").update({ allocated_budget: v }).eq("id", id);
     if (error) return toast.error(error.message);
+    // also update current month's budget row so the change reflects immediately
+    const m = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-01`;
+    await supabase.from("category_budgets").upsert({ category_id: id, month: m, amount: v }, { onConflict: "category_id,month" });
     qc.invalidateQueries();
   };
   const toggleArchiveCategory = async (id: string, archived: boolean) => {
@@ -101,6 +124,28 @@ function SettingsPage() {
   const delCategory = async (id: string) => {
     if (!confirm("Delete this envelope?")) return;
     const { error } = await supabase.from("categories").delete().eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("Deleted");
+    qc.invalidateQueries();
+  };
+
+  // Group form
+  const [gName, setGName] = React.useState("");
+  const [gKind, setGKind] = React.useState<GroupKind>("expense");
+  const addGroup = async () => {
+    if (!gName.trim()) { toast.error("Name required"); return; }
+    const sortOrder = (groupsQ.data ?? []).length;
+    const { error } = await supabase.from("category_groups").insert({
+      name: gName.trim(), kind: gKind, sort_order: sortOrder,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Group added");
+    setGName("");
+    qc.invalidateQueries();
+  };
+  const delGroup = async (id: string) => {
+    if (!confirm("Delete this group? Envelopes will become ungrouped.")) return;
+    const { error } = await supabase.from("category_groups").delete().eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Deleted");
     qc.invalidateQueries();
@@ -168,10 +213,58 @@ function SettingsPage() {
 
         {/* Categories */}
         <Card>
-          <CardHeader><CardTitle className="text-base">Envelopes (Categories)</CardTitle></CardHeader>
+          <CardHeader><CardTitle className="text-base">Groups</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-2 md:grid-cols-[1fr_180px_auto]">
+              <div><Label className="mb-1 block text-xs text-muted-foreground">Name</Label><Input value={gName} onChange={(e) => setGName(e.target.value)} placeholder="Fixkosten" /></div>
+              <div>
+                <Label className="mb-1 block text-xs text-muted-foreground">Kind</Label>
+                <Select value={gKind} onValueChange={(v) => setGKind(v as GroupKind)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="income">Income</SelectItem>
+                    <SelectItem value="expense">Expense</SelectItem>
+                    <SelectItem value="savings">Savings (Rückstellung)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end"><Button className="w-full" onClick={addGroup}><Plus className="h-4 w-4" /> Add</Button></div>
+            </div>
+            <ul className="divide-y">
+              {(groupsQ.data ?? []).map((g) => (
+                <li key={g.id} className="flex items-center justify-between gap-2 py-2">
+                  <div className="min-w-0">
+                    <div className="font-medium">{g.name}</div>
+                    <div className="text-xs text-muted-foreground">{g.kind}</div>
+                  </div>
+                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => delGroup(g.id)} aria-label="Delete">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </li>
+              ))}
+              {(groupsQ.data ?? []).length === 0 && <li className="py-2 text-sm text-muted-foreground">No groups yet. Create groups like “Fixkosten”, “Persönliche Ausgaben”, “Einnahmen”, “Rückstellungen”.</li>}
+            </ul>
+          </CardContent>
+        </Card>
+
+        {/* Categories */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">Envelopes (Categories)</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-2 md:grid-cols-[1fr_180px_180px_auto]">
               <div><Label className="mb-1 block text-xs text-muted-foreground">Name</Label><Input value={cName} onChange={(e) => setCName(e.target.value)} placeholder="Groceries" /></div>
+              <div>
+                <Label className="mb-1 block text-xs text-muted-foreground">Group</Label>
+                <Select value={cGroupId || "__none"} onValueChange={(v) => setCGroupId(v === "__none" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">— None —</SelectItem>
+                    {(groupsQ.data ?? []).map((g) => (
+                      <SelectItem key={g.id} value={g.id}>{g.name} <span className="text-muted-foreground">· {g.kind}</span></SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div><Label className="mb-1 block text-xs text-muted-foreground">Monthly budget</Label><Input inputMode="decimal" value={cBudget} onChange={(e) => setCBudget(e.target.value)} /></div>
               <div className="flex items-end"><Button className="w-full" onClick={addCategory}><Plus className="h-4 w-4" /> Add</Button></div>
             </div>
@@ -179,8 +272,20 @@ function SettingsPage() {
             <ul className="divide-y">
               {(categoriesQ.data ?? []).map((c) => (
                 <li key={c.id} className="flex items-center justify-between gap-2 py-2">
-                  <div className={c.archived ? "min-w-0 text-muted-foreground line-through" : "min-w-0 font-medium"}>{c.name}</div>
+                  <div className={c.archived ? "min-w-0 text-muted-foreground line-through" : "min-w-0"}>
+                    <div className="font-medium">{c.name}</div>
+                    {c.is_savings && <div className="text-[10px] font-semibold uppercase text-muted-foreground">Rückstellung</div>}
+                  </div>
                   <div className="flex items-center gap-2">
+                    <Select value={c.group_id ?? "__none"} onValueChange={(v) => updateCategoryGroup(c.id, v === "__none" ? "" : v)}>
+                      <SelectTrigger className="w-40"><SelectValue placeholder="—" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none">— None —</SelectItem>
+                        {(groupsQ.data ?? []).map((g) => (
+                          <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <Input
                       defaultValue={Number(c.allocated_budget).toString()}
                       inputMode="decimal"

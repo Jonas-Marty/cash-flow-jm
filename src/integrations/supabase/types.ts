@@ -52,7 +52,9 @@ export type Database = {
           allocated_budget: number
           archived: boolean
           created_at: string
+          group_id: string | null
           id: string
+          is_savings: boolean
           name: string
           sort_order: number
           updated_at: string
@@ -62,7 +64,9 @@ export type Database = {
           allocated_budget?: number
           archived?: boolean
           created_at?: string
+          group_id?: string | null
           id?: string
+          is_savings?: boolean
           name: string
           sort_order?: number
           updated_at?: string
@@ -72,7 +76,89 @@ export type Database = {
           allocated_budget?: number
           archived?: boolean
           created_at?: string
+          group_id?: string | null
           id?: string
+          is_savings?: boolean
+          name?: string
+          sort_order?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "category_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      category_budgets: {
+        Row: {
+          amount: number
+          category_id: string
+          created_at: string
+          month: string
+          updated_at: string
+        }
+        Insert: {
+          amount?: number
+          category_id: string
+          created_at?: string
+          month: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          category_id?: string
+          created_at?: string
+          month?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "category_budgets_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "category_budgets_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "category_savings_balance"
+            referencedColumns: ["category_id"]
+          },
+        ]
+      }
+      category_groups: {
+        Row: {
+          archived: boolean
+          created_at: string
+          id: string
+          kind: Database["public"]["Enums"]["category_group_kind"]
+          name: string
+          sort_order: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          kind: Database["public"]["Enums"]["category_group_kind"]
+          name: string
+          sort_order?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          archived?: boolean
+          created_at?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["category_group_kind"]
           name?: string
           sort_order?: number
           updated_at?: string
@@ -185,7 +271,7 @@ export type Database = {
             foreignKeyName: "transactions_category_id_fkey"
             columns: ["category_id"]
             isOneToOne: false
-            referencedRelation: "category_month_spending"
+            referencedRelation: "category_savings_balance"
             referencedColumns: ["category_id"]
           },
           {
@@ -247,21 +333,64 @@ export type Database = {
         }
         Relationships: []
       }
-      category_month_spending: {
+      category_savings_balance: {
         Row: {
-          allocated_budget: number | null
+          allocated_total: number | null
+          balance: number | null
           category_id: string | null
+          group_id: string | null
           name: string | null
-          spent: number | null
+          spent_total: number | null
         }
-        Relationships: []
+        Insert: {
+          allocated_total?: never
+          balance?: never
+          category_id?: string | null
+          group_id?: string | null
+          name?: string | null
+          spent_total?: never
+        }
+        Update: {
+          allocated_total?: never
+          balance?: never
+          category_id?: string | null
+          group_id?: string | null
+          name?: string | null
+          spent_total?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "category_groups"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
-      [_ in never]: never
+      category_month_spending: {
+        Args: { p_month: string }
+        Returns: {
+          allocated: number
+          category_id: string
+          group_id: string
+          group_name: string
+          group_sort_order: number
+          is_savings: boolean
+          kind: Database["public"]["Enums"]["category_group_kind"]
+          name: string
+          sort_order: number
+          spent_or_received: number
+          variance: number
+        }[]
+      }
+      ensure_month_budgets: { Args: { p_month: string }; Returns: undefined }
     }
     Enums: {
       account_type: "asset" | "liability"
+      category_group_kind: "income" | "expense" | "savings"
       transaction_type: "expense" | "income" | "transfer"
     }
     CompositeTypes: {
@@ -391,6 +520,7 @@ export const Constants = {
   public: {
     Enums: {
       account_type: ["asset", "liability"],
+      category_group_kind: ["income", "expense", "savings"],
       transaction_type: ["expense", "income", "transfer"],
     },
   },
