@@ -176,6 +176,14 @@ No schema change required for the switch.
 
 ## 7. Change log
 
+### 2026-04-24 — Recurring transactions
+- Added `recurring_rules` and `recurring_occurrences` tables with enums `recurring_frequency`, `recurring_day_rule`, `weekend_adjust`, `occurrence_status`.
+- Added SQL functions `compute_due_date`, `compute_effective_date`, `process_recurring_rules` plus the `reset_occurrence_on_tx_delete` trigger on `transactions`.
+- Dashboard runs `process_recurring_rules(today)` on mount and shows an **Upcoming & due** card listing pending occurrences with Post / Skip actions. Late items render in red.
+- Settings page gained a **Recurring transactions** card with Add / Edit dialog (template + schedule + validity range + auto-post toggle) and Active / Ended / Archived sections.
+- German + English translations added under `recurring.*` and `dashboard.upcoming.*`.
+- Deleting a rule archives it (posted history retained); deleting a backing transaction flips its occurrence back to `pending` automatically.
+
 ### 2026-04-23 — Internationalization (i18n)
 - Added `settings.language` column (default `'de'`).
 - Added `src/i18n/index.tsx` with `I18nProvider`, `useI18n` hook, and German + English dictionaries. New languages plug in by extending the `Lang` union and `dicts` map.
