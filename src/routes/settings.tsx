@@ -21,6 +21,10 @@ import {
 } from "@/lib/finance";
 import { useI18n, LANGUAGES, type Lang } from "@/i18n";
 import { RecurringRulesCard } from "@/components/RecurringRulesCard";
+import { useAuth, useIsAdmin } from "@/lib/auth";
+import { Switch } from "@/components/ui/switch";
+import { useQuery as useRQ } from "@tanstack/react-query";
+import { LogOut } from "lucide-react";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -234,6 +238,9 @@ function SettingsPage() {
     <AppShell>
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold tracking-tight">{tr("settings.title")}</h1>
+
+        <AccountCard />
+        <IntegrationsCard />
 
         {/* Language */}
         <Card>
