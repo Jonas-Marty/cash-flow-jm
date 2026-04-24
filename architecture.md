@@ -165,6 +165,28 @@ Net effect: funding account −960, gift-card account +1,000, net worth +40 (the
 
 Out of scope: a formal `transaction_links` table, automatic profit/discount reporting, expiry tracking, and per-card serial numbers.
 
+### 3.9 Smart suggestions on Add Transaction
+
+The Add screen surfaces ranked suggestions that prefill the form (amount, payee, source account, category, note). The architecture is provider-based so new sources — AI inference (Lovable AI on payee/amount), receipt OCR, bank-statement matching — can plug in without touching the UI.
+
+**Provider model** (`src/lib/suggestions/`):
+- `types.ts` — `Suggestion` (id, score 0..1, label, sublabel, source tag, partial `TransactionDraft`), `SuggestionContext` (everything the user has typed/picked plus cached transactions/accounts/categories), `SuggestionProvider`.
+- `registry.ts` — array of enabled providers + `runSuggestions(ctx)` orchestrator: parallel fan-out, dedupe by `(payee, amount-bucket, category)`, drop below `MIN_SCORE = 0.4`, return top 5 by score.
+- `useSuggestions(ctx)` — debounced 150 ms React hook returning `{ suggestions }`.
+
+**Round 1 providers**:
+- `historyProvider` — scores last-180-day transactions of the same `type` against the current draft. Inputs: amount match (exact 1.0 / ±5 % 0.7 / ±20 % 0.3), payee match (exact 0.8 / prefix 0.5 / contains 0.3), recency boost (exp decay, 30-day half-life, max +0.3), frequency boost (log of group count, max +0.2), small day-of-month bonus. Groups identical drafts so "Lunch · 12.50 (3×)" appears once.
+- `payeeProvider` — payee-substring autocomplete; returns lower-confidence suggestions filling payee + last-used category. Replaces the previous plain `<datalist>` (kept as a graceful fallback).
+
+**Sticky-typing rule**: tapping a suggestion fills only fields the user hasn't touched. A "Use all fields" link inside each chip overrides this. After applying, an "Filled from past transaction · Undo" banner restores the prior values. `touched` is tracked per field on the Add route.
+
+Other smoothness polish (same registry-free files, all in `src/components/`):
+- `QuickAmountChips` — most-frequent past amounts for the current type; one-tap to fill.
+- `TagChips` — top 6 tags from history; tap to append `#tag` to the note.
+- `DateShortcuts` — Today / Yesterday / Last weekend chips above the calendar.
+
+Out of scope: AI-based category inference, OCR receipts, bank-import matching, learned per-user weights, suggestions for transfers.
+
 ## 4. SQL surface
 
 | Object | Type | Purpose |
