@@ -113,6 +113,28 @@ The savings balance is unaffected by month boundaries — it is computed from th
 
 `#word` tokens in `transactions.note` are extracted by trigger `sync_transaction_tags` into `transaction_tags(transaction_id, tag)` for indexed filtering.
 
+### 3.6 Recurring transactions
+
+A **recurring rule** is a transaction template + schedule. It does not affect balances directly — it produces concrete `transactions` rows when an occurrence is **posted**. Posted occurrences are normal transactions, just stamped with the rule that created them.
+
+**Schedule model** (per rule):
+- Validity range: `starts_on` (required) and `ends_on` (nullable, inclusive).
+- Frequency: `monthly` (extensible enum; weekly/yearly out of scope this round).
+- `day_rule`: `fixed_day` (with `day_of_month` clamped to month length, e.g. 31 → Feb 28/29), `end_of_month`, or `first_of_month`.
+- `weekend_adjust`: `none` | `before` (move Sat→Fri / Sun→Fri) | `after` (Sat→Mon / Sun→Mon). Public-holiday awareness is out of scope.
+- `auto_post`: when true, the system creates the transaction automatically once the effective date is reached. When false, the user gets a "pending" reminder card on the dashboard and posts/skips with one tap.
+
+**Tracking executions**: every materialised occurrence lives in `recurring_occurrences(rule_id, due_on, effective_on, status, transaction_id, posted_at)` with `UNIQUE(rule_id, due_on)`. Statuses:
+- `pending` — only used for `auto_post = false` rules; means due date is reached or upcoming within the 7-day lookahead window but no transaction exists yet.
+- `posted` — `transaction_id` points at the resulting `transactions` row.
+- `skipped` — user actively skipped this occurrence.
+
+**Processing pipeline**: `process_recurring_rules(p_today)` is called by the dashboard on every load. For each non-archived rule, it walks month by month from the latest existing occurrence (or `starts_on`) forward to `today` (or `today + 7d` for manual rules), computes each `due_on` and `effective_on`, and either inserts the transaction + posted occurrence (auto) or just a pending occurrence (manual). The `UNIQUE(rule_id, due_on)` constraint plus `ON CONFLICT DO NOTHING` makes the whole thing idempotent — running it twice on the same day is a no-op. No cron required: app open drives processing; if the user skips the app for a month, the next visit catches up everything in one batch.
+
+**Deletion linkage**: `recurring_occurrences.transaction_id` uses `ON DELETE SET NULL`, plus a `BEFORE DELETE` trigger on `transactions` (`reset_occurrence_on_tx_delete`) that flips the linked occurrence back to `pending` so the user can re-post or skip cleanly.
+
+**Archiving**: deleting a rule from the UI sets `archived = true`. Posted historical transactions stay; pending occurrences for archived rules remain in the table but stop being shown / generated.
+
 ## 4. SQL surface
 
 | Object | Type | Purpose |
@@ -123,6 +145,10 @@ The savings balance is unaffected by month boundaries — it is computed from th
 | `ensure_month_budgets(p_month DATE)` | function | Idempotently copies the most recent prior budget into the given month for every active category. Called by the UI before reading month rows. |
 | `sync_transaction_tags()` | trigger function | Re-derives `transaction_tags` from the note on insert/update. |
 | `update_updated_at_column()` | trigger function | Sets `updated_at = now()` on update; attached to all mutable tables. |
+| `compute_due_date(p_month, p_rule, p_dom)` | function | Produces the un-adjusted scheduled date for a recurring rule in a given month. Clamps fixed day to month length. |
+| `compute_effective_date(p_due, p_adjust)` | function | Applies the weekend adjustment (`before` / `after` / `none`). |
+| `process_recurring_rules(p_today)` | function | Idempotent recurring-rule processor. Catches up missed occurrences, auto-posts where configured, and creates pending occurrences for manual rules within a 7-day lookahead. |
+| `reset_occurrence_on_tx_delete()` | trigger function | When a transaction backing an occurrence is deleted, flips the occurrence back to `pending`. |
 
 RLS: every public table has a permissive `open_all` policy (single-user mode). When auth is added these become `auth.uid() = user_id`.
 
