@@ -1,45 +1,55 @@
 
-# Shared rent (and similar split costs) — how to model
 
-Good news: your current model already supports this cleanly through the **reimbursement rule** (architecture §3.2). No schema changes needed — just a documented pattern + a small UX nudge so it's discoverable.
+# Coop gift cards — modelling pattern
 
-## The pattern
+## Recommendation: model the gift card as a Cash-type account
 
-For a 2,400 CHF rent where your girlfriend pays you 1,200 back:
+Treat each Coop gift card (or the pool of them) as its own **Asset account** named e.g. *Coop Geschenkkarten*. This is exactly what asset accounts are for: a place where money physically sits. Then book two transactions to load it.
 
-1. **Expense** — 2,400 CHF, account = Bank, category = **Miete**.
-   → Bank −2,400. Miete `spent` += 2,400.
-2. **Income** — 1,200 CHF, account = Bank, category = **Miete** (same envelope), payee = "Girlfriend", note = `#shared`.
-   → Bank +1,200. Miete `spent` −= 1,200 (reimbursement rule).
+### The pattern (1000 CHF card bought for 960)
 
-Net effect on Miete envelope: **+1,200 spent** = your actual share. Net effect on Bank: −1,200 = the cash that actually left you. Both physical transactions stay in history for traceability.
+1. **Expense** — 960 CHF, source = *Migros Cumulus*, category = **none** (leave empty).
+2. **Income** — 1000 CHF, source = *Coop Geschenkkarten*, category = **none**.
 
-This works for any split cost: shared groceries, joint Netflix, splitting a restaurant bill, etc.
+Result:
+- Migros Cumulus −960 (real cash out).
+- Coop Geschenkkarten +1000 (real spending power loaded).
+- Net worth +40 — the 4 % discount surfaces as an account-balance gain, not as budget income, which matches your intuition.
+- Neither leg touches an envelope, so the budget is untouched at load time.
+- Later, when you buy groceries with the card: **Expense** 87.50 CHF, source = *Coop Geschenkkarten*, category = **Lebensmittel**. The full sticker price hits the Lebensmittel envelope (no 4 % discount visible there — exactly what you said you want), and the gift-card balance ticks down. When the card runs dry, the account hits 0 and you stop using it. Net worth and audit trail stay correct throughout.
 
-## Why this is the right fit (not a new "shared expense" type)
+### Why a dedicated account beats the alternatives
 
-- **Audit trail intact**: both real bank movements are visible in Transactions; if you ever reconcile against your bank statement they match 1:1.
-- **Envelope math is automatic**: the existing `category_month_spending` function already nets income-with-expense-category against the month's spend.
-- **No new concepts**: same Add Transaction screen, same envelopes, same dashboard. You already use this rule implicitly for refunds (architecture §3.2 row "Income (expense category) = reimbursement").
-- **Recurring works too**: pair a recurring **Expense** rule (2,400 to landlord on the 1st) with a recurring **Income** rule (1,200 from girlfriend on the 28th) — both bound to the Miete envelope. The envelope shows the correct net at the end of the month.
+- **Two free-floating transactions without a gift-card account**: the 1000 income would either inflate income envelopes or sit in limbo, and the spending power isn't tracked — you'd have no idea how much card balance is left. Rejected.
+- **Booking only the 960 against Lebensmittel directly when you spend**: loses the audit trail (no record of card load), and you'd need to mentally divide every grocery bill by 0.96. Rejected.
+- **A new "voucher" account type**: cash-type asset accounts already model this perfectly. No schema change needed.
 
-Alternatives considered and rejected:
-- *New "split" transaction type*: doubles complexity for a case the reimbursement rule already solves. Rejected.
-- *Book only your half (1,200 expense), ignore her transfer*: would make Bank balance drift from reality. Rejected.
-- *Separate "Shared > Miete reimbursement" income envelope*: makes the dashboard noisier and breaks the natural "Miete cost me X this month" reading. Rejected.
+## On linking the two load transactions
+
+Short answer: **don't link them at the row level.** They're already implicitly linked by sharing the same date and being the only two non-budget movements between Migros Cumulus and Coop Geschenkkarten. The pattern below makes that link explicit and searchable without new schema.
+
+Concrete recommendation: **use a hashtag convention** — put `#giftcard-load` (or `#giftcard-load-2026-04` for the specific batch) in the note of both transactions. Tags are already extracted into `transaction_tags` and filterable on the Transactions page, so searching `#giftcard-load` instantly shows every load pair grouped by date. Zero new code, zero new schema, leverages an existing feature.
+
+Why not a true row-to-row link:
+- Adds a new table (`transaction_links` or similar) and CRUD UI for a single use case.
+- The reimbursement pattern (§3.7) deliberately avoids this for the same reason — implicit linkage via shared category/date/tag has been the project's consistent design choice.
+- A dedicated transfer between the two accounts won't work either: a transfer enforces equal amounts on both sides, and the whole point here is that 960 ≠ 1000.
 
 ## Small changes to make this discoverable
 
-1. **Add Transaction screen** — when the user picks Income type and selects an expense-flavoured category, show a subtle hint under the category dropdown: *"This will be treated as a reimbursement and reduce this envelope's spending."* (translated DE/EN). Purely informational, no behaviour change.
-2. **Architecture doc** — add §3.7 "Shared / split expenses" with the rent example, the recurring-rule pairing pattern, and a note that any income posted against an expense envelope is a reimbursement. Add change-log entry.
-3. **i18n** — two new keys: `add.reimbursement_hint` (DE: *"Wird als Rückerstattung gebucht und reduziert die Ausgaben dieses Umschlags."*, EN: *"Booked as a reimbursement; reduces this envelope's spending."*) and `add.reimbursement_hint.savings` for the savings-envelope variant (*"...erhöht das Guthaben dieses Rückstellungs-Umschlags."* / *"...increases this savings envelope's balance."*).
+1. **`architecture.md`** — add §3.8 *Gift cards & stored-value accounts* documenting the Coop pattern: dedicated asset account, two-leg load (expense + income, no category), tag convention `#giftcard-load`, spend transactions go directly against the gift-card account with normal envelopes.
+2. **Settings → Accounts hint** — under the account-type selector, add a one-line helper text: *"Use an asset account for gift cards or stored-value (e.g. Coop Geschenkkarten)."* (DE + EN).
+3. **i18n** — two new keys: `settings.accounts.asset_hint` and a tag suggestion key `add.tag_suggestion.giftcard_load` shown as a chip under the note field when both source/destination accounts are involved in a no-category pair (optional polish — happy to drop if you'd rather keep Add minimal).
+4. **Change-log entry** in `architecture.md` dated today.
 
 ## Files touched
 
-- `src/routes/add.tsx` — render the hint under the category select when `type === "income"` and the chosen category's group kind is `expense` or `savings`.
-- `src/i18n/index.tsx` — two new keys (DE + EN).
-- `architecture.md` — new §3.7 + change-log entry dated today.
+- `architecture.md` — new §3.8 + change-log entry.
+- `src/routes/settings.tsx` — render the helper text under account type.
+- `src/i18n/index.tsx` — DE + EN keys.
+- *(Optional)* `src/routes/add.tsx` — tag-suggestion chip; skip if you want to keep this round minimal.
 
 ## Out of scope
 
-Multi-party splits with arbitrary fractions, automatic IOU tracking, linking the expense and the reimbursement transactions as a pair (they stay independent rows — the envelope math handles the linkage implicitly).
+A formal `transaction_links` table, automatic profit reporting on gift-card purchases, multi-leg stored-value reconciliation (e.g. expiring vouchers), and tracking individual physical card serial numbers.
+
