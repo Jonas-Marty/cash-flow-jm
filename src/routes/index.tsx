@@ -10,12 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
+import { UpcomingCard } from "@/components/UpcomingCard";
 import {
   fetchAccountBalances,
   fetchCategoryMonthRows,
   fetchSavingsBalances,
   fetchSettings,
   fetchTransactions,
+  processRecurringRules,
   fmtMoney,
   monthKey,
   type CategoryMonthRow,
@@ -35,6 +37,11 @@ function Dashboard() {
   const envelopesQ = useQuery({ queryKey: ["category_month_rows", m], queryFn: () => fetchCategoryMonthRows(m) });
   const savingsQ = useQuery({ queryKey: ["savings_balance"], queryFn: fetchSavingsBalances });
   const recentQ = useQuery({ queryKey: ["transactions", "recent"], queryFn: () => fetchTransactions(8) });
+  // Run the recurring processor once when the dashboard mounts.
+  // Idempotent — safe even if the user reloads many times.
+  React.useEffect(() => {
+    processRecurringRules().catch(() => {});
+  }, []);
 
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
   const accounts = balancesQ.data ?? [];
