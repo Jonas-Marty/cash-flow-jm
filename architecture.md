@@ -50,6 +50,22 @@ accounts                          category_groups
   ├ category_id (nullable) ─────────► categories        │
   ├ payee, note                                         │
   └ id ◄────────────────────────────────────────────────┘
+
+ recurring_rules                    recurring_occurrences
+  ├ id                                ├ id
+  ├ name                              ├ rule_id ──► recurring_rules
+  ├ type (expense|income|transfer)    ├ due_on (un-adjusted)
+  ├ amount                            ├ effective_on (after weekend rule)
+  ├ source_account_id ──► accounts    ├ status (pending|posted|skipped)
+  ├ destination_account_id ► accounts ├ transaction_id ──► transactions (SET NULL)
+  ├ category_id ──► categories        ├ posted_at
+  ├ payee, note                       └ UNIQUE (rule_id, due_on)
+  ├ frequency (monthly)
+  ├ day_rule (fixed_day|end_of_month|first_of_month)
+  ├ day_of_month
+  ├ weekend_adjust (none|before|after)
+  ├ starts_on, ends_on (validity range)
+  ├ auto_post, archived
 ```
 
 All tables have `created_at`, `updated_at`, and a nullable `user_id` for future Keycloak/OIDC integration without migration.
