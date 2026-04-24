@@ -166,6 +166,126 @@ export type Database = {
         }
         Relationships: []
       }
+      recurring_occurrences: {
+        Row: {
+          created_at: string
+          due_on: string
+          effective_on: string
+          id: string
+          posted_at: string | null
+          rule_id: string
+          status: Database["public"]["Enums"]["occurrence_status"]
+          transaction_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          due_on: string
+          effective_on: string
+          id?: string
+          posted_at?: string | null
+          rule_id: string
+          status?: Database["public"]["Enums"]["occurrence_status"]
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          due_on?: string
+          effective_on?: string
+          id?: string
+          posted_at?: string | null
+          rule_id?: string
+          status?: Database["public"]["Enums"]["occurrence_status"]
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_occurrences_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_occurrences_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      recurring_rules: {
+        Row: {
+          amount: number
+          archived: boolean
+          auto_post: boolean
+          category_id: string | null
+          created_at: string
+          day_of_month: number | null
+          day_rule: Database["public"]["Enums"]["recurring_day_rule"]
+          destination_account_id: string | null
+          ends_on: string | null
+          frequency: Database["public"]["Enums"]["recurring_frequency"]
+          id: string
+          name: string
+          note: string | null
+          payee: string | null
+          source_account_id: string
+          starts_on: string
+          type: Database["public"]["Enums"]["transaction_type"]
+          updated_at: string
+          user_id: string | null
+          weekend_adjust: Database["public"]["Enums"]["weekend_adjust"]
+        }
+        Insert: {
+          amount: number
+          archived?: boolean
+          auto_post?: boolean
+          category_id?: string | null
+          created_at?: string
+          day_of_month?: number | null
+          day_rule?: Database["public"]["Enums"]["recurring_day_rule"]
+          destination_account_id?: string | null
+          ends_on?: string | null
+          frequency?: Database["public"]["Enums"]["recurring_frequency"]
+          id?: string
+          name: string
+          note?: string | null
+          payee?: string | null
+          source_account_id: string
+          starts_on: string
+          type: Database["public"]["Enums"]["transaction_type"]
+          updated_at?: string
+          user_id?: string | null
+          weekend_adjust?: Database["public"]["Enums"]["weekend_adjust"]
+        }
+        Update: {
+          amount?: number
+          archived?: boolean
+          auto_post?: boolean
+          category_id?: string | null
+          created_at?: string
+          day_of_month?: number | null
+          day_rule?: Database["public"]["Enums"]["recurring_day_rule"]
+          destination_account_id?: string | null
+          ends_on?: string | null
+          frequency?: Database["public"]["Enums"]["recurring_frequency"]
+          id?: string
+          name?: string
+          note?: string | null
+          payee?: string | null
+          source_account_id?: string
+          starts_on?: string
+          type?: Database["public"]["Enums"]["transaction_type"]
+          updated_at?: string
+          user_id?: string | null
+          weekend_adjust?: Database["public"]["Enums"]["weekend_adjust"]
+        }
+        Relationships: []
+      }
       settings: {
         Row: {
           created_at: string
@@ -389,12 +509,32 @@ export type Database = {
           variance: number
         }[]
       }
+      compute_due_date: {
+        Args: {
+          p_dom: number
+          p_month: string
+          p_rule: Database["public"]["Enums"]["recurring_day_rule"]
+        }
+        Returns: string
+      }
+      compute_effective_date: {
+        Args: {
+          p_adjust: Database["public"]["Enums"]["weekend_adjust"]
+          p_due: string
+        }
+        Returns: string
+      }
       ensure_month_budgets: { Args: { p_month: string }; Returns: undefined }
+      process_recurring_rules: { Args: { p_today: string }; Returns: undefined }
     }
     Enums: {
       account_type: "asset" | "liability"
       category_group_kind: "income" | "expense" | "savings"
+      occurrence_status: "pending" | "posted" | "skipped"
+      recurring_day_rule: "fixed_day" | "end_of_month" | "first_of_month"
+      recurring_frequency: "monthly"
       transaction_type: "expense" | "income" | "transfer"
+      weekend_adjust: "none" | "before" | "after"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -524,7 +664,11 @@ export const Constants = {
     Enums: {
       account_type: ["asset", "liability"],
       category_group_kind: ["income", "expense", "savings"],
+      occurrence_status: ["pending", "posted", "skipped"],
+      recurring_day_rule: ["fixed_day", "end_of_month", "first_of_month"],
+      recurring_frequency: ["monthly"],
       transaction_type: ["expense", "income", "transfer"],
+      weekend_adjust: ["none", "before", "after"],
     },
   },
 } as const
