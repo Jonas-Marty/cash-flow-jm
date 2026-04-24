@@ -251,7 +251,7 @@ function AddTransaction() {
         <div className="space-y-3">
           <div>
             <Label className="mb-1.5 block">{type === "transfer" ? tr("add.from_account") : tr("add.account")}</Label>
-            <Select value={sourceId} onValueChange={setSourceId}>
+            <Select value={sourceId} onValueChange={(v) => { setSourceId(v); mark("sourceId"); }}>
               <SelectTrigger><SelectValue placeholder={accounts.length ? tr("add.account") : tr("add.no_accounts")} /></SelectTrigger>
               <SelectContent>
                 {accounts.map((a) => (
@@ -285,7 +285,7 @@ function AddTransaction() {
               <Label className="mb-1.5 block">
                 {tr("add.category")} {type === "income" && <span className="text-xs font-normal text-muted-foreground">{tr("add.category_optional_reimb")}</span>}
               </Label>
-              <Select value={categoryId || "__none"} onValueChange={(v) => setCategoryId(v === "__none" ? "" : v)}>
+              <Select value={categoryId || "__none"} onValueChange={(v) => { setCategoryId(v === "__none" ? "" : v); mark("categoryId"); }}>
                 <SelectTrigger><SelectValue placeholder={tr("add.select_category")} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none">{tr("common.none")}</SelectItem>
@@ -325,7 +325,7 @@ function AddTransaction() {
             id="payee"
             list="payee-suggestions"
             value={payee}
-            onChange={(e) => setPayee(e.target.value)}
+            onChange={(e) => { setPayee(e.target.value); mark("payee"); }}
             placeholder={type === "transfer" ? tr("common.optional") : tr("add.payee_placeholder")}
           />
           <datalist id="payee-suggestions">
@@ -335,7 +335,13 @@ function AddTransaction() {
 
         <div>
           <Label htmlFor="note" className="mb-1.5 block">{tr("add.note")}</Label>
-          <Textarea id="note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={tr("add.note_placeholder")} />
+          <Textarea id="note" rows={2} value={note} onChange={(e) => { setNote(e.target.value); mark("note"); }} placeholder={tr("add.note_placeholder")} />
+          <TagChips
+            className="mt-2"
+            transactions={recentQ.data ?? []}
+            currentNote={note}
+            onAppend={appendTag}
+          />
           {tags.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {tags.map((t) => (
@@ -347,6 +353,12 @@ function AddTransaction() {
 
         <div>
           <Label className="mb-1.5 block">{tr("add.date")}</Label>
+          <DateShortcuts
+            className="mb-2"
+            selected={date}
+            onPick={setDate}
+            labels={{ today: tr("add.date.today"), yesterday: tr("add.date.yesterday"), last_weekend: tr("add.date.last_weekend") }}
+          />
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className="w-full justify-start text-left font-normal">
