@@ -331,6 +331,9 @@ function SettingsPage() {
           </CardContent>
         </Card>
 
+        {/* Recurring rules */}
+        <RecurringRulesCard />
+
         <p className="pb-4 text-xs text-muted-foreground">{tr("settings.footer")}</p>
       </div>
     </AppShell>
