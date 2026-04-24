@@ -24,13 +24,15 @@ import { DateShortcuts } from "@/components/DateShortcuts";
 import { ChipPicker, type ChipPickerItem } from "@/components/ChipPicker";
 import { scoreAccounts, scoreCategories, sortByPinAndScore } from "@/lib/usageScoring";
 import { DayHeatmapCalendar } from "@/components/DayHeatmapCalendar";
+import { DateInput } from "@/components/DateInput";
+import { ShortcutsDialog } from "@/components/ShortcutsDialog";
 
 export const Route = createFileRoute("/add")({
   component: AddTransaction,
 });
 
 function AddTransaction() {
-  const { t: tr, locale } = useI18n();
+  const { t: tr, locale, lang } = useI18n();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
@@ -71,6 +73,7 @@ function AddTransaction() {
   const [note, setNote] = React.useState("");
   const [date, setDate] = React.useState<Date>(new Date());
   const [saving, setSaving] = React.useState(false);
+  const [helpOpen, setHelpOpen] = React.useState(false);
 
   // Track which fields the user has explicitly touched, so suggestion-apply
   // in "sticky" mode doesn't overwrite their input.
@@ -188,6 +191,82 @@ function AddTransaction() {
     qc.invalidateQueries();
     if (andNew) reset(); else navigate({ to: "/" });
   };
+
+  // Global keyboard shortcuts
+  const saveRef = React.useRef(save);
+  saveRef.current = save;
+  const applyRef = React.useRef(applySuggestion);
+  applyRef.current = applySuggestion;
+  const suggestionsRef = React.useRef(suggestions);
+  suggestionsRef.current = suggestions;
+
+  React.useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const inEditable =
+        target instanceof HTMLInputElement ||
+        target instanceof HTMLTextAreaElement ||
+        target?.isContentEditable;
+      const tag = target?.tagName;
+      const mod = e.ctrlKey || e.metaKey;
+
+      // Ctrl/Cmd+Enter — save (Shift = save & new)
+      if (mod && e.key === "Enter") {
+        e.preventDefault();
+        saveRef.current(e.shiftKey);
+        return;
+      }
+      // Alt+1/2/3 — switch type
+      if (e.altKey && !e.ctrlKey && !e.metaKey) {
+        if (e.key === "1") { e.preventDefault(); setType("expense"); return; }
+        if (e.key === "2") { e.preventDefault(); setType("income"); return; }
+        if (e.key === "3") { e.preventDefault(); setType("transfer"); return; }
+        // Alt+0 → use-all from best suggestion
+        if (e.key === "0") {
+          const best = suggestionsRef.current[0];
+          if (best) { e.preventDefault(); applyRef.current(best, "all"); }
+          return;
+        }
+        // Alt+1..9 already handled above for 1/2/3 (type switch wins by design).
+        // For 4..9, apply Nth suggestion (sticky).
+        const n = Number(e.key);
+        if (n >= 4 && n <= 9) {
+          const s = suggestionsRef.current[n - 1];
+          if (s) { e.preventDefault(); applyRef.current(s, "sticky"); }
+          return;
+        }
+      }
+      // "?" → help (only when not editing text)
+      if (e.key === "?" && !inEditable) {
+        e.preventDefault();
+        setHelpOpen((o) => !o);
+        return;
+      }
+      // "Escape" — close help if open
+      if (e.key === "Escape" && helpOpen) {
+        setHelpOpen(false);
+      }
+      // Suppress unused warnings
+      void tag;
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [helpOpen]);
+
+  const shortcutRows = React.useMemo(() => [
+    { keys: "Ctrl+Enter / Cmd+Enter", label: tr("kbd.save") },
+    { keys: "Ctrl+Shift+Enter / Cmd+Shift+Enter", label: tr("kbd.save_new") },
+    { keys: "Alt+1", label: tr("kbd.expense") },
+    { keys: "Alt+2", label: tr("kbd.income") },
+    { keys: "Alt+3", label: tr("kbd.transfer") },
+    { keys: "Alt+0", label: tr("kbd.suggest_all") },
+    { keys: "Alt+4 … Alt+9", label: tr("kbd.suggestion", { n: "N" }) },
+    { keys: "← → ↑ ↓", label: tr("kbd.picker_arrows") },
+    { keys: "/ / Ctrl+K", label: tr("kbd.picker_search") },
+    { keys: "+ / -", label: tr("kbd.date_step_day") },
+    { keys: "PgUp / PgDn", label: tr("kbd.date_step_month") },
+    { keys: "?", label: tr("kbd.help") },
+  ], [tr]);
 
   const typeBtn = (t: TxType, label: string, Icon: typeof ArrowDown) => (
     <button
@@ -366,7 +445,17 @@ function AddTransaction() {
         </div>
 
         <div>
-          <Label className="mb-1.5 block">{tr("add.date")}</Label>
+          <div className="mb-1.5 flex items-center justify-between gap-2">
+            <Label htmlFor="date-input">{tr("add.date")}</Label>
+            <DateInput
+              id="date-input"
+              value={date}
+              onChange={setDate}
+              lang={lang}
+              locale={locale}
+              className="hidden md:block"
+            />
+          </div>
           <DateShortcuts
             className="mb-2"
             selected={date}
@@ -389,12 +478,22 @@ function AddTransaction() {
             }}
           />
           <p className="mt-1 text-xs text-muted-foreground md:hidden">{tr("add.day_preview.long_press_hint")}</p>
+          <p className="mt-1 hidden text-xs text-muted-foreground md:block">
+            {tr("add.date_input_hint", { fmt: lang === "en" ? "MM/DD/YYYY" : "DD.MM.YYYY" })}
+          </p>
         </div>
 
         <div className="flex gap-2 pt-2">
           <Button variant="outline" className="flex-1" disabled={saving} onClick={() => save(true)}>{tr("add.save_new")}</Button>
           <Button className="flex-1" disabled={saving} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("common.save")}</Button>
         </div>
+
+        <ShortcutsDialog
+          open={helpOpen}
+          onOpenChange={setHelpOpen}
+          title={tr("kbd.title")}
+          rows={shortcutRows}
+        />
       </div>
     </AppShell>
   );
