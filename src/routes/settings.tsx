@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, Trash2, ArchiveRestore, Archive, Pin, PinOff, Palette } from "lucide-react";
+import { format } from "date-fns";
 
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,7 +37,7 @@ const CURRENCIES: { code: string; symbol: string }[] = [
 ];
 
 function SettingsPage() {
-  const { t: tr, lang, setLang } = useI18n();
+  const { t: tr, lang, setLang, locale } = useI18n();
   const qc = useQueryClient();
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
@@ -206,6 +207,29 @@ function SettingsPage() {
     qc.invalidateQueries({ queryKey: ["settings"] });
   };
 
+  const setDateFormat = async (fmt: string) => {
+    if (!settingsQ.data) return;
+    const { error } = await supabase
+      .from("settings")
+      .update({ date_format: fmt })
+      .eq("id", settingsQ.data.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(tr("toast.saved"));
+    qc.invalidateQueries({ queryKey: ["settings"] });
+  };
+
+  const DATE_FORMAT_PRESETS = [
+    "dd.MM.yyyy",
+    "dd/MM/yyyy",
+    "MM/dd/yyyy",
+    "yyyy-MM-dd",
+    "d.M.yyyy",
+    "d MMM yyyy",
+  ];
+  const datePreview = (fmt: string) => {
+    try { return format(new Date(), fmt, { locale }); } catch { return fmt; }
+  };
+
   return (
     <AppShell>
       <div className="space-y-6">
@@ -255,6 +279,21 @@ function SettingsPage() {
               <span className="text-sm text-muted-foreground">{settingsQ.data?.currency_symbol ?? "CHF"}</span>
             </div>
             <p className="text-xs text-muted-foreground">{tr("settings.heatmap_threshold.hint")}</p>
+            <div className="pt-3">
+              <Label htmlFor="date-format" className="text-sm">{tr("settings.date_format")}</Label>
+              <Select value={settingsQ.data?.date_format ?? "dd.MM.yyyy"} onValueChange={setDateFormat}>
+                <SelectTrigger id="date-format" className="mt-1 w-64"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {DATE_FORMAT_PRESETS.map((f) => (
+                    <SelectItem key={f} value={f}>
+                      <span className="font-mono">{f}</span>
+                      <span className="ml-2 text-muted-foreground">· {datePreview(f)}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-xs text-muted-foreground">{tr("settings.date_format.hint")}</p>
+            </div>
           </CardContent>
         </Card>
 

@@ -327,6 +327,7 @@ export type Database = {
           created_at: string
           currency_code: string
           currency_symbol: string
+          date_format: string
           day_heatmap_threshold: number
           id: string
           language: string
@@ -337,6 +338,7 @@ export type Database = {
           created_at?: string
           currency_code?: string
           currency_symbol?: string
+          date_format?: string
           day_heatmap_threshold?: number
           id?: string
           language?: string
@@ -347,6 +349,7 @@ export type Database = {
           created_at?: string
           currency_code?: string
           currency_symbol?: string
+          date_format?: string
           day_heatmap_threshold?: number
           id?: string
           language?: string

@@ -109,7 +109,7 @@ const de: Dict = {
   "add.recent_tags": "Häufige Tags",
   "add.date.today": "Heute",
   "add.date.yesterday": "Gestern",
-  "add.date.last_weekend": "Letztes Wochenende",
+  "add.date.last_prefix": "Letzten",
   "add.day_preview.title": "Buchungen",
   "add.day_preview.empty": "Keine Buchungen an diesem Tag.",
   "add.day_preview.net": "Saldo",
@@ -145,6 +145,8 @@ const de: Dict = {
   "settings.preferences": "Einstellungen",
   "settings.heatmap_threshold": "Heatmap-Schwellenwert",
   "settings.heatmap_threshold.hint": "Tage mit einem Saldo bis zu diesem Betrag werden hell, darüber kräftig eingefärbt.",
+  "settings.date_format": "Datumsformat",
+  "settings.date_format.hint": "Wird in Listen, Eingabefeldern und der Buchungs-Maske verwendet.",
   "settings.accounts": "Konten",
   "settings.groups": "Gruppen",
   "settings.envelopes": "Budgets (Kategorien)",
@@ -237,7 +239,7 @@ const de: Dict = {
   "kbd.date_step_day": "Datum ±1 Tag",
   "kbd.date_step_month": "Datum ±1 Monat",
   "kbd.help": "Hilfe öffnen",
-  "add.date_input_hint": "Format: {fmt} · +/− oder Bild↑/↓ zum Springen",
+  "add.date_input_hint": "Format: {fmt} · +/−, ↑/↓, j/k = ±1 Tag · Bild↑/↓ = ±1 Monat",
 };
 
 const en: Dict = {
@@ -332,7 +334,7 @@ const en: Dict = {
   "add.recent_tags": "Frequent tags",
   "add.date.today": "Today",
   "add.date.yesterday": "Yesterday",
-  "add.date.last_weekend": "Last weekend",
+  "add.date.last_prefix": "Last",
   "add.day_preview.title": "Transactions",
   "add.day_preview.empty": "No transactions on this day.",
   "add.day_preview.net": "Net",
@@ -365,6 +367,8 @@ const en: Dict = {
   "settings.preferences": "Preferences",
   "settings.heatmap_threshold": "Heatmap threshold",
   "settings.heatmap_threshold.hint": "Days with a net flow up to this amount get a light tint; above it, a deeper tint.",
+  "settings.date_format": "Date format",
+  "settings.date_format.hint": "Used across lists, inputs, and the add-transaction screen.",
   "settings.accounts": "Accounts",
   "settings.groups": "Groups",
   "settings.envelopes": "Envelopes (Categories)",
@@ -455,7 +459,7 @@ const en: Dict = {
   "kbd.date_step_day": "Date ±1 day",
   "kbd.date_step_month": "Date ±1 month",
   "kbd.help": "Open help",
-  "add.date_input_hint": "Format: {fmt} · +/− or PgUp/PgDn to step",
+  "add.date_input_hint": "Format: {fmt} · +/−, ↑/↓, j/k = ±1 day · PgUp/PgDn = ±1 month",
 };
 
 const dicts: Record<Lang, Dict> = { de, en };

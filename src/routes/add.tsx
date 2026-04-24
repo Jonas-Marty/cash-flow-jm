@@ -447,20 +447,26 @@ function AddTransaction() {
         <div>
           <div className="mb-1.5 flex items-center justify-between gap-2">
             <Label htmlFor="date-input">{tr("add.date")}</Label>
-            <DateInput
-              id="date-input"
-              value={date}
-              onChange={setDate}
-              lang={lang}
-              locale={locale}
-              className="hidden md:block"
-            />
           </div>
           <DateShortcuts
             className="mb-2"
             selected={date}
             onPick={setDate}
-            labels={{ today: tr("add.date.today"), yesterday: tr("add.date.yesterday"), last_weekend: tr("add.date.last_weekend") }}
+            locale={locale}
+            labels={{
+              today: tr("add.date.today"),
+              yesterday: tr("add.date.yesterday"),
+              last_prefix: tr("add.date.last_prefix"),
+            }}
+          />
+          <DateInput
+            id="date-input"
+            value={date}
+            onChange={setDate}
+            formatStr={settingsQ.data?.date_format}
+            lang={lang}
+            locale={locale}
+            className="mb-2 hidden w-full md:block"
           />
           <DayHeatmapCalendar
             selected={date}
@@ -479,7 +485,7 @@ function AddTransaction() {
           />
           <p className="mt-1 text-xs text-muted-foreground md:hidden">{tr("add.day_preview.long_press_hint")}</p>
           <p className="mt-1 hidden text-xs text-muted-foreground md:block">
-            {tr("add.date_input_hint", { fmt: lang === "en" ? "MM/DD/YYYY" : "DD.MM.YYYY" })}
+            {tr("add.date_input_hint", { fmt: settingsQ.data?.date_format ?? "dd.MM.yyyy" })}
           </p>
         </div>
 

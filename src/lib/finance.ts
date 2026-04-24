@@ -125,6 +125,7 @@ export interface Settings {
   currency_symbol: string;
   language: string;
   day_heatmap_threshold: number;
+  date_format: string;
 }
 
 export const fmtMoney = (n: number, symbol = "CHF") => {
@@ -152,7 +153,7 @@ export async function fetchSettings(): Promise<Settings> {
   if (!data) {
     const { data: created, error: cErr } = await supabase
       .from("settings")
-      .insert({ currency_code: "CHF", currency_symbol: "CHF", day_heatmap_threshold: 100 })
+      .insert({ currency_code: "CHF", currency_symbol: "CHF", day_heatmap_threshold: 100, date_format: "dd.MM.yyyy" })
       .select()
       .single();
     if (cErr) throw cErr;
