@@ -142,6 +142,7 @@ const de: Dict = {
   "settings.no_accounts": "Noch keine Konten.",
   "settings.no_envelopes": "Noch keine Budgets.",
   "settings.no_groups": "Noch keine Gruppen. Lege z.B. „Fixkosten“, „Persönliche Ausgaben“, „Einnahmen“, „Rückstellungen“ an.",
+  "settings.accounts.asset_hint": "Tipp: Verwende ein Vermögenskonto für Geschenkkarten oder Guthaben (z.B. Coop Geschenkkarten).",
   "settings.footer": "Einzelnutzer-Modus · Monatliche Budgets setzen sich jeden Kalendermonat zurück, kein Übertrag · Login folgt später.",
 
   // Recurring
@@ -313,6 +314,7 @@ const en: Dict = {
   "settings.no_accounts": "No accounts yet.",
   "settings.no_envelopes": "No envelopes yet.",
   "settings.no_groups": "No groups yet. Create groups like \"Fixed costs\", \"Personal\", \"Income\", \"Reserves\".",
+  "settings.accounts.asset_hint": "Tip: Use an asset account for gift cards or stored-value (e.g. Coop Geschenkkarten).",
   "settings.footer": "Single-user mode · monthly envelopes reset each calendar month with no rollover · authentication will plug in later.",
 
   "recurring.title": "Recurring transactions",
