@@ -206,6 +206,29 @@ function SettingsPage() {
     qc.invalidateQueries({ queryKey: ["settings"] });
   };
 
+  const setDateFormat = async (fmt: string) => {
+    if (!settingsQ.data) return;
+    const { error } = await supabase
+      .from("settings")
+      .update({ date_format: fmt })
+      .eq("id", settingsQ.data.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(tr("toast.saved"));
+    qc.invalidateQueries({ queryKey: ["settings"] });
+  };
+
+  const DATE_FORMAT_PRESETS = [
+    "dd.MM.yyyy",
+    "dd/MM/yyyy",
+    "MM/dd/yyyy",
+    "yyyy-MM-dd",
+    "d.M.yyyy",
+    "d MMM yyyy",
+  ];
+  const datePreview = (fmt: string) => {
+    try { return format(new Date(), fmt, { locale }); } catch { return fmt; }
+  };
+
   return (
     <AppShell>
       <div className="space-y-6">

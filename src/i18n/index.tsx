@@ -239,7 +239,7 @@ const de: Dict = {
   "kbd.date_step_day": "Datum ±1 Tag",
   "kbd.date_step_month": "Datum ±1 Monat",
   "kbd.help": "Hilfe öffnen",
-  "add.date_input_hint": "Format: {fmt} · +/− oder Bild↑/↓ zum Springen",
+  "add.date_input_hint": "Format: {fmt} · +/−, ↑/↓, j/k = ±1 Tag · Bild↑/↓ = ±1 Monat",
 };
 
 const en: Dict = {
@@ -459,7 +459,7 @@ const en: Dict = {
   "kbd.date_step_day": "Date ±1 day",
   "kbd.date_step_month": "Date ±1 month",
   "kbd.help": "Open help",
-  "add.date_input_hint": "Format: {fmt} · +/− or PgUp/PgDn to step",
+  "add.date_input_hint": "Format: {fmt} · +/−, ↑/↓, j/k = ±1 day · PgUp/PgDn = ±1 month",
 };
 
 const dicts: Record<Lang, Dict> = { de, en };
