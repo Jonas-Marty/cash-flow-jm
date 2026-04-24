@@ -271,14 +271,15 @@ function AddTransaction() {
         <div className="space-y-3">
           <div>
             <Label className="mb-1.5 block">{type === "transfer" ? tr("add.from_account") : tr("add.account")}</Label>
-            <Select value={sourceId} onValueChange={(v) => { setSourceId(v); mark("sourceId"); }}>
-              <SelectTrigger><SelectValue placeholder={accounts.length ? tr("add.account") : tr("add.no_accounts")} /></SelectTrigger>
-              <SelectContent>
-                {accounts.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>{a.name} <span className="text-muted-foreground">· {a.type}</span></SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <ChipPicker
+              items={accountChips}
+              value={sourceId || null}
+              onChange={(v) => { setSourceId(v); mark("sourceId"); }}
+              placeholder={accounts.length ? tr("add.account") : tr("add.no_accounts")}
+              moreLabel={tr("picker.more")}
+              searchPlaceholder={tr("picker.search")}
+              emptyLabel={tr("picker.no_match")}
+            />
             {accounts.length === 0 && (
               <p className="mt-1 text-xs text-muted-foreground">
                 <Link to="/settings" className="text-primary underline-offset-2 hover:underline">{tr("add.create_first_account")}</Link>
@@ -289,14 +290,16 @@ function AddTransaction() {
           {type === "transfer" && (
             <div>
               <Label className="mb-1.5 block">{tr("add.to_account")}</Label>
-              <Select value={destId} onValueChange={setDestId}>
-                <SelectTrigger><SelectValue placeholder={tr("add.to_account")} /></SelectTrigger>
-                <SelectContent>
-                  {accounts.filter((a) => a.id !== sourceId).map((a) => (
-                    <SelectItem key={a.id} value={a.id}>{a.name} <span className="text-muted-foreground">· {a.type}</span></SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <ChipPicker
+                items={accountChips}
+                value={destId || null}
+                onChange={setDestId}
+                disabledIds={sourceId ? [sourceId] : []}
+                placeholder={tr("add.to_account")}
+                moreLabel={tr("picker.more")}
+                searchPlaceholder={tr("picker.search")}
+                emptyLabel={tr("picker.no_match")}
+              />
             </div>
           )}
 
@@ -305,24 +308,17 @@ function AddTransaction() {
               <Label className="mb-1.5 block">
                 {tr("add.category")} {type === "income" && <span className="text-xs font-normal text-muted-foreground">{tr("add.category_optional_reimb")}</span>}
               </Label>
-              <Select value={categoryId || "__none"} onValueChange={(v) => { setCategoryId(v === "__none" ? "" : v); mark("categoryId"); }}>
-                <SelectTrigger><SelectValue placeholder={tr("add.select_category")} /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none">{tr("common.none")}</SelectItem>
-                  {categories.map((c) => {
-                    const kind = c.group_id ? groupKindById.get(c.group_id) : undefined;
-                    const badge = c.is_savings || kind === "savings"
-                      ? tr("add.savings_badge")
-                      : kind === "income" ? tr("add.income_badge") : null;
-                    return (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                        {badge && <span className="ml-2 text-xs text-muted-foreground">· {badge}</span>}
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
+              <ChipPicker
+                items={categoryChips}
+                value={categoryId || null}
+                onChange={(v) => { setCategoryId(v); mark("categoryId"); }}
+                allowClear
+                clearLabel={tr("common.none")}
+                placeholder={tr("add.select_category")}
+                moreLabel={tr("picker.more")}
+                searchPlaceholder={tr("picker.search")}
+                emptyLabel={tr("picker.no_match")}
+              />
               {type === "income" && categoryId && (() => {
                 const c = categories.find((x) => x.id === categoryId);
                 if (!c) return null;
