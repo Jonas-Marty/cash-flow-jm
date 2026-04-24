@@ -209,6 +209,7 @@ function SettingsPage() {
               <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.opening_balance")}</Label><Input inputMode="decimal" value={aOpening} onChange={(e) => setAOpening(e.target.value)} /></div>
               <div className="flex items-end"><Button className="w-full" onClick={addAccount}><Plus className="h-4 w-4" /> {tr("common.add")}</Button></div>
             </div>
+            <p className="text-xs text-muted-foreground">{tr("settings.accounts.asset_hint")}</p>
 
             <ul className="divide-y">
               {(accountsQ.data ?? []).map((a) => (
