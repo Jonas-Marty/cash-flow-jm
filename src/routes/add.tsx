@@ -3,15 +3,13 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { CalendarIcon, ArrowDown, ArrowUp, ArrowLeftRight } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowLeftRight } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,6 +23,7 @@ import { TagChips } from "@/components/TagChips";
 import { DateShortcuts } from "@/components/DateShortcuts";
 import { ChipPicker, type ChipPickerItem } from "@/components/ChipPicker";
 import { scoreAccounts, scoreCategories, sortByPinAndScore } from "@/lib/usageScoring";
+import { DayHeatmapCalendar } from "@/components/DayHeatmapCalendar";
 
 export const Route = createFileRoute("/add")({
   component: AddTransaction,
@@ -374,16 +373,22 @@ function AddTransaction() {
             onPick={setDate}
             labels={{ today: tr("add.date.today"), yesterday: tr("add.date.yesterday"), last_weekend: tr("add.date.last_weekend") }}
           />
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className="w-full justify-start text-left font-normal">
-                <CalendarIcon className="h-4 w-4" /> {format(date, "PPP", { locale })}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar mode="single" selected={date} onSelect={(d) => d && setDate(d)} initialFocus locale={locale} className={cn("p-3 pointer-events-auto")} />
-            </PopoverContent>
-          </Popover>
+          <DayHeatmapCalendar
+            selected={date}
+            onSelect={setDate}
+            transactions={recentQ.data ?? []}
+            accounts={accounts}
+            categories={categories}
+            threshold={Number(settingsQ.data?.day_heatmap_threshold ?? 100)}
+            symbol={symbol}
+            locale={locale}
+            labels={{
+              title: tr("add.day_preview.title"),
+              empty: tr("add.day_preview.empty"),
+              net: tr("add.day_preview.net"),
+            }}
+          />
+          <p className="mt-1 text-xs text-muted-foreground md:hidden">{tr("add.day_preview.long_press_hint")}</p>
         </div>
 
         <div className="flex gap-2 pt-2">
