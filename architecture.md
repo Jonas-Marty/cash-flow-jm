@@ -135,6 +135,19 @@ A **recurring rule** is a transaction template + schedule. It does not affect ba
 
 **Archiving**: deleting a rule from the UI sets `archived = true`. Posted historical transactions stay; pending occurrences for archived rules remain in the table but stop being shown / generated.
 
+### 3.7 Shared / split expenses
+
+Shared costs (split rent, joint subscriptions, group dinners) are modelled with the **reimbursement rule** from §3.2 — no new schema, no new transaction type. Pattern:
+
+1. Book the full **expense** against the responsible account and envelope (e.g. 2,400 CHF rent → Bank, category Miete).
+2. When the other party reimburses you, book an **income** to the same account with the **same expense (or savings) envelope** as `category_id` (e.g. 1,200 CHF from girlfriend → Bank, category Miete, payee "Girlfriend", note `#shared`).
+
+`category_month_spending` already nets income against the expense envelope, so the envelope shows the user's **actual share** while the bank balance reflects the **real cash movement**. Both rows stay in the transaction history for reconciliation.
+
+For monthly splits, pair two **recurring rules** on the same envelope: one expense rule for the full amount on the payment date, one income rule for the share to be received. The envelope nets correctly each month with no manual bookkeeping.
+
+The Add Transaction screen surfaces a hint under the category select when the user picks `income` and an `expense`/`savings` envelope, explaining the reimbursement effect. Out of scope: multi-party splits with arbitrary fractions, IOU tracking, and explicit row-to-row links between the expense and its reimbursement (the envelope math handles linkage implicitly).
+
 ## 4. SQL surface
 
 | Object | Type | Purpose |
