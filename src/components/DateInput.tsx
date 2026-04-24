@@ -7,7 +7,9 @@ import { cn } from "@/lib/utils";
 interface Props {
   value: Date;
   onChange: (d: Date) => void;
-  lang: "de" | "en" | string;
+  /** Explicit date-fns format string. If omitted, falls back to a sensible default per `lang`. */
+  formatStr?: string;
+  lang?: "de" | "en" | string;
   locale?: Locale;
   className?: string;
   id?: string;
@@ -17,9 +19,10 @@ function fmtFor(lang: string): string {
   return lang === "en" ? "MM/dd/yyyy" : "dd.MM.yyyy";
 }
 
-/** Locale-aware date input. Parses on blur/Enter, supports +/- (day) and PageUp/PageDown (month). */
-export function DateInput({ value, onChange, lang, locale, className, id }: Props) {
-  const fmtStr = fmtFor(lang);
+/** Locale-aware date input. Parses on blur/Enter; supports keyboard stepping:
+ *  +/-, ArrowUp/ArrowDown, j/k → ±1 day · PageUp/PageDown → ±1 month. */
+export function DateInput({ value, onChange, formatStr, lang = "de", locale, className, id }: Props) {
+  const fmtStr = formatStr || fmtFor(lang);
   const [text, setText] = React.useState<string>(() => format(value, fmtStr));
   const [invalid, setInvalid] = React.useState(false);
 
@@ -45,10 +48,10 @@ export function DateInput({ value, onChange, lang, locale, className, id }: Prop
       e.preventDefault();
       commit();
       (e.target as HTMLInputElement).blur();
-    } else if (e.key === "+") {
+    } else if (e.key === "+" || e.key === "ArrowUp" || e.key === "k") {
       e.preventDefault();
       onChange(addDays(value, 1));
-    } else if (e.key === "-" || e.key === "_") {
+    } else if (e.key === "-" || e.key === "_" || e.key === "ArrowDown" || e.key === "j") {
       e.preventDefault();
       onChange(addDays(value, -1));
     } else if (e.key === "PageDown") {
@@ -67,11 +70,11 @@ export function DateInput({ value, onChange, lang, locale, className, id }: Prop
       onChange={(e) => { setText(e.target.value); setInvalid(false); }}
       onBlur={commit}
       onKeyDown={onKeyDown}
-      placeholder={fmtStr.toLowerCase()}
+      placeholder={fmtStr}
       inputMode="numeric"
       autoComplete="off"
       spellCheck={false}
-      className={cn("w-40 tabular-nums", invalid && "border-destructive focus-visible:ring-destructive", className)}
+      className={cn("tabular-nums", invalid && "border-destructive focus-visible:ring-destructive", className)}
       aria-invalid={invalid || undefined}
     />
   );
