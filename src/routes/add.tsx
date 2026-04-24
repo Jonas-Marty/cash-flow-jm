@@ -24,6 +24,8 @@ import { SuggestionRow } from "@/components/SuggestionRow";
 import { QuickAmountChips } from "@/components/QuickAmountChips";
 import { TagChips } from "@/components/TagChips";
 import { DateShortcuts } from "@/components/DateShortcuts";
+import { ChipPicker, type ChipPickerItem } from "@/components/ChipPicker";
+import { scoreAccounts, scoreCategories, sortByPinAndScore } from "@/lib/usageScoring";
 
 export const Route = createFileRoute("/add")({
   component: AddTransaction,
@@ -43,6 +45,24 @@ function AddTransaction() {
   const categories = (categoriesQ.data ?? []).filter((c) => !c.archived);
   const groupKindById = new Map((groupsQ.data ?? []).map((g) => [g.id, g.kind]));
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
+
+  // Sorted account/category chips: pinned first, then recency-weighted usage
+  const accountChips: ChipPickerItem[] = React.useMemo(() => {
+    const scores = scoreAccounts(recentQ.data ?? []);
+    return sortByPinAndScore(accounts, scores).map((a) => ({
+      id: a.id, name: a.name,
+      icon: a.icon, emoji: a.emoji, image_url: a.image_url, color: a.color,
+      pinned: a.pinned,
+    }));
+  }, [accounts, recentQ.data]);
+  const categoryChips: ChipPickerItem[] = React.useMemo(() => {
+    const scores = scoreCategories(recentQ.data ?? []);
+    return sortByPinAndScore(categories, scores).map((c) => ({
+      id: c.id, name: c.name,
+      icon: c.icon, emoji: c.emoji, image_url: c.image_url, color: c.color,
+      pinned: c.pinned,
+    }));
+  }, [categories, recentQ.data]);
 
   const [type, setType] = React.useState<TxType>("expense");
   const [amount, setAmount] = React.useState("");
