@@ -138,7 +138,7 @@ export function DayHeatmapCalendar({
   );
 
   return (
-    <div className={cn("rounded-lg border bg-card p-2", className)}>
+    <div className={cn("rounded-lg border bg-card p-2 md:mx-auto md:max-w-sm", className)}>
       <DayPicker
         mode="single"
         selected={selected}

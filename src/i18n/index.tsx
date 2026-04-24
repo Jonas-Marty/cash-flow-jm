@@ -222,6 +222,22 @@ const de: Dict = {
   "settings.visual.upload_hint": "PNG/JPG/WebP, max. 5 MB",
   "settings.pin": "Anheften",
   "settings.unpin": "Lösen",
+
+  // Keyboard
+  "kbd.title": "Tastaturkürzel",
+  "kbd.save": "Speichern",
+  "kbd.save_new": "Speichern & Neu",
+  "kbd.expense": "Typ: Ausgabe",
+  "kbd.income": "Typ: Einnahme",
+  "kbd.transfer": "Typ: Umbuchung",
+  "kbd.suggestion": "Vorschlag {n} übernehmen",
+  "kbd.suggest_all": "Alle Felder vom besten Vorschlag",
+  "kbd.picker_arrows": "Konto/Kategorie wechseln",
+  "kbd.picker_search": "Konto/Kategorie suchen",
+  "kbd.date_step_day": "Datum ±1 Tag",
+  "kbd.date_step_month": "Datum ±1 Monat",
+  "kbd.help": "Hilfe öffnen",
+  "add.date_input_hint": "Format: {fmt} · +/− oder Bild↑/↓ zum Springen",
 };
 
 const en: Dict = {
@@ -424,6 +440,22 @@ const en: Dict = {
   "settings.visual.upload_hint": "PNG/JPG/WebP, max 5 MB",
   "settings.pin": "Pin",
   "settings.unpin": "Unpin",
+
+  // Keyboard
+  "kbd.title": "Keyboard shortcuts",
+  "kbd.save": "Save",
+  "kbd.save_new": "Save & New",
+  "kbd.expense": "Type: Expense",
+  "kbd.income": "Type: Income",
+  "kbd.transfer": "Type: Transfer",
+  "kbd.suggestion": "Apply suggestion {n}",
+  "kbd.suggest_all": "Use all fields from best suggestion",
+  "kbd.picker_arrows": "Switch account / category",
+  "kbd.picker_search": "Search account / category",
+  "kbd.date_step_day": "Date ±1 day",
+  "kbd.date_step_month": "Date ±1 month",
+  "kbd.help": "Open help",
+  "add.date_input_hint": "Format: {fmt} · +/− or PgUp/PgDn to step",
 };
 
 const dicts: Record<Lang, Dict> = { de, en };
