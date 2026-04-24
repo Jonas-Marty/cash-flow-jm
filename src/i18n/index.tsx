@@ -99,6 +99,8 @@ const de: Dict = {
   "add.save_new": "Speichern & Neu",
   "add.savings_badge": "Rückstellung",
   "add.income_badge": "Einnahme",
+  "add.reimbursement_hint": "Wird als Rückerstattung gebucht und reduziert die Ausgaben dieses Umschlags.",
+  "add.reimbursement_hint.savings": "Wird als Rückerstattung gebucht und erhöht das Guthaben dieses Rückstellungs-Umschlags.",
 
   // Transactions
   "tx.title": "Buchungen",
