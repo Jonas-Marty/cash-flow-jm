@@ -1,55 +1,106 @@
+# Smart suggestions on Add Transaction
 
+Make adding a transaction faster by surfacing **ranked suggestions** the user can tap to prefill the whole form (amount, account, category, payee, note, tags). Architected so we can plug in more sources later (AI inference, scanned receipts, bank-import matching) without rewriting the UI.
 
-# Coop gift cards — modelling pattern
+## Concept
 
-## Recommendation: model the gift card as a Cash-type account
+A **Suggestion** is a partial transaction draft + a confidence score + a human label + a provenance tag (which provider produced it, e.g. "Recent · 4×"). The Add screen renders the top N suggestions as tappable chips/cards. Tapping one merges its fields into the form — the user can still tweak anything before saving.
 
-Treat each Coop gift card (or the pool of them) as its own **Asset account** named e.g. *Coop Geschenkkarten*. This is exactly what asset accounts are for: a place where money physically sits. Then book two transactions to load it.
+A **SuggestionProvider** is an async function:
 
-### The pattern (1000 CHF card bought for 960)
+```ts
+type Suggestion = {
+  id: string;                // stable key
+  score: number;             // 0..1, higher = more relevant
+  label: string;             // "Lunch at Pizza Hut · 12.50"
+  sublabel?: string;         // "Bank · Lebensmittel · 3× last 30d"
+  source: "history" | "payee_match" | "tag" | "ai" | "receipt" | string;
+  draft: Partial<TransactionDraft>; // amount, type, source_account_id, category_id, payee, note, tags
+};
 
-1. **Expense** — 960 CHF, source = *Migros Cumulus*, category = **none** (leave empty).
-2. **Income** — 1000 CHF, source = *Coop Geschenkkarten*, category = **none**.
+type SuggestionProvider = {
+  id: string;
+  enabled: () => boolean;
+  suggest: (ctx: SuggestionContext) => Promise<Suggestion[]>;
+};
+```
 
-Result:
-- Migros Cumulus −960 (real cash out).
-- Coop Geschenkkarten +1000 (real spending power loaded).
-- Net worth +40 — the 4 % discount surfaces as an account-balance gain, not as budget income, which matches your intuition.
-- Neither leg touches an envelope, so the budget is untouched at load time.
-- Later, when you buy groceries with the card: **Expense** 87.50 CHF, source = *Coop Geschenkkarten*, category = **Lebensmittel**. The full sticker price hits the Lebensmittel envelope (no 4 % discount visible there — exactly what you said you want), and the gift-card balance ticks down. When the card runs dry, the account hits 0 and you stop using it. Net worth and audit trail stay correct throughout.
+`SuggestionContext` is what the user has typed/picked so far: `{ type, amount, payee, note, sourceId, categoryId, date, recentTransactions, accounts, categories }`. Providers receive it and return zero-or-more candidates. A central `useSuggestions(ctx)` hook fans out to all enabled providers in parallel, merges results, **dedupes by similar drafts** (same payee + amount bucket), sorts by score, and returns the top 5.
 
-### Why a dedicated account beats the alternatives
+This means future providers — an AI inferencer that calls Lovable AI on the payee text, or a receipt-scanner that fills the form from a photo — just register themselves in `src/lib/suggestions/registry.ts`. No UI changes needed.
 
-- **Two free-floating transactions without a gift-card account**: the 1000 income would either inflate income envelopes or sit in limbo, and the spending power isn't tracked — you'd have no idea how much card balance is left. Rejected.
-- **Booking only the 960 against Lebensmittel directly when you spend**: loses the audit trail (no record of card load), and you'd need to mentally divide every grocery bill by 0.96. Rejected.
-- **A new "voucher" account type**: cash-type asset accounts already model this perfectly. No schema change needed.
+## What ships in round 1: two providers
 
-## On linking the two load transactions
+### 1. `historyProvider` — similar past transactions
 
-Short answer: **don't link them at the row level.** They're already implicitly linked by sharing the same date and being the only two non-budget movements between Migros Cumulus and Coop Geschenkkarten. The pattern below makes that link explicit and searchable without new schema.
+For each transaction in the last ~180 days, compute a relevance score against the current `ctx`:
 
-Concrete recommendation: **use a hashtag convention** — put `#giftcard-load` (or `#giftcard-load-2026-04` for the specific batch) in the note of both transactions. Tags are already extracted into `transaction_tags` and filterable on the Transactions page, so searching `#giftcard-load` instantly shows every load pair grouped by date. Zero new code, zero new schema, leverages an existing feature.
+- **Amount match** (strongest signal): exact = 1.0, within 5 % = 0.7, within 20 % = 0.3, else 0.
+- **Payee prefix match** (case-insensitive) on what the user has typed so far: full = 0.8, prefix = 0.5.
+- **Type match** (expense/income/transfer): mismatch → drop entirely.
+- **Recency boost**: exponential decay, half-life 30 days, max +0.3.
+- **Frequency boost**: log of how often this (payee, category, amount-bucket) triple appears, max +0.2.
+- **Day-of-month proximity** (small): same day-of-month as `date` → +0.05.
 
-Why not a true row-to-row link:
-- Adds a new table (`transaction_links` or similar) and CRUD UI for a single use case.
-- The reimbursement pattern (§3.7) deliberately avoids this for the same reason — implicit linkage via shared category/date/tag has been the project's consistent design choice.
-- A dedicated transfer between the two accounts won't work either: a transfer enforces equal amounts on both sides, and the whole point here is that 960 ≠ 1000.
+Final score is normalised. The provider groups identical drafts (same payee + category + rounded amount) so "Lunch at Pizza Hut · 12.50 (3×)" appears once with frequency in the sublabel.
 
-## Small changes to make this discoverable
+The chip prefills: amount, payee, source account, category, note. Date and type stay as the user set them.
 
-1. **`architecture.md`** — add §3.8 *Gift cards & stored-value accounts* documenting the Coop pattern: dedicated asset account, two-leg load (expense + income, no category), tag convention `#giftcard-load`, spend transactions go directly against the gift-card account with normal envelopes.
-2. **Settings → Accounts hint** — under the account-type selector, add a one-line helper text: *"Use an asset account for gift cards or stored-value (e.g. Coop Geschenkkarten)."* (DE + EN).
-3. **i18n** — two new keys: `settings.accounts.asset_hint` and a tag suggestion key `add.tag_suggestion.giftcard_load` shown as a chip under the note field when both source/destination accounts are involved in a no-category pair (optional polish — happy to drop if you'd rather keep Add minimal).
-4. **Change-log entry** in `architecture.md` dated today.
+### 2. `payeeProvider` — payee autocomplete (replaces today's plain `<datalist>`)
 
-## Files touched
+Same as today's `payeeSuggestions` but exposed through the registry. Keyed off the payee field; produces lower-confidence suggestions with only payee + most-recent category for that payee.
 
-- `architecture.md` — new §3.8 + change-log entry.
-- `src/routes/settings.tsx` — render the helper text under account type.
-- `src/i18n/index.tsx` — DE + EN keys.
-- *(Optional)* `src/routes/add.tsx` — tag-suggestion chip; skip if you want to keep this round minimal.
+(The existing `<datalist>` stays as a graceful fallback; the new chip UI is the primary path.)
 
-## Out of scope
+## UI
 
-A formal `transaction_links` table, automatic profit reporting on gift-card purchases, multi-leg stored-value reconciliation (e.g. expiring vouchers), and tracking individual physical card serial numbers.
+Above the form (between the amount card and the account select), a **collapsible suggestions row**:
 
+- Shows when there is at least one suggestion with score ≥ 0.4.
+- Up to 5 chip-style cards, horizontally scrollable on mobile, wrapped on desktop.
+- Each chip: amount in bold, payee, small sublabel ("Lebensmittel · 3× · last week"), tiny source badge ("Recent" / later "AI" / "Receipt").
+- Tap → merges draft into form fields **only for fields the user hasn't already filled** (sticky-typing rule: if the user typed a payee, we don't overwrite it; we only fill blanks). A small "Use all fields" link inside the chip bypasses sticky-typing for power users.
+- After tapping a chip a subtle banner appears: "Filled from past transaction · Undo" — Undo restores prior values.
+
+Suggestions react live as the user types amount/payee/note. Debounced 150 ms to avoid jitter.
+
+### Other smoothness improvements (cheap, ship together)
+
+- **Quick-amount keypad chips** under the amount card: round numbers based on history (e.g. "10", "20", "50", "12.50") — most-frequent amounts for the current type. One-tap to fill.
+- **Recent tag chips** under the note field: top 6 tags from history; tap to append `#tag` to the note. (You're already extracting tags into `transaction_tags`.)
+- **"Yesterday / Today / Last weekend" date shortcuts** above the calendar popover.
+- **Smart category default**: when only payee is set, pre-select the category most often used with that payee (without committing — shown as a dimmed value, becomes solid on first edit).
+
+All four can be toggled off later if they feel noisy; they live behind small flags in `suggestions/registry.ts`.
+
+## Technical implementation
+
+Files added:
+
+- `src/lib/suggestions/types.ts` — `Suggestion`, `SuggestionContext`, `SuggestionProvider`, `TransactionDraft`.
+- `src/lib/suggestions/registry.ts` — array of enabled providers; `runSuggestions(ctx)` orchestrator (parallel fan-out, dedupe, sort, top-N).
+- `src/lib/suggestions/providers/history.ts` — scoring + grouping logic described above. Pure function over the cached `transactions` query — no extra network calls.
+- `src/lib/suggestions/providers/payee.ts` — wraps current payee-autocomplete logic.
+- `src/lib/suggestions/useSuggestions.ts` — debounced React hook returning `{ suggestions, isLoading }`.
+- `src/components/SuggestionRow.tsx` — chip list + apply/undo behaviour.
+- `src/components/QuickAmountChips.tsx`, `src/components/TagChips.tsx`, `src/components/DateShortcuts.tsx` — small UI pieces.
+
+Files edited:
+
+- `src/routes/add.tsx` — render `<SuggestionRow>`, `<QuickAmountChips>`, `<TagChips>`, `<DateShortcuts>`; replace ad-hoc payee suggestions with the registry-driven one. Track `userTouched` flags per field to support sticky-typing.
+- `src/i18n/index.tsx` — DE + EN keys (`suggest.recent`, `suggest.use_all_fields`, `suggest.filled_from_past`, `suggest.undo`, `suggest.times_seen`, `add.quick_amounts`, `add.recent_tags`, `add.date.today`, `add.date.yesterday`, `add.date.last_weekend`).
+- `architecture.md` — new §3.9 *Smart suggestions* describing the provider model, scoring, sticky-typing rule, and how to register new providers (AI / receipt scan are explicitly called out as future plug-ins). Change-log entry dated today.
+
+No DB/schema changes. No new dependencies.
+
+### Scoring is local, fast, and explainable
+
+History scoring runs over the existing `recentQ` (currently 50 transactions). We bump that limit to 200 inside Add only — cheap, single query. No SQL functions, no edge functions. Everything is pure TypeScript over cached query data, so suggestions update synchronously as the user types.
+
+### Future-proofing for AI / OCR
+
+Because providers are async, an `aiProvider` could in future call `lovable-ai` with `(payee, amount)` and return inferred category/tags. A `receiptProvider` would expose a "Scan receipt" button that, on success, emits one Suggestion with the full draft. Both slot into the registry without touching `add.tsx`. The UI already ranks by score and shows provenance, so AI suggestions naturally appear next to recent ones, sortable by confidence.
+
+## Out of scope this round
+
+AI-based category inference, OCR receipt scanning, bank-statement import matching, learning per-user weights, suggestions for transfers (low-value — transfers are usually unique), cross-device suggestion ranking.

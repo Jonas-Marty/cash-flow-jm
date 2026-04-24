@@ -18,6 +18,12 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings, fetchTransactions, extractTags, type TxType } from "@/lib/finance";
 import { useI18n } from "@/i18n";
+import { useSuggestions } from "@/lib/suggestions/useSuggestions";
+import type { Suggestion } from "@/lib/suggestions/types";
+import { SuggestionRow } from "@/components/SuggestionRow";
+import { QuickAmountChips } from "@/components/QuickAmountChips";
+import { TagChips } from "@/components/TagChips";
+import { DateShortcuts } from "@/components/DateShortcuts";
 
 export const Route = createFileRoute("/add")({
   component: AddTransaction,
@@ -31,7 +37,7 @@ function AddTransaction() {
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   const groupsQ = useQuery({ queryKey: ["category_groups"], queryFn: fetchCategoryGroups });
-  const recentQ = useQuery({ queryKey: ["transactions", "recent"], queryFn: () => fetchTransactions(50) });
+  const recentQ = useQuery({ queryKey: ["transactions", "recent", 200], queryFn: () => fetchTransactions(200) });
 
   const accounts = (accountsQ.data ?? []).filter((a) => !a.archived);
   const categories = (categoriesQ.data ?? []).filter((c) => !c.archived);
@@ -47,6 +53,16 @@ function AddTransaction() {
   const [note, setNote] = React.useState("");
   const [date, setDate] = React.useState<Date>(new Date());
   const [saving, setSaving] = React.useState(false);
+
+  // Track which fields the user has explicitly touched, so suggestion-apply
+  // in "sticky" mode doesn't overwrite their input.
+  const [touched, setTouched] = React.useState<Record<string, boolean>>({});
+  const mark = (k: string) => setTouched((p) => (p[k] ? p : { ...p, [k]: true }));
+
+  const [appliedFrom, setAppliedFrom] = React.useState<null | {
+    suggestion: Suggestion;
+    prev: { amount: string; payee: string; note: string; sourceId: string; categoryId: string };
+  }>(null);
 
   // Default source = most-used account in recent transactions
   React.useEffect(() => {
@@ -69,9 +85,64 @@ function AddTransaction() {
     return Array.from(set).slice(0, 50);
   }, [recentQ.data]);
 
+  const amountNum = React.useMemo(() => {
+    const n = Number(amount.replace(",", "."));
+    return isFinite(n) && n > 0 ? n : null;
+  }, [amount]);
+
+  const { suggestions } = useSuggestions({
+    type,
+    amount,
+    amountNum,
+    payee,
+    note,
+    sourceId,
+    categoryId,
+    date,
+    recentTransactions: recentQ.data ?? [],
+    accounts,
+    categories,
+  });
+
+  const applySuggestion = (s: Suggestion, mode: "sticky" | "all") => {
+    const prev = { amount, payee, note, sourceId, categoryId };
+    const d = s.draft;
+    const shouldSet = (key: string, val: unknown) => {
+      if (val == null || val === "") return false;
+      if (mode === "all") return true;
+      return !touched[key];
+    };
+    if (d.amount != null && shouldSet("amount", d.amount)) setAmount(d.amount.toFixed(2));
+    if (shouldSet("payee", d.payee)) setPayee(d.payee ?? "");
+    if (shouldSet("note", d.note)) setNote(d.note ?? "");
+    if (shouldSet("sourceId", d.source_account_id)) setSourceId(d.source_account_id ?? "");
+    if (d.category_id !== undefined && shouldSet("categoryId", d.category_id)) {
+      setCategoryId(d.category_id ?? "");
+    }
+    setAppliedFrom({ suggestion: s, prev });
+  };
+
+  const undoApply = () => {
+    if (!appliedFrom) return;
+    const p = appliedFrom.prev;
+    setAmount(p.amount); setPayee(p.payee); setNote(p.note);
+    setSourceId(p.sourceId); setCategoryId(p.categoryId);
+    setAppliedFrom(null);
+  };
+
+  const appendTag = (tag: string) => {
+    const present = new Set(extractTags(note));
+    if (present.has(tag)) return;
+    const sep = note.length === 0 || note.endsWith(" ") ? "" : " ";
+    setNote(note + sep + "#" + tag);
+    mark("note");
+  };
+
   const reset = () => {
     setAmount(""); setPayee(""); setNote(""); setCategoryId("");
     setDate(new Date());
+    setTouched({});
+    setAppliedFrom(null);
   };
 
   const save = async (andNew: boolean) => {
@@ -135,22 +206,52 @@ function AddTransaction() {
                 autoFocus
                 placeholder="0.00"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value.replace(/[^0-9.,]/g, ""))}
+                onChange={(e) => { setAmount(e.target.value.replace(/[^0-9.,]/g, "")); mark("amount"); }}
                 className={cn(
                   "mt-1 h-auto border-0 bg-transparent p-0 text-center text-5xl font-bold tabular-nums shadow-none focus-visible:ring-0",
                   type === "expense" && "text-destructive",
                   type === "income" && "text-success",
                 )}
               />
+              <QuickAmountChips
+                className="mt-3 justify-center"
+                transactions={recentQ.data ?? []}
+                type={type}
+                symbol={symbol}
+                onPick={(a) => { setAmount(a); mark("amount"); }}
+              />
             </div>
           </CardContent>
         </Card>
+
+        {/* Smart suggestions */}
+        {suggestions.length > 0 && (
+          <div className="space-y-2">
+            <div className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {tr("add.suggestions")}
+            </div>
+            <SuggestionRow
+              suggestions={suggestions}
+              symbol={symbol}
+              applyAllLabel={tr("add.suggest.use_all")}
+              onApply={applySuggestion}
+            />
+            {appliedFrom && (
+              <div className="flex items-center justify-between rounded-md bg-muted px-3 py-1.5 text-xs text-muted-foreground">
+                <span>{tr("add.suggest.applied")}</span>
+                <button type="button" onClick={undoApply} className="text-primary underline-offset-2 hover:underline">
+                  {tr("add.suggest.undo")}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Account(s) */}
         <div className="space-y-3">
           <div>
             <Label className="mb-1.5 block">{type === "transfer" ? tr("add.from_account") : tr("add.account")}</Label>
-            <Select value={sourceId} onValueChange={setSourceId}>
+            <Select value={sourceId} onValueChange={(v) => { setSourceId(v); mark("sourceId"); }}>
               <SelectTrigger><SelectValue placeholder={accounts.length ? tr("add.account") : tr("add.no_accounts")} /></SelectTrigger>
               <SelectContent>
                 {accounts.map((a) => (
@@ -184,7 +285,7 @@ function AddTransaction() {
               <Label className="mb-1.5 block">
                 {tr("add.category")} {type === "income" && <span className="text-xs font-normal text-muted-foreground">{tr("add.category_optional_reimb")}</span>}
               </Label>
-              <Select value={categoryId || "__none"} onValueChange={(v) => setCategoryId(v === "__none" ? "" : v)}>
+              <Select value={categoryId || "__none"} onValueChange={(v) => { setCategoryId(v === "__none" ? "" : v); mark("categoryId"); }}>
                 <SelectTrigger><SelectValue placeholder={tr("add.select_category")} /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none">{tr("common.none")}</SelectItem>
@@ -224,7 +325,7 @@ function AddTransaction() {
             id="payee"
             list="payee-suggestions"
             value={payee}
-            onChange={(e) => setPayee(e.target.value)}
+            onChange={(e) => { setPayee(e.target.value); mark("payee"); }}
             placeholder={type === "transfer" ? tr("common.optional") : tr("add.payee_placeholder")}
           />
           <datalist id="payee-suggestions">
@@ -234,7 +335,13 @@ function AddTransaction() {
 
         <div>
           <Label htmlFor="note" className="mb-1.5 block">{tr("add.note")}</Label>
-          <Textarea id="note" rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={tr("add.note_placeholder")} />
+          <Textarea id="note" rows={2} value={note} onChange={(e) => { setNote(e.target.value); mark("note"); }} placeholder={tr("add.note_placeholder")} />
+          <TagChips
+            className="mt-2"
+            transactions={recentQ.data ?? []}
+            currentNote={note}
+            onAppend={appendTag}
+          />
           {tags.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
               {tags.map((t) => (
@@ -246,6 +353,12 @@ function AddTransaction() {
 
         <div>
           <Label className="mb-1.5 block">{tr("add.date")}</Label>
+          <DateShortcuts
+            className="mb-2"
+            selected={date}
+            onPick={setDate}
+            labels={{ today: tr("add.date.today"), yesterday: tr("add.date.yesterday"), last_weekend: tr("add.date.last_weekend") }}
+          />
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" className="w-full justify-start text-left font-normal">
