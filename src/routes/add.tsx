@@ -18,6 +18,12 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings, fetchTransactions, extractTags, type TxType } from "@/lib/finance";
 import { useI18n } from "@/i18n";
+import { useSuggestions } from "@/lib/suggestions/useSuggestions";
+import type { Suggestion } from "@/lib/suggestions/types";
+import { SuggestionRow } from "@/components/SuggestionRow";
+import { QuickAmountChips } from "@/components/QuickAmountChips";
+import { TagChips } from "@/components/TagChips";
+import { DateShortcuts } from "@/components/DateShortcuts";
 
 export const Route = createFileRoute("/add")({
   component: AddTransaction,
@@ -31,7 +37,7 @@ function AddTransaction() {
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   const groupsQ = useQuery({ queryKey: ["category_groups"], queryFn: fetchCategoryGroups });
-  const recentQ = useQuery({ queryKey: ["transactions", "recent"], queryFn: () => fetchTransactions(50) });
+  const recentQ = useQuery({ queryKey: ["transactions", "recent", 200], queryFn: () => fetchTransactions(200) });
 
   const accounts = (accountsQ.data ?? []).filter((a) => !a.archived);
   const categories = (categoriesQ.data ?? []).filter((c) => !c.archived);
@@ -47,6 +53,16 @@ function AddTransaction() {
   const [note, setNote] = React.useState("");
   const [date, setDate] = React.useState<Date>(new Date());
   const [saving, setSaving] = React.useState(false);
+
+  // Track which fields the user has explicitly touched, so suggestion-apply
+  // in "sticky" mode doesn't overwrite their input.
+  const [touched, setTouched] = React.useState<Record<string, boolean>>({});
+  const mark = (k: string) => setTouched((p) => (p[k] ? p : { ...p, [k]: true }));
+
+  const [appliedFrom, setAppliedFrom] = React.useState<null | {
+    suggestion: Suggestion;
+    prev: { amount: string; payee: string; note: string; sourceId: string; categoryId: string };
+  }>(null);
 
   // Default source = most-used account in recent transactions
   React.useEffect(() => {
@@ -69,9 +85,64 @@ function AddTransaction() {
     return Array.from(set).slice(0, 50);
   }, [recentQ.data]);
 
+  const amountNum = React.useMemo(() => {
+    const n = Number(amount.replace(",", "."));
+    return isFinite(n) && n > 0 ? n : null;
+  }, [amount]);
+
+  const { suggestions } = useSuggestions({
+    type,
+    amount,
+    amountNum,
+    payee,
+    note,
+    sourceId,
+    categoryId,
+    date,
+    recentTransactions: recentQ.data ?? [],
+    accounts,
+    categories,
+  });
+
+  const applySuggestion = (s: Suggestion, mode: "sticky" | "all") => {
+    const prev = { amount, payee, note, sourceId, categoryId };
+    const d = s.draft;
+    const shouldSet = (key: string, val: unknown) => {
+      if (val == null || val === "") return false;
+      if (mode === "all") return true;
+      return !touched[key];
+    };
+    if (d.amount != null && shouldSet("amount", d.amount)) setAmount(d.amount.toFixed(2));
+    if (shouldSet("payee", d.payee)) setPayee(d.payee ?? "");
+    if (shouldSet("note", d.note)) setNote(d.note ?? "");
+    if (shouldSet("sourceId", d.source_account_id)) setSourceId(d.source_account_id ?? "");
+    if (d.category_id !== undefined && shouldSet("categoryId", d.category_id)) {
+      setCategoryId(d.category_id ?? "");
+    }
+    setAppliedFrom({ suggestion: s, prev });
+  };
+
+  const undoApply = () => {
+    if (!appliedFrom) return;
+    const p = appliedFrom.prev;
+    setAmount(p.amount); setPayee(p.payee); setNote(p.note);
+    setSourceId(p.sourceId); setCategoryId(p.categoryId);
+    setAppliedFrom(null);
+  };
+
+  const appendTag = (tag: string) => {
+    const present = new Set(extractTags(note));
+    if (present.has(tag)) return;
+    const sep = note.length === 0 || note.endsWith(" ") ? "" : " ";
+    setNote(note + sep + "#" + tag);
+    mark("note");
+  };
+
   const reset = () => {
     setAmount(""); setPayee(""); setNote(""); setCategoryId("");
     setDate(new Date());
+    setTouched({});
+    setAppliedFrom(null);
   };
 
   const save = async (andNew: boolean) => {
