@@ -1,122 +1,45 @@
 
-# Recurring transactions
+# Shared rent (and similar split costs) — how to model
 
-Add rule-based recurring income & expenses (rent, salary, Deezer share, monthly investments, Rückstellung contributions). Each rule generates real transactions on a schedule; we track which occurrences have been posted so nothing gets duplicated and gaps are visible.
+Good news: your current model already supports this cleanly through the **reimbursement rule** (architecture §3.2). No schema changes needed — just a documented pattern + a small UX nudge so it's discoverable.
 
-## Concept
+## The pattern
 
-A **recurring rule** is a template + schedule. It does *not* itself affect balances — it produces concrete `transactions` rows when an occurrence is "posted". This keeps the rest of the app (account balances, envelopes, history) untouched: posted occurrences are normal transactions, just stamped with the rule that created them.
+For a 2,400 CHF rent where your girlfriend pays you 1,200 back:
 
-### Schedule model
+1. **Expense** — 2,400 CHF, account = Bank, category = **Miete**.
+   → Bank −2,400. Miete `spent` += 2,400.
+2. **Income** — 1,200 CHF, account = Bank, category = **Miete** (same envelope), payee = "Girlfriend", note = `#shared`.
+   → Bank +1,200. Miete `spent` −= 1,200 (reimbursement rule).
 
-Each rule has:
-- **Template**: `type` (expense/income/transfer), `amount`, `source_account_id`, `destination_account_id`, `category_id`, `payee`, `note`.
-- **Validity range**: `starts_on` (required, first eligible date), `ends_on` (nullable, last eligible date).
-- **Frequency**: monthly only in this round (covers all your examples). Designed to extend to weekly/yearly later.
-- **Day-of-month rule**: one of
-  - **Fixed day** (e.g. 17) — if the chosen day doesn't exist in a month (e.g. 31 in February), clamp to last day.
-  - **End of month** — last calendar day.
-  - **First of month** — day 1.
-- **Weekend adjustment** (only meaningful for fixed/end-of-month): `none` | `before` (move to previous business day) | `after` (move to next business day). "Tax before" → `before`. Public-holiday awareness is out of scope; weekends only.
-- **Auto-post**: bool. If true, the system creates the transaction automatically on/after the due date. If false, the user gets a reminder card and posts with one tap.
+Net effect on Miete envelope: **+1,200 spent** = your actual share. Net effect on Bank: −1,200 = the cash that actually left you. Both physical transactions stay in history for traceability.
 
-### Tracking executions
+This works for any split cost: shared groceries, joint Netflix, splitting a restaurant bill, etc.
 
-A separate `recurring_occurrences(rule_id, due_on UNIQUE per rule, transaction_id, status, posted_at)` table records every occurrence we've materialised:
-- `status = 'pending'` — due date passed (or upcoming within lookahead window) but no transaction yet. Only created for `auto_post = false` rules; auto-post rules skip pending and go straight to posted.
-- `status = 'posted'` — `transaction_id` points at the real transaction.
-- `status = 'skipped'` — user chose to skip this occurrence (e.g. one-off rent waiver).
+## Why this is the right fit (not a new "shared expense" type)
 
-UNIQUE(rule_id, due_on) makes the whole pipeline idempotent — running the processor twice on the same day is a no-op.
+- **Audit trail intact**: both real bank movements are visible in Transactions; if you ever reconcile against your bank statement they match 1:1.
+- **Envelope math is automatic**: the existing `category_month_spending` function already nets income-with-expense-category against the month's spend.
+- **No new concepts**: same Add Transaction screen, same envelopes, same dashboard. You already use this rule implicitly for refunds (architecture §3.2 row "Income (expense category) = reimbursement").
+- **Recurring works too**: pair a recurring **Expense** rule (2,400 to landlord on the 1st) with a recurring **Income** rule (1,200 from girlfriend on the 28th) — both bound to the Miete envelope. The envelope shows the correct net at the end of the month.
 
-### Processing pipeline
+Alternatives considered and rejected:
+- *New "split" transaction type*: doubles complexity for a case the reimbursement rule already solves. Rejected.
+- *Book only your half (1,200 expense), ignore her transfer*: would make Bank balance drift from reality. Rejected.
+- *Separate "Shared > Miete reimbursement" income envelope*: makes the dashboard noisier and breaks the natural "Miete cost me X this month" reading. Rejected.
 
-A single SQL function `process_recurring_rules(p_today DATE)` does all the work, called on every app load (cheap, idempotent):
+## Small changes to make this discoverable
 
-For each active rule (today between `starts_on` and `coalesce(ends_on, infinity)`):
-1. Compute every `due_on` from `max(last occurrence due_on, starts_on)` up to `today`.
-2. For each missing `due_on`:
-   - Apply weekend adjustment to get `effective_on`.
-   - If `auto_post`: insert a `transactions` row using the template with `occurred_on = effective_on`, then insert occurrence with status `posted` linking to it.
-   - Else: insert occurrence with status `pending` (no transaction yet).
-3. Look ahead **7 days** for `auto_post = false` rules and pre-create `pending` occurrences so the user sees what's about to come due.
+1. **Add Transaction screen** — when the user picks Income type and selects an expense-flavoured category, show a subtle hint under the category dropdown: *"This will be treated as a reimbursement and reduce this envelope's spending."* (translated DE/EN). Purely informational, no behaviour change.
+2. **Architecture doc** — add §3.7 "Shared / split expenses" with the rent example, the recurring-rule pairing pattern, and a note that any income posted against an expense envelope is a reimbursement. Add change-log entry.
+3. **i18n** — two new keys: `add.reimbursement_hint` (DE: *"Wird als Rückerstattung gebucht und reduziert die Ausgaben dieses Umschlags."*, EN: *"Booked as a reimbursement; reduces this envelope's spending."*) and `add.reimbursement_hint.savings` for the savings-envelope variant (*"...erhöht das Guthaben dieses Rückstellungs-Umschlags."* / *"...increases this savings envelope's balance."*).
 
-The function is called from a tiny `createServerFn` invoked by the dashboard loader. No cron job required; the user opening the app drives processing. (If they don't open the app for a month, the next visit catches up everything in one go.)
+## Files touched
 
-### User-driven actions
+- `src/routes/add.tsx` — render the hint under the category select when `type === "income"` and the chosen category's group kind is `expense` or `savings`.
+- `src/i18n/index.tsx` — two new keys (DE + EN).
+- `architecture.md` — new §3.7 + change-log entry dated today.
 
-On the dashboard, a "Upcoming & due" card lists pending occurrences:
-- **Post**: turns `pending` → `posted` and creates the underlying transaction (with edit-before-save sheet so the user can tweak amount/payee).
-- **Skip**: marks `skipped`.
-- **Edit rule**: jumps to the rule editor.
+## Out of scope
 
-If the user deletes a posted transaction, the linked occurrence flips back to `pending` (FK on delete: `SET NULL` + status update via trigger), so they can re-post or skip cleanly.
-
-## Schema changes
-
-```text
-recurring_rules
- ├ id uuid pk
- ├ user_id uuid (nullable, future-auth)
- ├ name text                      -- "Miete", "Lohn", "Deezer share"
- ├ type tx_type                   -- expense | income | transfer
- ├ amount numeric
- ├ source_account_id uuid
- ├ destination_account_id uuid    -- only for transfer
- ├ category_id uuid               -- nullable for transfer
- ├ payee text, note text
- ├ frequency recurring_frequency  -- ENUM 'monthly' (extensible)
- ├ day_rule recurring_day_rule    -- ENUM 'fixed_day' | 'end_of_month' | 'first_of_month'
- ├ day_of_month int               -- 1..31, only for 'fixed_day'
- ├ weekend_adjust weekend_adjust  -- ENUM 'none' | 'before' | 'after'
- ├ starts_on date                 -- inclusive
- ├ ends_on date NULL              -- inclusive
- ├ auto_post bool default true
- ├ archived bool default false
- ├ created_at, updated_at
-
-recurring_occurrences
- ├ id uuid pk
- ├ rule_id uuid → recurring_rules ON DELETE CASCADE
- ├ due_on date                    -- the un-adjusted scheduled date
- ├ effective_on date              -- after weekend adjustment
- ├ status occurrence_status       -- ENUM 'pending' | 'posted' | 'skipped'
- ├ transaction_id uuid → transactions ON DELETE SET NULL
- ├ posted_at timestamptz NULL
- ├ UNIQUE(rule_id, due_on)
-```
-
-New SQL:
-- `compute_effective_date(p_due date, p_adjust weekend_adjust)` — moves Sat/Sun per rule.
-- `compute_due_date(p_month date, p_rule day_rule, p_dom int)` — produces the un-adjusted date for a given month.
-- `process_recurring_rules(p_today date)` — main idempotent processor described above.
-
-`transactions` keeps no FK to occurrences (occurrences point at transactions). No changes to existing `transactions` schema.
-
-## UI
-
-**Settings → new "Recurring" card**
-- List of rules grouped by Active / Ended / Archived.
-- Each row: name · amount · "every 17th, weekend → previous business day" · next due date · auto-post badge.
-- Add/Edit dialog: Name, Type, Amount, Account(s), Category, Payee, Note, Validity (start / end), Day rule (fixed day with picker / end-of-month / first-of-month), Weekend adjustment, Auto-post toggle.
-- Delete archives the rule (and cascades pending occurrences); posted historical transactions stay.
-
-**Dashboard → new "Upcoming & due" section** above the envelopes section, only shown when there is at least one pending or due occurrence:
-- Each row: rule name, due date relative ("in 3 days" / "today" / "3 days late"), amount, Post / Skip buttons. Late items are red.
-- Auto-posted occurrences show as a small "auto-posted today" toast-style note on the day they fire (no action needed).
-
-**Add Transaction**: unchanged.
-
-**Translations**: add German + English keys for everything new (recurring.*, dashboard.upcoming.*).
-
-## Architecture document
-
-Update `architecture.md`:
-- New section **3.6 Recurring transactions** describing rules, occurrences, the idempotent processor, weekend adjustment, validity range, and how auto-post differs from pending.
-- Add `recurring_rules`, `recurring_occurrences` to the ERD in §2.
-- Add the new SQL functions to §4.
-- Change-log entry dated today.
-
-## Out of scope this round
-
-Weekly/yearly frequencies (schema is ready), public-holiday calendar (weekends only), cron-based posting (driven by app open instead), per-occurrence amount overrides before they're posted (you can edit the resulting transaction afterwards).
+Multi-party splits with arbitrary fractions, automatic IOU tracking, linking the expense and the reimbursement transactions as a pair (they stay independent rows — the envelope math handles the linkage implicitly).
