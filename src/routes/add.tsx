@@ -206,16 +206,46 @@ function AddTransaction() {
                 autoFocus
                 placeholder="0.00"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value.replace(/[^0-9.,]/g, ""))}
+                onChange={(e) => { setAmount(e.target.value.replace(/[^0-9.,]/g, "")); mark("amount"); }}
                 className={cn(
                   "mt-1 h-auto border-0 bg-transparent p-0 text-center text-5xl font-bold tabular-nums shadow-none focus-visible:ring-0",
                   type === "expense" && "text-destructive",
                   type === "income" && "text-success",
                 )}
               />
+              <QuickAmountChips
+                className="mt-3 justify-center"
+                transactions={recentQ.data ?? []}
+                type={type}
+                symbol={symbol}
+                onPick={(a) => { setAmount(a); mark("amount"); }}
+              />
             </div>
           </CardContent>
         </Card>
+
+        {/* Smart suggestions */}
+        {suggestions.length > 0 && (
+          <div className="space-y-2">
+            <div className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {tr("add.suggestions")}
+            </div>
+            <SuggestionRow
+              suggestions={suggestions}
+              symbol={symbol}
+              applyAllLabel={tr("add.suggest.use_all")}
+              onApply={applySuggestion}
+            />
+            {appliedFrom && (
+              <div className="flex items-center justify-between rounded-md bg-muted px-3 py-1.5 text-xs text-muted-foreground">
+                <span>{tr("add.suggest.applied")}</span>
+                <button type="button" onClick={undoApply} className="text-primary underline-offset-2 hover:underline">
+                  {tr("add.suggest.undo")}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Account(s) */}
         <div className="space-y-3">
