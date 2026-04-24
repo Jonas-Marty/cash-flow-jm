@@ -240,6 +240,28 @@ const de: Dict = {
   "kbd.date_step_month": "Datum ±1 Monat",
   "kbd.help": "Hilfe öffnen",
   "add.date_input_hint": "Format: {fmt} · +/−, ↑/↓, j/k = ±1 Tag · Bild↑/↓ = ±1 Monat",
+
+  // Auth
+  "auth.signin": "Anmelden",
+  "auth.signup": "Registrieren",
+  "auth.signout": "Abmelden",
+  "auth.email": "E-Mail",
+  "auth.password": "Passwort",
+  "auth.check_email": "Bitte E-Mail bestätigen",
+  "auth.signup_hint": "Du erhältst eine E-Mail zur Bestätigung deiner Adresse.",
+  "auth.or": "Oder",
+  "auth.continue_with": "Mit {p} fortfahren",
+  "auth.provider_not_wired": "Im Selbst-Hosting konfigurierbar",
+  "settings.account": "Konto",
+  "settings.you": "Angemeldet als",
+  "settings.role.admin": "Administrator",
+  "settings.role.user": "Benutzer",
+  "settings.integrations": "OAuth-Integrationen",
+  "settings.integrations.admin_only": "Nur Administratoren können OAuth-Anbieter bearbeiten.",
+  "settings.integrations.enabled": "Aktiviert",
+  "settings.integrations.client_id": "Client ID",
+  "settings.integrations.discovery": "Discovery URL (Keycloak/OIDC)",
+  "settings.integrations.hint": "Secrets werden in den Lovable Cloud Secrets bzw. den Server-Umgebungsvariablen gespeichert, niemals in der Datenbank.",
 };
 
 const en: Dict = {
