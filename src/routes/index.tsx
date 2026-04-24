@@ -102,6 +102,9 @@ function Dashboard() {
           <AccountsCard title={t("dashboard.liabilities")} tone="destructive" items={liabilities} symbol={symbol} loading={balancesQ.isLoading} emptyHint={t("dashboard.liab_empty")} />
         </div>
 
+        {/* Upcoming & due (recurring) */}
+        <UpcomingCard symbol={symbol} />
+
         {/* Envelopes */}
         <section>
           <div className="mb-2 flex items-center justify-between">
