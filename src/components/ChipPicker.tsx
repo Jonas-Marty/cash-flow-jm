@@ -36,6 +36,7 @@ export function ChipPicker({
   const [open, setOpen] = React.useState(false);
   const groupRef = React.useRef<HTMLDivElement | null>(null);
   const lastFocusedRef = React.useRef<HTMLElement | null>(null);
+  const commandRef = React.useRef<HTMLDivElement | null>(null);
   const disabledSet = React.useMemo(() => new Set(disabledIds ?? []), [disabledIds]);
 
   // Always show the selected one even if it would be cut off
@@ -58,14 +59,30 @@ export function ChipPicker({
     () => items.filter((i) => !disabledSet.has(i.id)).map((i) => i.id),
     [items, disabledSet],
   );
-  const activeId = value && focusableIds.includes(value) ? value : focusableIds[0];
+  // Track which chip is "active" for tab order. Updated on focus/selection so
+  // arrow navigation always reads the latest position even if `value` lags.
+  const [activeId, setActiveId] = React.useState<string | undefined>(
+    () => (value && focusableIds.includes(value) ? value : focusableIds[0]),
+  );
+  React.useEffect(() => {
+    // When the externally-selected value changes (or the list of focusable ids
+    // shifts), make sure the active chip is still valid.
+    setActiveId((prev) => {
+      if (value && focusableIds.includes(value)) return value;
+      if (prev && focusableIds.includes(prev)) return prev;
+      return focusableIds[0];
+    });
+  }, [value, focusableIds]);
 
   const focusChip = (id: string | undefined) => {
     if (!id) return;
     const root = groupRef.current;
     if (!root) return;
-    const el = root.querySelector<HTMLButtonElement>(`button[data-chip-id="${CSS.escape(id)}"]`);
-    el?.focus();
+    // The chip is rendered in BOTH the mobile and desktop rows; focus the one
+    // currently visible (offsetParent !== null) so arrow keys keep working.
+    const els = root.querySelectorAll<HTMLButtonElement>(`button[data-chip-id="${CSS.escape(id)}"]`);
+    const visible = Array.from(els).find((el) => el.offsetParent !== null) ?? els[0];
+    visible?.focus();
   };
 
   const openSearch = () => {
@@ -86,20 +103,21 @@ export function ChipPicker({
   const onChipKey = (e: React.KeyboardEvent<HTMLButtonElement>, currentId: string) => {
     const list = focusableIds;
     const idx = list.indexOf(currentId);
+    if (idx === -1) return;
     if (e.key === "ArrowRight" || e.key === "ArrowDown") {
       e.preventDefault();
       const next = list[(idx + 1) % list.length];
-      if (next) { onChange(next); focusChip(next); }
+      if (next) { setActiveId(next); onChange(next); requestAnimationFrame(() => focusChip(next)); }
     } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
       e.preventDefault();
       const prev = list[(idx - 1 + list.length) % list.length];
-      if (prev) { onChange(prev); focusChip(prev); }
+      if (prev) { setActiveId(prev); onChange(prev); requestAnimationFrame(() => focusChip(prev)); }
     } else if (e.key === "Home") {
       e.preventDefault();
-      const first = list[0]; if (first) { onChange(first); focusChip(first); }
+      const first = list[0]; if (first) { setActiveId(first); onChange(first); requestAnimationFrame(() => focusChip(first)); }
     } else if (e.key === "End") {
       e.preventDefault();
-      const last = list[list.length - 1]; if (last) { onChange(last); focusChip(last); }
+      const last = list[list.length - 1]; if (last) { setActiveId(last); onChange(last); requestAnimationFrame(() => focusChip(last)); }
     } else if (e.key === "/" || (e.key.toLowerCase() === "k" && (e.ctrlKey || e.metaKey))) {
       e.preventDefault();
       openSearch();
@@ -118,6 +136,19 @@ export function ChipPicker({
 
   const [search, setSearch] = React.useState("");
   React.useEffect(() => { if (!open) setSearch(""); }, [open]);
+
+  // Confirm the currently highlighted cmdk item (if any) and select it.
+  const commitHighlighted = (): boolean => {
+    const root = commandRef.current;
+    if (!root) return false;
+    const el = root.querySelector<HTMLElement>('[cmdk-item][data-selected="true"]:not([data-disabled="true"])');
+    const id = el?.getAttribute("data-chip-pick-id");
+    if (!id) return false;
+    onChange(id);
+    setActiveId(id);
+    setOpen(false);
+    return true;
+  };
 
   const renderRow = (visible: ChipPickerItem[], hasOverflow: boolean) => (
     <>
@@ -144,6 +175,7 @@ export function ChipPicker({
           role="radio"
           tabIndex={it.id === activeId ? 0 : -1}
           onKeyDown={(e) => onChipKey(e, it.id)}
+          onFocus={() => setActiveId(it.id)}
         />
       ))}
       {hasOverflow && (
@@ -189,8 +221,23 @@ export function ChipPicker({
         </div>
       </PopoverAnchor>
       <PopoverContent className="w-72 p-0" align="start">
-        <Command>
-          <CommandInput placeholder={searchPlaceholder} value={search} onValueChange={setSearch} />
+        <Command ref={commandRef}>
+          <CommandInput
+            placeholder={searchPlaceholder}
+            value={search}
+            onValueChange={setSearch}
+            onKeyDown={(e) => {
+              // Tab confirms the highlighted item, then advances focus naturally.
+              if (e.key === "Tab") {
+                const ok = commitHighlighted();
+                if (ok) {
+                  // Let the browser perform the default tab navigation so focus
+                  // jumps to the next focusable element after the picker.
+                  // Don't preventDefault; just close the popover (already done).
+                }
+              }
+            }}
+          />
           <CommandList>
             <CommandEmpty>{emptyLabel}</CommandEmpty>
             <CommandGroup>
@@ -199,7 +246,8 @@ export function ChipPicker({
                   key={it.id}
                   value={it.name}
                   disabled={disabledSet.has(it.id)}
-                  onSelect={() => { onChange(it.id); setOpen(false); }}
+                  data-chip-pick-id={it.id}
+                  onSelect={() => { onChange(it.id); setActiveId(it.id); setOpen(false); }}
                 >
                   <EntityChip entity={it} showLabel={false} size="sm" tabIndex={-1} />
                   <span className="ml-2">{it.name}</span>
