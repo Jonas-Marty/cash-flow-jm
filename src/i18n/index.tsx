@@ -101,6 +101,15 @@ const de: Dict = {
   "add.income_badge": "Einnahme",
   "add.reimbursement_hint": "Wird als Rückerstattung gebucht und reduziert die Ausgaben dieses Umschlags.",
   "add.reimbursement_hint.savings": "Wird als Rückerstattung gebucht und erhöht das Guthaben dieses Rückstellungs-Umschlags.",
+  "add.suggestions": "Vorschläge",
+  "add.suggest.use_all": "Alle Felder übernehmen",
+  "add.suggest.applied": "Aus früherer Buchung übernommen",
+  "add.suggest.undo": "Rückgängig",
+  "add.quick_amounts": "Häufige Beträge",
+  "add.recent_tags": "Häufige Tags",
+  "add.date.today": "Heute",
+  "add.date.yesterday": "Gestern",
+  "add.date.last_weekend": "Letztes Wochenende",
 
   // Transactions
   "tx.title": "Buchungen",
