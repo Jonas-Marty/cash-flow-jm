@@ -65,6 +65,42 @@ export type Database = {
         }
         Relationships: []
       }
+      auth_providers: {
+        Row: {
+          client_id: string | null
+          created_at: string
+          discovery_url: string | null
+          display_name: string | null
+          enabled: boolean
+          id: string
+          metadata: Json
+          provider: string
+          updated_at: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string
+          discovery_url?: string | null
+          display_name?: string | null
+          enabled?: boolean
+          id?: string
+          metadata?: Json
+          provider: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string
+          discovery_url?: string | null
+          display_name?: string | null
+          enabled?: boolean
+          id?: string
+          metadata?: Json
+          provider?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           allocated_budget: number
@@ -469,6 +505,27 @@ export type Database = {
           },
         ]
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       account_balances: {
@@ -567,10 +624,18 @@ export type Database = {
         Returns: string
       }
       ensure_month_budgets: { Args: { p_month: string }; Returns: undefined }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
       process_recurring_rules: { Args: { p_today: string }; Returns: undefined }
     }
     Enums: {
       account_type: "asset" | "liability"
+      app_role: "admin" | "user"
       category_group_kind: "income" | "expense" | "savings"
       occurrence_status: "pending" | "posted" | "skipped"
       recurring_day_rule: "fixed_day" | "end_of_month" | "first_of_month"
@@ -705,6 +770,7 @@ export const Constants = {
   public: {
     Enums: {
       account_type: ["asset", "liability"],
+      app_role: ["admin", "user"],
       category_group_kind: ["income", "expense", "savings"],
       occurrence_status: ["pending", "posted", "skipped"],
       recurring_day_rule: ["fixed_day", "end_of_month", "first_of_month"],
