@@ -99,6 +99,8 @@ const de: Dict = {
   "add.save_new": "Speichern & Neu",
   "add.savings_badge": "Rückstellung",
   "add.income_badge": "Einnahme",
+  "add.reimbursement_hint": "Wird als Rückerstattung gebucht und reduziert die Ausgaben dieses Umschlags.",
+  "add.reimbursement_hint.savings": "Wird als Rückerstattung gebucht und erhöht das Guthaben dieses Rückstellungs-Umschlags.",
 
   // Transactions
   "tx.title": "Buchungen",
@@ -271,6 +273,8 @@ const en: Dict = {
   "add.save_new": "Save & New",
   "add.savings_badge": "Reserve",
   "add.income_badge": "Income",
+  "add.reimbursement_hint": "Booked as a reimbursement; reduces this envelope's spending.",
+  "add.reimbursement_hint.savings": "Booked as a reimbursement; increases this savings envelope's balance.",
 
   "tx.title": "Transactions",
   "tx.search_placeholder": "Search payee or note…",
