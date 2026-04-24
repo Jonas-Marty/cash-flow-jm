@@ -279,6 +279,21 @@ function SettingsPage() {
               <span className="text-sm text-muted-foreground">{settingsQ.data?.currency_symbol ?? "CHF"}</span>
             </div>
             <p className="text-xs text-muted-foreground">{tr("settings.heatmap_threshold.hint")}</p>
+            <div className="pt-3">
+              <Label htmlFor="date-format" className="text-sm">{tr("settings.date_format")}</Label>
+              <Select value={settingsQ.data?.date_format ?? "dd.MM.yyyy"} onValueChange={setDateFormat}>
+                <SelectTrigger id="date-format" className="mt-1 w-64"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {DATE_FORMAT_PRESETS.map((f) => (
+                    <SelectItem key={f} value={f}>
+                      <span className="font-mono">{f}</span>
+                      <span className="ml-2 text-muted-foreground">· {datePreview(f)}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-xs text-muted-foreground">{tr("settings.date_format.hint")}</p>
+            </div>
           </CardContent>
         </Card>
 
