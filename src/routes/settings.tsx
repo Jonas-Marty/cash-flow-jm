@@ -2,7 +2,7 @@ import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Trash2, ArchiveRestore, Archive } from "lucide-react";
+import { Plus, Trash2, ArchiveRestore, Archive, Pin, PinOff, Palette } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { EntityChip } from "@/components/EntityChip";
+import { IconPicker } from "@/components/IconPicker";
 import { supabase } from "@/integrations/supabase/client";
 import {
   fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings,
@@ -154,6 +157,32 @@ function SettingsPage() {
     qc.invalidateQueries();
   };
 
+  // Visual + pin updates (shared between accounts and categories)
+  const updateVisual = async (
+    table: "accounts" | "categories",
+    id: string,
+    patch: { icon: string | null; emoji: string | null; image_url: string | null; color: string | null },
+  ) => {
+    const { error } = await supabase.from(table).update(patch).eq("id", id);
+    if (error) return toast.error(error.message);
+    qc.invalidateQueries();
+  };
+  const togglePin = async (table: "accounts" | "categories", id: string, pinned: boolean) => {
+    const { error } = await supabase.from(table).update({ pinned: !pinned }).eq("id", id);
+    if (error) return toast.error(error.message);
+    qc.invalidateQueries();
+  };
+
+  const visualLabels = {
+    icon: tr("settings.visual.icon"),
+    emoji: tr("settings.visual.emoji"),
+    image: tr("settings.visual.image"),
+    color: tr("settings.visual.color"),
+    upload: tr("settings.visual.upload"),
+    remove: tr("settings.visual.remove"),
+    uploadHint: tr("settings.visual.upload_hint"),
+  };
+
   const onLangChange = async (l: string) => {
     await setLang(l as Lang);
     toast.success(tr("toast.language_updated"));
@@ -214,13 +243,32 @@ function SettingsPage() {
             <ul className="divide-y">
               {(accountsQ.data ?? []).map((a) => (
                 <li key={a.id} className="flex items-center justify-between gap-2 py-2">
-                  <div className="min-w-0">
-                    <div className={a.archived ? "text-muted-foreground line-through" : "font-medium"}>{a.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {a.type === "asset" ? tr("settings.account_asset") : tr("settings.account_liability")} · {tr("settings.opening_balance")} {Number(a.opening_balance).toFixed(2)}
+                  <div className="flex min-w-0 items-center gap-2">
+                    <EntityChip entity={{ id: a.id, name: a.name, icon: a.icon, emoji: a.emoji, image_url: a.image_url, color: a.color }} showLabel={false} />
+                    <div className="min-w-0">
+                      <div className={a.archived ? "text-muted-foreground line-through" : "font-medium"}>{a.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {a.type === "asset" ? tr("settings.account_asset") : tr("settings.account_liability")} · {tr("settings.opening_balance")} {Number(a.opening_balance).toFixed(2)}
+                      </div>
                     </div>
                   </div>
                   <div className="flex gap-1">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" aria-label={tr("settings.visual.edit")}><Palette className="h-4 w-4" /></Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80" align="end">
+                        <IconPicker
+                          entityId={a.id}
+                          value={{ icon: a.icon, emoji: a.emoji, image_url: a.image_url, color: a.color }}
+                          onChange={(p) => updateVisual("accounts", a.id, p)}
+                          labels={visualLabels}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Button variant="ghost" size="icon" onClick={() => togglePin("accounts", a.id, !!a.pinned)} aria-label={a.pinned ? tr("settings.unpin") : tr("settings.pin")}>
+                      {a.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => toggleArchiveAccount(a.id, a.archived)} aria-label={a.archived ? tr("common.unarchive") : tr("common.archive")}>
                       {a.archived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
                     </Button>
@@ -298,9 +346,12 @@ function SettingsPage() {
             <ul className="divide-y">
               {(categoriesQ.data ?? []).map((c) => (
                 <li key={c.id} className="flex items-center justify-between gap-2 py-2">
-                  <div className={c.archived ? "min-w-0 text-muted-foreground line-through" : "min-w-0"}>
-                    <div className="font-medium">{c.name}</div>
-                    {c.is_savings && <div className="text-[10px] font-semibold uppercase text-muted-foreground">{tr("add.savings_badge")}</div>}
+                  <div className="flex min-w-0 items-center gap-2">
+                    <EntityChip entity={{ id: c.id, name: c.name, icon: c.icon, emoji: c.emoji, image_url: c.image_url, color: c.color }} showLabel={false} />
+                    <div className={c.archived ? "min-w-0 text-muted-foreground line-through" : "min-w-0"}>
+                      <div className="font-medium">{c.name}</div>
+                      {c.is_savings && <div className="text-[10px] font-semibold uppercase text-muted-foreground">{tr("add.savings_badge")}</div>}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Select value={c.group_id ?? "__none"} onValueChange={(v) => updateCategoryGroup(c.id, v === "__none" ? "" : v)}>
@@ -318,6 +369,22 @@ function SettingsPage() {
                       className="w-28 text-right tabular-nums"
                       onBlur={(e) => updateCategoryBudget(c.id, e.target.value)}
                     />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" aria-label={tr("settings.visual.edit")}><Palette className="h-4 w-4" /></Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80" align="end">
+                        <IconPicker
+                          entityId={c.id}
+                          value={{ icon: c.icon, emoji: c.emoji, image_url: c.image_url, color: c.color }}
+                          onChange={(p) => updateVisual("categories", c.id, p)}
+                          labels={visualLabels}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Button variant="ghost" size="icon" onClick={() => togglePin("categories", c.id, !!c.pinned)} aria-label={c.pinned ? tr("settings.unpin") : tr("settings.pin")}>
+                      {c.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => toggleArchiveCategory(c.id, c.archived)} aria-label={c.archived ? tr("common.unarchive") : tr("common.archive")}>
                       {c.archived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
                     </Button>

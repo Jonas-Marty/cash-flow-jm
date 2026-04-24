@@ -1,106 +1,75 @@
-# Smart suggestions on Add Transaction
+# Faster account & category picker on Add Transaction
 
-Make adding a transaction faster by surfacing **ranked suggestions** the user can tap to prefill the whole form (amount, account, category, payee, note, tags). Architected so we can plug in more sources later (AI inference, scanned receipts, bank-import matching) without rewriting the UI.
+Replace the Select dropdowns for **source account**, **destination account**, and **category** on `/add` with a chip picker: each item shows an **icon, emoji, or uploaded image** + name, sorted by **manual pin** then **recency-weighted usage**. Responsive: horizontally scrollable row on mobile, wrapping grid on desktop. Tooltip-on-hover (desktop) and long-press-to-name (mobile) so icon-only chips remain discoverable.
 
-## Concept
+## What changes for the user
 
-A **Suggestion** is a partial transaction draft + a confidence score + a human label + a provenance tag (which provider produced it, e.g. "Recent · 4×"). The Add screen renders the top N suggestions as tappable chips/cards. Tapping one merges its fields into the form — the user can still tweak anything before saving.
+- **Add screen**: account and category dropdowns become rows of chips. The most relevant items are visible immediately — no two-tap dropdown, no scrolling through a long list. An overflow `…` chip opens a searchable popover with the full list (covers archived items, search, and the rare ones).
+- **Visual identity**: every account and category can carry an icon (Lucide), an emoji, or a custom uploaded image (e.g. bank logo, gift-card photo). Icon-only chips show the name on hover (desktop) and on long-press (mobile, ~500 ms) via an accessible tooltip. Chips with no custom visual fall back to a generated colored monogram (first letter), so the picker still works without setup.
+- **Pinning**: a "pin" toggle in Settings keeps favorites at the front of the chip row regardless of usage. Everything else sorts by recency-weighted usage (30-day half-life — same scoring as the existing suggestion engine, §3.9).
+- **Settings**: each account and category row gains an "Edit visual" button (icon picker, emoji picker, image upload) and a pin toggle. Hint text added.
 
-A **SuggestionProvider** is an async function:
+## Layout rules
 
-```ts
-type Suggestion = {
-  id: string;                // stable key
-  score: number;             // 0..1, higher = more relevant
-  label: string;             // "Lunch at Pizza Hut · 12.50"
-  sublabel?: string;         // "Bank · Lebensmittel · 3× last 30d"
-  source: "history" | "payee_match" | "tag" | "ai" | "receipt" | string;
-  draft: Partial<TransactionDraft>; // amount, type, source_account_id, category_id, payee, note, tags
-};
+- **Mobile (<768 px)**: single horizontal scroll row, snap, hide scrollbar. Top ~10 items visible by scroll, then `…` opens the full searchable popover.
+- **Desktop (≥768 px)**: chips wrap onto multiple lines, all non-archived items shown inline. No `…` overflow needed unless count exceeds ~30, then it appears.
+- Selected chip: filled background + ring, others: outline. Disabled (e.g. destination = source) chips are dimmed.
 
-type SuggestionProvider = {
-  id: string;
-  enabled: () => boolean;
-  suggest: (ctx: SuggestionContext) => Promise<Suggestion[]>;
-};
-```
+## Technical details
 
-`SuggestionContext` is what the user has typed/picked so far: `{ type, amount, payee, note, sourceId, categoryId, date, recentTransactions, accounts, categories }`. Providers receive it and return zero-or-more candidates. A central `useSuggestions(ctx)` hook fans out to all enabled providers in parallel, merges results, **dedupes by similar drafts** (same payee + amount bucket), sorts by score, and returns the top 5.
+### Schema (one migration)
 
-This means future providers — an AI inferencer that calls Lovable AI on the payee text, or a receipt-scanner that fills the form from a photo — just register themselves in `src/lib/suggestions/registry.ts`. No UI changes needed.
+Add to `accounts` and `categories`:
+- `icon text` — Lucide icon name (e.g. `"wallet"`) OR `null`.
+- `emoji text` — single emoji char OR `null`. (Mutually exclusive with `icon` and `image_url` at the UI level; DB allows any combo, UI picks first non-null in priority: `image_url > emoji > icon > monogram`.)
+- `image_url text` — public URL to uploaded image OR `null`.
+- `color text` — hex like `"#3B82F6"` for the chip background tint and monogram fallback. Default a deterministic hash-of-name color.
+- `pinned boolean default false`.
+- `pin_order int` — manual order among pinned items, nullable.
 
-## What ships in round 1: two providers
+Storage:
+- New public bucket `account-category-images` (5 MB max per file, image/* only) created via SQL migration. Anyone can read; insert/update/delete restricted to authenticated users (open RLS to match the rest of the schema for now).
 
-### 1. `historyProvider` — similar past transactions
+### Usage stats (client-side, no schema)
 
-For each transaction in the last ~180 days, compute a relevance score against the current `ctx`:
+Reuse the already-cached `recentTransactions` query (`fetchTransactions(200)`). Compute a `Map<id, score>` for accounts (`source_account_id` + `destination_account_id`) and categories (`category_id`) where each occurrence contributes `exp(-ageDays / 30)`. Sort: pinned (by `pin_order`) first, then by score desc, then by name. Tie-break by name. Memoised in `useMemo` keyed on the recent-tx query data.
 
-- **Amount match** (strongest signal): exact = 1.0, within 5 % = 0.7, within 20 % = 0.3, else 0.
-- **Payee prefix match** (case-insensitive) on what the user has typed so far: full = 0.8, prefix = 0.5.
-- **Type match** (expense/income/transfer): mismatch → drop entirely.
-- **Recency boost**: exponential decay, half-life 30 days, max +0.3.
-- **Frequency boost**: log of how often this (payee, category, amount-bucket) triple appears, max +0.2.
-- **Day-of-month proximity** (small): same day-of-month as `date` → +0.05.
+### New components
 
-Final score is normalised. The provider groups identical drafts (same payee + category + rounded amount) so "Lunch at Pizza Hut · 12.50 (3×)" appears once with frequency in the sublabel.
+- `src/components/ChipPicker.tsx` — generic, accepts `items: { id, name, icon?, emoji?, image_url?, color?, pinned? }[]`, `value`, `onChange`, `disabledIds?`, `responsiveLayout: "scroll-mobile-wrap-desktop"`, `overflowAfter?: number`. Renders chips, handles overflow `…` opening a `Command` (cmdk) popover with search.
+- `src/components/EntityChip.tsx` — single chip: renders image | emoji | Lucide icon | monogram, name label (optionally hidden on mobile to save space), tooltip + long-press handler that triggers the same tooltip.
+- `src/components/IconPicker.tsx` — small Settings widget: tabs for Icon (filtered Lucide list ~120 finance-relevant names), Emoji (native emoji picker via `<input>` or a small grid of common ones — no extra dep), Image (file upload to the storage bucket via `supabase.storage`), Color swatch. Plus pin toggle.
+- `src/lib/usageScoring.ts` — pure helpers: `scoreAccounts(transactions)`, `scoreCategories(transactions)`, `sortByPinAndScore(items, scoreMap)`.
+- `src/lib/iconRegistry.ts` — curated `{ name: string, Component: LucideIcon }[]` of ~120 icons grouped (banking, food, transport, home, leisure, health, gifts, generic). Lookup helper `getIcon(name)` returns `Wallet` fallback when missing.
 
-The chip prefills: amount, payee, source account, category, note. Date and type stay as the user set them.
+### Edits
 
-### 2. `payeeProvider` — payee autocomplete (replaces today's plain `<datalist>`)
+- `src/routes/add.tsx`:
+  - Replace each `<Select>` for source/destination/category with `<ChipPicker />`.
+  - Pass `disabledIds={[sourceId]}` to the destination picker.
+  - Mark `mark("sourceId" | "categoryId")` on selection (preserves sticky-typing behaviour with suggestions).
+  - For category, group chips visually by category-group with small group labels (only if multiple groups present). The "None" option becomes a dedicated outline chip at the start.
+- `src/routes/settings.tsx`:
+  - Account row: add `<EntityChip>` preview + "Edit visual" button (opens `IconPicker` in a Popover) + `Pin` toggle button (Pin/PinOff icons).
+  - Category row: same treatment.
+- `src/lib/finance.ts`: extend `Account` and `Category` interfaces with the new fields; no changes to fetch functions (selecting `*` already brings them in).
+- `src/i18n/index.tsx`: add DE+EN keys: `picker.more`, `picker.search`, `picker.no_match`, `picker.long_press_hint`, `settings.visual.edit`, `settings.visual.icon_tab`, `settings.visual.emoji_tab`, `settings.visual.image_tab`, `settings.visual.color`, `settings.pin`, `settings.unpin`, `settings.upload_too_large`.
+- `architecture.md`: new §3.10 *Entity visuals & quick-pick chips* documenting the schema fields, scoring, layout rules, and storage bucket. Change-log entry dated today.
 
-Same as today's `payeeSuggestions` but exposed through the registry. Keyed off the payee field; produces lower-confidence suggestions with only payee + most-recent category for that payee.
+### Long-press tooltip
 
-(The existing `<datalist>` stays as a graceful fallback; the new chip UI is the primary path.)
+Use Radix `Tooltip` with manual `open` control. Long-press handler: `onPointerDown` starts a 500 ms timer; `onPointerUp`/`onPointerLeave`/`onPointerCancel` clears it. When timer fires, open tooltip and auto-close after 1.5 s. Desktop hover uses default Radix behaviour. On touch devices, the same chip tap also selects — long-press only opens the tooltip without changing selection (we suppress the synthetic click via `e.preventDefault()` once tooltip opens).
 
-## UI
+### Out of scope
 
-Above the form (between the amount card and the account select), a **collapsible suggestions row**:
+- Drag-to-reorder pinned items (use up/down arrows in Settings if needed; can add later).
+- Image cropping / resizing — store as uploaded; CSS `object-cover` handles display. We cap at 5 MB upload, but no server-side resize.
+- Bulk import of icons from a third-party set; just curated Lucide subset + emoji + custom upload.
+- Applying chip pickers to recurring-rule editor or Settings dropdowns (deferred — Add only this round).
+- Per-user pin order (project is single-tenant via open RLS; pin is global like everything else).
 
-- Shows when there is at least one suggestion with score ≥ 0.4.
-- Up to 5 chip-style cards, horizontally scrollable on mobile, wrapped on desktop.
-- Each chip: amount in bold, payee, small sublabel ("Lebensmittel · 3× · last week"), tiny source badge ("Recent" / later "AI" / "Receipt").
-- Tap → merges draft into form fields **only for fields the user hasn't already filled** (sticky-typing rule: if the user typed a payee, we don't overwrite it; we only fill blanks). A small "Use all fields" link inside the chip bypasses sticky-typing for power users.
-- After tapping a chip a subtle banner appears: "Filled from past transaction · Undo" — Undo restores prior values.
+## Files touched
 
-Suggestions react live as the user types amount/payee/note. Debounced 150 ms to avoid jitter.
-
-### Other smoothness improvements (cheap, ship together)
-
-- **Quick-amount keypad chips** under the amount card: round numbers based on history (e.g. "10", "20", "50", "12.50") — most-frequent amounts for the current type. One-tap to fill.
-- **Recent tag chips** under the note field: top 6 tags from history; tap to append `#tag` to the note. (You're already extracting tags into `transaction_tags`.)
-- **"Yesterday / Today / Last weekend" date shortcuts** above the calendar popover.
-- **Smart category default**: when only payee is set, pre-select the category most often used with that payee (without committing — shown as a dimmed value, becomes solid on first edit).
-
-All four can be toggled off later if they feel noisy; they live behind small flags in `suggestions/registry.ts`.
-
-## Technical implementation
-
-Files added:
-
-- `src/lib/suggestions/types.ts` — `Suggestion`, `SuggestionContext`, `SuggestionProvider`, `TransactionDraft`.
-- `src/lib/suggestions/registry.ts` — array of enabled providers; `runSuggestions(ctx)` orchestrator (parallel fan-out, dedupe, sort, top-N).
-- `src/lib/suggestions/providers/history.ts` — scoring + grouping logic described above. Pure function over the cached `transactions` query — no extra network calls.
-- `src/lib/suggestions/providers/payee.ts` — wraps current payee-autocomplete logic.
-- `src/lib/suggestions/useSuggestions.ts` — debounced React hook returning `{ suggestions, isLoading }`.
-- `src/components/SuggestionRow.tsx` — chip list + apply/undo behaviour.
-- `src/components/QuickAmountChips.tsx`, `src/components/TagChips.tsx`, `src/components/DateShortcuts.tsx` — small UI pieces.
-
-Files edited:
-
-- `src/routes/add.tsx` — render `<SuggestionRow>`, `<QuickAmountChips>`, `<TagChips>`, `<DateShortcuts>`; replace ad-hoc payee suggestions with the registry-driven one. Track `userTouched` flags per field to support sticky-typing.
-- `src/i18n/index.tsx` — DE + EN keys (`suggest.recent`, `suggest.use_all_fields`, `suggest.filled_from_past`, `suggest.undo`, `suggest.times_seen`, `add.quick_amounts`, `add.recent_tags`, `add.date.today`, `add.date.yesterday`, `add.date.last_weekend`).
-- `architecture.md` — new §3.9 *Smart suggestions* describing the provider model, scoring, sticky-typing rule, and how to register new providers (AI / receipt scan are explicitly called out as future plug-ins). Change-log entry dated today.
-
-No DB/schema changes. No new dependencies.
-
-### Scoring is local, fast, and explainable
-
-History scoring runs over the existing `recentQ` (currently 50 transactions). We bump that limit to 200 inside Add only — cheap, single query. No SQL functions, no edge functions. Everything is pure TypeScript over cached query data, so suggestions update synchronously as the user types.
-
-### Future-proofing for AI / OCR
-
-Because providers are async, an `aiProvider` could in future call `lovable-ai` with `(payee, amount)` and return inferred category/tags. A `receiptProvider` would expose a "Scan receipt" button that, on success, emits one Suggestion with the full draft. Both slot into the registry without touching `add.tsx`. The UI already ranks by score and shows provenance, so AI suggestions naturally appear next to recent ones, sortable by confidence.
-
-## Out of scope this round
-
-AI-based category inference, OCR receipt scanning, bank-statement import matching, learning per-user weights, suggestions for transfers (low-value — transfers are usually unique), cross-device suggestion ranking.
+- New: `src/components/ChipPicker.tsx`, `src/components/EntityChip.tsx`, `src/components/IconPicker.tsx`, `src/lib/usageScoring.ts`, `src/lib/iconRegistry.ts`.
+- Edited: `src/routes/add.tsx`, `src/routes/settings.tsx`, `src/lib/finance.ts`, `src/i18n/index.tsx`, `architecture.md`.
+- Migration: add columns to `accounts` and `categories`; create `account-category-images` storage bucket with open-read policy.

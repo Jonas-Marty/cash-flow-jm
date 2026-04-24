@@ -10,6 +10,12 @@ export interface Account {
   type: AccountType;
   opening_balance: number;
   archived: boolean;
+  icon?: string | null;
+  emoji?: string | null;
+  image_url?: string | null;
+  color?: string | null;
+  pinned?: boolean;
+  pin_order?: number | null;
 }
 export interface AccountBalance {
   id: string;
@@ -27,6 +33,12 @@ export interface Category {
   archived: boolean;
   group_id: string | null;
   is_savings: boolean;
+  icon?: string | null;
+  emoji?: string | null;
+  image_url?: string | null;
+  color?: string | null;
+  pinned?: boolean;
+  pin_order?: number | null;
 }
 export interface CategoryGroup {
   id: string;

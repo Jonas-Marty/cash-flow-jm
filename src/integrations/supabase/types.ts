@@ -17,30 +17,48 @@ export type Database = {
       accounts: {
         Row: {
           archived: boolean
+          color: string | null
           created_at: string
+          emoji: string | null
+          icon: string | null
           id: string
+          image_url: string | null
           name: string
           opening_balance: number
+          pin_order: number | null
+          pinned: boolean
           type: Database["public"]["Enums"]["account_type"]
           updated_at: string
           user_id: string | null
         }
         Insert: {
           archived?: boolean
+          color?: string | null
           created_at?: string
+          emoji?: string | null
+          icon?: string | null
           id?: string
+          image_url?: string | null
           name: string
           opening_balance?: number
+          pin_order?: number | null
+          pinned?: boolean
           type: Database["public"]["Enums"]["account_type"]
           updated_at?: string
           user_id?: string | null
         }
         Update: {
           archived?: boolean
+          color?: string | null
           created_at?: string
+          emoji?: string | null
+          icon?: string | null
           id?: string
+          image_url?: string | null
           name?: string
           opening_balance?: number
+          pin_order?: number | null
+          pinned?: boolean
           type?: Database["public"]["Enums"]["account_type"]
           updated_at?: string
           user_id?: string | null
@@ -51,11 +69,17 @@ export type Database = {
         Row: {
           allocated_budget: number
           archived: boolean
+          color: string | null
           created_at: string
+          emoji: string | null
           group_id: string | null
+          icon: string | null
           id: string
+          image_url: string | null
           is_savings: boolean
           name: string
+          pin_order: number | null
+          pinned: boolean
           sort_order: number
           updated_at: string
           user_id: string | null
@@ -63,11 +87,17 @@ export type Database = {
         Insert: {
           allocated_budget?: number
           archived?: boolean
+          color?: string | null
           created_at?: string
+          emoji?: string | null
           group_id?: string | null
+          icon?: string | null
           id?: string
+          image_url?: string | null
           is_savings?: boolean
           name: string
+          pin_order?: number | null
+          pinned?: boolean
           sort_order?: number
           updated_at?: string
           user_id?: string | null
@@ -75,11 +105,17 @@ export type Database = {
         Update: {
           allocated_budget?: number
           archived?: boolean
+          color?: string | null
           created_at?: string
+          emoji?: string | null
           group_id?: string | null
+          icon?: string | null
           id?: string
+          image_url?: string | null
           is_savings?: boolean
           name?: string
+          pin_order?: number | null
+          pinned?: boolean
           sort_order?: number
           updated_at?: string
           user_id?: string | null

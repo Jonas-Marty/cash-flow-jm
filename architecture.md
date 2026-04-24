@@ -187,6 +187,25 @@ Other smoothness polish (same registry-free files, all in `src/components/`):
 
 Out of scope: AI-based category inference, OCR receipts, bank-import matching, learned per-user weights, suggestions for transfers.
 
+### 3.10 Entity visuals & quick-pick chips
+
+Source/destination accounts and categories on Add Transaction render as **chips** (icon/emoji/uploaded image + name) instead of dropdowns. Goal: zero-scroll, one-tap selection.
+
+**Schema** — both `accounts` and `categories` carry: `icon` (Lucide name), `emoji`, `image_url` (public URL in `account-category-images` storage bucket, 5 MB / image-only), `color` (hex/HSL — used for icon background and monogram fallback), `pinned`, `pin_order`. Display priority: `image_url > emoji > icon > monogram`.
+
+**Sorting** (`src/lib/usageScoring.ts`): pinned items first (by `pin_order`), then recency-weighted usage from `transactions` (exp decay, 30-day half-life — same scoring family as §3.9), then name. Source uses `source_account_id + destination_account_id` counts; category uses `category_id`.
+
+**Layout** (`ChipPicker.tsx`):
+- Mobile (<md): single horizontal scroll row, ~8 chips visible, then "More …" opens a searchable popover (cmdk).
+- Desktop (≥md): wrap; all visible.
+- Selected = filled + ring; disabled (e.g. dest equal to source) = dim.
+
+**Discovery**: each chip is wrapped in a Radix Tooltip. Hover (desktop) and 500 ms long-press (mobile) reveal the entity name even if the chip shows an icon only.
+
+**Settings** (`/settings`): each account/category row has a Palette button opening `IconPicker` (Icon · Emoji · Image tabs + color swatch) and a Pin/Unpin toggle.
+
+Out of scope: drag-to-reorder pinned items, server-side image resizing, applying chip pickers to recurring-rule editor or settings selects.
+
 ## 4. SQL surface
 
 | Object | Type | Purpose |
