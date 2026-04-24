@@ -346,9 +346,12 @@ function SettingsPage() {
             <ul className="divide-y">
               {(categoriesQ.data ?? []).map((c) => (
                 <li key={c.id} className="flex items-center justify-between gap-2 py-2">
-                  <div className={c.archived ? "min-w-0 text-muted-foreground line-through" : "min-w-0"}>
-                    <div className="font-medium">{c.name}</div>
-                    {c.is_savings && <div className="text-[10px] font-semibold uppercase text-muted-foreground">{tr("add.savings_badge")}</div>}
+                  <div className="flex min-w-0 items-center gap-2">
+                    <EntityChip entity={{ id: c.id, name: c.name, icon: c.icon, emoji: c.emoji, image_url: c.image_url, color: c.color }} showLabel={false} />
+                    <div className={c.archived ? "min-w-0 text-muted-foreground line-through" : "min-w-0"}>
+                      <div className="font-medium">{c.name}</div>
+                      {c.is_savings && <div className="text-[10px] font-semibold uppercase text-muted-foreground">{tr("add.savings_badge")}</div>}
+                    </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <Select value={c.group_id ?? "__none"} onValueChange={(v) => updateCategoryGroup(c.id, v === "__none" ? "" : v)}>
@@ -366,6 +369,22 @@ function SettingsPage() {
                       className="w-28 text-right tabular-nums"
                       onBlur={(e) => updateCategoryBudget(c.id, e.target.value)}
                     />
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" aria-label={tr("settings.visual.edit")}><Palette className="h-4 w-4" /></Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80" align="end">
+                        <IconPicker
+                          entityId={c.id}
+                          value={{ icon: c.icon, emoji: c.emoji, image_url: c.image_url, color: c.color }}
+                          onChange={(p) => updateVisual("categories", c.id, p)}
+                          labels={visualLabels}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Button variant="ghost" size="icon" onClick={() => togglePin("categories", c.id, !!c.pinned)} aria-label={c.pinned ? tr("settings.unpin") : tr("settings.pin")}>
+                      {c.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => toggleArchiveCategory(c.id, c.archived)} aria-label={c.archived ? tr("common.unarchive") : tr("common.archive")}>
                       {c.archived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
                     </Button>
