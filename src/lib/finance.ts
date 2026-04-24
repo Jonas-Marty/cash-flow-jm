@@ -73,6 +73,40 @@ export interface Transaction {
   category_id: string | null;
   created_at: string;
 }
+export type RecurringFrequency = "monthly";
+export type RecurringDayRule = "fixed_day" | "end_of_month" | "first_of_month";
+export type WeekendAdjust = "none" | "before" | "after";
+export type OccurrenceStatus = "pending" | "posted" | "skipped";
+
+export interface RecurringRule {
+  id: string;
+  name: string;
+  type: TxType;
+  amount: number;
+  source_account_id: string;
+  destination_account_id: string | null;
+  category_id: string | null;
+  payee: string | null;
+  note: string | null;
+  frequency: RecurringFrequency;
+  day_rule: RecurringDayRule;
+  day_of_month: number | null;
+  weekend_adjust: WeekendAdjust;
+  starts_on: string;
+  ends_on: string | null;
+  auto_post: boolean;
+  archived: boolean;
+}
+export interface RecurringOccurrence {
+  id: string;
+  rule_id: string;
+  due_on: string;
+  effective_on: string;
+  status: OccurrenceStatus;
+  transaction_id: string | null;
+  posted_at: string | null;
+}
+
 export interface Settings {
   id: string;
   currency_code: string;
