@@ -2,7 +2,7 @@ import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Trash2, ArchiveRestore, Archive } from "lucide-react";
+import { Plus, Trash2, ArchiveRestore, Archive, Pin, PinOff, Palette } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { EntityChip } from "@/components/EntityChip";
+import { IconPicker } from "@/components/IconPicker";
 import { supabase } from "@/integrations/supabase/client";
 import {
   fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings,
@@ -152,6 +155,32 @@ function SettingsPage() {
     if (error) return toast.error(error.message);
     toast.success(tr("toast.deleted"));
     qc.invalidateQueries();
+  };
+
+  // Visual + pin updates (shared between accounts and categories)
+  const updateVisual = async (
+    table: "accounts" | "categories",
+    id: string,
+    patch: { icon: string | null; emoji: string | null; image_url: string | null; color: string | null },
+  ) => {
+    const { error } = await supabase.from(table).update(patch).eq("id", id);
+    if (error) return toast.error(error.message);
+    qc.invalidateQueries();
+  };
+  const togglePin = async (table: "accounts" | "categories", id: string, pinned: boolean) => {
+    const { error } = await supabase.from(table).update({ pinned: !pinned }).eq("id", id);
+    if (error) return toast.error(error.message);
+    qc.invalidateQueries();
+  };
+
+  const visualLabels = {
+    icon: tr("settings.visual.icon"),
+    emoji: tr("settings.visual.emoji"),
+    image: tr("settings.visual.image"),
+    color: tr("settings.visual.color"),
+    upload: tr("settings.visual.upload"),
+    remove: tr("settings.visual.remove"),
+    uploadHint: tr("settings.visual.upload_hint"),
   };
 
   const onLangChange = async (l: string) => {
