@@ -188,6 +188,24 @@ function SettingsPage() {
     toast.success(tr("toast.language_updated"));
   };
 
+  const [thresholdDraft, setThresholdDraft] = React.useState<string>("");
+  React.useEffect(() => {
+    if (settingsQ.data) setThresholdDraft(String(settingsQ.data.day_heatmap_threshold ?? 100));
+  }, [settingsQ.data?.day_heatmap_threshold]);
+  const saveThreshold = async () => {
+    if (!settingsQ.data) return;
+    const v = Number(thresholdDraft.replace(",", "."));
+    if (!isFinite(v) || v < 0) return;
+    if (v === Number(settingsQ.data.day_heatmap_threshold)) return;
+    const { error } = await supabase
+      .from("settings")
+      .update({ day_heatmap_threshold: v })
+      .eq("id", settingsQ.data.id);
+    if (error) { toast.error(error.message); return; }
+    toast.success(tr("toast.saved"));
+    qc.invalidateQueries({ queryKey: ["settings"] });
+  };
+
   return (
     <AppShell>
       <div className="space-y-6">
@@ -216,6 +234,27 @@ function SettingsPage() {
                 {CURRENCIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.code} ({c.symbol})</SelectItem>)}
               </SelectContent>
             </Select>
+          </CardContent>
+        </Card>
+
+        {/* Preferences */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">{tr("settings.preferences")}</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            <Label htmlFor="heatmap-threshold" className="text-sm">{tr("settings.heatmap_threshold")}</Label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="heatmap-threshold"
+                inputMode="decimal"
+                className="w-40"
+                value={thresholdDraft}
+                onChange={(e) => setThresholdDraft(e.target.value.replace(/[^0-9.,]/g, ""))}
+                onBlur={saveThreshold}
+                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+              />
+              <span className="text-sm text-muted-foreground">{settingsQ.data?.currency_symbol ?? "CHF"}</span>
+            </div>
+            <p className="text-xs text-muted-foreground">{tr("settings.heatmap_threshold.hint")}</p>
           </CardContent>
         </Card>
 
