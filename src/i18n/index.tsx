@@ -482,6 +482,27 @@ const en: Dict = {
   "kbd.date_step_month": "Date ±1 month",
   "kbd.help": "Open help",
   "add.date_input_hint": "Format: {fmt} · +/−, ↑/↓, j/k = ±1 day · PgUp/PgDn = ±1 month",
+
+  "auth.signin": "Sign in",
+  "auth.signup": "Sign up",
+  "auth.signout": "Sign out",
+  "auth.email": "Email",
+  "auth.password": "Password",
+  "auth.check_email": "Please confirm your email",
+  "auth.signup_hint": "You'll receive an email to confirm your address.",
+  "auth.or": "Or",
+  "auth.continue_with": "Continue with {p}",
+  "auth.provider_not_wired": "Configurable when self-hosting",
+  "settings.account": "Account",
+  "settings.you": "Signed in as",
+  "settings.role.admin": "Administrator",
+  "settings.role.user": "User",
+  "settings.integrations": "OAuth integrations",
+  "settings.integrations.admin_only": "Only administrators can edit OAuth providers.",
+  "settings.integrations.enabled": "Enabled",
+  "settings.integrations.client_id": "Client ID",
+  "settings.integrations.discovery": "Discovery URL (Keycloak/OIDC)",
+  "settings.integrations.hint": "Secrets are stored in Lovable Cloud secrets or server env vars, never in the database.",
 };
 
 const dicts: Record<Lang, Dict> = { de, en };
