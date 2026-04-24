@@ -228,6 +228,12 @@ No schema change required for the switch.
 
 ## 7. Change log
 
+### 2026-04-24 — Smart suggestions on Add
+- New §3.9 documents a provider-based suggestion engine: `src/lib/suggestions/` with `historyProvider` (similar past transactions, scored) and `payeeProvider`. Top 5 ranked suggestions render as tappable chips above the form and prefill fields with sticky-typing + undo.
+- Add screen also gained Quick-amount chips, Recent-tag chips, and Today/Yesterday/Last-weekend date shortcuts.
+- Recent-transactions query on Add bumped from 50 → 200 rows for better scoring; no schema/SQL changes.
+- New i18n keys: `add.suggestions`, `add.suggest.use_all`, `add.suggest.applied`, `add.suggest.undo`, `add.quick_amounts`, `add.recent_tags`, `add.date.{today,yesterday,last_weekend}` (DE + EN).
+
 ### 2026-04-24 — Gift cards & stored-value accounts
 - Documented the gift-card pattern as new §3.8: dedicated asset account, two-leg load (expense + income with no category), tag convention `#giftcard-load`, normal envelope-bound spends thereafter. No schema changes.
 - Settings → Accounts now shows a hint suggesting an asset account for gift cards / stored-value.
