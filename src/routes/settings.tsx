@@ -16,6 +16,7 @@ import {
   type AccountType, type GroupKind,
 } from "@/lib/finance";
 import { useI18n, LANGUAGES, type Lang } from "@/i18n";
+import { RecurringRulesCard } from "@/components/RecurringRulesCard";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -329,6 +330,9 @@ function SettingsPage() {
             </ul>
           </CardContent>
         </Card>
+
+        {/* Recurring rules */}
+        <RecurringRulesCard />
 
         <p className="pb-4 text-xs text-muted-foreground">{tr("settings.footer")}</p>
       </div>
