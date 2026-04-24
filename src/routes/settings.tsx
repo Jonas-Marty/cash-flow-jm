@@ -16,6 +16,7 @@ import {
   type AccountType, type GroupKind,
 } from "@/lib/finance";
 import { useI18n, LANGUAGES, type Lang } from "@/i18n";
+import { RecurringRulesCard } from "@/components/RecurringRulesCard";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
