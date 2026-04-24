@@ -47,6 +47,15 @@ export function DayHeatmapCalendar({
   selected, onSelect, transactions, accounts, categories,
   threshold, symbol, locale, labels, className,
 }: Props) {
+  const [month, setMonth] = React.useState<Date>(() => new Date(selected.getFullYear(), selected.getMonth(), 1));
+  React.useEffect(() => {
+    setMonth((m) =>
+      m.getFullYear() === selected.getFullYear() && m.getMonth() === selected.getMonth()
+        ? m
+        : new Date(selected.getFullYear(), selected.getMonth(), 1),
+    );
+  }, [selected]);
+
   const byDay = React.useMemo(() => {
     const m = new Map<string, { net: number; count: number; txs: Transaction[] }>();
     for (const t of transactions) {
@@ -143,6 +152,8 @@ export function DayHeatmapCalendar({
         mode="single"
         selected={selected}
         onSelect={(d) => d && onSelect(d)}
+        month={month}
+        onMonthChange={setMonth}
         locale={locale}
         showOutsideDays
         weekStartsOn={1}
