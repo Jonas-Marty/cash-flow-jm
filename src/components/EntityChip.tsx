@@ -21,11 +21,18 @@ interface Props {
   showLabel?: boolean;
   size?: "sm" | "md";
   className?: string;
+  tabIndex?: number;
+  role?: string;
+  onKeyDown?: (e: React.KeyboardEvent<HTMLButtonElement>) => void;
+  onFocus?: () => void;
 }
 
 const LONG_PRESS_MS = 500;
 
-export function EntityChip({ entity, selected, disabled, onClick, showLabel = true, size = "md", className }: Props) {
+export const EntityChip = React.forwardRef<HTMLButtonElement, Props>(function EntityChip(
+  { entity, selected, disabled, onClick, showLabel = true, size = "md", className, tabIndex, role, onKeyDown, onFocus },
+  ref,
+) {
   const [tipOpen, setTipOpen] = React.useState(false);
   const timer = React.useRef<number | null>(null);
   const longPressed = React.useRef(false);
@@ -69,8 +76,17 @@ export function EntityChip({ entity, selected, disabled, onClick, showLabel = tr
       <Tooltip open={showLabel ? undefined : tipOpen} onOpenChange={showLabel ? undefined : setTipOpen}>
         <TooltipTrigger asChild>
           <button
+            ref={ref}
             type="button"
             disabled={disabled}
+            tabIndex={tabIndex}
+            role={role}
+            aria-checked={role === "radio" ? !!selected : undefined}
+            aria-pressed={role !== "radio" ? !!selected : undefined}
+            aria-label={entity.name}
+            data-chip-id={entity.id}
+            onFocus={onFocus}
+            onKeyDown={onKeyDown}
             onClick={handleClick}
             onPointerDown={startPress}
             onPointerUp={endPress}
@@ -78,7 +94,7 @@ export function EntityChip({ entity, selected, disabled, onClick, showLabel = tr
             onPointerCancel={endPress}
             onContextMenu={(e) => e.preventDefault()}
             className={cn(
-              "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-1 text-sm transition-colors select-none",
+              "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2 py-1 text-sm transition-colors select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               selected
                 ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary"
                 : "border-border bg-background text-foreground hover:bg-accent",
@@ -94,4 +110,4 @@ export function EntityChip({ entity, selected, disabled, onClick, showLabel = tr
       </Tooltip>
     </TooltipProvider>
   );
-}
+});
