@@ -240,6 +240,28 @@ const de: Dict = {
   "kbd.date_step_month": "Datum ±1 Monat",
   "kbd.help": "Hilfe öffnen",
   "add.date_input_hint": "Format: {fmt} · +/−, ↑/↓, j/k = ±1 Tag · Bild↑/↓ = ±1 Monat",
+
+  // Auth
+  "auth.signin": "Anmelden",
+  "auth.signup": "Registrieren",
+  "auth.signout": "Abmelden",
+  "auth.email": "E-Mail",
+  "auth.password": "Passwort",
+  "auth.check_email": "Bitte E-Mail bestätigen",
+  "auth.signup_hint": "Du erhältst eine E-Mail zur Bestätigung deiner Adresse.",
+  "auth.or": "Oder",
+  "auth.continue_with": "Mit {p} fortfahren",
+  "auth.provider_not_wired": "Im Selbst-Hosting konfigurierbar",
+  "settings.account": "Konto",
+  "settings.you": "Angemeldet als",
+  "settings.role.admin": "Administrator",
+  "settings.role.user": "Benutzer",
+  "settings.integrations": "OAuth-Integrationen",
+  "settings.integrations.admin_only": "Nur Administratoren können OAuth-Anbieter bearbeiten.",
+  "settings.integrations.enabled": "Aktiviert",
+  "settings.integrations.client_id": "Client ID",
+  "settings.integrations.discovery": "Discovery URL (Keycloak/OIDC)",
+  "settings.integrations.hint": "Secrets werden in den Lovable Cloud Secrets bzw. den Server-Umgebungsvariablen gespeichert, niemals in der Datenbank.",
 };
 
 const en: Dict = {
@@ -460,6 +482,27 @@ const en: Dict = {
   "kbd.date_step_month": "Date ±1 month",
   "kbd.help": "Open help",
   "add.date_input_hint": "Format: {fmt} · +/−, ↑/↓, j/k = ±1 day · PgUp/PgDn = ±1 month",
+
+  "auth.signin": "Sign in",
+  "auth.signup": "Sign up",
+  "auth.signout": "Sign out",
+  "auth.email": "Email",
+  "auth.password": "Password",
+  "auth.check_email": "Please confirm your email",
+  "auth.signup_hint": "You'll receive an email to confirm your address.",
+  "auth.or": "Or",
+  "auth.continue_with": "Continue with {p}",
+  "auth.provider_not_wired": "Configurable when self-hosting",
+  "settings.account": "Account",
+  "settings.you": "Signed in as",
+  "settings.role.admin": "Administrator",
+  "settings.role.user": "User",
+  "settings.integrations": "OAuth integrations",
+  "settings.integrations.admin_only": "Only administrators can edit OAuth providers.",
+  "settings.integrations.enabled": "Enabled",
+  "settings.integrations.client_id": "Client ID",
+  "settings.integrations.discovery": "Discovery URL (Keycloak/OIDC)",
+  "settings.integrations.hint": "Secrets are stored in Lovable Cloud secrets or server env vars, never in the database.",
 };
 
 const dicts: Record<Lang, Dict> = { de, en };

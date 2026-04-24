@@ -21,6 +21,10 @@ import {
 } from "@/lib/finance";
 import { useI18n, LANGUAGES, type Lang } from "@/i18n";
 import { RecurringRulesCard } from "@/components/RecurringRulesCard";
+import { useAuth, useIsAdmin } from "@/lib/auth";
+import { Switch } from "@/components/ui/switch";
+import { useQuery as useRQ } from "@tanstack/react-query";
+import { LogOut } from "lucide-react";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -234,6 +238,9 @@ function SettingsPage() {
     <AppShell>
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold tracking-tight">{tr("settings.title")}</h1>
+
+        <AccountCard />
+        <IntegrationsCard />
 
         {/* Language */}
         <Card>
@@ -483,5 +490,102 @@ function SettingsPage() {
         <p className="pb-4 text-xs text-muted-foreground">{tr("settings.footer")}</p>
       </div>
     </AppShell>
+  );
+}
+
+function AccountCard() {
+  const { t } = useI18n();
+  const { user, signOut } = useAuth();
+  const isAdminQ = useIsAdmin();
+  if (!user) return null;
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-base">{t("settings.account")}</CardTitle></CardHeader>
+      <CardContent className="flex items-center justify-between gap-3">
+        <div className="text-sm">
+          <div className="text-muted-foreground">{t("settings.you")}</div>
+          <div className="font-medium">{user.email}</div>
+          <div className="text-xs text-muted-foreground">
+            {isAdminQ.data ? t("settings.role.admin") : t("settings.role.user")}
+          </div>
+        </div>
+        <Button variant="outline" onClick={signOut}>
+          <LogOut className="h-4 w-4" /> {t("auth.signout")}
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function IntegrationsCard() {
+  const { t } = useI18n();
+  const isAdminQ = useIsAdmin();
+  const qc = useQueryClient();
+  const providersQ = useRQ({
+    queryKey: ["auth_providers_admin"],
+    enabled: !!isAdminQ.data,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("auth_providers")
+        .select("id, provider, display_name, enabled, client_id, discovery_url")
+        .order("provider");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+
+  if (isAdminQ.isLoading) return null;
+  if (!isAdminQ.data) {
+    return (
+      <Card>
+        <CardHeader><CardTitle className="text-base">{t("settings.integrations")}</CardTitle></CardHeader>
+        <CardContent className="text-sm text-muted-foreground">{t("settings.integrations.admin_only")}</CardContent>
+      </Card>
+    );
+  }
+
+  const update = async (id: string, patch: { enabled?: boolean; client_id?: string | null; discovery_url?: string | null }) => {
+    const { error } = await supabase.from("auth_providers").update(patch).eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    qc.invalidateQueries({ queryKey: ["auth_providers_admin"] });
+    qc.invalidateQueries({ queryKey: ["auth_providers_enabled"] });
+  };
+
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-base">{t("settings.integrations")}</CardTitle></CardHeader>
+      <CardContent className="space-y-4">
+        {(providersQ.data ?? []).map((p) => (
+          <div key={p.id} className="space-y-2 rounded-md border p-3">
+            <div className="flex items-center justify-between">
+              <div className="font-medium">{p.display_name ?? p.provider}</div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor={`en-${p.id}`} className="text-xs">{t("settings.integrations.enabled")}</Label>
+                <Switch id={`en-${p.id}`} checked={p.enabled} onCheckedChange={(v) => update(p.id, { enabled: v })} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+              <div>
+                <Label className="text-xs">{t("settings.integrations.client_id")}</Label>
+                <Input
+                  defaultValue={p.client_id ?? ""}
+                  onBlur={(e) => e.currentTarget.value !== (p.client_id ?? "") && update(p.id, { client_id: e.currentTarget.value || null })}
+                />
+              </div>
+              {p.provider === "keycloak" && (
+                <div>
+                  <Label className="text-xs">{t("settings.integrations.discovery")}</Label>
+                  <Input
+                    defaultValue={p.discovery_url ?? ""}
+                    onBlur={(e) => e.currentTarget.value !== (p.discovery_url ?? "") && update(p.id, { discovery_url: e.currentTarget.value || null })}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        ))}
+        <p className="text-xs text-muted-foreground">{t("settings.integrations.hint")}</p>
+      </CardContent>
+    </Card>
   );
 }

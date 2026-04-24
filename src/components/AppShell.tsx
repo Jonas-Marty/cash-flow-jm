@@ -1,7 +1,9 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { LayoutDashboard, Plus, ListOrdered, Settings as SettingsIcon, Wallet, PiggyBank } from "lucide-react";
+import { LayoutDashboard, Plus, ListOrdered, Settings as SettingsIcon, Wallet, PiggyBank, LogOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
+import { useAuth } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
 
 type Tab = {
   to: "/" | "/transactions" | "/add" | "/envelopes" | "/settings";
@@ -21,6 +23,7 @@ const tabs: Tab[] = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const loc = useLocation();
   const { t } = useI18n();
+  const { user, signOut } = useAuth();
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="hidden md:block sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
@@ -48,6 +51,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </Link>
               );
             })}
+            {user && (
+              <div className="ml-3 flex items-center gap-2 border-l pl-3">
+                <span className="text-xs text-muted-foreground">{user.email}</span>
+                <Button size="icon" variant="ghost" onClick={signOut} title={t("auth.signout")}>
+                  <LogOut className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
           </nav>
         </div>
       </header>
