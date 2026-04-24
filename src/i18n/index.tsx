@@ -199,6 +199,22 @@ const de: Dict = {
   "dashboard.upcoming.late_by_one": "1 Tag überfällig",
   "dashboard.upcoming.post": "Buchen",
   "dashboard.upcoming.skip": "Überspringen",
+
+  // Picker (DE)
+  "picker.more": "Mehr",
+  "picker.search": "Suchen…",
+  "picker.no_match": "Keine Treffer",
+  "picker.long_press_hint": "Lange tippen für Namen",
+  "settings.visual.edit": "Symbol",
+  "settings.visual.icon": "Icon",
+  "settings.visual.emoji": "Emoji",
+  "settings.visual.image": "Bild",
+  "settings.visual.color": "Farbe",
+  "settings.visual.upload": "Hochladen",
+  "settings.visual.remove": "Entfernen",
+  "settings.visual.upload_hint": "PNG/JPG/WebP, max. 5 MB",
+  "settings.pin": "Anheften",
+  "settings.unpin": "Lösen",
 };
 
 const en: Dict = {
