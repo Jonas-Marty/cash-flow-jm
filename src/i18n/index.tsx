@@ -394,6 +394,22 @@ const en: Dict = {
   "dashboard.upcoming.late_by_one": "1 day late",
   "dashboard.upcoming.post": "Post",
   "dashboard.upcoming.skip": "Skip",
+
+  // Picker (EN)
+  "picker.more": "More",
+  "picker.search": "Search…",
+  "picker.no_match": "No matches",
+  "picker.long_press_hint": "Long-press to see name",
+  "settings.visual.edit": "Visual",
+  "settings.visual.icon": "Icon",
+  "settings.visual.emoji": "Emoji",
+  "settings.visual.image": "Image",
+  "settings.visual.color": "Color",
+  "settings.visual.upload": "Upload",
+  "settings.visual.remove": "Remove",
+  "settings.visual.upload_hint": "PNG/JPG/WebP, max 5 MB",
+  "settings.pin": "Pin",
+  "settings.unpin": "Unpin",
 };
 
 const dicts: Record<Lang, Dict> = { de, en };
