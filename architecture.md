@@ -189,6 +189,11 @@ No schema change required for the switch.
 
 ## 7. Change log
 
+### 2026-04-24 — Shared / split expenses pattern
+- Documented the reimbursement-rule pattern for shared costs (split rent, joint subscriptions) as new §3.7. No schema changes.
+- Add Transaction screen now shows a contextual hint when income is posted against an expense or savings envelope, explaining the reimbursement effect.
+- New i18n keys: `add.reimbursement_hint`, `add.reimbursement_hint.savings` (DE + EN).
+
 ### 2026-04-24 — Recurring transactions
 - Added `recurring_rules` and `recurring_occurrences` tables with enums `recurring_frequency`, `recurring_day_rule`, `weekend_adjust`, `occurrence_status`.
 - Added SQL functions `compute_due_date`, `compute_effective_date`, `process_recurring_rules` plus the `reset_occurrence_on_tx_delete` trigger on `transactions`.
