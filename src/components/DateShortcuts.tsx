@@ -41,58 +41,51 @@ export function DateShortcuts({
     return `${labels.last_prefix} ${w.charAt(0).toUpperCase()}${w.slice(1)}`;
   };
 
+  // Build entries once per relevant inputs. Use stable string keys so identities
+  // don't shift between renders (avoids losing focus tracking).
   const entries = React.useMemo(() => {
+    const t = new Date(); t.setHours(0, 0, 0, 0);
+    const y = new Date(t); y.setDate(t.getDate() - 1);
     const list: { key: string; label: string; date: Date }[] = [
-      { key: "today", label: labels.today, date: today },
-      { key: "yesterday", label: labels.yesterday, date: yesterday },
+      { key: "today", label: labels.today, date: t },
+      { key: "yesterday", label: labels.yesterday, date: y },
     ];
-    previous.forEach((d) => list.push({ key: d.toISOString(), label: weekdayLabel(d), date: d }));
+    for (let i = 2; i <= 5; i++) {
+      const d = new Date(t); d.setDate(t.getDate() - i);
+      list.push({ key: `prev-${i}`, label: weekdayLabel(d), date: d });
+    }
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [labels.today, labels.yesterday, labels.last_prefix, locale]);
 
   const groupRef = React.useRef<HTMLDivElement | null>(null);
   const selectedKey = entries.find((e) => sameDay(selected, e.date))?.key;
+  // activeKey drives the tab stop. It's NOT tied to the parent's `selected`
+  // value so arrow keys can rove through the row without being snapped back.
   const [activeKey, setActiveKey] = React.useState<string>(() => selectedKey ?? entries[0].key);
-  React.useEffect(() => {
-    setActiveKey((prev) => {
-      if (selectedKey) return selectedKey;
-      if (entries.some((e) => e.key === prev)) return prev;
-      return entries[0].key;
-    });
-  }, [selectedKey, entries]);
+  // Only initialize once; do not auto-sync from selectedKey on every change,
+  // otherwise external date changes would steal focus from the user.
 
-  const focusKey = (k: string) => {
-    const root = groupRef.current;
-    if (!root) return;
-    const el = root.querySelector<HTMLButtonElement>(`button[data-shortcut-key="${CSS.escape(k)}"]`);
-    el?.focus();
+  const moveBy = (currentKey: string, delta: number) => {
+    const idx = entries.findIndex((x) => x.key === currentKey);
+    if (idx === -1) return;
+    const len = entries.length;
+    const next = entries[(idx + delta + len) % len];
+    setActiveKey(next.key);
+    onPick(next.date);
+    // Focus after React commits the new tabIndex.
+    requestAnimationFrame(() => {
+      const root = groupRef.current;
+      const el = root?.querySelector<HTMLButtonElement>(`button[data-shortcut-key="${CSS.escape(next.key)}"]`);
+      el?.focus();
+    });
   };
 
   const onKey = (e: React.KeyboardEvent<HTMLButtonElement>, currentKey: string) => {
-    const idx = entries.findIndex((x) => x.key === currentKey);
-    if (idx === -1) return;
-    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
-      e.preventDefault();
-      const next = entries[(idx + 1) % entries.length];
-      setActiveKey(next.key); onPick(next.date);
-      requestAnimationFrame(() => focusKey(next.key));
-    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
-      e.preventDefault();
-      const prev = entries[(idx - 1 + entries.length) % entries.length];
-      setActiveKey(prev.key); onPick(prev.date);
-      requestAnimationFrame(() => focusKey(prev.key));
-    } else if (e.key === "Home") {
-      e.preventDefault();
-      const first = entries[0];
-      setActiveKey(first.key); onPick(first.date);
-      requestAnimationFrame(() => focusKey(first.key));
-    } else if (e.key === "End") {
-      e.preventDefault();
-      const last = entries[entries.length - 1];
-      setActiveKey(last.key); onPick(last.date);
-      requestAnimationFrame(() => focusKey(last.key));
-    }
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); moveBy(currentKey, 1); }
+    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); moveBy(currentKey, -1); }
+    else if (e.key === "Home") { e.preventDefault(); const first = entries[0]; setActiveKey(first.key); onPick(first.date); }
+    else if (e.key === "End") { e.preventDefault(); const last = entries[entries.length - 1]; setActiveKey(last.key); onPick(last.date); }
   };
 
   return (
