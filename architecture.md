@@ -148,6 +148,23 @@ For monthly splits, pair two **recurring rules** on the same envelope: one expen
 
 The Add Transaction screen surfaces a hint under the category select when the user picks `income` and an `expense`/`savings` envelope, explaining the reimbursement effect. Out of scope: multi-party splits with arbitrary fractions, IOU tracking, and explicit row-to-row links between the expense and its reimbursement (the envelope math handles linkage implicitly).
 
+### 3.8 Gift cards & stored-value accounts
+
+Gift cards bought at a discount (e.g. Coop Geschenkkarten via a 4 % employee benefit), prepaid travel cards, and any other stored-value instrument are modelled as **dedicated asset accounts** — not as transactions against an envelope. This keeps the spending power of the card visible at all times and isolates the discount from the budget.
+
+**Loading the card** (e.g. 1,000 CHF card bought for 960 CHF):
+
+1. **Expense** 960 CHF, source = the funding account (e.g. *Migros Cumulus*), category = **none**.
+2. **Income** 1,000 CHF, source = the gift-card account (e.g. *Coop Geschenkkarten*), category = **none**.
+
+Net effect: funding account −960, gift-card account +1,000, net worth +40 (the discount surfaces as a balance gain, not as budget income), no envelope is touched.
+
+**Spending from the card**: a normal expense with `source = Coop Geschenkkarten` and the appropriate envelope (e.g. Lebensmittel). The full sticker price hits the envelope; the card balance ticks down. When the card hits zero, stop using it.
+
+**Linking the two load legs**: tag both transactions with `#giftcard-load` (or `#giftcard-load-YYYY-MM` for a specific batch). The existing `transaction_tags` extraction makes load pairs filterable on the Transactions page — no schema link needed, consistent with §3.7's implicit-linkage choice. A `transfer` cannot be used because the two legs have different amounts (960 ≠ 1000).
+
+Out of scope: a formal `transaction_links` table, automatic profit/discount reporting, expiry tracking, and per-card serial numbers.
+
 ## 4. SQL surface
 
 | Object | Type | Purpose |
@@ -188,6 +205,11 @@ Every public table carries a nullable `user_id UUID`. To plug in Keycloak/OIDC:
 No schema change required for the switch.
 
 ## 7. Change log
+
+### 2026-04-24 — Gift cards & stored-value accounts
+- Documented the gift-card pattern as new §3.8: dedicated asset account, two-leg load (expense + income with no category), tag convention `#giftcard-load`, normal envelope-bound spends thereafter. No schema changes.
+- Settings → Accounts now shows a hint suggesting an asset account for gift cards / stored-value.
+- New i18n key: `settings.accounts.asset_hint` (DE + EN).
 
 ### 2026-04-24 — Shared / split expenses pattern
 - Documented the reimbursement-rule pattern for shared costs (split rent, joint subscriptions) as new §3.7. No schema changes.
