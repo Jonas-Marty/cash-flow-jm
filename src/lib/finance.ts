@@ -245,3 +245,68 @@ export async function fetchTransactionTags(): Promise<{ transaction_id: string; 
   if (error) throw error;
   return (data || []) as { transaction_id: string; tag: string }[];
 }
+
+export async function processRecurringRules(today?: string): Promise<void> {
+  const t = today ?? new Date().toISOString().slice(0, 10);
+  const { error } = await supabase.rpc("process_recurring_rules", { p_today: t });
+  if (error) throw error;
+}
+
+export async function fetchRecurringRules(): Promise<RecurringRule[]> {
+  const { data, error } = await supabase
+    .from("recurring_rules")
+    .select("*")
+    .order("archived")
+    .order("name");
+  if (error) throw error;
+  return (data || []) as RecurringRule[];
+}
+
+export async function fetchPendingOccurrences(): Promise<(RecurringOccurrence & { rule: RecurringRule })[]> {
+  const { data, error } = await supabase
+    .from("recurring_occurrences")
+    .select("*, rule:recurring_rules(*)")
+    .eq("status", "pending")
+    .order("effective_on", { ascending: true });
+  if (error) throw error;
+  return (data || []) as (RecurringOccurrence & { rule: RecurringRule })[];
+}
+
+export async function postOccurrence(occ: RecurringOccurrence & { rule: RecurringRule }, overrides?: { amount?: number; payee?: string | null; note?: string | null; occurred_on?: string }): Promise<void> {
+  const r = occ.rule;
+  const { data: tx, error: txErr } = await supabase
+    .from("transactions")
+    .insert({
+      occurred_on: overrides?.occurred_on ?? occ.effective_on,
+      amount: overrides?.amount ?? r.amount,
+      type: r.type,
+      source_account_id: r.source_account_id,
+      destination_account_id: r.destination_account_id,
+      category_id: r.category_id,
+      payee: overrides?.payee ?? r.payee,
+      note: overrides?.note ?? r.note,
+    })
+    .select()
+    .single();
+  if (txErr) throw txErr;
+  const { error } = await supabase
+    .from("recurring_occurrences")
+    .update({ status: "posted", transaction_id: tx.id, posted_at: new Date().toISOString() })
+    .eq("id", occ.id);
+  if (error) throw error;
+}
+
+export async function skipOccurrence(id: string): Promise<void> {
+  const { error } = await supabase.from("recurring_occurrences").update({ status: "skipped" }).eq("id", id);
+  if (error) throw error;
+}
+
+export function describeSchedule(r: RecurringRule, t: (k: string, v?: Record<string, string | number>) => string): string {
+  const parts: string[] = [];
+  if (r.day_rule === "first_of_month") parts.push(t("recurring.sched.first"));
+  else if (r.day_rule === "end_of_month") parts.push(t("recurring.sched.end"));
+  else parts.push(t("recurring.sched.day", { d: r.day_of_month ?? 1 }));
+  if (r.weekend_adjust === "before") parts.push(t("recurring.sched.weekend_before"));
+  else if (r.weekend_adjust === "after") parts.push(t("recurring.sched.weekend_after"));
+  return parts.join(" · ");
+}
