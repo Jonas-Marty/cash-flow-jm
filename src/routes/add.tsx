@@ -75,9 +75,6 @@ function AddTransaction() {
   const [saving, setSaving] = React.useState(false);
   const [helpOpen, setHelpOpen] = React.useState(false);
 
-  // Keep latest values accessible inside the global hotkey handler
-  const stateRef = React.useRef({ amount, sourceId, destId, categoryId, payee, note, date, type, suggestions: [] as Suggestion[] });
-
   // Track which fields the user has explicitly touched, so suggestion-apply
   // in "sticky" mode doesn't overwrite their input.
   const [touched, setTouched] = React.useState<Record<string, boolean>>({});
