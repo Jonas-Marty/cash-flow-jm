@@ -273,6 +273,8 @@ const en: Dict = {
   "add.save_new": "Save & New",
   "add.savings_badge": "Reserve",
   "add.income_badge": "Income",
+  "add.reimbursement_hint": "Booked as a reimbursement; reduces this envelope's spending.",
+  "add.reimbursement_hint.savings": "Booked as a reimbursement; increases this savings envelope's balance.",
 
   "tx.title": "Transactions",
   "tx.search_placeholder": "Search payee or note…",
