@@ -5,6 +5,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { I18nProvider, type Lang } from "@/i18n";
 import { fetchSettings } from "@/lib/finance";
 import { supabase } from "@/integrations/supabase/client";
+import { AuthProvider, useAuth } from "@/lib/auth";
+import { AuthPage } from "@/components/AuthPage";
 
 import appCss from "../styles.css?url";
 
@@ -52,12 +54,36 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
-      <I18nGate>
-        <Outlet />
+      <AuthProvider>
+        <AuthGate>
+          <I18nGate>
+            <Outlet />
+          </I18nGate>
+        </AuthGate>
         <Toaster />
-      </I18nGate>
+      </AuthProvider>
     </QueryClientProvider>
   );
+}
+
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const { session, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
+        …
+      </div>
+    );
+  }
+  if (!session) {
+    // AuthPage uses useI18n, so wrap it in a minimal i18n provider with no settings fetch.
+    return (
+      <I18nProvider lang="de" setLang={async () => {}}>
+        <AuthPage />
+      </I18nProvider>
+    );
+  }
+  return <>{children}</>;
 }
 
 function I18nGate({ children }: { children: React.ReactNode }) {
