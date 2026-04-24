@@ -176,18 +176,6 @@ function AddTransaction() {
                   ))}
                 </SelectContent>
               </Select>
-              {type === "income" && categoryId && (() => {
-                const c = categories.find((x) => x.id === categoryId);
-                if (!c) return null;
-                const kind = c.group_id ? groupKindById.get(c.group_id) : undefined;
-                const isSavings = c.is_savings || kind === "savings";
-                if (kind !== "expense" && !isSavings) return null;
-                return (
-                  <p className="mt-1.5 text-xs text-muted-foreground">
-                    {tr(isSavings ? "add.reimbursement_hint.savings" : "add.reimbursement_hint")}
-                  </p>
-                );
-              })()}
             </div>
           )}
 
@@ -214,6 +202,18 @@ function AddTransaction() {
                   })}
                 </SelectContent>
               </Select>
+              {type === "income" && categoryId && (() => {
+                const c = categories.find((x) => x.id === categoryId);
+                if (!c) return null;
+                const kind = c.group_id ? groupKindById.get(c.group_id) : undefined;
+                const isSavings = c.is_savings || kind === "savings";
+                if (kind !== "expense" && !isSavings) return null;
+                return (
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    {tr(isSavings ? "add.reimbursement_hint.savings" : "add.reimbursement_hint")}
+                  </p>
+                );
+              })()}
             </div>
           )}
         </div>
