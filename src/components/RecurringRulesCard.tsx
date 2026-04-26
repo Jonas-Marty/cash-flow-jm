@@ -26,6 +26,8 @@ type Draft = {
   name: string;
   type: TxType;
   amount: string;
+  is_variable_amount: boolean;
+  estimated_amount: string;
   source_account_id: string;
   destination_account_id: string;
   category_id: string;
@@ -45,6 +47,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 function emptyDraft(): Draft {
   return {
     name: "", type: "expense", amount: "0",
+    is_variable_amount: false, estimated_amount: "",
     source_account_id: "", destination_account_id: "", category_id: "",
     payee: "", note: "",
     day_rule: "fixed_day", day_of_month: "1", weekend_adjust: "none",
@@ -56,7 +59,10 @@ function emptyDraft(): Draft {
 
 function ruleToDraft(r: RecurringRule): Draft {
   return {
-    id: r.id, name: r.name, type: r.type, amount: String(r.amount),
+    id: r.id, name: r.name, type: r.type,
+    amount: r.amount != null ? String(r.amount) : "0",
+    is_variable_amount: !!r.is_variable_amount,
+    estimated_amount: r.estimated_amount != null ? String(r.estimated_amount) : "",
     source_account_id: r.source_account_id,
     destination_account_id: r.destination_account_id ?? "",
     category_id: r.category_id ?? "",
@@ -119,10 +125,20 @@ export function RecurringRulesCard() {
     if (!draft.name.trim()) { toast.error(t("toast.name_required")); return; }
     if (!draft.source_account_id) { toast.error(t("toast.account_required")); return; }
     if (draft.type === "transfer" && !draft.destination_account_id) { toast.error(t("toast.dest_required")); return; }
+    if (!draft.is_variable_amount) {
+      const amt = Number(draft.amount);
+      if (!Number.isFinite(amt) || amt <= 0) { toast.error(t("toast.amount_required")); return; }
+    }
+    const estParsed = draft.estimated_amount.trim() === "" ? null : Number(draft.estimated_amount);
+    if (draft.is_variable_amount && estParsed != null && (!Number.isFinite(estParsed) || estParsed < 0)) {
+      toast.error(t("toast.amount_required")); return;
+    }
     const payload = {
       name: draft.name.trim(),
       type: draft.type,
-      amount: Number(draft.amount) || 0,
+      amount: draft.is_variable_amount ? null : (Number(draft.amount) || 0),
+      is_variable_amount: draft.is_variable_amount,
+      estimated_amount: draft.is_variable_amount ? estParsed : null,
       source_account_id: draft.source_account_id,
       destination_account_id: draft.type === "transfer" ? draft.destination_account_id : null,
       category_id: draft.type !== "transfer" && draft.category_id ? draft.category_id : null,
@@ -133,7 +149,7 @@ export function RecurringRulesCard() {
       weekend_adjust: draft.weekend_adjust,
       starts_on: draft.starts_on,
       ends_on: draft.ends_on || null,
-      auto_post: draft.auto_post,
+      auto_post: draft.is_variable_amount ? false : draft.auto_post,
     };
     let savedId: string | undefined = draft.id;
     const isNew = !draft.id;
