@@ -40,6 +40,17 @@ function AddTransaction() {
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   const groupsQ = useQuery({ queryKey: ["category_groups"], queryFn: fetchCategoryGroups });
   const recentQ = useQuery({ queryKey: ["transactions", "recent", 200], queryFn: () => fetchTransactions(200) });
+  const ruleTxIdsQ = useQuery({
+    queryKey: ["recurring_occurrences", "posted_tx_ids"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("recurring_occurrences")
+        .select("transaction_id")
+        .not("transaction_id", "is", null);
+      if (error) throw error;
+      return new Set((data ?? []).map((r) => r.transaction_id as string));
+    },
+  });
 
   const accounts = (accountsQ.data ?? []).filter((a) => !a.archived);
   const categories = (categoriesQ.data ?? []).filter((c) => !c.archived);
@@ -319,6 +330,7 @@ function AddTransaction() {
                 type={type}
                 symbol={symbol}
                 onPick={(a) => { setAmount(a); mark("amount"); }}
+                excludeTransactionIds={ruleTxIdsQ.data}
               />
             </div>
           </CardContent>

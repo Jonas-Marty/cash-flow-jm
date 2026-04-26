@@ -8,17 +8,20 @@ export function QuickAmountChips({
   symbol,
   onPick,
   className,
+  excludeTransactionIds,
 }: {
   transactions: Transaction[];
   type: TxType;
   symbol: string;
   onPick: (amount: string) => void;
   className?: string;
+  excludeTransactionIds?: Set<string>;
 }) {
   const top = React.useMemo(() => {
     const counts = new Map<number, number>();
     for (const t of transactions) {
       if (t.type !== type) continue;
+      if (excludeTransactionIds?.has(t.id)) continue;
       const a = Math.round(Number(t.amount) * 100) / 100;
       counts.set(a, (counts.get(a) ?? 0) + 1);
     }
@@ -26,7 +29,7 @@ export function QuickAmountChips({
       .sort((a, b) => b[1] - a[1])
       .slice(0, 6)
       .map(([a]) => a);
-  }, [transactions, type]);
+  }, [transactions, type, excludeTransactionIds]);
 
   if (top.length === 0) return null;
   return (
