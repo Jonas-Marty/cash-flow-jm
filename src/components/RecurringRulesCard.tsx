@@ -296,9 +296,29 @@ export function RecurringRulesCard() {
                 </Select>
               </div>
               <div>
-                <Label className="text-xs">{t("recurring.field.amount")}</Label>
-                <Input inputMode="decimal" value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} />
+                <Label className="text-xs">
+                  {draft.is_variable_amount ? t("recurring.estimated_amount") : t("recurring.field.amount")}
+                </Label>
+                <Input
+                  inputMode="decimal"
+                  placeholder={draft.is_variable_amount ? t("common.optional") : ""}
+                  value={draft.is_variable_amount ? draft.estimated_amount : draft.amount}
+                  onChange={(e) => setDraft(draft.is_variable_amount
+                    ? { ...draft, estimated_amount: e.target.value }
+                    : { ...draft, amount: e.target.value })}
+                />
               </div>
+            </div>
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div className="min-w-0 pr-3">
+                <Label htmlFor="variable-amount" className="text-sm">{t("recurring.variable_amount")}</Label>
+                <div className="text-xs text-muted-foreground">{t("recurring.variable_amount.help")}</div>
+              </div>
+              <Switch
+                id="variable-amount"
+                checked={draft.is_variable_amount}
+                onCheckedChange={(v) => setDraft({ ...draft, is_variable_amount: v, auto_post: v ? false : draft.auto_post })}
+              />
             </div>
             <div>
               <Label className="text-xs">{draft.type === "transfer" ? t("add.from_account") : t("add.account")}</Label>
