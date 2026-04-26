@@ -332,28 +332,34 @@ function AddTransaction() {
           </CardContent>
         </Card>
 
-        {/* Smart suggestions */}
-        {suggestions.length > 0 && (
-          <div className="space-y-2">
-            <div className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {tr("add.suggestions")}
-            </div>
-            <SuggestionRow
-              suggestions={suggestions}
-              symbol={symbol}
-              applyAllLabel={tr("add.suggest.use_all")}
-              onApply={applySuggestion}
-            />
-            {appliedFrom && (
-              <div className="flex items-center justify-between rounded-md bg-muted px-3 py-1.5 text-xs text-muted-foreground">
-                <span>{tr("add.suggest.applied")}</span>
-                <button type="button" onClick={undoApply} className="text-primary underline-offset-2 hover:underline">
-                  {tr("add.suggest.undo")}
-                </button>
+        {/* Smart suggestions — reserve space to avoid layout jumps */}
+        <div className="space-y-2">
+          <div className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {tr("add.suggestions")}
+          </div>
+          <div className="min-h-[108px]">
+            {suggestions.length > 0 ? (
+              <SuggestionRow
+                suggestions={suggestions}
+                symbol={symbol}
+                applyAllLabel={tr("add.suggest.use_all")}
+                onApply={applySuggestion}
+              />
+            ) : (
+              <div className="flex h-[108px] items-center justify-center rounded-lg border border-dashed border-border/60 px-3 text-center text-xs text-muted-foreground">
+                {tr("add.suggest.empty")}
               </div>
             )}
           </div>
-        )}
+          {appliedFrom && (
+            <div className="flex items-center justify-between rounded-md bg-muted px-3 py-1.5 text-xs text-muted-foreground">
+              <span>{tr("add.suggest.applied")}</span>
+              <button type="button" onClick={undoApply} className="text-primary underline-offset-2 hover:underline">
+                {tr("add.suggest.undo")}
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Account(s) */}
         <div className="space-y-3">
