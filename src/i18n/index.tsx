@@ -202,7 +202,16 @@ const de: Dict = {
   "recurring.toast.saved": "Regel gespeichert",
   "recurring.toast.posted": "Gebucht",
   "recurring.toast.skipped": "Übersprungen",
-  "recurring.confirm_delete": "Regel löschen? Bereits gebuchte Transaktionen bleiben erhalten.",
+  "recurring.confirm_delete": "Regel löschen? Bereits gebuchte Transaktionen bleiben erhalten. Geplante, noch nicht gebuchte Einträge werden entfernt.",
+  "recurring.preview.title": "Vorschau",
+  "recurring.preview.past": "Vergangenheit",
+  "recurring.preview.future": "Geplant",
+  "recurring.preview.empty": "Keine Termine im Vorschauzeitraum.",
+  "recurring.preview.note_past": "Startdatum liegt in der Vergangenheit. Wähle unten, ob vergangene Buchungen erstellt werden sollen.",
+  "recurring.backfill.title": "Startdatum liegt in der Vergangenheit",
+  "recurring.backfill.none": "Keine vergangenen Buchungen erstellen",
+  "recurring.backfill.post": "Vergangene Buchungen jetzt erstellen",
+  "tx.from_rule": "Aus Regel",
 
   // Dashboard upcoming
   "dashboard.upcoming": "Anstehend & fällig",
