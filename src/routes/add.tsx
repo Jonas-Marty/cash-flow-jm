@@ -26,6 +26,7 @@ import { scoreAccounts, scoreCategories, sortByPinAndScore } from "@/lib/usageSc
 import { DayHeatmapCalendar } from "@/components/DayHeatmapCalendar";
 import { DateInput } from "@/components/DateInput";
 import { ShortcutsDialog } from "@/components/ShortcutsDialog";
+import { PayeeAutocomplete } from "@/components/PayeeAutocomplete";
 
 export const Route = createFileRoute("/add")({
   component: AddTransaction,
@@ -112,11 +113,6 @@ function AddTransaction() {
   }, [accounts, recentQ.data, sourceId]);
 
   const tags = extractTags(note);
-  const payeeSuggestions = React.useMemo(() => {
-    const set = new Set<string>();
-    (recentQ.data ?? []).forEach((t) => { if (t.payee) set.add(t.payee); });
-    return Array.from(set).slice(0, 50);
-  }, [recentQ.data]);
 
   const amountNum = React.useMemo(() => {
     const n = Number(amount.replace(",", "."));
@@ -429,16 +425,13 @@ function AddTransaction() {
 
         <div>
           <Label htmlFor="payee" className="mb-1.5 block">{tr("add.payee")}</Label>
-          <Input
+          <PayeeAutocomplete
             id="payee"
-            list="payee-suggestions"
             value={payee}
-            onChange={(e) => { setPayee(e.target.value); mark("payee"); }}
+            onChange={(v) => { setPayee(v); mark("payee"); }}
+            transactions={recentQ.data ?? []}
             placeholder={type === "transfer" ? tr("common.optional") : tr("add.payee_placeholder")}
           />
-          <datalist id="payee-suggestions">
-            {payeeSuggestions.map((p) => <option key={p} value={p} />)}
-          </datalist>
         </div>
 
         <div>
