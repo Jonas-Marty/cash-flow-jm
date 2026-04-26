@@ -1,76 +1,72 @@
-## Findings vs. current implementation
+## Goal
 
+Allow recurring rules where the **schedule is fixed but the amount is not known in advance** (e.g. foreign-currency subscriptions, usage-based bills like Backblaze). The tool reminds you when it's due, you fill in the actual amount before posting.
 
-| Topic                                            | Current state                                                                                                                                                                                                                     | Gap                                                                                         |
-| ------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
-| **Transactions linked to rule**                  | `recurring_occurrences.transaction_id` points to the posted tx, but there is no reverse pointer on `transactions`, and the transaction list/details show no rule badge.                                                           | Add a direct link + UI indicator.                                                           |
-| **Preview when creating a rule**                 | Rule dialog has no preview at all.                                                                                                                                                                                                | Add a live preview (past + future dates) inside the dialog.                                 |
-| **Past entries when `starts_on` is in the past** | `process_recurring_rules` will eventually create `pending` occurrences back to `starts_on`'s month, but never actual transactions for past months unless `auto_post=true` *and* `effective_on <= today`. The user is never asked. | Ask the user explicitly when saving a rule whose `starts_on` is in the past.                |
-| **Future projection entries**                    | Pending occurrences are only generated up to `today + 7 days`. EoM/EoY projection therefore misses most future months.                                                                                                            | Extend horizon for `pending` generation to end of next year (configurable in RPC).          |
-| **Delete / archive**                             | `del()` soft-archives the rule and leaves all `pending` occurrences in place — they keep inflating projections.                                                                                                                   | On archive: delete all `pending` (uncommitted) occurrences for that rule. Posted ones stay. |
+## Behavior
 
+- A rule can be marked **"Variable amount"**. When set:
+  - The amount field becomes optional (estimate only, used for projections).
+  - `auto_post` is forced to `false` and disabled — variable rules can never auto-post.
+  - Pending occurrences appear in the **Upcoming** card with an "Enter amount" input instead of a fixed value.
+  - Posting requires entering an amount (>0); the entered amount is what gets stored on the transaction.
+- An optional **estimated_amount** field is used for forecasting (End of month / End of year projections) so net worth still reflects the upcoming charge approximately. If left empty, projections treat the rule as 0 until posted.
+- For **fixed-amount rules**, behavior is unchanged.
 
-## Plan
+## Database migration
 
-### 1. Database (migration)
+1. **`recurring_rules`**:
+   - Add `is_variable_amount boolean NOT NULL DEFAULT false`.
+   - Add `estimated_amount numeric NULL` (used only when `is_variable_amount = true`).
+   - Make `amount` nullable (was `NOT NULL`). For variable rules, `amount` will be null; for fixed rules it stays required at the application level.
+   - Add a CHECK-style validation **trigger** (per project rules — no time-based CHECK constraints, but this one is value-based so a CHECK is fine; still, use a trigger to stay consistent): if `is_variable_amount = false` then `amount IS NOT NULL`; if `is_variable_amount = true` then `auto_post = false`.
 
-- **Add `recurring_rule_id uuid` column to `transactions**` (nullable, no FK action — set null on rule delete is unnecessary because we keep posted txs). Index it.
-- **Update `process_recurring_rules**`:
-  - Accept an optional `p_horizon_months int default 14` (≈ end of next year worst case).
-  - Generate `pending` occurrences for the full horizon, not just `today + 7 days`. Auto-post still only fires when `effective_on <= p_today`.
-  - When auto-posting, set `transactions.recurring_rule_id = r.id`.
-- **Update `postOccurrence` path** (client): also set `recurring_rule_id` when inserting the manual-post transaction.
-- **New RPC `preview_recurring_rule(...)**`: takes the same inputs as a rule (type, amount, day_rule, day_of_month, weekend_adjust, starts_on, ends_on) plus `p_from date, p_to date` and returns a list of `{ due_on, effective_on, in_past boolean }`. Used by the dialog preview without persisting.
-- **New RPC `archive_recurring_rule(p_id uuid, p_delete_pending boolean default true)**`:
-  - sets `archived = true`,
-  - if `p_delete_pending`, deletes all `recurring_occurrences` for the rule with `status = 'pending'`.
-- `**reset_occurrence_on_tx_delete` trigger**: keep as is (deleting a posted tx already resets its occurrence to pending).
+2. **`process_recurring_rules`**: skip auto-post path entirely when `r.is_variable_amount = true` (always insert as `pending`). Schedule generation is unchanged.
 
-### 2. `src/lib/finance.ts`
+3. **`account_balances_as_of`**: when summing pending occurrences, use `COALESCE(r.estimated_amount, 0)` for variable rules instead of `r.amount`. Fixed rules continue to use `r.amount`.
 
-- Extend `Transaction` type with `recurring_rule_id?: string | null`.
-- Add `previewRecurringRule(draft, fromISO, toISO)` calling the new RPC.
-- Add `archiveRecurringRule(id, deletePending)` calling the new RPC; replace direct `update({archived:true})` calls.
-- Update `postOccurrence` to pass `recurring_rule_id: r.id` when inserting the transaction.
+4. **`apply_recurring_rule_backfill`**: for variable rules, the `'post'` mode is meaningless (no amount). Force `'none'` (mark past as skipped) when `is_variable_amount = true`.
 
-### 3. `src/components/RecurringRulesCard.tsx` — rule dialog
+## Frontend changes
 
-- **Preview section** inside the dialog, below the schedule fields:
-  - Window: from `starts_on` to `today + 12 months` (capped by `ends_on`).
-  - Renders a compact list grouped by year, marking past dates with a muted "past" badge and future dates as "scheduled".
-  - Recomputed via `useQuery` with debounced draft inputs; uses `previewRecurringRule` RPC so logic stays consistent with the server.
-- **Past-start handling** when saving:
-  - If `starts_on < today`, show a confirm step (small inline radio inside the dialog, not a separate modal):
-    - **"Don't create past transactions"** (default) — only future occurrences are generated; past ones are skipped entirely (rule's effective generation start = today's month).
-    - **"Create past transactions as posted"** — past occurrences up to today are inserted as actual transactions immediately (linked via `recurring_rule_id`); future ones behave normally.
-  - Implementation: pass a `p_backfill_mode text` (`'none' | 'post'`) to a small wrapper RPC `apply_recurring_rule_backfill(p_rule_id, p_mode, p_today)` that runs after the rule is inserted/updated, before the normal `process_recurring_rules` call.
-- **Delete button**: call `archiveRecurringRule(id, true)`; update confirm text to mention that uncommitted (pending) future entries will be removed and posted transactions kept.
+### `src/lib/finance.ts`
+- Extend `RecurringRule` type: `is_variable_amount: boolean`, `estimated_amount: number | null`, and change `amount: number` → `amount: number | null`.
+- Update `postOccurrence` signature: `overrides.amount` is **required** when the rule is variable. Throw a clear error if missing.
+- Update `describeSchedule` to optionally append "variable amount" badge text.
 
-### 4. Transaction list — rule badge
+### `src/components/RecurringRulesCard.tsx` (rule dialog)
+- Add a **"Variable amount"** switch.
+- When ON:
+  - Replace the "Amount" input label with "Estimated amount (optional, for projections)".
+  - Hide / disable the "Auto-post" switch (force off, with helper text "Variable rules can't auto-post").
+  - In the past-start backfill choice, hide the "Post past transactions" option.
+- Save logic: pass `is_variable_amount`, `estimated_amount` (parsed or null), and `amount` (null when variable).
+- Show a small "Variable" badge on the rule list row.
 
-- In `src/routes/transactions.tsx` and the recent-transactions card on the dashboard, when `tx.recurring_rule_id` is set, render a small `Badge` ("Rule" / "Regel") with the rule name (looked up from the `recurring_rules` query already cached). Tooltip: rule name + schedule.
-- Optional filter in transactions page: "Source = Rule / Manual / All" (low-cost, since data is already there). Keep behind a small select; skip if it bloats the toolbar.
+### `src/components/UpcomingCard.tsx`
+- For occurrences whose rule is variable:
+  - Show an inline numeric input (instead of the fixed amount label) with placeholder = estimated amount (or empty).
+  - **Post** button is disabled until a positive amount is entered.
+  - Pass the entered amount as override to `postOccurrence`.
+- Fixed rules: unchanged.
 
-### 5. i18n keys (en + de)
+### i18n (`src/i18n/index.tsx`)
+- `recurring.variable_amount` ("Variable amount")
+- `recurring.variable_amount.help` ("Amount changes each time. You'll be asked to enter the actual value when posting.")
+- `recurring.estimated_amount` ("Estimated amount (for projections)")
+- `recurring.variable_no_autopost` ("Variable rules can't auto-post.")
+- `recurring.variable_badge` ("Variable")
+- `dashboard.upcoming.enter_amount` ("Enter amount")
+- `dashboard.upcoming.amount_required` ("Amount required")
 
-- `recurring.preview.title`, `recurring.preview.past`, `recurring.preview.future`, `recurring.preview.empty`
-- `recurring.backfill.title` ("Start date is in the past")
-- `recurring.backfill.none` ("Don't create past transactions")
-- `recurring.backfill.post` ("Create past transactions now")
-- `recurring.delete_warning` ("Posted transactions are kept. Pending future entries will be removed.")
-- `transactions.from_rule` ("From rule: {name}")
+## Out of scope
 
-### 6. Out of scope
-
-- Editing a rule's amount/schedule retroactively rewriting already-posted transactions — too destructive; the preview makes the new schedule clear, and only future pending occurrences are regenerated.
-- Per-occurrence editing (already exists via skip/post override).
-- Hard delete of rules — we keep soft-archive so historical posted transactions retain their `recurring_rule_id` reference (the rule row stays, archived=true).
+- Multi-currency support (storing the foreign currency, FX conversion). The user enters the final amount in their account currency at post time. If real multi-currency is wanted later, that's a separate, larger feature.
+- Historical "average amount" suggestion for the input — could be a later polish (use the median of past posted transactions linked to this rule as the placeholder).
 
 ## Files touched
 
-- New migration: `recurring_rule_id` column + index, updated `process_recurring_rules`, new `preview_recurring_rule`, new `archive_recurring_rule`, new `apply_recurring_rule_backfill` RPCs.
-- `src/lib/finance.ts` — types + new helpers.
-- `src/components/RecurringRulesCard.tsx` — preview panel, backfill choice, archive call.
-- `src/routes/transactions.tsx` — rule badge.
-- `src/routes/index.tsx` — rule badge in recent transactions.
-- `src/i18n/index.tsx` — new keys.
+- New migration: column additions, validation trigger, updated `process_recurring_rules`, `account_balances_as_of`, `apply_recurring_rule_backfill`.
+- `src/lib/finance.ts`
+- `src/components/RecurringRulesCard.tsx`
+- `src/components/UpcomingCard.tsx`
+- `src/i18n/index.tsx`

@@ -291,7 +291,7 @@ export type Database = {
       }
       recurring_rules: {
         Row: {
-          amount: number
+          amount: number | null
           archived: boolean
           auto_post: boolean
           category_id: string | null
@@ -300,8 +300,10 @@ export type Database = {
           day_rule: Database["public"]["Enums"]["recurring_day_rule"]
           destination_account_id: string | null
           ends_on: string | null
+          estimated_amount: number | null
           frequency: Database["public"]["Enums"]["recurring_frequency"]
           id: string
+          is_variable_amount: boolean
           name: string
           note: string | null
           payee: string | null
@@ -313,7 +315,7 @@ export type Database = {
           weekend_adjust: Database["public"]["Enums"]["weekend_adjust"]
         }
         Insert: {
-          amount: number
+          amount?: number | null
           archived?: boolean
           auto_post?: boolean
           category_id?: string | null
@@ -322,8 +324,10 @@ export type Database = {
           day_rule?: Database["public"]["Enums"]["recurring_day_rule"]
           destination_account_id?: string | null
           ends_on?: string | null
+          estimated_amount?: number | null
           frequency?: Database["public"]["Enums"]["recurring_frequency"]
           id?: string
+          is_variable_amount?: boolean
           name: string
           note?: string | null
           payee?: string | null
@@ -335,7 +339,7 @@ export type Database = {
           weekend_adjust?: Database["public"]["Enums"]["weekend_adjust"]
         }
         Update: {
-          amount?: number
+          amount?: number | null
           archived?: boolean
           auto_post?: boolean
           category_id?: string | null
@@ -344,8 +348,10 @@ export type Database = {
           day_rule?: Database["public"]["Enums"]["recurring_day_rule"]
           destination_account_id?: string | null
           ends_on?: string | null
+          estimated_amount?: number | null
           frequency?: Database["public"]["Enums"]["recurring_frequency"]
           id?: string
+          is_variable_amount?: boolean
           name?: string
           note?: string | null
           payee?: string | null

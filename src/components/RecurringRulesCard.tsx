@@ -26,6 +26,8 @@ type Draft = {
   name: string;
   type: TxType;
   amount: string;
+  is_variable_amount: boolean;
+  estimated_amount: string;
   source_account_id: string;
   destination_account_id: string;
   category_id: string;
@@ -45,6 +47,7 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 function emptyDraft(): Draft {
   return {
     name: "", type: "expense", amount: "0",
+    is_variable_amount: false, estimated_amount: "",
     source_account_id: "", destination_account_id: "", category_id: "",
     payee: "", note: "",
     day_rule: "fixed_day", day_of_month: "1", weekend_adjust: "none",
@@ -56,7 +59,10 @@ function emptyDraft(): Draft {
 
 function ruleToDraft(r: RecurringRule): Draft {
   return {
-    id: r.id, name: r.name, type: r.type, amount: String(r.amount),
+    id: r.id, name: r.name, type: r.type,
+    amount: r.amount != null ? String(r.amount) : "0",
+    is_variable_amount: !!r.is_variable_amount,
+    estimated_amount: r.estimated_amount != null ? String(r.estimated_amount) : "",
     source_account_id: r.source_account_id,
     destination_account_id: r.destination_account_id ?? "",
     category_id: r.category_id ?? "",
@@ -119,10 +125,20 @@ export function RecurringRulesCard() {
     if (!draft.name.trim()) { toast.error(t("toast.name_required")); return; }
     if (!draft.source_account_id) { toast.error(t("toast.account_required")); return; }
     if (draft.type === "transfer" && !draft.destination_account_id) { toast.error(t("toast.dest_required")); return; }
+    if (!draft.is_variable_amount) {
+      const amt = Number(draft.amount);
+      if (!Number.isFinite(amt) || amt <= 0) { toast.error(t("toast.amount_required")); return; }
+    }
+    const estParsed = draft.estimated_amount.trim() === "" ? null : Number(draft.estimated_amount);
+    if (draft.is_variable_amount && estParsed != null && (!Number.isFinite(estParsed) || estParsed < 0)) {
+      toast.error(t("toast.amount_required")); return;
+    }
     const payload = {
       name: draft.name.trim(),
       type: draft.type,
-      amount: Number(draft.amount) || 0,
+      amount: draft.is_variable_amount ? null : (Number(draft.amount) || 0),
+      is_variable_amount: draft.is_variable_amount,
+      estimated_amount: draft.is_variable_amount ? estParsed : null,
       source_account_id: draft.source_account_id,
       destination_account_id: draft.type === "transfer" ? draft.destination_account_id : null,
       category_id: draft.type !== "transfer" && draft.category_id ? draft.category_id : null,
@@ -133,7 +149,7 @@ export function RecurringRulesCard() {
       weekend_adjust: draft.weekend_adjust,
       starts_on: draft.starts_on,
       ends_on: draft.ends_on || null,
-      auto_post: draft.auto_post,
+      auto_post: draft.is_variable_amount ? false : draft.auto_post,
     };
     let savedId: string | undefined = draft.id;
     const isNew = !draft.id;
@@ -199,9 +215,14 @@ export function RecurringRulesCard() {
             <Badge variant="outline" className="text-[10px]">
               {r.auto_post ? t("recurring.auto_badge") : t("recurring.manual_badge")}
             </Badge>
+            {r.is_variable_amount && (
+              <Badge variant="outline" className="text-[10px]">{t("recurring.variable_badge")}</Badge>
+            )}
           </div>
           <div className="text-xs text-muted-foreground">
-            {Number(r.amount).toFixed(2)} · {describeSchedule(r, t)} · {accountName(r.source_account_id)}
+            {r.is_variable_amount
+              ? (r.estimated_amount != null ? `~${Number(r.estimated_amount).toFixed(2)}` : t("recurring.variable_badge"))
+              : Number(r.amount ?? 0).toFixed(2)} · {describeSchedule(r, t)} · {accountName(r.source_account_id)}
           </div>
           <div className="text-xs text-muted-foreground">
             {next ? t("recurring.next_due", { x: format(next, "PP", { locale }) }) : t("recurring.no_more")}
@@ -275,9 +296,29 @@ export function RecurringRulesCard() {
                 </Select>
               </div>
               <div>
-                <Label className="text-xs">{t("recurring.field.amount")}</Label>
-                <Input inputMode="decimal" value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} />
+                <Label className="text-xs">
+                  {draft.is_variable_amount ? t("recurring.estimated_amount") : t("recurring.field.amount")}
+                </Label>
+                <Input
+                  inputMode="decimal"
+                  placeholder={draft.is_variable_amount ? t("common.optional") : ""}
+                  value={draft.is_variable_amount ? draft.estimated_amount : draft.amount}
+                  onChange={(e) => setDraft(draft.is_variable_amount
+                    ? { ...draft, estimated_amount: e.target.value }
+                    : { ...draft, amount: e.target.value })}
+                />
               </div>
+            </div>
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div className="min-w-0 pr-3">
+                <Label htmlFor="variable-amount" className="text-sm">{t("recurring.variable_amount")}</Label>
+                <div className="text-xs text-muted-foreground">{t("recurring.variable_amount.help")}</div>
+              </div>
+              <Switch
+                id="variable-amount"
+                checked={draft.is_variable_amount}
+                onCheckedChange={(v) => setDraft({ ...draft, is_variable_amount: v, auto_post: v ? false : draft.auto_post })}
+              />
             </div>
             <div>
               <Label className="text-xs">{draft.type === "transfer" ? t("add.from_account") : t("add.account")}</Label>
@@ -362,8 +403,18 @@ export function RecurringRulesCard() {
               </div>
             </div>
             <div className="flex items-center justify-between rounded-md border p-3">
-              <Label htmlFor="auto-post" className="text-sm">{t("recurring.auto_post")}</Label>
-              <Switch id="auto-post" checked={draft.auto_post} onCheckedChange={(v) => setDraft({ ...draft, auto_post: v })} />
+              <div className="min-w-0 pr-3">
+                <Label htmlFor="auto-post" className="text-sm">{t("recurring.auto_post")}</Label>
+                {draft.is_variable_amount && (
+                  <div className="text-xs text-muted-foreground">{t("recurring.variable_no_autopost")}</div>
+                )}
+              </div>
+              <Switch
+                id="auto-post"
+                checked={draft.auto_post && !draft.is_variable_amount}
+                disabled={draft.is_variable_amount}
+                onCheckedChange={(v) => setDraft({ ...draft, auto_post: v })}
+              />
             </div>
             {!draft.id && draft.starts_on < todayStr() && (
               <div className="rounded-md border p-3 space-y-2">
@@ -379,16 +430,18 @@ export function RecurringRulesCard() {
                     />
                     <span>{t("recurring.backfill.none")}</span>
                   </label>
-                  <label className="flex items-start gap-2 text-sm">
-                    <input
-                      type="radio"
-                      name="backfill"
-                      className="mt-1"
-                      checked={draft.backfill === "post"}
-                      onChange={() => setDraft({ ...draft, backfill: "post" })}
-                    />
-                    <span>{t("recurring.backfill.post")}</span>
-                  </label>
+                  {!draft.is_variable_amount && (
+                    <label className="flex items-start gap-2 text-sm">
+                      <input
+                        type="radio"
+                        name="backfill"
+                        className="mt-1"
+                        checked={draft.backfill === "post"}
+                        onChange={() => setDraft({ ...draft, backfill: "post" })}
+                      />
+                      <span>{t("recurring.backfill.post")}</span>
+                    </label>
+                  )}
                 </div>
               </div>
             )}
