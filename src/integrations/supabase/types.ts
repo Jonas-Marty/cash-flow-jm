@@ -298,6 +298,7 @@ export type Database = {
           created_at: string
           day_of_month: number | null
           day_rule: Database["public"]["Enums"]["recurring_day_rule"]
+          description: string | null
           destination_account_id: string | null
           ends_on: string | null
           estimated_amount: number | null
@@ -306,7 +307,6 @@ export type Database = {
           is_variable_amount: boolean
           name: string
           note: string | null
-          payee: string | null
           source_account_id: string
           starts_on: string
           type: Database["public"]["Enums"]["transaction_type"]
@@ -322,6 +322,7 @@ export type Database = {
           created_at?: string
           day_of_month?: number | null
           day_rule?: Database["public"]["Enums"]["recurring_day_rule"]
+          description?: string | null
           destination_account_id?: string | null
           ends_on?: string | null
           estimated_amount?: number | null
@@ -330,7 +331,6 @@ export type Database = {
           is_variable_amount?: boolean
           name: string
           note?: string | null
-          payee?: string | null
           source_account_id: string
           starts_on: string
           type: Database["public"]["Enums"]["transaction_type"]
@@ -346,6 +346,7 @@ export type Database = {
           created_at?: string
           day_of_month?: number | null
           day_rule?: Database["public"]["Enums"]["recurring_day_rule"]
+          description?: string | null
           destination_account_id?: string | null
           ends_on?: string | null
           estimated_amount?: number | null
@@ -354,7 +355,6 @@ export type Database = {
           is_variable_amount?: boolean
           name?: string
           note?: string | null
-          payee?: string | null
           source_account_id?: string
           starts_on?: string
           type?: Database["public"]["Enums"]["transaction_type"]
@@ -428,11 +428,11 @@ export type Database = {
           amount: number
           category_id: string | null
           created_at: string
+          description: string | null
           destination_account_id: string | null
           id: string
           note: string | null
           occurred_on: string
-          payee: string | null
           recurring_rule_id: string | null
           source_account_id: string
           type: Database["public"]["Enums"]["transaction_type"]
@@ -443,11 +443,11 @@ export type Database = {
           amount: number
           category_id?: string | null
           created_at?: string
+          description?: string | null
           destination_account_id?: string | null
           id?: string
           note?: string | null
           occurred_on?: string
-          payee?: string | null
           recurring_rule_id?: string | null
           source_account_id: string
           type: Database["public"]["Enums"]["transaction_type"]
@@ -458,11 +458,11 @@ export type Database = {
           amount?: number
           category_id?: string | null
           created_at?: string
+          description?: string | null
           destination_account_id?: string | null
           id?: string
           note?: string | null
           occurred_on?: string
-          payee?: string | null
           recurring_rule_id?: string | null
           source_account_id?: string
           type?: Database["public"]["Enums"]["transaction_type"]
