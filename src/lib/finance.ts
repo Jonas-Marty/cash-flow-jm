@@ -360,7 +360,7 @@ export async function previewRecurringRule(input: {
     p_ends_on: input.ends_on,
     p_from: input.from,
     p_to: input.to,
-  });
+  } as never);
   if (error) throw error;
   return (data || []) as RecurringPreviewRow[];
 }
