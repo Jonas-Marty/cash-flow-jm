@@ -26,7 +26,7 @@ import { scoreAccounts, scoreCategories, sortByPinAndScore } from "@/lib/usageSc
 import { DayHeatmapCalendar } from "@/components/DayHeatmapCalendar";
 import { DateInput } from "@/components/DateInput";
 import { ShortcutsDialog } from "@/components/ShortcutsDialog";
-import { PayeeAutocomplete } from "@/components/PayeeAutocomplete";
+import { DescriptionAutocomplete } from "@/components/DescriptionAutocomplete";
 
 export const Route = createFileRoute("/add")({
   component: AddTransaction,
@@ -81,7 +81,7 @@ function AddTransaction() {
   const [sourceId, setSourceId] = React.useState<string>("");
   const [destId, setDestId] = React.useState<string>("");
   const [categoryId, setCategoryId] = React.useState<string>("");
-  const [payee, setPayee] = React.useState("");
+  const [description, setDescription] = React.useState("");
   const [note, setNote] = React.useState("");
   const [date, setDate] = React.useState<Date>(new Date());
   const [saving, setSaving] = React.useState(false);
@@ -95,7 +95,7 @@ function AddTransaction() {
 
   const [appliedFrom, setAppliedFrom] = React.useState<null | {
     suggestion: Suggestion;
-    prev: { amount: string; payee: string; note: string; sourceId: string; categoryId: string };
+    prev: { amount: string; description: string; note: string; sourceId: string; categoryId: string };
   }>(null);
 
   // Default source = most-used account in recent transactions
@@ -123,7 +123,7 @@ function AddTransaction() {
     type,
     amount,
     amountNum,
-    payee,
+    description,
     note,
     sourceId,
     categoryId,
@@ -134,7 +134,7 @@ function AddTransaction() {
   });
 
   const applySuggestion = (s: Suggestion, mode: "sticky" | "all") => {
-    const prev = { amount, payee, note, sourceId, categoryId };
+    const prev = { amount, description, note, sourceId, categoryId };
     const d = s.draft;
     const shouldSet = (key: string, val: unknown) => {
       if (val == null || val === "") return false;
@@ -142,7 +142,7 @@ function AddTransaction() {
       return !touched[key];
     };
     if (d.amount != null && shouldSet("amount", d.amount)) setAmount(d.amount.toFixed(2));
-    if (shouldSet("payee", d.payee)) setPayee(d.payee ?? "");
+    if (shouldSet("description", d.description)) setDescription(d.description ?? "");
     if (shouldSet("note", d.note)) setNote(d.note ?? "");
     if (shouldSet("sourceId", d.source_account_id)) setSourceId(d.source_account_id ?? "");
     if (d.category_id !== undefined && shouldSet("categoryId", d.category_id)) {
@@ -154,7 +154,7 @@ function AddTransaction() {
   const undoApply = () => {
     if (!appliedFrom) return;
     const p = appliedFrom.prev;
-    setAmount(p.amount); setPayee(p.payee); setNote(p.note);
+    setAmount(p.amount); setDescription(p.description); setNote(p.note);
     setSourceId(p.sourceId); setCategoryId(p.categoryId);
     setAppliedFrom(null);
   };
@@ -168,7 +168,7 @@ function AddTransaction() {
   };
 
   const reset = () => {
-    setAmount(""); setPayee(""); setNote(""); setCategoryId("");
+    setAmount(""); setDescription(""); setNote(""); setCategoryId("");
     setDate(new Date());
     setTouched({});
     setAppliedFrom(null);
@@ -186,7 +186,7 @@ function AddTransaction() {
     const payload = {
       occurred_on: format(date, "yyyy-MM-dd"),
       amount: amt,
-      payee: payee.trim() || null,
+      description: description.trim() || null,
       note: note.trim() || null,
       type,
       source_account_id: sourceId,
@@ -430,13 +430,13 @@ function AddTransaction() {
         </div>
 
         <div>
-          <Label htmlFor="payee" className="mb-1.5 block">{tr("add.payee")}</Label>
-          <PayeeAutocomplete
-            id="payee"
-            value={payee}
-            onChange={(v) => { setPayee(v); mark("payee"); }}
+          <Label htmlFor="description" className="mb-1.5 block">{tr("add.description")}</Label>
+          <DescriptionAutocomplete
+            id="description"
+            value={description}
+            onChange={(v) => { setDescription(v); mark("description"); }}
             transactions={recentQ.data ?? []}
-            placeholder={type === "transfer" ? tr("common.optional") : tr("add.payee_placeholder")}
+            placeholder={type === "transfer" ? tr("common.optional") : tr("add.description_placeholder")}
           />
         </div>
 

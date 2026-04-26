@@ -184,7 +184,7 @@ function EnvelopesPage() {
                           return (
                             <li key={t.id} className="flex items-center justify-between gap-3 py-2 text-sm">
                               <div className="min-w-0 flex-1">
-                                <div className="truncate">{t.payee || label}</div>
+                                <div className="truncate">{t.description || label}</div>
                                 <div className="text-xs text-muted-foreground">{format(new Date(t.occurred_on), "MMM d", { locale })}</div>
                               </div>
                               <div className={cn("tabular-nums font-medium", isInflow ? "text-success" : "text-destructive")}>

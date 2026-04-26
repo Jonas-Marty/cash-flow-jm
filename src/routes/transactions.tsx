@@ -68,7 +68,7 @@ function TransactionsPage() {
     if (filterAccount !== "all" && t.source_account_id !== filterAccount && t.destination_account_id !== filterAccount) return false;
     if (filterCategory !== "all" && t.category_id !== filterCategory) return false;
     if (filterTag !== "all" && !(tagsByTx.get(t.id) ?? []).includes(filterTag)) return false;
-    if (search && !((t.payee ?? "") + " " + (t.note ?? "")).toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !((t.description ?? "") + " " + (t.note ?? "")).toLowerCase().includes(search.toLowerCase())) return false;
     if (from && t.occurred_on < from) return false;
     if (to && t.occurred_on > to) return false;
     return true;
@@ -166,7 +166,7 @@ function TransactionsPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-baseline justify-between gap-2">
                         <div className="truncate text-sm font-medium">
-                          {t.payee || (t.type === "transfer" ? tr("tx.transfer_label") : t.type === "income" ? tr("add.income") : tr("add.expense"))}
+                          {t.description || (t.type === "transfer" ? tr("tx.transfer_label") : t.type === "income" ? tr("add.income") : tr("add.expense"))}
                           {isReimb && <span className="ml-2 rounded bg-success/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-success">{tr("tx.reimbursement")}</span>}
                           {t.recurring_rule_id && (
                             <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground" title={ruleById.get(t.recurring_rule_id)?.name ?? ""}>

@@ -10,7 +10,7 @@ export function useSuggestions(ctx: SuggestionContext): { suggestions: Suggestio
   const sig = JSON.stringify({
     type: ctx.type,
     amountNum: ctx.amountNum,
-    payee: ctx.payee.trim().toLowerCase(),
+    description: ctx.description.trim().toLowerCase(),
     sourceId: ctx.sourceId,
     txCount: ctx.recentTransactions.length,
     accCount: ctx.accounts.length,

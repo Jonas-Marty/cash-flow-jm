@@ -6,7 +6,7 @@ export type TransactionDraft = {
   source_account_id?: string;
   destination_account_id?: string | null;
   category_id?: string | null;
-  payee?: string | null;
+  description?: string | null;
   note?: string | null;
   occurred_on?: string;
 };
@@ -15,7 +15,7 @@ export type SuggestionContext = {
   type: TxType;
   amount: string; // raw user input
   amountNum: number | null;
-  payee: string;
+  description: string;
   note: string;
   sourceId: string;
   categoryId: string;
@@ -25,7 +25,7 @@ export type SuggestionContext = {
   categories: Category[];
 };
 
-export type SuggestionSource = "history" | "payee_match" | "tag" | "ai" | "receipt" | (string & {});
+export type SuggestionSource = "history" | "description_match" | "tag" | "ai" | "receipt" | (string & {});
 
 export type Suggestion = {
   id: string;

@@ -1,72 +1,88 @@
+
 ## Goal
 
-Allow recurring rules where the **schedule is fixed but the amount is not known in advance** (e.g. foreign-currency subscriptions, usage-based bills like Backblaze). The tool reminds you when it's due, you fill in the actual amount before posting.
+Rename the **payee / Empfänger** concept to **description / Beschreibung** end-to-end so it matches your "What?" mental model (e.g. *"Eis go Zieh mit Florian Bär"*, *"Lovable 1 Month Subscription"*). `note` and tags remain unchanged.
 
-## Behavior
+## 1. Database migration
 
-- A rule can be marked **"Variable amount"**. When set:
-  - The amount field becomes optional (estimate only, used for projections).
-  - `auto_post` is forced to `false` and disabled — variable rules can never auto-post.
-  - Pending occurrences appear in the **Upcoming** card with an "Enter amount" input instead of a fixed value.
-  - Posting requires entering an amount (>0); the entered amount is what gets stored on the transaction.
-- An optional **estimated_amount** field is used for forecasting (End of month / End of year projections) so net worth still reflects the upcoming charge approximately. If left empty, projections treat the rule as 0 until posted.
-- For **fixed-amount rules**, behavior is unchanged.
+Single migration that renames the column on both tables and updates all database functions that reference it.
 
-## Database migration
+- `ALTER TABLE public.transactions RENAME COLUMN payee TO description;`
+- `ALTER TABLE public.recurring_rules RENAME COLUMN payee TO description;`
+- Recreate functions referencing the old name with the new column:
+  - `apply_recurring_rule_backfill` — INSERT into `transactions(... description ...)` from `r.description`
+  - `process_recurring_rules` — same INSERT update
 
-1. **`recurring_rules`**:
-   - Add `is_variable_amount boolean NOT NULL DEFAULT false`.
-   - Add `estimated_amount numeric NULL` (used only when `is_variable_amount = true`).
-   - Make `amount` nullable (was `NOT NULL`). For variable rules, `amount` will be null; for fixed rules it stays required at the application level.
-   - Add a CHECK-style validation **trigger** (per project rules — no time-based CHECK constraints, but this one is value-based so a CHECK is fine; still, use a trigger to stay consistent): if `is_variable_amount = false` then `amount IS NOT NULL`; if `is_variable_amount = true` then `auto_post = false`.
+`category_month_spending` and `account_balances_as_of` don't reference `payee`, so no change there. Suggestion: also re-run the project's auto-generated `src/integrations/supabase/types.ts` (handled automatically after the migration).
 
-2. **`process_recurring_rules`**: skip auto-post path entirely when `r.is_variable_amount = true` (always insert as `pending`). Schedule generation is unchanged.
+## 2. Code rename (`src/lib/finance.ts` and friends)
 
-3. **`account_balances_as_of`**: when summing pending occurrences, use `COALESCE(r.estimated_amount, 0)` for variable rules instead of `r.amount`. Fixed rules continue to use `r.amount`.
+- Rename `Transaction.payee` → `Transaction.description`
+- Rename `RecurringRule.payee` → `RecurringRule.description`
+- Update `postOccurrence` to insert `description` from the rule
+- Keep `extractTags()` exactly as is (it parses `note`, untouched)
 
-4. **`apply_recurring_rule_backfill`**: for variable rules, the `'post'` mode is meaningless (no amount). Force `'none'` (mark past as skipped) when `is_variable_amount = true`.
+## 3. Suggestion engine
 
-## Frontend changes
+The whole suggestion system is keyed on this field; the logic stays identical, only names change:
 
-### `src/lib/finance.ts`
-- Extend `RecurringRule` type: `is_variable_amount: boolean`, `estimated_amount: number | null`, and change `amount: number` → `amount: number | null`.
-- Update `postOccurrence` signature: `overrides.amount` is **required** when the rule is variable. Throw a clear error if missing.
-- Update `describeSchedule` to optionally append "variable amount" badge text.
+- `src/lib/suggestions/types.ts` → rename `payee` → `description` in `SuggestionContext` and `TransactionDraft`
+- `src/lib/suggestions/providers/payee.ts` → rename file to `description.ts`, export `descriptionProvider`, update `id: "description_match"`, source `"description_match"`
+- `src/lib/suggestions/providers/history.ts` → use `description` field
+- `src/lib/suggestions/registry.ts` → import + register the renamed provider
+- `src/lib/suggestions/useSuggestions.ts` → propagate field rename
 
-### `src/components/RecurringRulesCard.tsx` (rule dialog)
-- Add a **"Variable amount"** switch.
-- When ON:
-  - Replace the "Amount" input label with "Estimated amount (optional, for projections)".
-  - Hide / disable the "Auto-post" switch (force off, with helper text "Variable rules can't auto-post").
-  - In the past-start backfill choice, hide the "Post past transactions" option.
-- Save logic: pass `is_variable_amount`, `estimated_amount` (parsed or null), and `amount` (null when variable).
-- Show a small "Variable" badge on the rule list row.
+## 4. Components
 
-### `src/components/UpcomingCard.tsx`
-- For occurrences whose rule is variable:
-  - Show an inline numeric input (instead of the fixed amount label) with placeholder = estimated amount (or empty).
-  - **Post** button is disabled until a positive amount is entered.
-  - Pass the entered amount as override to `postOccurrence`.
-- Fixed rules: unchanged.
+- **Rename** `src/components/PayeeAutocomplete.tsx` → `DescriptionAutocomplete.tsx`, export `DescriptionAutocomplete`. Internally it reads `tx.description` to build the suggestion list.
+- `src/components/SuggestionRow.tsx` — rename any `payee` references
+- `src/components/DayPreview.tsx` — display `description` instead of `payee`
+- `src/components/RecurringRulesCard.tsx` — form field `payee` → `description`
+- `src/components/UpcomingCard.tsx` — display label updates (no field-name impact since it reads from rule)
 
-### i18n (`src/i18n/index.tsx`)
-- `recurring.variable_amount` ("Variable amount")
-- `recurring.variable_amount.help` ("Amount changes each time. You'll be asked to enter the actual value when posting.")
-- `recurring.estimated_amount` ("Estimated amount (for projections)")
-- `recurring.variable_no_autopost` ("Variable rules can't auto-post.")
-- `recurring.variable_badge` ("Variable")
-- `dashboard.upcoming.enter_amount` ("Enter amount")
-- `dashboard.upcoming.amount_required` ("Amount required")
+## 5. Routes / pages
 
-## Out of scope
+- `src/routes/add.tsx`
+  - State variable `payee` → `description`
+  - `<PayeeAutocomplete>` → `<DescriptionAutocomplete>`
+  - Label uses `tr("add.description")`
+  - Insert payload uses `description: description.trim() || null`
+  - Touched-key tracking: `"payee"` → `"description"`
+- `src/routes/transactions.tsx` — display + filter use `description`
+- `src/routes/envelopes.tsx` — display use `description`
+- `src/routes/index.tsx` — display use `description`
 
-- Multi-currency support (storing the foreign currency, FX conversion). The user enters the final amount in their account currency at post time. If real multi-currency is wanted later, that's a separate, larger feature.
-- Historical "average amount" suggestion for the input — could be a later polish (use the median of past posted transactions linked to this rule as the placeholder).
+## 6. i18n labels (`src/i18n/index.tsx`)
 
-## Files touched
+Replace `add.payee`, `add.payee_placeholder`, and any other `*.payee*` keys with `*.description*` equivalents. New copy:
 
-- New migration: column additions, validation trigger, updated `process_recurring_rules`, `account_balances_as_of`, `apply_recurring_rule_backfill`.
-- `src/lib/finance.ts`
-- `src/components/RecurringRulesCard.tsx`
-- `src/components/UpcomingCard.tsx`
-- `src/i18n/index.tsx`
+| Key | EN | DE |
+|---|---|---|
+| `add.description` | Description | Beschreibung |
+| `add.description_placeholder` | What was it? e.g. "Coffee Quadra", "Dinner with Anna" | Was war es? z. B. „Kaffee Quadra", „Znacht mit Anna" |
+| `add.description_optional` | Optional | Optional |
+
+Recurring-rules card label: "Payee" → "Description / Beschreibung".
+
+## 7. Architecture notes
+
+- Update `architecture.md` to reflect the rename and the new mental model ("free-text description / 'Was?' field, not a strict counterparty").
+
+## What stays unchanged
+
+- `note` field — still free-form, still source of `#tags`
+- `transaction_tags` table + `sync_transaction_tags` trigger
+- `TagChips` component, suggestion sublabels showing tag counts
+- All balance math, RLS, recurring schedule logic
+- Existing data — `RENAME COLUMN` preserves all values; no data migration needed
+
+## Out of scope / not touched
+
+- No new column added
+- No change to how the field is used by suggestions (just renamed)
+- No UI restructuring beyond the label change
+
+## Risk / rollback
+
+- `RENAME COLUMN` is reversible with a counter-migration.
+- The `types.ts` regeneration happens automatically after the migration runs; any code still referencing `.payee` will fail typecheck immediately, making missed spots easy to catch.

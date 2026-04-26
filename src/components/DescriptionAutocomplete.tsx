@@ -12,14 +12,14 @@ function decay(occurredOn: string, now: number): number {
   return Math.exp(-age / HALF_LIFE_DAYS);
 }
 
-type Scored = { payee: string; score: number; lastOn: string; count: number };
+type Scored = { description: string; score: number; lastOn: string; count: number };
 
-function scorePayees(transactions: Transaction[], query: string, now: number): Scored[] {
+function scoreDescriptions(transactions: Transaction[], query: string, now: number): Scored[] {
   const q = query.trim().toLowerCase();
   const map = new Map<string, Scored>();
   for (const t of transactions) {
-    if (!t.payee) continue;
-    const p = t.payee;
+    if (!t.description) continue;
+    const p = t.description;
     const lower = p.toLowerCase();
     if (q && !lower.includes(q)) continue;
     const w = decay(t.occurred_on, now);
@@ -32,21 +32,21 @@ function scorePayees(transactions: Transaction[], query: string, now: number): S
     }
     const existing = map.get(lower);
     if (!existing) {
-      map.set(lower, { payee: p, score: w * mq, lastOn: t.occurred_on, count: 1 });
+      map.set(lower, { description: p, score: w * mq, lastOn: t.occurred_on, count: 1 });
     } else {
       existing.score += w * mq;
       existing.count += 1;
       if (t.occurred_on > existing.lastOn) {
         existing.lastOn = t.occurred_on;
         // Prefer the most recent casing
-        existing.payee = p;
+        existing.description = p;
       }
     }
   }
   return Array.from(map.values()).sort((a, b) => b.score - a.score);
 }
 
-export interface PayeeAutocompleteProps {
+export interface DescriptionAutocompleteProps {
   id?: string;
   value: string;
   onChange: (value: string) => void;
@@ -57,7 +57,7 @@ export interface PayeeAutocompleteProps {
   className?: string;
 }
 
-export function PayeeAutocomplete({
+export function DescriptionAutocomplete({
   id,
   value,
   onChange,
@@ -66,14 +66,14 @@ export function PayeeAutocomplete({
   placeholder,
   maxItems = 8,
   className,
-}: PayeeAutocompleteProps) {
+}: DescriptionAutocompleteProps) {
   const [open, setOpen] = React.useState(false);
   const [active, setActive] = React.useState(0);
   const wrapRef = React.useRef<HTMLDivElement>(null);
 
   const items = React.useMemo(() => {
     const now = Date.now();
-    return scorePayees(transactions, value, now).slice(0, maxItems);
+    return scoreDescriptions(transactions, value, now).slice(0, maxItems);
   }, [transactions, value, maxItems]);
 
   // Reset highlight when items change
@@ -96,7 +96,7 @@ export function PayeeAutocomplete({
   };
 
   const showList = open && items.length > 0 &&
-    !(items.length === 1 && items[0].payee.toLowerCase() === value.trim().toLowerCase());
+    !(items.length === 1 && items[0].description.toLowerCase() === value.trim().toLowerCase());
 
   return (
     <div ref={wrapRef} className={cn("relative", className)}>
@@ -128,10 +128,10 @@ export function PayeeAutocomplete({
             setActive((i) => (i - 1 + items.length) % items.length);
           } else if (e.key === "Enter") {
             e.preventDefault();
-            commit(items[active].payee);
+            commit(items[active].description);
           } else if (e.key === "Tab") {
             // Accept current highlight without preventing tab navigation
-            commit(items[active].payee);
+            commit(items[active].description);
           } else if (e.key === "Escape") {
             setOpen(false);
           }
@@ -145,18 +145,18 @@ export function PayeeAutocomplete({
         >
           {items.map((it, i) => (
             <div
-              key={it.payee}
+              key={it.description}
               id={id ? `${id}-opt-${i}` : undefined}
               role="option"
               aria-selected={i === active}
-              onMouseDown={(e) => { e.preventDefault(); commit(it.payee); }}
+              onMouseDown={(e) => { e.preventDefault(); commit(it.description); }}
               onMouseEnter={() => setActive(i)}
               className={cn(
                 "flex cursor-pointer items-center justify-between gap-2 rounded-sm px-2 py-1.5 text-sm",
                 i === active ? "bg-accent text-accent-foreground" : "hover:bg-accent/60",
               )}
             >
-              <span className="truncate">{it.payee}</span>
+              <span className="truncate">{it.description}</span>
               {it.count > 1 && (
                 <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{it.count}×</span>
               )}
