@@ -95,7 +95,9 @@ export interface RecurringRule {
   id: string;
   name: string;
   type: TxType;
-  amount: number;
+  amount: number | null;
+  is_variable_amount: boolean;
+  estimated_amount: number | null;
   source_account_id: string;
   destination_account_id: string | null;
   category_id: string | null;
@@ -309,11 +311,23 @@ export async function fetchPendingOccurrences(): Promise<(RecurringOccurrence & 
 
 export async function postOccurrence(occ: RecurringOccurrence & { rule: RecurringRule }, overrides?: { amount?: number; payee?: string | null; note?: string | null; occurred_on?: string }): Promise<void> {
   const r = occ.rule;
+  // Determine final amount
+  let finalAmount: number;
+  if (overrides?.amount !== undefined) {
+    finalAmount = overrides.amount;
+  } else if (r.is_variable_amount) {
+    throw new Error("Amount is required for variable-amount rules");
+  } else {
+    finalAmount = Number(r.amount ?? 0);
+  }
+  if (!Number.isFinite(finalAmount) || finalAmount <= 0) {
+    throw new Error("Amount must be greater than zero");
+  }
   const { data: tx, error: txErr } = await supabase
     .from("transactions")
     .insert({
       occurred_on: overrides?.occurred_on ?? occ.effective_on,
-      amount: overrides?.amount ?? r.amount,
+      amount: finalAmount,
       type: r.type,
       source_account_id: r.source_account_id,
       destination_account_id: r.destination_account_id,
