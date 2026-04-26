@@ -427,6 +427,7 @@ export type Database = {
           note: string | null
           occurred_on: string
           payee: string | null
+          recurring_rule_id: string | null
           source_account_id: string
           type: Database["public"]["Enums"]["transaction_type"]
           updated_at: string
@@ -441,6 +442,7 @@ export type Database = {
           note?: string | null
           occurred_on?: string
           payee?: string | null
+          recurring_rule_id?: string | null
           source_account_id: string
           type: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string
@@ -455,6 +457,7 @@ export type Database = {
           note?: string | null
           occurred_on?: string
           payee?: string | null
+          recurring_rule_id?: string | null
           source_account_id?: string
           type?: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string
@@ -603,6 +606,14 @@ export type Database = {
           type: Database["public"]["Enums"]["account_type"]
         }[]
       }
+      apply_recurring_rule_backfill: {
+        Args: { p_mode: string; p_rule_id: string; p_today: string }
+        Returns: undefined
+      }
+      archive_recurring_rule: {
+        Args: { p_delete_pending?: boolean; p_id: string }
+        Returns: undefined
+      }
       category_month_spending: {
         Args: { p_month: string }
         Returns: {
@@ -641,6 +652,22 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      preview_recurring_rule: {
+        Args: {
+          p_day_of_month: number
+          p_day_rule: Database["public"]["Enums"]["recurring_day_rule"]
+          p_ends_on: string
+          p_from: string
+          p_starts_on: string
+          p_to: string
+          p_weekend_adjust: Database["public"]["Enums"]["weekend_adjust"]
+        }
+        Returns: {
+          due_on: string
+          effective_on: string
+          in_past: boolean
+        }[]
       }
       process_recurring_rules: { Args: { p_today: string }; Returns: undefined }
     }
