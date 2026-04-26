@@ -96,7 +96,7 @@ const de: Dict = {
   "add.category_optional_reimb": "(optional — für Rückerstattung zuweisen)",
   "add.select_category": "Kategorie auswählen",
   "add.description": "Beschreibung",
-  "add.description_placeholder": "Was war es? z. B. „Kaffee Quadra", „Znacht mit Anna"",
+  "add.description_placeholder": "Was war es? z. B. Kaffee Quadra, Znacht mit Anna",
   "add.note": "Notiz · #tags zur späteren Filterung",
   "add.note_placeholder": "z.B. Abendessen mit Freunden #twint #paris",
   "add.date": "Datum",
