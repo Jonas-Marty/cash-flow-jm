@@ -96,11 +96,11 @@ function Dashboard() {
             <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
               <div className="rounded-md border p-3">
                 <div className="text-muted-foreground">{t("dashboard.assets")}</div>
-                <div className="mt-1 font-semibold text-success tabular-nums">{fmtMoney(totalAssets, symbol)}</div>
+                <div className={cn("mt-1 font-semibold tabular-nums", totalAssets < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(totalAssets, symbol)}</div>
               </div>
               <div className="rounded-md border p-3">
                 <div className="text-muted-foreground">{t("dashboard.liabilities")}</div>
-                <div className="mt-1 font-semibold text-destructive tabular-nums">{fmtMoney(totalLiabilities, symbol)}</div>
+                <div className={cn("mt-1 font-semibold tabular-nums", totalLiabilities < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(totalLiabilities, symbol)}</div>
               </div>
             </div>
           </CardContent>
@@ -246,11 +246,11 @@ function ProjectionTile({
       <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
         <div className="rounded border p-2">
           <div className="text-muted-foreground">{tr("dashboard.assets")}</div>
-          <div className="mt-0.5 font-semibold text-success tabular-nums">{fmtMoney(totalAssets, symbol)}</div>
+          <div className={cn("mt-0.5 font-semibold tabular-nums", totalAssets < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(totalAssets, symbol)}</div>
         </div>
         <div className="rounded border p-2">
           <div className="text-muted-foreground">{tr("dashboard.liabilities")}</div>
-          <div className="mt-0.5 font-semibold text-destructive tabular-nums">{fmtMoney(totalLiabilities, symbol)}</div>
+          <div className={cn("mt-0.5 font-semibold tabular-nums", totalLiabilities < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(totalLiabilities, symbol)}</div>
         </div>
       </div>
       <div className="mt-2 text-[11px] text-muted-foreground">
@@ -261,10 +261,10 @@ function ProjectionTile({
 }
 
 function AccountsCard({
-  title, tone, items, symbol, loading, emptyHint,
+  title, items, symbol, loading, emptyHint,
 }: {
   title: string;
-  tone: "success" | "destructive";
+  tone?: "success" | "destructive";
   items: { id: string; name: string; balance: number }[];
   symbol: string;
   loading: boolean;
@@ -281,7 +281,7 @@ function AccountsCard({
             {items.map((a) => (
               <li key={a.id} className="flex items-center justify-between py-2 text-sm">
                 <span className="truncate">{a.name}</span>
-                <span className={cn("tabular-nums font-medium", tone === "success" ? "text-success" : "text-destructive")}>
+                <span className={cn("tabular-nums font-medium", Number(a.balance) < 0 ? "text-destructive" : "text-foreground")}>
                   {fmtMoney(Number(a.balance), symbol)}
                 </span>
               </li>
