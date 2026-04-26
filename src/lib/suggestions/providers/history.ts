@@ -19,7 +19,7 @@ function amountScore(target: number | null, candidate: number): number {
   return 0;
 }
 
-function payeeScore(query: string, description: string | null): number {
+function descriptionScore(query: string, description: string | null): number {
   if (!description) return 0;
   if (!query) return 0;
   const q = query.trim().toLowerCase();
@@ -55,7 +55,7 @@ export const historyProvider: SuggestionProvider = {
       if (new Date(t.occurred_on).getTime() < cutoff) continue;
 
       const aScore = hasAmount ? amountScore(ctx.amountNum, Number(t.amount)) : 0;
-      const pScore = hasDescription ? payeeScore(ctx.description, t.description) : 0;
+      const pScore = hasDescription ? descriptionScore(ctx.description, t.description) : 0;
 
       // Need at least one positive signal
       if (aScore === 0 && pScore === 0) continue;

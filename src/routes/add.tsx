@@ -436,7 +436,7 @@ function AddTransaction() {
             value={description}
             onChange={(v) => { setDescription(v); mark("description"); }}
             transactions={recentQ.data ?? []}
-            placeholder={type === "transfer" ? tr("common.optional") : tr("add.payee_placeholder")}
+            placeholder={type === "transfer" ? tr("common.optional") : tr("add.description_placeholder")}
           />
         </div>
 
