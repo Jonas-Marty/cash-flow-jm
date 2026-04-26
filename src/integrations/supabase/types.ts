@@ -592,6 +592,17 @@ export type Database = {
       }
     }
     Functions: {
+      account_balances_as_of: {
+        Args: { p_date: string }
+        Returns: {
+          archived: boolean
+          balance: number
+          id: string
+          name: string
+          opening_balance: number
+          type: Database["public"]["Enums"]["account_type"]
+        }[]
+      }
       category_month_spending: {
         Args: { p_month: string }
         Returns: {
