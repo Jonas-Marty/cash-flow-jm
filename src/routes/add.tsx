@@ -74,6 +74,7 @@ function AddTransaction() {
   const [date, setDate] = React.useState<Date>(new Date());
   const [saving, setSaving] = React.useState(false);
   const [helpOpen, setHelpOpen] = React.useState(false);
+  const amountRef = React.useRef<HTMLInputElement>(null);
 
   // Track which fields the user has explicitly touched, so suggestion-apply
   // in "sticky" mode doesn't overwrite their input.
@@ -164,6 +165,7 @@ function AddTransaction() {
     setDate(new Date());
     setTouched({});
     setAppliedFrom(null);
+    setTimeout(() => amountRef.current?.focus(), 0);
   };
 
   const save = async (andNew: boolean) => {
@@ -301,6 +303,7 @@ function AddTransaction() {
               <Input
                 inputMode="decimal"
                 autoFocus
+                ref={amountRef}
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => { setAmount(e.target.value.replace(/[^0-9.,]/g, "")); mark("amount"); }}
