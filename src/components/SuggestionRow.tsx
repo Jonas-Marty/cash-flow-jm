@@ -26,7 +26,7 @@ export function SuggestionRow({
 }) {
   if (suggestions.length === 0) return null;
   return (
-    <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+    <div className="-mx-1 flex h-full gap-2 overflow-x-auto px-1 pb-1">
       {suggestions.map((s) => {
         const Icon = sourceIcon(s.source);
         return (
@@ -35,7 +35,7 @@ export function SuggestionRow({
             type="button"
             onClick={() => onApply(s, "sticky")}
             className={cn(
-              "group min-w-[180px] max-w-[260px] shrink-0 rounded-lg border border-border bg-card p-3 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-accent/40",
+              "group flex h-full min-w-[180px] max-w-[260px] shrink-0 flex-col rounded-lg border border-border bg-card p-3 text-left shadow-sm transition-colors hover:border-primary/40 hover:bg-accent/40",
             )}
           >
             <div className="flex items-center justify-between gap-2">
