@@ -15,10 +15,11 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import {
   fetchAccounts, fetchCategories, fetchRecurringRules,
-  describeSchedule,
+  describeSchedule, previewRecurringRule, archiveRecurringRule, applyRecurringRuleBackfill,
   type RecurringRule, type RecurringDayRule, type WeekendAdjust, type TxType,
 } from "@/lib/finance";
 import { useI18n } from "@/i18n";
+import { useQuery as useRQuery } from "@tanstack/react-query";
 
 type Draft = {
   id?: string;
@@ -36,6 +37,7 @@ type Draft = {
   starts_on: string;
   ends_on: string;
   auto_post: boolean;
+  backfill: "none" | "post";
 };
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -48,6 +50,7 @@ function emptyDraft(): Draft {
     day_rule: "fixed_day", day_of_month: "1", weekend_adjust: "none",
     starts_on: todayStr(), ends_on: "",
     auto_post: true,
+    backfill: "none",
   };
 }
 
@@ -62,6 +65,7 @@ function ruleToDraft(r: RecurringRule): Draft {
     weekend_adjust: r.weekend_adjust,
     starts_on: r.starts_on, ends_on: r.ends_on ?? "",
     auto_post: r.auto_post,
+    backfill: "none",
   };
 }
 
@@ -131,10 +135,28 @@ export function RecurringRulesCard() {
       ends_on: draft.ends_on || null,
       auto_post: draft.auto_post,
     };
-    const res = draft.id
-      ? await supabase.from("recurring_rules").update(payload).eq("id", draft.id)
-      : await supabase.from("recurring_rules").insert(payload);
-    if (res.error) { toast.error(res.error.message); return; }
+    let savedId: string | undefined = draft.id;
+    const isNew = !draft.id;
+    if (isNew) {
+      const { data, error } = await supabase.from("recurring_rules").insert(payload).select("id").single();
+      if (error) { toast.error(error.message); return; }
+      savedId = data?.id;
+    } else {
+      const { error } = await supabase.from("recurring_rules").update(payload).eq("id", draft.id!);
+      if (error) { toast.error(error.message); return; }
+    }
+    // If new rule and starts in the past, apply backfill choice
+    if (isNew && savedId && draft.starts_on < todayStr()) {
+      try {
+        await applyRecurringRuleBackfill(savedId, draft.backfill);
+      } catch (e) {
+        toast.error((e as Error).message);
+      }
+    }
+    // Process to generate future pending occurrences immediately
+    try {
+      await supabase.rpc("process_recurring_rules", { p_today: todayStr() });
+    } catch { /* non-fatal */ }
     toast.success(t("recurring.toast.saved"));
     setOpen(false);
     qc.invalidateQueries();
@@ -142,8 +164,11 @@ export function RecurringRulesCard() {
 
   const del = async (id: string) => {
     if (!confirm(t("recurring.confirm_delete"))) return;
-    const { error } = await supabase.from("recurring_rules").update({ archived: true }).eq("id", id);
-    if (error) return toast.error(error.message);
+    try {
+      await archiveRecurringRule(id, true);
+    } catch (e) {
+      return toast.error((e as Error).message);
+    }
     toast.success(t("toast.deleted"));
     qc.invalidateQueries();
   };
@@ -340,6 +365,34 @@ export function RecurringRulesCard() {
               <Label htmlFor="auto-post" className="text-sm">{t("recurring.auto_post")}</Label>
               <Switch id="auto-post" checked={draft.auto_post} onCheckedChange={(v) => setDraft({ ...draft, auto_post: v })} />
             </div>
+            {!draft.id && draft.starts_on < todayStr() && (
+              <div className="rounded-md border p-3 space-y-2">
+                <div className="text-sm font-medium">{t("recurring.backfill.title")}</div>
+                <div className="grid gap-2">
+                  <label className="flex items-start gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="backfill"
+                      className="mt-1"
+                      checked={draft.backfill === "none"}
+                      onChange={() => setDraft({ ...draft, backfill: "none" })}
+                    />
+                    <span>{t("recurring.backfill.none")}</span>
+                  </label>
+                  <label className="flex items-start gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="backfill"
+                      className="mt-1"
+                      checked={draft.backfill === "post"}
+                      onChange={() => setDraft({ ...draft, backfill: "post" })}
+                    />
+                    <span>{t("recurring.backfill.post")}</span>
+                  </label>
+                </div>
+              </div>
+            )}
+            <PreviewPanel draft={draft} />
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
@@ -348,5 +401,64 @@ export function RecurringRulesCard() {
         </DialogContent>
       </Dialog>
     </Card>
+  );
+}
+
+function PreviewPanel({ draft }: { draft: Draft }) {
+  const { t, locale } = useI18n();
+  const today = todayStr();
+  // window: 3 months back to 12 months ahead, capped by ends_on
+  const fromDate = new Date();
+  fromDate.setMonth(fromDate.getMonth() - 3);
+  const toDate = new Date();
+  toDate.setMonth(toDate.getMonth() + 12);
+  const fromISO = fromDate.toISOString().slice(0, 10);
+  const toISO = toDate.toISOString().slice(0, 10);
+
+  const dom = draft.day_rule === "fixed_day" ? Number(draft.day_of_month) || 1 : null;
+  const enabled = !!draft.starts_on;
+  const previewQ = useRQuery({
+    queryKey: ["preview_recurring", draft.day_rule, dom, draft.weekend_adjust, draft.starts_on, draft.ends_on || null, fromISO, toISO],
+    queryFn: () => previewRecurringRule({
+      day_rule: draft.day_rule,
+      day_of_month: dom,
+      weekend_adjust: draft.weekend_adjust,
+      starts_on: draft.starts_on,
+      ends_on: draft.ends_on || null,
+      from: fromISO,
+      to: toISO,
+    }),
+    enabled,
+    staleTime: 30_000,
+  });
+
+  const rows = previewQ.data ?? [];
+  return (
+    <div className="rounded-md border p-3">
+      <div className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{t("recurring.preview.title")}</div>
+      {!enabled || rows.length === 0 ? (
+        <div className="text-xs text-muted-foreground">{t("recurring.preview.empty")}</div>
+      ) : (
+        <div className="max-h-40 overflow-y-auto pr-1">
+          <ul className="space-y-1">
+            {rows.map((r, i) => (
+              <li key={i} className="flex items-center justify-between gap-2 text-xs">
+                <span className={r.in_past ? "text-muted-foreground" : ""}>
+                  {format(parseISO(r.effective_on), "PP", { locale })}
+                </span>
+                <Badge variant="outline" className="text-[10px]">
+                  {r.in_past ? t("recurring.preview.past") : t("recurring.preview.future")}
+                </Badge>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {draft.starts_on < today && (
+        <div className="mt-2 text-[11px] text-muted-foreground">
+          {t("recurring.preview.note_past")}
+        </div>
+      )}
+    </div>
   );
 }

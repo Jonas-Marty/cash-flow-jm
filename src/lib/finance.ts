@@ -84,6 +84,7 @@ export interface Transaction {
   destination_account_id: string | null;
   category_id: string | null;
   created_at: string;
+  recurring_rule_id?: string | null;
 }
 export type RecurringFrequency = "monthly";
 export type RecurringDayRule = "fixed_day" | "end_of_month" | "first_of_month";
@@ -319,6 +320,7 @@ export async function postOccurrence(occ: RecurringOccurrence & { rule: Recurrin
       category_id: r.category_id,
       payee: overrides?.payee ?? r.payee,
       note: overrides?.note ?? r.note,
+      recurring_rule_id: r.id,
     })
     .select()
     .single();
@@ -332,6 +334,49 @@ export async function postOccurrence(occ: RecurringOccurrence & { rule: Recurrin
 
 export async function skipOccurrence(id: string): Promise<void> {
   const { error } = await supabase.from("recurring_occurrences").update({ status: "skipped" }).eq("id", id);
+  if (error) throw error;
+}
+
+export interface RecurringPreviewRow {
+  due_on: string;
+  effective_on: string;
+  in_past: boolean;
+}
+
+export async function previewRecurringRule(input: {
+  day_rule: RecurringDayRule;
+  day_of_month: number | null;
+  weekend_adjust: WeekendAdjust;
+  starts_on: string;
+  ends_on: string | null;
+  from: string;
+  to: string;
+}): Promise<RecurringPreviewRow[]> {
+  const { data, error } = await supabase.rpc("preview_recurring_rule", {
+    p_day_rule: input.day_rule,
+    p_day_of_month: input.day_of_month,
+    p_weekend_adjust: input.weekend_adjust,
+    p_starts_on: input.starts_on,
+    p_ends_on: input.ends_on,
+    p_from: input.from,
+    p_to: input.to,
+  } as never);
+  if (error) throw error;
+  return (data || []) as RecurringPreviewRow[];
+}
+
+export async function archiveRecurringRule(id: string, deletePending = true): Promise<void> {
+  const { error } = await supabase.rpc("archive_recurring_rule", { p_id: id, p_delete_pending: deletePending });
+  if (error) throw error;
+}
+
+export async function applyRecurringRuleBackfill(ruleId: string, mode: "none" | "post"): Promise<void> {
+  const today = new Date().toISOString().slice(0, 10);
+  const { error } = await supabase.rpc("apply_recurring_rule_backfill", {
+    p_rule_id: ruleId,
+    p_mode: mode,
+    p_today: today,
+  });
   if (error) throw error;
 }
 

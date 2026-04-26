@@ -18,6 +18,7 @@ import {
   fetchSavingsBalances,
   fetchSettings,
   fetchTransactions,
+  fetchRecurringRules,
   processRecurringRules,
   fmtMoney,
   monthKey,
@@ -45,6 +46,7 @@ function Dashboard() {
   const envelopesQ = useQuery({ queryKey: ["category_month_rows", m], queryFn: () => fetchCategoryMonthRows(m) });
   const savingsQ = useQuery({ queryKey: ["savings_balance"], queryFn: fetchSavingsBalances });
   const recentQ = useQuery({ queryKey: ["transactions", "recent"], queryFn: () => fetchTransactions(8) });
+  const rulesQ = useQuery({ queryKey: ["recurring_rules"], queryFn: fetchRecurringRules });
   // Run the recurring processor once when the dashboard mounts.
   // Idempotent — safe even if the user reloads many times.
   React.useEffect(() => {
@@ -189,6 +191,11 @@ function Dashboard() {
                         {tx.payee || (tx.type === "transfer"
                           ? t("tx.transfer_label")
                           : tx.type === "income" ? t("add.income") : t("add.expense"))}
+                        {tx.recurring_rule_id && (
+                          <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground">
+                            {t("tx.from_rule")}
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-muted-foreground">{format(new Date(tx.occurred_on), "MMM d", { locale })}</div>
                     </div>
