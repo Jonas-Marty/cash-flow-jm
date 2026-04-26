@@ -475,6 +475,13 @@ const en: Dict = {
   "recurring.backfill.title": "Start date is in the past",
   "recurring.backfill.none": "Don't create past transactions",
   "recurring.backfill.post": "Create past transactions now",
+  "recurring.variable_amount": "Variable amount",
+  "recurring.variable_amount.help": "Amount changes each time. You'll be asked to enter the actual value when posting.",
+  "recurring.estimated_amount": "Estimated amount (for projections)",
+  "recurring.variable_no_autopost": "Variable rules can't auto-post.",
+  "recurring.variable_badge": "Variable",
+  "dashboard.upcoming.enter_amount": "Amount",
+  "dashboard.upcoming.amount_required": "Please enter an amount",
   "tx.from_rule": "From rule",
 
   "dashboard.upcoming": "Upcoming & due",
