@@ -13,6 +13,7 @@ import { useI18n } from "@/i18n";
 import { UpcomingCard } from "@/components/UpcomingCard";
 import {
   fetchAccountBalances,
+  fetchAccountBalancesAsOf,
   fetchCategoryMonthRows,
   fetchSavingsBalances,
   fetchSettings,
@@ -20,8 +21,11 @@ import {
   processRecurringRules,
   fmtMoney,
   monthKey,
+  endOfMonthISO,
+  endOfYearISO,
   type CategoryMonthRow,
   type CategorySavingsBalance,
+  type AccountBalance,
 } from "@/lib/finance";
 
 export const Route = createFileRoute("/")({
@@ -34,6 +38,10 @@ function Dashboard() {
   const m = monthKey(monthStart);
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const balancesQ = useQuery({ queryKey: ["account_balances"], queryFn: fetchAccountBalances });
+  const eomDate = React.useMemo(() => endOfMonthISO(), []);
+  const eoyDate = React.useMemo(() => endOfYearISO(), []);
+  const eomQ = useQuery({ queryKey: ["account_balances_as_of", eomDate], queryFn: () => fetchAccountBalancesAsOf(eomDate) });
+  const eoyQ = useQuery({ queryKey: ["account_balances_as_of", eoyDate], queryFn: () => fetchAccountBalancesAsOf(eoyDate) });
   const envelopesQ = useQuery({ queryKey: ["category_month_rows", m], queryFn: () => fetchCategoryMonthRows(m) });
   const savingsQ = useQuery({ queryKey: ["savings_balance"], queryFn: fetchSavingsBalances });
   const recentQ = useQuery({ queryKey: ["transactions", "recent"], queryFn: () => fetchTransactions(8) });
@@ -92,6 +100,35 @@ function Dashboard() {
                 <div className="text-muted-foreground">{t("dashboard.liabilities")}</div>
                 <div className="mt-1 font-semibold text-destructive tabular-nums">{fmtMoney(totalLiabilities, symbol)}</div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Projected net worth */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.projected")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2">
+              <ProjectionTile
+                label={t("dashboard.projected_eom")}
+                date={eomDate}
+                accounts={eomQ.data ?? []}
+                loading={eomQ.isLoading}
+                symbol={symbol}
+                locale={locale}
+                tr={t}
+              />
+              <ProjectionTile
+                label={t("dashboard.projected_eoy")}
+                date={eoyDate}
+                accounts={eoyQ.data ?? []}
+                loading={eoyQ.isLoading}
+                symbol={symbol}
+                locale={locale}
+                tr={t}
+              />
             </div>
           </CardContent>
         </Card>
