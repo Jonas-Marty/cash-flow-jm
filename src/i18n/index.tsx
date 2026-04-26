@@ -211,6 +211,13 @@ const de: Dict = {
   "recurring.backfill.title": "Startdatum liegt in der Vergangenheit",
   "recurring.backfill.none": "Keine vergangenen Buchungen erstellen",
   "recurring.backfill.post": "Vergangene Buchungen jetzt erstellen",
+  "recurring.variable_amount": "Variabler Betrag",
+  "recurring.variable_amount.help": "Betrag ändert sich jedes Mal. Du wirst beim Buchen nach dem tatsächlichen Wert gefragt.",
+  "recurring.estimated_amount": "Geschätzter Betrag (für Prognose)",
+  "recurring.variable_no_autopost": "Regeln mit variablem Betrag können nicht automatisch buchen.",
+  "recurring.variable_badge": "Variabel",
+  "dashboard.upcoming.enter_amount": "Betrag",
+  "dashboard.upcoming.amount_required": "Bitte Betrag eingeben",
   "tx.from_rule": "Aus Regel",
 
   // Dashboard upcoming
