@@ -1,9 +1,9 @@
 import type { Suggestion, SuggestionContext, SuggestionProvider } from "./types";
 import { historyProvider } from "./providers/history";
-import { payeeProvider } from "./providers/description";
+import { descriptionProvider } from "./providers/description";
 
 // Register additional providers here (ai, receipt-scan, bank-import, ...)
-export const providers: SuggestionProvider[] = [historyProvider, payeeProvider];
+export const providers: SuggestionProvider[] = [historyProvider, descriptionProvider];
 
 const TOP_N = 5;
 const MIN_SCORE = 0.4;

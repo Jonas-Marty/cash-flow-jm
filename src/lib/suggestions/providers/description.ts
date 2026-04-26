@@ -1,7 +1,7 @@
 import type { Suggestion, SuggestionContext, SuggestionProvider } from "../types";
 
-export const payeeProvider: SuggestionProvider = {
-  id: "payee_match",
+export const descriptionProvider: SuggestionProvider = {
+  id: "description_match",
   enabled: () => true,
   async suggest(ctx: SuggestionContext): Promise<Suggestion[]> {
     const q = ctx.description.trim().toLowerCase();
@@ -33,7 +33,7 @@ export const payeeProvider: SuggestionProvider = {
         score,
         label: tx.description ?? "",
         sublabel: [cat?.name, count > 1 ? `${count}×` : null].filter(Boolean).join(" · ") || undefined,
-        source: "payee_match",
+        source: "description_match",
         draft: {
           description: tx.description,
           category_id: tx.category_id,

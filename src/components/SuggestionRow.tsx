@@ -6,7 +6,7 @@ import type { Suggestion } from "@/lib/suggestions/types";
 const sourceIcon = (src: Suggestion["source"]) => {
   switch (src) {
     case "history": return History;
-    case "payee_match": return TagIcon;
+    case "description_match": return TagIcon;
     case "ai": return Sparkles;
     case "receipt": return ReceiptIcon;
     default: return History;
@@ -41,7 +41,7 @@ export function SuggestionRow({
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
                 <Icon className="h-3 w-3" />
-                {s.source === "history" ? "Recent" : s.source === "payee_match" ? "Description" : s.source}
+                {s.source === "history" ? "Recent" : s.source === "description_match" ? "Description" : s.source}
               </div>
               {s.draft.amount != null && (
                 <div className="text-sm font-semibold tabular-nums">

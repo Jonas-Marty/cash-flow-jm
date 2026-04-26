@@ -25,7 +25,7 @@ export type SuggestionContext = {
   categories: Category[];
 };
 
-export type SuggestionSource = "history" | "payee_match" | "tag" | "ai" | "receipt" | (string & {});
+export type SuggestionSource = "history" | "description_match" | "tag" | "ai" | "receipt" | (string & {});
 
 export type Suggestion = {
   id: string;
