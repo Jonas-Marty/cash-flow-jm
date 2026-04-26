@@ -215,9 +215,14 @@ export function RecurringRulesCard() {
             <Badge variant="outline" className="text-[10px]">
               {r.auto_post ? t("recurring.auto_badge") : t("recurring.manual_badge")}
             </Badge>
+            {r.is_variable_amount && (
+              <Badge variant="outline" className="text-[10px]">{t("recurring.variable_badge")}</Badge>
+            )}
           </div>
           <div className="text-xs text-muted-foreground">
-            {Number(r.amount).toFixed(2)} · {describeSchedule(r, t)} · {accountName(r.source_account_id)}
+            {r.is_variable_amount
+              ? (r.estimated_amount != null ? `~${Number(r.estimated_amount).toFixed(2)}` : t("recurring.variable_badge"))
+              : Number(r.amount ?? 0).toFixed(2)} · {describeSchedule(r, t)} · {accountName(r.source_account_id)}
           </div>
           <div className="text-xs text-muted-foreground">
             {next ? t("recurring.next_due", { x: format(next, "PP", { locale }) }) : t("recurring.no_more")}
