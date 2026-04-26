@@ -31,7 +31,7 @@ type Draft = {
   source_account_id: string;
   destination_account_id: string;
   category_id: string;
-  payee: string;
+  description: string;
   note: string;
   day_rule: RecurringDayRule;
   day_of_month: string;
@@ -49,7 +49,7 @@ function emptyDraft(): Draft {
     name: "", type: "expense", amount: "0",
     is_variable_amount: false, estimated_amount: "",
     source_account_id: "", destination_account_id: "", category_id: "",
-    payee: "", note: "",
+    description: "", note: "",
     day_rule: "fixed_day", day_of_month: "1", weekend_adjust: "none",
     starts_on: todayStr(), ends_on: "",
     auto_post: true,
@@ -66,7 +66,7 @@ function ruleToDraft(r: RecurringRule): Draft {
     source_account_id: r.source_account_id,
     destination_account_id: r.destination_account_id ?? "",
     category_id: r.category_id ?? "",
-    payee: r.payee ?? "", note: r.note ?? "",
+    description: r.description ?? "", note: r.note ?? "",
     day_rule: r.day_rule, day_of_month: String(r.day_of_month ?? 1),
     weekend_adjust: r.weekend_adjust,
     starts_on: r.starts_on, ends_on: r.ends_on ?? "",
@@ -142,7 +142,7 @@ export function RecurringRulesCard() {
       source_account_id: draft.source_account_id,
       destination_account_id: draft.type === "transfer" ? draft.destination_account_id : null,
       category_id: draft.type !== "transfer" && draft.category_id ? draft.category_id : null,
-      payee: draft.payee.trim() || null,
+      description: draft.description.trim() || null,
       note: draft.note.trim() || null,
       day_rule: draft.day_rule,
       day_of_month: draft.day_rule === "fixed_day" ? Number(draft.day_of_month) || 1 : null,
@@ -354,8 +354,8 @@ export function RecurringRulesCard() {
             )}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-xs">{t("add.payee")}</Label>
-                <Input value={draft.payee} onChange={(e) => setDraft({ ...draft, payee: e.target.value })} />
+                <Label className="text-xs">{t("add.description")}</Label>
+                <Input value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
               </div>
               <div>
                 <Label className="text-xs">{t("add.note")}</Label>

@@ -4,15 +4,15 @@ export const payeeProvider: SuggestionProvider = {
   id: "payee_match",
   enabled: () => true,
   async suggest(ctx: SuggestionContext): Promise<Suggestion[]> {
-    const q = ctx.payee.trim().toLowerCase();
+    const q = ctx.description.trim().toLowerCase();
     if (q.length < 2) return [];
 
-    // Group by payee, pick the most recent transaction for each matching payee
+    // Group by description, pick the most recent transaction for each matching description
     const seen = new Map<string, { tx: SuggestionContext["recentTransactions"][number]; count: number }>();
     for (const t of ctx.recentTransactions) {
       if (t.type !== ctx.type) continue;
-      if (!t.payee) continue;
-      const p = t.payee.toLowerCase();
+      if (!t.description) continue;
+      const p = t.description.toLowerCase();
       if (!p.includes(q)) continue;
       const existing = seen.get(p);
       if (!existing) {
@@ -25,17 +25,17 @@ export const payeeProvider: SuggestionProvider = {
 
     const out: Suggestion[] = [];
     for (const { tx, count } of seen.values()) {
-      const p = (tx.payee ?? "").toLowerCase();
+      const p = (tx.description ?? "").toLowerCase();
       const score = p === q ? 0.55 : p.startsWith(q) ? 0.4 : 0.25;
       const cat = ctx.categories.find((c) => c.id === tx.category_id);
       out.push({
-        id: `payee:${p}`,
+        id: `description:${p}`,
         score,
-        label: tx.payee ?? "",
+        label: tx.description ?? "",
         sublabel: [cat?.name, count > 1 ? `${count}×` : null].filter(Boolean).join(" · ") || undefined,
         source: "payee_match",
         draft: {
-          payee: tx.payee,
+          description: tx.description,
           category_id: tx.category_id,
           source_account_id: tx.source_account_id,
         },

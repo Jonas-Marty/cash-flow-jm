@@ -41,7 +41,7 @@ export function SuggestionRow({
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 text-[11px] uppercase tracking-wide text-muted-foreground">
                 <Icon className="h-3 w-3" />
-                {s.source === "history" ? "Recent" : s.source === "payee_match" ? "Payee" : s.source}
+                {s.source === "history" ? "Recent" : s.source === "payee_match" ? "Description" : s.source}
               </div>
               {s.draft.amount != null && (
                 <div className="text-sm font-semibold tabular-nums">
@@ -49,7 +49,7 @@ export function SuggestionRow({
                 </div>
               )}
             </div>
-            <div className="mt-1.5 truncate text-sm font-medium">{s.draft.payee || s.label}</div>
+            <div className="mt-1.5 truncate text-sm font-medium">{s.draft.description || s.label}</div>
             {s.sublabel && (
               <div className="mt-0.5 truncate text-xs text-muted-foreground">{s.sublabel}</div>
             )}

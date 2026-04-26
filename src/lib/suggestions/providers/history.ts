@@ -19,11 +19,11 @@ function amountScore(target: number | null, candidate: number): number {
   return 0;
 }
 
-function payeeScore(query: string, payee: string | null): number {
-  if (!payee) return 0;
+function payeeScore(query: string, description: string | null): number {
+  if (!description) return 0;
   if (!query) return 0;
   const q = query.trim().toLowerCase();
-  const p = payee.toLowerCase();
+  const p = description.toLowerCase();
   if (p === q) return 0.8;
   if (p.startsWith(q)) return 0.5;
   if (p.includes(q)) return 0.3;
@@ -39,8 +39,8 @@ export const historyProvider: SuggestionProvider = {
     const cutoff = Date.now() - MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
     const userDom = ctx.date.getDate();
     const hasAmount = ctx.amountNum != null && ctx.amountNum > 0;
-    const hasPayee = ctx.payee.trim().length > 0;
-    if (!hasAmount && !hasPayee) return [];
+    const hasDescription = ctx.description.trim().length > 0;
+    if (!hasAmount && !hasDescription) return [];
 
     type Group = {
       key: string;
@@ -55,7 +55,7 @@ export const historyProvider: SuggestionProvider = {
       if (new Date(t.occurred_on).getTime() < cutoff) continue;
 
       const aScore = hasAmount ? amountScore(ctx.amountNum, Number(t.amount)) : 0;
-      const pScore = hasPayee ? payeeScore(ctx.payee, t.payee) : 0;
+      const pScore = hasDescription ? payeeScore(ctx.description, t.description) : 0;
 
       // Need at least one positive signal
       if (aScore === 0 && pScore === 0) continue;
@@ -66,7 +66,7 @@ export const historyProvider: SuggestionProvider = {
       let score = aScore * 0.55 + pScore * 0.35 + recency + dom;
       score = Math.min(1, score);
 
-      const key = `${(t.payee ?? "").toLowerCase()}|${t.category_id ?? ""}|${amountBucket(Number(t.amount))}|${t.source_account_id}`;
+      const key = `${(t.description ?? "").toLowerCase()}|${t.category_id ?? ""}|${amountBucket(Number(t.amount))}|${t.source_account_id}`;
       const existing = groups.get(key);
       if (!existing || score > existing.maxScore) {
         const draft = {
@@ -75,7 +75,7 @@ export const historyProvider: SuggestionProvider = {
           source_account_id: t.source_account_id,
           destination_account_id: t.destination_account_id,
           category_id: t.category_id,
-          payee: t.payee,
+          description: t.description,
           note: t.note,
         };
         const cat = ctx.categories.find((c) => c.id === t.category_id);
@@ -87,7 +87,7 @@ export const historyProvider: SuggestionProvider = {
         const sug: Suggestion = {
           id: `history:${key}`,
           score,
-          label: `${t.payee || "—"} · ${Number(t.amount).toFixed(2)}`,
+          label: `${t.description || "—"} · ${Number(t.amount).toFixed(2)}`,
           sublabel: parts.join(" · ") || undefined,
           source: "history",
           draft,

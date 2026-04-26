@@ -53,7 +53,7 @@ export function DayPreview({ date, txs, accounts, categories, symbol, locale, la
                 <div className="flex min-w-0 items-start gap-1.5">
                   <Icon className={cn("mt-0.5 h-3.5 w-3.5 shrink-0", tone)} />
                   <div className="min-w-0">
-                    <div className="truncate font-medium">{t.payee || t.note || sub || "—"}</div>
+                    <div className="truncate font-medium">{t.description || t.note || sub || "—"}</div>
                     {sub && <div className="truncate text-xs text-muted-foreground">{sub}</div>}
                   </div>
                 </div>

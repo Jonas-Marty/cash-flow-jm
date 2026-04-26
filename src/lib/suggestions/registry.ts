@@ -1,6 +1,6 @@
 import type { Suggestion, SuggestionContext, SuggestionProvider } from "./types";
 import { historyProvider } from "./providers/history";
-import { payeeProvider } from "./providers/payee";
+import { payeeProvider } from "./providers/description";
 
 // Register additional providers here (ai, receipt-scan, bank-import, ...)
 export const providers: SuggestionProvider[] = [historyProvider, payeeProvider];
@@ -14,11 +14,11 @@ export async function runSuggestions(ctx: SuggestionContext): Promise<Suggestion
   );
   const flat = results.flat();
 
-  // Dedupe: prefer highest score for same (payee + amount-bucket + category)
+  // Dedupe: prefer highest score for same (description + amount-bucket + category)
   const dedup = new Map<string, Suggestion>();
   for (const s of flat) {
     const amt = s.draft.amount != null ? Math.round(s.draft.amount * 100) / 100 : "x";
-    const key = `${(s.draft.payee ?? "").toLowerCase()}|${amt}|${s.draft.category_id ?? ""}`;
+    const key = `${(s.draft.description ?? "").toLowerCase()}|${amt}|${s.draft.category_id ?? ""}`;
     const prev = dedup.get(key);
     if (!prev || s.score > prev.score) dedup.set(key, s);
   }

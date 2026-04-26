@@ -77,7 +77,7 @@ export interface Transaction {
   id: string;
   occurred_on: string;
   amount: number;
-  payee: string | null;
+  description: string | null;
   note: string | null;
   type: TxType;
   source_account_id: string;
@@ -101,7 +101,7 @@ export interface RecurringRule {
   source_account_id: string;
   destination_account_id: string | null;
   category_id: string | null;
-  payee: string | null;
+  description: string | null;
   note: string | null;
   frequency: RecurringFrequency;
   day_rule: RecurringDayRule;
@@ -309,7 +309,7 @@ export async function fetchPendingOccurrences(): Promise<(RecurringOccurrence & 
   return (data || []) as (RecurringOccurrence & { rule: RecurringRule })[];
 }
 
-export async function postOccurrence(occ: RecurringOccurrence & { rule: RecurringRule }, overrides?: { amount?: number; payee?: string | null; note?: string | null; occurred_on?: string }): Promise<void> {
+export async function postOccurrence(occ: RecurringOccurrence & { rule: RecurringRule }, overrides?: { amount?: number; description?: string | null; note?: string | null; occurred_on?: string }): Promise<void> {
   const r = occ.rule;
   // Determine final amount
   let finalAmount: number;
@@ -332,7 +332,7 @@ export async function postOccurrence(occ: RecurringOccurrence & { rule: Recurrin
       source_account_id: r.source_account_id,
       destination_account_id: r.destination_account_id,
       category_id: r.category_id,
-      payee: overrides?.payee ?? r.payee,
+      description: overrides?.description ?? r.description,
       note: overrides?.note ?? r.note,
       recurring_rule_id: r.id,
     })
