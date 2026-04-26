@@ -403,8 +403,18 @@ export function RecurringRulesCard() {
               </div>
             </div>
             <div className="flex items-center justify-between rounded-md border p-3">
-              <Label htmlFor="auto-post" className="text-sm">{t("recurring.auto_post")}</Label>
-              <Switch id="auto-post" checked={draft.auto_post} onCheckedChange={(v) => setDraft({ ...draft, auto_post: v })} />
+              <div className="min-w-0 pr-3">
+                <Label htmlFor="auto-post" className="text-sm">{t("recurring.auto_post")}</Label>
+                {draft.is_variable_amount && (
+                  <div className="text-xs text-muted-foreground">{t("recurring.variable_no_autopost")}</div>
+                )}
+              </div>
+              <Switch
+                id="auto-post"
+                checked={draft.auto_post && !draft.is_variable_amount}
+                disabled={draft.is_variable_amount}
+                onCheckedChange={(v) => setDraft({ ...draft, auto_post: v })}
+              />
             </div>
             {!draft.id && draft.starts_on < todayStr() && (
               <div className="rounded-md border p-3 space-y-2">
@@ -420,16 +430,18 @@ export function RecurringRulesCard() {
                     />
                     <span>{t("recurring.backfill.none")}</span>
                   </label>
-                  <label className="flex items-start gap-2 text-sm">
-                    <input
-                      type="radio"
-                      name="backfill"
-                      className="mt-1"
-                      checked={draft.backfill === "post"}
-                      onChange={() => setDraft({ ...draft, backfill: "post" })}
-                    />
-                    <span>{t("recurring.backfill.post")}</span>
-                  </label>
+                  {!draft.is_variable_amount && (
+                    <label className="flex items-start gap-2 text-sm">
+                      <input
+                        type="radio"
+                        name="backfill"
+                        className="mt-1"
+                        checked={draft.backfill === "post"}
+                        onChange={() => setDraft({ ...draft, backfill: "post" })}
+                      />
+                      <span>{t("recurring.backfill.post")}</span>
+                    </label>
+                  )}
                 </div>
               </div>
             )}
