@@ -15,10 +15,11 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import {
   fetchAccounts, fetchCategories, fetchRecurringRules,
-  describeSchedule,
+  describeSchedule, previewRecurringRule, archiveRecurringRule, applyRecurringRuleBackfill,
   type RecurringRule, type RecurringDayRule, type WeekendAdjust, type TxType,
 } from "@/lib/finance";
 import { useI18n } from "@/i18n";
+import { useQuery as useRQuery } from "@tanstack/react-query";
 
 type Draft = {
   id?: string;
@@ -36,6 +37,7 @@ type Draft = {
   starts_on: string;
   ends_on: string;
   auto_post: boolean;
+  backfill: "none" | "post";
 };
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -48,6 +50,7 @@ function emptyDraft(): Draft {
     day_rule: "fixed_day", day_of_month: "1", weekend_adjust: "none",
     starts_on: todayStr(), ends_on: "",
     auto_post: true,
+    backfill: "none",
   };
 }
 
@@ -62,6 +65,7 @@ function ruleToDraft(r: RecurringRule): Draft {
     weekend_adjust: r.weekend_adjust,
     starts_on: r.starts_on, ends_on: r.ends_on ?? "",
     auto_post: r.auto_post,
+    backfill: "none",
   };
 }
 
@@ -131,10 +135,28 @@ export function RecurringRulesCard() {
       ends_on: draft.ends_on || null,
       auto_post: draft.auto_post,
     };
-    const res = draft.id
-      ? await supabase.from("recurring_rules").update(payload).eq("id", draft.id)
-      : await supabase.from("recurring_rules").insert(payload);
-    if (res.error) { toast.error(res.error.message); return; }
+    let savedId: string | undefined = draft.id;
+    const isNew = !draft.id;
+    if (isNew) {
+      const { data, error } = await supabase.from("recurring_rules").insert(payload).select("id").single();
+      if (error) { toast.error(error.message); return; }
+      savedId = data?.id;
+    } else {
+      const { error } = await supabase.from("recurring_rules").update(payload).eq("id", draft.id!);
+      if (error) { toast.error(error.message); return; }
+    }
+    // If new rule and starts in the past, apply backfill choice
+    if (isNew && savedId && draft.starts_on < todayStr()) {
+      try {
+        await applyRecurringRuleBackfill(savedId, draft.backfill);
+      } catch (e) {
+        toast.error((e as Error).message);
+      }
+    }
+    // Process to generate future pending occurrences immediately
+    try {
+      await supabase.rpc("process_recurring_rules", { p_today: todayStr() });
+    } catch { /* non-fatal */ }
     toast.success(t("recurring.toast.saved"));
     setOpen(false);
     qc.invalidateQueries();
@@ -142,8 +164,11 @@ export function RecurringRulesCard() {
 
   const del = async (id: string) => {
     if (!confirm(t("recurring.confirm_delete"))) return;
-    const { error } = await supabase.from("recurring_rules").update({ archived: true }).eq("id", id);
-    if (error) return toast.error(error.message);
+    try {
+      await archiveRecurringRule(id, true);
+    } catch (e) {
+      return toast.error((e as Error).message);
+    }
     toast.success(t("toast.deleted"));
     qc.invalidateQueries();
   };
