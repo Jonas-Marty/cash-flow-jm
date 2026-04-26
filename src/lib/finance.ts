@@ -182,6 +182,26 @@ export async function fetchAccountBalances(): Promise<AccountBalance[]> {
   return (data || []) as AccountBalance[];
 }
 
+export async function fetchAccountBalancesAsOf(date: string): Promise<AccountBalance[]> {
+  const { data, error } = await supabase.rpc("account_balances_as_of", { p_date: date });
+  if (error) throw error;
+  return (data || []) as AccountBalance[];
+}
+
+export const todayISO = (): string => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+export const endOfMonthISO = (ref: Date = new Date()): string => {
+  const d = new Date(ref.getFullYear(), ref.getMonth() + 1, 0);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
+export const endOfYearISO = (ref: Date = new Date()): string => {
+  return `${ref.getFullYear()}-12-31`;
+};
+
 export async function fetchCategories(): Promise<Category[]> {
   const { data, error } = await supabase
     .from("categories")

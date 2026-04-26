@@ -13,6 +13,7 @@ import { useI18n } from "@/i18n";
 import { UpcomingCard } from "@/components/UpcomingCard";
 import {
   fetchAccountBalances,
+  fetchAccountBalancesAsOf,
   fetchCategoryMonthRows,
   fetchSavingsBalances,
   fetchSettings,
@@ -20,8 +21,11 @@ import {
   processRecurringRules,
   fmtMoney,
   monthKey,
+  endOfMonthISO,
+  endOfYearISO,
   type CategoryMonthRow,
   type CategorySavingsBalance,
+  type AccountBalance,
 } from "@/lib/finance";
 
 export const Route = createFileRoute("/")({
@@ -34,6 +38,10 @@ function Dashboard() {
   const m = monthKey(monthStart);
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const balancesQ = useQuery({ queryKey: ["account_balances"], queryFn: fetchAccountBalances });
+  const eomDate = React.useMemo(() => endOfMonthISO(), []);
+  const eoyDate = React.useMemo(() => endOfYearISO(), []);
+  const eomQ = useQuery({ queryKey: ["account_balances_as_of", eomDate], queryFn: () => fetchAccountBalancesAsOf(eomDate) });
+  const eoyQ = useQuery({ queryKey: ["account_balances_as_of", eoyDate], queryFn: () => fetchAccountBalancesAsOf(eoyDate) });
   const envelopesQ = useQuery({ queryKey: ["category_month_rows", m], queryFn: () => fetchCategoryMonthRows(m) });
   const savingsQ = useQuery({ queryKey: ["savings_balance"], queryFn: fetchSavingsBalances });
   const recentQ = useQuery({ queryKey: ["transactions", "recent"], queryFn: () => fetchTransactions(8) });
@@ -92,6 +100,35 @@ function Dashboard() {
                 <div className="text-muted-foreground">{t("dashboard.liabilities")}</div>
                 <div className="mt-1 font-semibold text-destructive tabular-nums">{fmtMoney(totalLiabilities, symbol)}</div>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Projected net worth */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.projected")}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2">
+              <ProjectionTile
+                label={t("dashboard.projected_eom")}
+                date={eomDate}
+                accounts={eomQ.data ?? []}
+                loading={eomQ.isLoading}
+                symbol={symbol}
+                locale={locale}
+                tr={t}
+              />
+              <ProjectionTile
+                label={t("dashboard.projected_eoy")}
+                date={eoyDate}
+                accounts={eoyQ.data ?? []}
+                loading={eoyQ.isLoading}
+                symbol={symbol}
+                locale={locale}
+                tr={t}
+              />
             </div>
           </CardContent>
         </Card>
@@ -166,6 +203,53 @@ function Dashboard() {
         </section>
       </div>
     </AppShell>
+  );
+}
+
+function ProjectionTile({
+  label, date, accounts, loading, symbol, locale, tr,
+}: {
+  label: string;
+  date: string;
+  accounts: AccountBalance[];
+  loading: boolean;
+  symbol: string;
+  locale: import("date-fns").Locale;
+  tr: (k: string, v?: Record<string, string | number>) => string;
+}) {
+  const active = accounts.filter((a) => !a.archived);
+  const assets = active.filter((a) => a.type === "asset");
+  const liabilities = active.filter((a) => a.type === "liability");
+  const totalAssets = assets.reduce((s, a) => s + Number(a.balance), 0);
+  const totalLiabilities = liabilities.reduce((s, a) => s + Number(a.balance), 0);
+  const net = totalAssets + totalLiabilities;
+  const dateLabel = format(new Date(date), "PP", { locale });
+  return (
+    <div className="rounded-md border p-4">
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="text-sm font-medium">{label}</div>
+        <div className="text-xs text-muted-foreground">{dateLabel}</div>
+      </div>
+      <div className={cn(
+        "mt-1 text-2xl font-bold tabular-nums",
+        net >= 0 ? "text-success" : "text-destructive",
+      )}>
+        {loading ? <Skeleton className="h-8 w-40" /> : fmtMoney(net, symbol)}
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+        <div className="rounded border p-2">
+          <div className="text-muted-foreground">{tr("dashboard.assets")}</div>
+          <div className="mt-0.5 font-semibold text-success tabular-nums">{fmtMoney(totalAssets, symbol)}</div>
+        </div>
+        <div className="rounded border p-2">
+          <div className="text-muted-foreground">{tr("dashboard.liabilities")}</div>
+          <div className="mt-0.5 font-semibold text-destructive tabular-nums">{fmtMoney(totalLiabilities, symbol)}</div>
+        </div>
+      </div>
+      <div className="mt-2 text-[11px] text-muted-foreground">
+        {tr("dashboard.projected_caption", { date: dateLabel })}
+      </div>
+    </div>
   );
 }
 
