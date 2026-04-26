@@ -337,7 +337,7 @@ function AddTransaction() {
           <div className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {tr("add.suggestions")}
           </div>
-          <div className="min-h-[108px]">
+          <div className="h-[120px]">
             {suggestions.length > 0 ? (
               <SuggestionRow
                 suggestions={suggestions}
@@ -346,7 +346,7 @@ function AddTransaction() {
                 onApply={applySuggestion}
               />
             ) : (
-              <div className="flex h-[108px] items-center justify-center rounded-lg border border-dashed border-border/60 px-3 text-center text-xs text-muted-foreground">
+              <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-border/60 px-3 text-center text-xs text-muted-foreground">
                 {tr("add.suggest.empty")}
               </div>
             )}
