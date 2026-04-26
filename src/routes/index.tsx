@@ -206,6 +206,53 @@ function Dashboard() {
   );
 }
 
+function ProjectionTile({
+  label, date, accounts, loading, symbol, locale, tr,
+}: {
+  label: string;
+  date: string;
+  accounts: AccountBalance[];
+  loading: boolean;
+  symbol: string;
+  locale: import("date-fns").Locale;
+  tr: (k: string, v?: Record<string, string | number>) => string;
+}) {
+  const active = accounts.filter((a) => !a.archived);
+  const assets = active.filter((a) => a.type === "asset");
+  const liabilities = active.filter((a) => a.type === "liability");
+  const totalAssets = assets.reduce((s, a) => s + Number(a.balance), 0);
+  const totalLiabilities = liabilities.reduce((s, a) => s + Number(a.balance), 0);
+  const net = totalAssets + totalLiabilities;
+  const dateLabel = format(new Date(date), "PP", { locale });
+  return (
+    <div className="rounded-md border p-4">
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="text-sm font-medium">{label}</div>
+        <div className="text-xs text-muted-foreground">{dateLabel}</div>
+      </div>
+      <div className={cn(
+        "mt-1 text-2xl font-bold tabular-nums",
+        net >= 0 ? "text-success" : "text-destructive",
+      )}>
+        {loading ? <Skeleton className="h-8 w-40" /> : fmtMoney(net, symbol)}
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+        <div className="rounded border p-2">
+          <div className="text-muted-foreground">{tr("dashboard.assets")}</div>
+          <div className="mt-0.5 font-semibold text-success tabular-nums">{fmtMoney(totalAssets, symbol)}</div>
+        </div>
+        <div className="rounded border p-2">
+          <div className="text-muted-foreground">{tr("dashboard.liabilities")}</div>
+          <div className="mt-0.5 font-semibold text-destructive tabular-nums">{fmtMoney(totalLiabilities, symbol)}</div>
+        </div>
+      </div>
+      <div className="mt-2 text-[11px] text-muted-foreground">
+        {tr("dashboard.projected_caption", { date: dateLabel })}
+      </div>
+    </div>
+  );
+}
+
 function AccountsCard({
   title, tone, items, symbol, loading, emptyHint,
 }: {
