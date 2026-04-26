@@ -17,6 +17,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/i18n";
 import {
   fetchAccounts, fetchCategories, fetchSettings, fetchTransactions, fetchTransactionTags,
+  fetchRecurringRules,
   fmtMoney, type TxType,
 } from "@/lib/finance";
 
@@ -32,10 +33,12 @@ function TransactionsPage() {
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   const txQ = useQuery({ queryKey: ["transactions", "all"], queryFn: () => fetchTransactions() });
   const tagsQ = useQuery({ queryKey: ["transaction_tags"], queryFn: fetchTransactionTags });
+  const rulesQ = useQuery({ queryKey: ["recurring_rules"], queryFn: fetchRecurringRules });
 
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
   const accountById = new Map((accountsQ.data ?? []).map((a) => [a.id, a]));
   const categoryById = new Map((categoriesQ.data ?? []).map((c) => [c.id, c]));
+  const ruleById = new Map((rulesQ.data ?? []).map((r) => [r.id, r]));
   const tagsByTx = React.useMemo(() => {
     const m = new Map<string, string[]>();
     (tagsQ.data ?? []).forEach((r) => {
@@ -165,6 +168,11 @@ function TransactionsPage() {
                         <div className="truncate text-sm font-medium">
                           {t.payee || (t.type === "transfer" ? tr("tx.transfer_label") : t.type === "income" ? tr("add.income") : tr("add.expense"))}
                           {isReimb && <span className="ml-2 rounded bg-success/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-success">{tr("tx.reimbursement")}</span>}
+                          {t.recurring_rule_id && (
+                            <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground" title={ruleById.get(t.recurring_rule_id)?.name ?? ""}>
+                              {tr("tx.from_rule")}{ruleById.get(t.recurring_rule_id) ? `: ${ruleById.get(t.recurring_rule_id)!.name}` : ""}
+                            </span>
+                          )}
                         </div>
                         <div className={cn("text-sm font-semibold tabular-nums whitespace-nowrap", tone)}>
                           {sign}{fmtMoney(Number(t.amount), symbol).replace("-", "")}
