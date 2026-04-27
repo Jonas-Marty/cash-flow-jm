@@ -160,6 +160,15 @@ export function RecurringRulesCard() {
     } else {
       const { error } = await supabase.from("recurring_rules").update(payload).eq("id", draft.id!);
       if (error) { toast.error(error.message); return; }
+      // Schedule/amount/account/etc. may have changed — wipe pending occurrences
+      // so they get regenerated from the new rule. Posted ones stay (they have
+      // real transactions attached).
+      const { error: delErr } = await supabase
+        .from("recurring_occurrences")
+        .delete()
+        .eq("rule_id", draft.id!)
+        .eq("status", "pending");
+      if (delErr) { toast.error(delErr.message); return; }
     }
     // If new rule and starts in the past, apply backfill choice
     if (isNew && savedId && draft.starts_on < todayStr()) {
@@ -460,9 +469,18 @@ export function RecurringRulesCard() {
 function PreviewPanel({ draft }: { draft: Draft }) {
   const { t, locale } = useI18n();
   const today = todayStr();
-  // window: 3 months back to 12 months ahead, capped by ends_on
+  // Window: 12 months ahead, and far enough back to always cover starts_on.
+  // Default look-back is 3 months; if the user picked a starts_on further in
+  // the past (backfill scenario) we extend the window to that date so the
+  // preview actually shows the past entries that would be created.
   const fromDate = new Date();
   fromDate.setMonth(fromDate.getMonth() - 3);
+  if (draft.starts_on) {
+    const startsDate = parseISO(draft.starts_on);
+    if (startsDate < fromDate) {
+      fromDate.setTime(startsDate.getTime());
+    }
+  }
   const toDate = new Date();
   toDate.setMonth(toDate.getMonth() + 12);
   const fromISO = fromDate.toISOString().slice(0, 10);
