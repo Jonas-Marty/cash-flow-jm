@@ -50,6 +50,7 @@ function EnvelopesPage() {
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const rowsQ = useQuery({ queryKey: ["category_month_rows", m], queryFn: () => fetchCategoryMonthRows(m) });
   const savingsQ = useQuery({ queryKey: ["savings_balance"], queryFn: fetchSavingsBalances });
+  const pendingImpactQ = useQuery({ queryKey: ["pending_impact_month", m], queryFn: () => fetchPendingImpactsForMonth(m) });
   const txQ = useQuery({
     queryKey: ["envelope_month_tx", format(month, "yyyy-MM")],
     queryFn: () => fetchMonthCategoryTx(month),
@@ -59,6 +60,7 @@ function EnvelopesPage() {
   const rows = rowsQ.data ?? [];
   const savings = savingsQ.data ?? [];
   const savingsMap = new Map(savings.map((s) => [s.category_id, s]));
+  const pendingMap = React.useMemo(() => buildPendingMap(pendingImpactQ.data ?? []), [pendingImpactQ.data]);
   const txs = txQ.data ?? [];
 
   const byCategory = new Map<string, Transaction[]>();
