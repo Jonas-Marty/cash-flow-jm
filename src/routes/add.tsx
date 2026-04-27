@@ -89,12 +89,13 @@ function AddTransaction() {
   const amountRef = React.useRef<HTMLInputElement>(null);
 
   // ───────── Split mode (multi-item receipt) ─────────
-  type Slice = { id: string; amount: string; categoryId: string; description: string };
+  type Slice = { id: string; amount: string; categoryId: string; description: string; note: string };
   const newSlice = (): Slice => ({
     id: Math.random().toString(36).slice(2),
     amount: "",
     categoryId: "",
     description: "",
+    note: "",
   });
   const [splitMode, setSplitMode] = React.useState(false);
   const [slices, setSlices] = React.useState<Slice[]>([newSlice(), newSlice()]);
@@ -202,11 +203,17 @@ function AddTransaction() {
     // Split path: insert N rows sharing a split_group_id
     if (splitMode && type !== "transfer") {
       if (slices.length < 2) { toast.error(tr("add.split.toast.min")); return; }
-      const parsed = slices.map((s) => ({
-        amount: Number(s.amount.replace(",", ".")),
-        categoryId: s.categoryId || null,
-        description: s.description.trim() || null,
-      }));
+      const sharedNote = note.trim();
+      const parsed = slices.map((s) => {
+        const sliceNote = s.note.trim();
+        const merged = [sharedNote, sliceNote].filter(Boolean).join(" ");
+        return {
+          amount: Number(s.amount.replace(",", ".")),
+          categoryId: s.categoryId || null,
+          description: s.description.trim() || null,
+          note: merged || null,
+        };
+      });
       if (parsed.some((p) => !p.amount || p.amount <= 0)) { toast.error(tr("add.split.toast.amounts")); return; }
 
       setSaving(true);
@@ -216,7 +223,7 @@ function AddTransaction() {
         occurred_on,
         amount: p.amount,
         description: p.description,
-        note: note.trim() || null,
+        note: p.note,
         type,
         source_account_id: sourceId,
         destination_account_id: null,
@@ -565,6 +572,40 @@ function AddTransaction() {
                         emptyLabel={tr("picker.no_match")}
                       />
                     </div>
+                    <div className="mt-2">
+                      <Label className="mb-1 block text-xs">{tr("add.split.note")}</Label>
+                      <Textarea
+                        rows={2}
+                        value={s.note}
+                        onChange={(e) =>
+                          setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, note: e.target.value } : x)))
+                        }
+                        placeholder={tr("add.split.note_placeholder")}
+                      />
+                      <TagChips
+                        className="mt-2"
+                        transactions={recentQ.data ?? []}
+                        currentNote={s.note}
+                        onAppend={(tag) => {
+                          setSlices((cur) =>
+                            cur.map((x, i) => {
+                              if (i !== idx) return x;
+                              const present = new Set(extractTags(x.note));
+                              if (present.has(tag)) return x;
+                              const sep = x.note.length === 0 || x.note.endsWith(" ") ? "" : " ";
+                              return { ...x, note: x.note + sep + "#" + tag };
+                            }),
+                          );
+                        }}
+                      />
+                      {extractTags(s.note).length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {extractTags(s.note).map((t) => (
+                            <span key={t} className="inline-flex items-center rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">{`#${t}`}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -604,19 +645,26 @@ function AddTransaction() {
           </Card>
         )}
 
-        <div>
-          <Label htmlFor="description" className="mb-1.5 block">{tr("add.description")}</Label>
-          <DescriptionAutocomplete
-            id="description"
-            value={description}
-            onChange={(v) => { setDescription(v); mark("description"); }}
-            transactions={recentQ.data ?? []}
-            placeholder={type === "transfer" || splitMode ? tr("common.optional") : tr("add.description_placeholder")}
-          />
-        </div>
+        {!splitMode && (
+          <div>
+            <Label htmlFor="description" className="mb-1.5 block">{tr("add.description")}</Label>
+            <DescriptionAutocomplete
+              id="description"
+              value={description}
+              onChange={(v) => { setDescription(v); mark("description"); }}
+              transactions={recentQ.data ?? []}
+              placeholder={type === "transfer" ? tr("common.optional") : tr("add.description_placeholder")}
+            />
+          </div>
+        )}
 
         <div>
-          <Label htmlFor="note" className="mb-1.5 block">{tr("add.note")}</Label>
+          <Label htmlFor="note" className="mb-1.5 block">
+            {splitMode ? tr("add.note.shared") : tr("add.note")}
+          </Label>
+          {splitMode && (
+            <p className="mb-1.5 text-xs text-muted-foreground">{tr("add.note.shared_hint")}</p>
+          )}
           <Textarea id="note" rows={2} value={note} onChange={(e) => { setNote(e.target.value); mark("note"); }} placeholder={tr("add.note_placeholder")} />
           <TagChips
             className="mt-2"
