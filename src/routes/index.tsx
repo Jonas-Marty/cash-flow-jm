@@ -20,6 +20,9 @@ import {
   fetchTransactions,
   fetchRecurringRules,
   processRecurringRules,
+  fetchPendingImpactsForMonth,
+  buildPendingMap,
+  pendingDeltaForRow,
   fmtMoney,
   monthKey,
   endOfMonthISO,
@@ -27,7 +30,9 @@ import {
   type CategoryMonthRow,
   type CategorySavingsBalance,
   type AccountBalance,
+  type PendingCategorySigned,
 } from "@/lib/finance";
+import { StackedBudgetBar } from "@/components/StackedBudgetBar";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
