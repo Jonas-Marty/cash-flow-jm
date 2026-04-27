@@ -89,12 +89,13 @@ function AddTransaction() {
   const amountRef = React.useRef<HTMLInputElement>(null);
 
   // ───────── Split mode (multi-item receipt) ─────────
-  type Slice = { id: string; amount: string; categoryId: string; description: string };
+  type Slice = { id: string; amount: string; categoryId: string; description: string; note: string };
   const newSlice = (): Slice => ({
     id: Math.random().toString(36).slice(2),
     amount: "",
     categoryId: "",
     description: "",
+    note: "",
   });
   const [splitMode, setSplitMode] = React.useState(false);
   const [slices, setSlices] = React.useState<Slice[]>([newSlice(), newSlice()]);
@@ -202,11 +203,17 @@ function AddTransaction() {
     // Split path: insert N rows sharing a split_group_id
     if (splitMode && type !== "transfer") {
       if (slices.length < 2) { toast.error(tr("add.split.toast.min")); return; }
-      const parsed = slices.map((s) => ({
-        amount: Number(s.amount.replace(",", ".")),
-        categoryId: s.categoryId || null,
-        description: s.description.trim() || null,
-      }));
+      const sharedNote = note.trim();
+      const parsed = slices.map((s) => {
+        const sliceNote = s.note.trim();
+        const merged = [sharedNote, sliceNote].filter(Boolean).join(" ");
+        return {
+          amount: Number(s.amount.replace(",", ".")),
+          categoryId: s.categoryId || null,
+          description: s.description.trim() || null,
+          note: merged || null,
+        };
+      });
       if (parsed.some((p) => !p.amount || p.amount <= 0)) { toast.error(tr("add.split.toast.amounts")); return; }
 
       setSaving(true);
@@ -216,7 +223,7 @@ function AddTransaction() {
         occurred_on,
         amount: p.amount,
         description: p.description,
-        note: note.trim() || null,
+        note: p.note,
         type,
         source_account_id: sourceId,
         destination_account_id: null,
