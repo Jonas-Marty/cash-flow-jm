@@ -391,6 +391,10 @@ const en: Dict = {
   "common.set": "Set",
   "common.no_data": "No data yet.",
   "common.viewAll": "View all",
+  "common.loading": "Loading…",
+  "common.edit": "Edit",
+  "edit.title": "Edit transaction",
+  "edit.save_changes": "Save changes",
 
   "toast.saved": "Saved",
   "toast.deleted": "Deleted",
