@@ -125,6 +125,8 @@ function SettingsPage() {
     // also update current month's budget row so the change reflects immediately
     const m = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-01`;
     await supabase.from("category_budgets").upsert({ category_id: id, month: m, amount: v }, { onConflict: "category_id,month" });
+    // remove any pre-generated future month rows so they get regenerated from the new default
+    await supabase.from("category_budgets").delete().eq("category_id", id).gt("month", m);
     qc.invalidateQueries();
   };
   const toggleArchiveCategory = async (id: string, archived: boolean) => {
