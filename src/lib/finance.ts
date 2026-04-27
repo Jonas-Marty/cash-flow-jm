@@ -68,6 +68,12 @@ export interface CategorySavingsBalance {
   spent_total: number;
   balance: number;
 }
+export interface PendingCategoryImpact {
+  category_id: string;
+  type: "expense" | "income";
+  amount: number; // positive value of the rule's impact (sign decoded by type)
+  count: number;
+}
 export interface CategoryBudget {
   category_id: string;
   month: string; // YYYY-MM-01
@@ -247,6 +253,68 @@ export async function fetchSavingsBalances(): Promise<CategorySavingsBalance[]> 
     .select("*");
   if (error) throw error;
   return (data || []) as CategorySavingsBalance[];
+}
+
+export async function fetchPendingImpactsForMonth(month: string): Promise<PendingCategoryImpact[]> {
+  // month is 'YYYY-MM-01'
+  const start = month;
+  const d = new Date(month);
+  const next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+  const end = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-01`;
+  const { data, error } = await supabase
+    .from("recurring_occurrences")
+    .select("effective_on, status, rule:recurring_rules!inner(category_id, type, amount, estimated_amount, is_variable_amount)")
+    .eq("status", "pending")
+    .gte("effective_on", start)
+    .lt("effective_on", end);
+  if (error) throw error;
+  const map = new Map<string, PendingCategoryImpact>();
+  for (const row of (data || []) as Array<{ rule: { category_id: string | null; type: "expense" | "income" | "transfer"; amount: number | null; estimated_amount: number | null; is_variable_amount: boolean } }>) {
+    const r = row.rule;
+    if (!r || !r.category_id) continue;
+    if (r.type === "transfer") continue;
+    const v = Number((r.is_variable_amount ? r.estimated_amount : r.amount) ?? 0);
+    if (!Number.isFinite(v) || v <= 0) continue;
+    const key = `${r.category_id}:${r.type}`;
+    const existing = map.get(key);
+    if (existing) {
+      existing.amount += v;
+      existing.count += 1;
+    } else {
+      map.set(key, { category_id: r.category_id, type: r.type, amount: v, count: 1 });
+    }
+  }
+  return Array.from(map.values());
+}
+
+/** Aggregated pending impact for a single category, signed like `category_month_spending.spent_or_received`. */
+export interface PendingCategorySigned {
+  expense: number; // positive sum of pending expenses
+  income: number;  // positive sum of pending incomes
+}
+export function buildPendingMap(impacts: PendingCategoryImpact[]): Map<string, PendingCategorySigned> {
+  const m = new Map<string, PendingCategorySigned>();
+  for (const i of impacts) {
+    const cur = m.get(i.category_id) ?? { expense: 0, income: 0 };
+    if (i.type === "expense") cur.expense += i.amount;
+    else cur.income += i.amount;
+    m.set(i.category_id, cur);
+  }
+  return m;
+}
+/**
+ * Compute the pending delta to add to `spent_or_received` for a category row,
+ * matching the sign convention from `category_month_spending`.
+ * - For income groups: pending = pending_income (positive received).
+ * - For expense/savings: pending = pending_expense - pending_income (refunds reduce spend).
+ */
+export function pendingDeltaForRow(
+  pending: PendingCategorySigned | undefined,
+  kind: "income" | "expense" | "savings",
+): number {
+  if (!pending) return 0;
+  if (kind === "income") return pending.income;
+  return pending.expense - pending.income;
 }
 
 export async function fetchCategoryBudgets(categoryId: string): Promise<CategoryBudget[]> {

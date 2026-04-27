@@ -1,97 +1,105 @@
-
 ## Goal
 
-Rename the **payee / Empfänger** concept to **description / Beschreibung** end-to-end so it matches your "What?" mental model (e.g. *"Eis go Zieh mit Florian Bär"*, *"Lovable 1 Month Subscription"*). `note` and tags remain unchanged.
+Make the Dashboard envelope blocks and the Envelopes page reflect not only **committed** transactions for the current month, but also **pending recurring occurrences** (auto-post or manual) whose `effective_on` falls inside the same month. Visualize the pending portion as a second segment of a stacked progress bar (orange/warning tone) on top of the existing committed bar.
 
-## 1. Database migration
+## Concept
 
-Single migration that renames the column on both tables and updates all database functions that reference it.
+For every category in the current month we will compute three numbers:
 
-- `ALTER TABLE public.transactions RENAME COLUMN payee TO description;`
-- `ALTER TABLE public.recurring_rules RENAME COLUMN payee TO description;`
-- Recreate functions referencing the old name with the new column:
-  - `apply_recurring_rule_backfill` — INSERT into `transactions(... description ...)` from `r.description`
-  - `process_recurring_rules` — same INSERT update
+- `committed` — what the database function `category_month_spending` returns today (real transactions).
+- `pending` — sum of pending `recurring_occurrences` for that category whose `effective_on` is in the current month, signed the same way (expense ⇒ +spent, income ⇒ +received, income on expense category ⇒ -spent).
+- `projected = committed + pending` — what the month will look like once everything posts.
 
-`category_month_spending` and `account_balances_as_of` don't reference `payee`, so no change there. Suggestion: also re-run the project's auto-generated `src/integrations/supabase/types.ts` (handled automatically after the migration).
+The progress bar becomes two stacked segments:
 
-## 2. Code rename (`src/lib/finance.ts` and friends)
+```text
+|■■■■ committed (green/warning/red) ■■■■|■ pending (orange) ■|             |
+0 ────────────── allocated ──────────────────────────────► 100%
+```
 
-- Rename `Transaction.payee` → `Transaction.description`
-- Rename `RecurringRule.payee` → `RecurringRule.description`
-- Update `postOccurrence` to insert `description` from the rule
-- Keep `extractTags()` exactly as is (it parses `note`, untouched)
+- Committed segment keeps current tone logic (success → warning at ≥80% projected → destructive when projected over allocated).
+- Pending segment is always `bg-warning` (orange) and sits immediately after the committed segment.
+- If `projected > allocated`, the over-portion is rendered as `bg-destructive` so the user immediately sees a future overspend.
+- The numeric label next to each row shows `committed / allocated`, with a small subline like `+ pending  →  projected` when `pending > 0`.
+- For income groups, a similar approach: committed received vs. allocated, with a pending indicator showing what is still expected.
+- For savings categories, show pending allocation/spend impact below the balance (no bar — savings already use balance display).
 
-## 3. Suggestion engine
+## Where this is computed
 
-The whole suggestion system is keyed on this field; the logic stays identical, only names change:
+Done client-side. On both `/` and `/envelopes` we already fetch:
+- `category_month_spending(p_month)` (committed numbers).
+- We will additionally fetch **pending** recurring occurrences for the visible month and join them to categories.
 
-- `src/lib/suggestions/types.ts` → rename `payee` → `description` in `SuggestionContext` and `TransactionDraft`
-- `src/lib/suggestions/providers/payee.ts` → rename file to `description.ts`, export `descriptionProvider`, update `id: "description_match"`, source `"description_match"`
-- `src/lib/suggestions/providers/history.ts` → use `description` field
-- `src/lib/suggestions/registry.ts` → import + register the renamed provider
-- `src/lib/suggestions/useSuggestions.ts` → propagate field rename
+Add a small helper in `src/lib/finance.ts`:
 
-## 4. Components
+```ts
+export interface PendingCategoryImpact {
+  category_id: string;
+  type: "expense" | "income";
+  amount: number;       // signed by rule type, like committed
+  count: number;
+}
+export async function fetchPendingImpactsForMonth(month: string): Promise<PendingCategoryImpact[]>
+```
 
-- **Rename** `src/components/PayeeAutocomplete.tsx` → `DescriptionAutocomplete.tsx`, export `DescriptionAutocomplete`. Internally it reads `tx.description` to build the suggestion list.
-- `src/components/SuggestionRow.tsx` — rename any `payee` references
-- `src/components/DayPreview.tsx` — display `description` instead of `payee`
-- `src/components/RecurringRulesCard.tsx` — form field `payee` → `description`
-- `src/components/UpcomingCard.tsx` — display label updates (no field-name impact since it reads from rule)
+Implementation: `select` from `recurring_occurrences` joined with `recurring_rules`, filtered by `status = 'pending'`, `effective_on` in `[monthStart, monthEnd]`, `category_id is not null`, and `type in ('expense','income')` (transfers ignored — they don't affect envelopes). Use `is_variable_amount ? estimated_amount : amount` for the value, just like `account_balances_as_of` already does. Group/sum in JS by `category_id`.
 
-## 5. Routes / pages
+Tie the query into React Query keys per month: `["pending_impact_month", monthKey]`. Invalidated whenever rules/occurrences change (existing `qc.invalidateQueries()` in `UpcomingCard` already covers this).
 
-- `src/routes/add.tsx`
-  - State variable `payee` → `description`
-  - `<PayeeAutocomplete>` → `<DescriptionAutocomplete>`
-  - Label uses `tr("add.description")`
-  - Insert payload uses `description: description.trim() || null`
-  - Touched-key tracking: `"payee"` → `"description"`
-- `src/routes/transactions.tsx` — display + filter use `description`
-- `src/routes/envelopes.tsx` — display use `description`
-- `src/routes/index.tsx` — display use `description`
+## Stacked progress bar component
 
-## 6. i18n labels (`src/i18n/index.tsx`)
+Extract a small inline component (no new file needed, keep it next to `GroupBlock`) that takes:
 
-Replace `add.payee`, `add.payee_placeholder`, and any other `*.payee*` keys with `*.description*` equivalents. New copy:
+```ts
+{ allocated: number; committed: number; pending: number }
+```
 
-| Key | EN | DE |
-|---|---|---|
-| `add.description` | Description | Beschreibung |
-| `add.description_placeholder` | What was it? e.g. "Coffee Quadra", "Dinner with Anna" | Was war es? z. B. „Kaffee Quadra", „Znacht mit Anna" |
-| `add.description_optional` | Optional | Optional |
+Renders three flex segments:
+- committed (tone depending on `projected/allocated`)
+- pending (warning/orange)
+- over-projected (destructive) — only if `projected > allocated`, replacing the tail
 
-Recurring-rules card label: "Payee" → "Description / Beschreibung".
+Caps at 100% width; if `projected > allocated`, scale segments proportionally to `projected`.
 
-## 7. Architecture notes
+## UI changes
 
-- Update `architecture.md` to reflect the rename and the new mental model ("free-text description / 'Was?' field, not a strict counterparty").
+### `src/routes/index.tsx` — `GroupBlock` (expense + income rows)
+- Fetch pending impacts once at the Dashboard level: `useQuery(["pending_impact_month", m], () => fetchPendingImpactsForMonth(m))`.
+- Pass map down to `GroupBlock`.
+- Expense row: replace the single-segment bar with the stacked one. Update label:
+  - main: `committed / allocated`
+  - sub (only if pending > 0): `+ <pending> pending → <projected> projected`
+  - remaining/over text uses **projected**, with a clarifying suffix like `(incl. pending)` when pending > 0.
+- Income row: append a small `+ <pending> expected` chip when pending > 0; recompute variance with projected for the colored hint.
+- Savings row: add a sub-line `+ <pending allocation> · -<pending spend> upcoming` when applicable.
 
-## What stays unchanged
+### `src/routes/envelopes.tsx`
+- Same query (same query key — shared cache).
+- Same stacked bar, same label changes for expense/income/savings.
 
-- `note` field — still free-form, still source of `#tags`
-- `transaction_tags` table + `sync_transaction_tags` trigger
-- `TagChips` component, suggestion sublabels showing tag counts
-- All balance math, RLS, recurring schedule logic
-- Existing data — `RENAME COLUMN` preserves all values; no data migration needed
+### `UpcomingCard`
+No changes — it already lists the source items. (Could add a soft visual link later, out of scope.)
 
-## Splits & late reimbursements (clarification)
+## i18n strings (EN + DE)
 
-Two distinct scenarios — handled by different mechanisms:
+Add to `src/i18n/index.tsx`:
 
-1. **Multi-item receipt (one charge, multiple categories)** — e.g. a single Galaxus credit-card charge of 135.00 covering a book for the GF (no category), milk + soil (Groceries), and headphones (Tech). Modeled with `split_group_id`: one slice per item, each with its own amount/category/description, all sharing source account + date + type. Slices sum to the receipt total.
-2. **GF cash repayment** — a separate plain `income` transaction that is **not** part of the split group. It does not touch the same envelopes; it just brings cash back into the asset account. If it crosses a month boundary and would distort a budget, use the savings-envelope/IOU recipe (§EV-Strom GF) — no schema change needed.
+- `env.pending_suffix`: "+ {x} pending" / "+ {x} ausstehend"
+- `env.projected_suffix`: "→ {x} projected" / "→ {x} prognostiziert"
+- `env.remaining_with_pending`: "{x} remaining (incl. pending)" / "{x} verbleibend (inkl. ausstehend)"
+- `env.over_with_pending`: "Over by {x} (incl. pending)" / "Überzogen um {x} (inkl. ausstehend)"
+- `env.income_expected`: "+ {x} expected" / "+ {x} erwartet"
+- `env.savings_pending`: "Upcoming: +{a} alloc · -{b} spend" / "Ausstehend: +{a} zugeteilt · -{b} ausgaben"
 
-The book-for-GF slice has `category_id = NULL` so it does not consume any envelope; it's a pure pass-through that nets to zero once the GF repays.
+## Out of scope
 
-## Out of scope / not touched
+- Changing the SQL `category_month_spending` function — pending is purely a UI overlay so it stays clearly separable from real data.
+- Showing pending in `/transactions` (already visible via Upcoming card).
+- Per-day heatmap inclusion of pending — separate request if wanted later.
 
-- No new column added
-- No change to how the field is used by suggestions (just renamed)
-- No UI restructuring beyond the label change
+## Files to edit
 
-## Risk / rollback
-
-- `RENAME COLUMN` is reversible with a counter-migration.
-- The `types.ts` regeneration happens automatically after the migration runs; any code still referencing `.payee` will fail typecheck immediately, making missed spots easy to catch.
+- `src/lib/finance.ts` — add `fetchPendingImpactsForMonth` + types.
+- `src/routes/index.tsx` — fetch pending, stacked bar, updated labels.
+- `src/routes/envelopes.tsx` — fetch pending, stacked bar, updated labels.
+- `src/i18n/index.tsx` — new strings.

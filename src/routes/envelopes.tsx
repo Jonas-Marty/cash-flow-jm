@@ -17,9 +17,13 @@ import {
   fetchSettings,
   fmtMoney,
   monthKey,
+  fetchPendingImpactsForMonth,
+  buildPendingMap,
+  pendingDeltaForRow,
   type Transaction,
   type CategoryMonthRow,
 } from "@/lib/finance";
+import { StackedBudgetBar } from "@/components/StackedBudgetBar";
 
 export const Route = createFileRoute("/envelopes")({
   component: EnvelopesPage,
@@ -46,6 +50,7 @@ function EnvelopesPage() {
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const rowsQ = useQuery({ queryKey: ["category_month_rows", m], queryFn: () => fetchCategoryMonthRows(m) });
   const savingsQ = useQuery({ queryKey: ["savings_balance"], queryFn: fetchSavingsBalances });
+  const pendingImpactQ = useQuery({ queryKey: ["pending_impact_month", m], queryFn: () => fetchPendingImpactsForMonth(m) });
   const txQ = useQuery({
     queryKey: ["envelope_month_tx", format(month, "yyyy-MM")],
     queryFn: () => fetchMonthCategoryTx(month),
@@ -55,6 +60,7 @@ function EnvelopesPage() {
   const rows = rowsQ.data ?? [];
   const savings = savingsQ.data ?? [];
   const savingsMap = new Map(savings.map((s) => [s.category_id, s]));
+  const pendingMap = React.useMemo(() => buildPendingMap(pendingImpactQ.data ?? []), [pendingImpactQ.data]);
   const txs = txQ.data ?? [];
 
   const byCategory = new Map<string, Transaction[]>();
@@ -118,21 +124,32 @@ function EnvelopesPage() {
                 const items = byCategory.get(r.category_id) ?? [];
                 const allocated = Number(r.allocated);
                 const actual = Number(r.spent_or_received);
+                const pending = pendingMap.get(r.category_id);
+                const pendingDelta = pendingDeltaForRow(pending, g.kind);
+                const pendingPos = Math.max(0, pendingDelta);
 
                 let header: React.ReactNode;
                 if (g.kind === "savings") {
                   const balance = Number(savingsMap.get(r.category_id)?.balance ?? 0);
                   header = (
-                    <div className="flex items-baseline justify-between gap-3">
-                      <div className="font-semibold">{r.name}</div>
-                      <div className={cn("text-base font-bold tabular-nums", balance < 0 ? "text-destructive" : "text-foreground")}>
-                        {tr("env.balance", { x: fmtMoney(balance, symbol) })}
+                    <>
+                      <div className="flex items-baseline justify-between gap-3">
+                        <div className="font-semibold">{r.name}</div>
+                        <div className={cn("text-base font-bold tabular-nums", balance < 0 ? "text-destructive" : "text-foreground")}>
+                          {tr("env.balance", { x: fmtMoney(balance, symbol) })}
+                        </div>
                       </div>
-                    </div>
+                      {pending && (pending.income > 0 || pending.expense > 0) && (
+                        <div className="mt-1 text-xs text-warning tabular-nums">
+                          {tr("env.savings_pending", { a: fmtMoney(pending.income, symbol), b: fmtMoney(pending.expense, symbol) })}
+                        </div>
+                      )}
+                    </>
                   );
                 } else if (g.kind === "income") {
                   const variance = actual - allocated;
                   const tone = variance >= 0 ? "text-success" : "text-destructive";
+                  const projected = actual + pendingDelta;
                   header = (
                     <>
                       <div className="flex items-baseline justify-between gap-3">
@@ -141,29 +158,38 @@ function EnvelopesPage() {
                           <span className={cn("font-semibold", tone)}>{fmtMoney(actual, symbol)}</span>
                           <span className="text-muted-foreground"> / {fmtMoney(allocated, symbol)}</span>
                           <span className={cn("ml-2 text-xs", tone)}>({variance >= 0 ? "+" : ""}{fmtMoney(variance, symbol)})</span>
+                          {pendingDelta > 0 && (
+                            <span className="ml-2 text-xs text-warning">{tr("env.income_expected", { x: fmtMoney(pendingDelta, symbol) })} {tr("env.projected_suffix", { x: fmtMoney(projected, symbol) })}</span>
+                          )}
                         </div>
                       </div>
                     </>
                   );
                 } else {
-                  const pct = allocated > 0 ? Math.min(100, (actual / allocated) * 100) : (actual > 0 ? 100 : 0);
-                  const over = allocated > 0 && actual > allocated;
-                  const remaining = allocated - actual;
-                  const barTone = over ? "bg-destructive" : pct >= 80 ? "bg-warning" : "bg-success";
+                  const projected = actual + pendingPos;
+                  const overProjected = allocated > 0 && projected > allocated;
+                  const remainingProjected = allocated - projected;
                   header = (
                     <>
                       <div className="flex items-baseline justify-between gap-3">
                         <div className="font-semibold">{r.name}</div>
                         <div className="text-sm tabular-nums text-muted-foreground">
-                          <span className={cn(over && "text-destructive font-semibold")}>{fmtMoney(actual, symbol)}</span>
+                          <span className={cn(overProjected && "text-destructive font-semibold")}>{fmtMoney(actual, symbol)}</span>
                           <span> / {fmtMoney(allocated, symbol)}</span>
+                          {pendingPos > 0 && (
+                            <span className="ml-2 text-xs text-warning">{tr("env.pending_suffix", { x: fmtMoney(pendingPos, symbol) })} {tr("env.projected_suffix", { x: fmtMoney(projected, symbol) })}</span>
+                          )}
                         </div>
                       </div>
-                      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-                        <div className={cn("h-full transition-all", barTone)} style={{ width: `${pct}%` }} />
-                      </div>
-                      <div className={cn("mt-1 text-xs tabular-nums", over ? "text-destructive" : "text-muted-foreground")}>
-                        {over ? tr("dashboard.over_by", { x: fmtMoney(-remaining, symbol) }) : tr("dashboard.remaining", { x: fmtMoney(remaining, symbol) })}
+                      <StackedBudgetBar className="mt-2" allocated={allocated} committed={actual} pending={pendingPos} />
+                      <div className={cn("mt-1 text-xs tabular-nums", overProjected ? "text-destructive" : "text-muted-foreground")}>
+                        {overProjected
+                          ? (pendingPos > 0
+                              ? tr("env.over_with_pending", { x: fmtMoney(-remainingProjected, symbol) })
+                              : tr("dashboard.over_by", { x: fmtMoney(-remainingProjected, symbol) }))
+                          : (pendingPos > 0
+                              ? tr("env.remaining_with_pending", { x: fmtMoney(remainingProjected, symbol) })
+                              : tr("dashboard.remaining", { x: fmtMoney(allocated - actual, symbol) }))}
                       </div>
                     </>
                   );
