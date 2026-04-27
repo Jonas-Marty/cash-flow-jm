@@ -85,6 +85,7 @@ export interface Transaction {
   category_id: string | null;
   created_at: string;
   recurring_rule_id?: string | null;
+  split_group_id?: string | null;
 }
 export type RecurringFrequency = "monthly";
 export type RecurringDayRule = "fixed_day" | "end_of_month" | "first_of_month";

@@ -76,6 +76,15 @@ Recurring-rules card label: "Payee" → "Description / Beschreibung".
 - All balance math, RLS, recurring schedule logic
 - Existing data — `RENAME COLUMN` preserves all values; no data migration needed
 
+## Splits & late reimbursements (clarification)
+
+Two distinct scenarios — handled by different mechanisms:
+
+1. **Multi-item receipt (one charge, multiple categories)** — e.g. a single Galaxus credit-card charge of 135.00 covering a book for the GF (no category), milk + soil (Groceries), and headphones (Tech). Modeled with `split_group_id`: one slice per item, each with its own amount/category/description, all sharing source account + date + type. Slices sum to the receipt total.
+2. **GF cash repayment** — a separate plain `income` transaction that is **not** part of the split group. It does not touch the same envelopes; it just brings cash back into the asset account. If it crosses a month boundary and would distort a budget, use the savings-envelope/IOU recipe (§EV-Strom GF) — no schema change needed.
+
+The book-for-GF slice has `category_id = NULL` so it does not consume any envelope; it's a pure pass-through that nets to zero once the GF repays.
+
 ## Out of scope / not touched
 
 - No new column added
