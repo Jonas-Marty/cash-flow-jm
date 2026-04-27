@@ -68,6 +68,12 @@ export interface CategorySavingsBalance {
   spent_total: number;
   balance: number;
 }
+export interface PendingCategoryImpact {
+  category_id: string;
+  type: "expense" | "income";
+  amount: number; // positive value of the rule's impact (sign decoded by type)
+  count: number;
+}
 export interface CategoryBudget {
   category_id: string;
   month: string; // YYYY-MM-01
