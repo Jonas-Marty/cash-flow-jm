@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { attachSupabaseAuth } from "@/integrations/supabase/client-auth-middleware";
 import { getRequestHost } from "@tanstack/react-start/server";
 import { getValidConnection, searchFiles, trimBaseUrl } from "./nextcloud.server";
 
@@ -14,7 +15,7 @@ function originFromHost(): string {
 }
 
 export const getNextcloudStatus = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([attachSupabaseAuth, requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase } = context;
     const { data, error } = await supabase
@@ -32,7 +33,7 @@ export const getNextcloudStatus = createServerFn({ method: "GET" })
   });
 
 export const saveNextcloudConfig = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([attachSupabaseAuth, requireSupabaseAuth])
   .inputValidator((d: { base_url: string; client_id: string; client_secret: string }) =>
     z.object({
       base_url: urlSchema,
@@ -54,7 +55,7 @@ export const saveNextcloudConfig = createServerFn({ method: "POST" })
   });
 
 export const disconnectNextcloud = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([attachSupabaseAuth, requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase } = context;
     const { error } = await supabase.from("nextcloud_connections").delete().neq("user_id", "00000000-0000-0000-0000-000000000000");
@@ -68,7 +69,7 @@ export const disconnectNextcloud = createServerFn({ method: "POST" })
  * The state is signed (HMAC) to prevent forging.
  */
 export const startNextcloudOAuth = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([attachSupabaseAuth, requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
     const { data, error } = await supabase
@@ -86,7 +87,7 @@ export const startNextcloudOAuth = createServerFn({ method: "POST" })
   });
 
 export const searchNextcloud = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([attachSupabaseAuth, requireSupabaseAuth])
   .inputValidator((d: { query: string }) => z.object({ query: z.string().trim().min(1).max(200) }).parse(d))
   .handler(async ({ data, context }) => {
     const { userId } = context;

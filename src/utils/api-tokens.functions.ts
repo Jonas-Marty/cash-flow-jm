@@ -1,10 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { attachSupabaseAuth } from "@/integrations/supabase/client-auth-middleware";
 import { generateRawToken, hashToken } from "./api-tokens.server";
 
 export const listApiTokens = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
+  .middleware([attachSupabaseAuth, requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase } = context;
     const { data, error } = await supabase
@@ -16,7 +17,7 @@ export const listApiTokens = createServerFn({ method: "GET" })
   });
 
 export const createApiToken = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([attachSupabaseAuth, requireSupabaseAuth])
   .inputValidator((d: { name: string }) => z.object({ name: z.string().trim().min(1).max(100) }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
@@ -33,7 +34,7 @@ export const createApiToken = createServerFn({ method: "POST" })
   });
 
 export const revokeApiToken = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([attachSupabaseAuth, requireSupabaseAuth])
   .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
@@ -46,7 +47,7 @@ export const revokeApiToken = createServerFn({ method: "POST" })
   });
 
 export const deleteApiToken = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([attachSupabaseAuth, requireSupabaseAuth])
   .inputValidator((d: { id: string }) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase } = context;
