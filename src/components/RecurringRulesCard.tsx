@@ -157,6 +157,7 @@ export function RecurringRulesCard() {
       day_rule: draft.day_rule,
       day_of_month: draft.day_rule === "fixed_day" ? Number(draft.day_of_month) || 1 : null,
       weekend_adjust: draft.weekend_adjust,
+      frequency: draft.frequency,
       starts_on: draft.starts_on,
       ends_on: draft.ends_on || null,
       auto_post: draft.is_variable_amount ? false : draft.auto_post,
