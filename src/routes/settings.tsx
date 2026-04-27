@@ -181,6 +181,26 @@ function SettingsPage() {
     qc.invalidateQueries();
   };
 
+  // Reorder helper: swap sort_order between two rows of the same table.
+  const swapSortOrder = async (
+    table: "category_groups" | "categories",
+    a: { id: string; sort_order: number },
+    b: { id: string; sort_order: number },
+  ) => {
+    if (a.sort_order === b.sort_order) {
+      // Normalize so the swap actually moves things.
+      const { error: e1 } = await supabase.from(table).update({ sort_order: b.sort_order + 1 }).eq("id", a.id);
+      if (e1) return toast.error(e1.message);
+      qc.invalidateQueries();
+      return;
+    }
+    const { error: e1 } = await supabase.from(table).update({ sort_order: b.sort_order }).eq("id", a.id);
+    if (e1) return toast.error(e1.message);
+    const { error: e2 } = await supabase.from(table).update({ sort_order: a.sort_order }).eq("id", b.id);
+    if (e2) return toast.error(e2.message);
+    qc.invalidateQueries();
+  };
+
   // Visual + pin updates (shared between accounts and categories)
   const updateVisual = async (
     table: "accounts" | "categories",
