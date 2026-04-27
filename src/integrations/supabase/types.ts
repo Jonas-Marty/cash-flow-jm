@@ -686,7 +686,7 @@ export type Database = {
       category_group_kind: "income" | "expense" | "savings"
       occurrence_status: "pending" | "posted" | "skipped"
       recurring_day_rule: "fixed_day" | "end_of_month" | "first_of_month"
-      recurring_frequency: "monthly"
+      recurring_frequency: "monthly" | "quarterly"
       transaction_type: "expense" | "income" | "transfer"
       weekend_adjust: "none" | "before" | "after"
     }
@@ -821,7 +821,7 @@ export const Constants = {
       category_group_kind: ["income", "expense", "savings"],
       occurrence_status: ["pending", "posted", "skipped"],
       recurring_day_rule: ["fixed_day", "end_of_month", "first_of_month"],
-      recurring_frequency: ["monthly"],
+      recurring_frequency: ["monthly", "quarterly"],
       transaction_type: ["expense", "income", "transfer"],
       weekend_adjust: ["none", "before", "after"],
     },
