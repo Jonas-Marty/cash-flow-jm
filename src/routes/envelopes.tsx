@@ -17,9 +17,13 @@ import {
   fetchSettings,
   fmtMoney,
   monthKey,
+  fetchPendingImpactsForMonth,
+  buildPendingMap,
+  pendingDeltaForRow,
   type Transaction,
   type CategoryMonthRow,
 } from "@/lib/finance";
+import { StackedBudgetBar } from "@/components/StackedBudgetBar";
 
 export const Route = createFileRoute("/envelopes")({
   component: EnvelopesPage,
