@@ -21,6 +21,8 @@ import {
 } from "@/lib/finance";
 import { useI18n, LANGUAGES, type Lang } from "@/i18n";
 import { RecurringRulesCard } from "@/components/RecurringRulesCard";
+import { NextcloudCard } from "@/components/NextcloudCard";
+import { ApiTokensCard } from "@/components/ApiTokensCard";
 import { useAuth, useIsAdmin } from "@/lib/auth";
 import { Switch } from "@/components/ui/switch";
 import { useQuery as useRQ } from "@tanstack/react-query";
@@ -584,6 +586,9 @@ function SettingsPage() {
 
         {/* Recurring rules */}
         <RecurringRulesCard />
+
+        <NextcloudCard />
+        <ApiTokensCard />
 
         <p className="pb-4 text-xs text-muted-foreground">{tr("settings.footer")}</p>
       </div>
