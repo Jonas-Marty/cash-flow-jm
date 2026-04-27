@@ -281,6 +281,7 @@ export function TransactionForm({ editId }: { editId: string | null }) {
         const sliceNote = s.note.trim();
         const merged = [sharedNote, sliceNote].filter(Boolean).join(" ");
         return {
+          id: s.id,
           amount: Number(s.amount.replace(",", ".")),
           categoryId: s.categoryId || null,
           description: s.description.trim() || null,
@@ -290,8 +291,32 @@ export function TransactionForm({ editId }: { editId: string | null }) {
       if (parsed.some((p) => !p.amount || p.amount <= 0)) { toast.error(tr("add.split.toast.amounts")); return; }
 
       setSaving(true);
-      const groupId = (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
       const occurred_on = format(date, "yyyy-MM-dd");
+      if (isEdit && editQ.data?.tx.split_group_id) {
+        // Update existing split group: replace rows (delete all then insert).
+        const groupId = editQ.data.tx.split_group_id;
+        const delRes = await supabase.from("transactions").delete().eq("split_group_id", groupId);
+        if (delRes.error) { setSaving(false); toast.error(delRes.error.message); return; }
+        const rows = parsed.map((p) => ({
+          occurred_on,
+          amount: p.amount,
+          description: p.description,
+          note: p.note,
+          type,
+          source_account_id: sourceId,
+          destination_account_id: null,
+          category_id: p.categoryId,
+          split_group_id: groupId,
+        }));
+        const { error } = await supabase.from("transactions").insert(rows);
+        setSaving(false);
+        if (error) { toast.error(error.message); return; }
+        toast.success(tr("toast.saved"));
+        qc.invalidateQueries();
+        navigate({ to: "/transactions" });
+        return;
+      }
+      const groupId = (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
       const rows = parsed.map((p) => ({
         occurred_on,
         amount: p.amount,
@@ -324,6 +349,15 @@ export function TransactionForm({ editId }: { editId: string | null }) {
       destination_account_id: type === "transfer" ? destId : null,
       category_id: type === "transfer" ? null : (categoryId || null),
     };
+    if (isEdit && editId) {
+      const { error } = await supabase.from("transactions").update(payload).eq("id", editId);
+      setSaving(false);
+      if (error) { toast.error(error.message); return; }
+      toast.success(tr("toast.saved"));
+      qc.invalidateQueries();
+      navigate({ to: "/transactions" });
+      return;
+    }
     const { error } = await supabase.from("transactions").insert(payload);
     setSaving(false);
     if (error) { toast.error(error.message); return; }
