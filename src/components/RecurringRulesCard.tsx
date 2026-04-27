@@ -534,7 +534,7 @@ function PreviewPanel({ draft }: { draft: Draft }) {
   const dom = draft.day_rule === "fixed_day" ? Number(draft.day_of_month) || 1 : null;
   const enabled = !!draft.starts_on;
   const previewQ = useRQuery({
-    queryKey: ["preview_recurring", draft.day_rule, dom, draft.weekend_adjust, draft.starts_on, draft.ends_on || null, fromISO, toISO],
+    queryKey: ["preview_recurring", draft.frequency, draft.day_rule, dom, draft.weekend_adjust, draft.starts_on, draft.ends_on || null, fromISO, toISO],
     queryFn: () => previewRecurringRule({
       day_rule: draft.day_rule,
       day_of_month: dom,
@@ -543,6 +543,7 @@ function PreviewPanel({ draft }: { draft: Draft }) {
       ends_on: draft.ends_on || null,
       from: fromISO,
       to: toISO,
+      frequency: draft.frequency,
     }),
     enabled,
     staleTime: 30_000,
