@@ -729,6 +729,9 @@ function TransactionsPage() {
                           </div>
                         )}
                       </div>
+                      <Button asChild variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" aria-label={tr("common.edit")}>
+                        <Link to="/edit/$id" params={{ id: t.id }}><Pencil className="h-4 w-4" /></Link>
+                      </Button>
                       <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => del(t.id)} aria-label={tr("common.delete")}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
