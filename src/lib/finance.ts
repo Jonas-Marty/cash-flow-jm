@@ -93,7 +93,7 @@ export interface Transaction {
   recurring_rule_id?: string | null;
   split_group_id?: string | null;
 }
-export type RecurringFrequency = "monthly" | "quarterly";
+export type RecurringFrequency = "monthly" | "quarterly" | "yearly";
 export type RecurringDayRule = "fixed_day" | "end_of_month" | "first_of_month";
 export type WeekendAdjust = "none" | "before" | "after";
 export type OccurrenceStatus = "pending" | "posted" | "skipped";
@@ -467,7 +467,13 @@ export async function applyRecurringRuleBackfill(ruleId: string, mode: "none" | 
 
 export function describeSchedule(r: RecurringRule, t: (k: string, v?: Record<string, string | number>) => string): string {
   const parts: string[] = [];
-  parts.push(r.frequency === "quarterly" ? t("recurring.freq.quarterly") : t("recurring.freq.monthly"));
+  parts.push(
+    r.frequency === "quarterly"
+      ? t("recurring.freq.quarterly")
+      : r.frequency === "yearly"
+        ? t("recurring.freq.yearly")
+        : t("recurring.freq.monthly")
+  );
   if (r.day_rule === "first_of_month") parts.push(t("recurring.sched.first"));
   else if (r.day_rule === "end_of_month") parts.push(t("recurring.sched.end"));
   else parts.push(t("recurring.sched.day", { d: r.day_of_month ?? 1 }));
