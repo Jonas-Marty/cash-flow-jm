@@ -1,105 +1,88 @@
-## Goal
+## Transactions page improvements
 
-Make the Dashboard envelope blocks and the Envelopes page reflect not only **committed** transactions for the current month, but also **pending recurring occurrences** (auto-post or manual) whose `effective_on` falls inside the same month. Visualize the pending portion as a second segment of a stacked progress bar (orange/warning tone) on top of the existing committed bar.
+Rework `/transactions` filters and list rendering to support fuzzy recall of vaguely remembered transactions.
 
-## Concept
+### 1. Searchable, multi-select filter dropdowns
 
-For every category in the current month we will compute three numbers:
+Replace each plain `Select` (Type, Account, Category, Tag) with a new reusable `MultiSelectCombobox` component built on `Popover` + `cmdk` `Command` (already in the project, see `src/components/ui/command.tsx`).
 
-- `committed` — what the database function `category_month_spending` returns today (real transactions).
-- `pending` — sum of pending `recurring_occurrences` for that category whose `effective_on` is in the current month, signed the same way (expense ⇒ +spent, income ⇒ +received, income on expense category ⇒ -spent).
-- `projected = committed + pending` — what the month will look like once everything posts.
+- Search input at top of each popover.
+- Checkbox per option, multi-select.
+- Trigger button shows: nothing selected → "All X"; 1 selected → its label; >1 → "N selected".
+- Clear button inside the popover.
+- For Account/Category options, show the same icon/emoji/image as configured (reuse `EntityChip` visual logic — `image_url` → `<img>`, `emoji`, `icon` via `getIcon`, fallback monogram with `colorFromName`).
+- Tag option labels render as `#tag` correctly (see fix in §6).
 
-The progress bar becomes two stacked segments:
+Filter state changes from single string to `string[]` (empty array = no filter).
 
-```text
-|■■■■ committed (green/warning/red) ■■■■|■ pending (orange) ■|             |
-0 ────────────── allocated ──────────────────────────────► 100%
-```
+### 2. Locale-aware From/To date inputs
 
-- Committed segment keeps current tone logic (success → warning at ≥80% projected → destructive when projected over allocated).
-- Pending segment is always `bg-warning` (orange) and sits immediately after the committed segment.
-- If `projected > allocated`, the over-portion is rendered as `bg-destructive` so the user immediately sees a future overspend.
-- The numeric label next to each row shows `committed / allocated`, with a small subline like `+ pending  →  projected` when `pending > 0`.
-- For income groups, a similar approach: committed received vs. allocated, with a pending indicator showing what is still expected.
-- For savings categories, show pending allocation/spend impact below the balance (no bar — savings already use balance display).
+Replace native `<Input type="date">` with the existing `DateInput` component, passing `formatStr={settings.date_format}`, `lang`, `locale`. Store the value as `Date | null`; convert to `yyyy-MM-dd` only when comparing against `t.occurred_on`. Add a small "Clear" affordance next to each (mirrors the pattern used in `RecurringRulesCard`).
 
-## Where this is computed
+### 3. Amount filter with operators + fuzzy
 
-Done client-side. On both `/` and `/envelopes` we already fetch:
-- `category_month_spending(p_month)` (committed numbers).
-- We will additionally fetch **pending** recurring occurrences for the visible month and join them to categories.
+Add a new "Amount" filter row with two inputs:
+- Operator select: `<`, `<=`, `=`, `>=`, `>`, `≈ around`.
+- Numeric input (locale-friendly; parse comma/dot).
+- For `≈ around`: a small tolerance picker (10% / 25% / 50%, default 15%). Matches if `|amount - target| / target ≤ tolerance`. (Helps when the user only roughly remembers "around 80 bucks".)
+- Comparison is on `Math.abs(Number(t.amount))` so it works regardless of expense/income sign.
 
-Add a small helper in `src/lib/finance.ts`:
+### 4. Smarter free-text search
 
-```ts
-export interface PendingCategoryImpact {
-  category_id: string;
-  type: "expense" | "income";
-  amount: number;       // signed by rule type, like committed
-  count: number;
-}
-export async function fetchPendingImpactsForMonth(month: string): Promise<PendingCategoryImpact[]>
-```
+The existing search box continues to match `description + note`, but additionally:
+- If the trimmed query parses as a number, also match transactions whose `Math.abs(amount)` equals it (exact, two-decimal tolerance `< 0.005`).
+- Match the resolved category name and account name(s) of each transaction (so typing "Coop" or "Groceries" finds them).
+- Match tags (with or without leading `#`).
+- Tokenize on whitespace; ALL tokens must match somewhere (AND), each token can hit any of the fields above. This lets the user combine vague terms like `coop migros 80`.
+- Case-insensitive; diacritic-insensitive via `String.prototype.normalize("NFD").replace(/\p{Diacritic}/gu, "")`.
 
-Implementation: `select` from `recurring_occurrences` joined with `recurring_rules`, filtered by `status = 'pending'`, `effective_on` in `[monthStart, monthEnd]`, `category_id is not null`, and `type in ('expense','income')` (transfers ignored — they don't affect envelopes). Use `is_variable_amount ? estimated_amount : amount` for the value, just like `account_balances_as_of` already does. Group/sum in JS by `category_id`.
+### 5. Highlighted matches in the list
 
-Tie the query into React Query keys per month: `["pending_impact_month", monthKey]`. Invalidated whenever rules/occurrences change (existing `qc.invalidateQueries()` in `UpcomingCard` already covers this).
+Add a small helper `highlightTokens(text, tokens)` that returns React nodes wrapping matched substrings in `<mark className="bg-yellow-200/60 dark:bg-yellow-500/30 rounded px-0.5">`. Apply it to:
+- Description text
+- Note text
+- Account name(s) and category name in the meta line
+- Tag chips (highlight the matching letters inside the chip)
+- Amount (wrap whole amount in `<mark>` when an amount/operator filter or numeric search token matches it)
 
-## Stacked progress bar component
+### 6. Tag chip rendering fix (`#alaxus` bug)
 
-Extract a small inline component (no new file needed, keep it next to `GroupBlock`) that takes:
+Cause: when a JSX text node starts with `#` directly followed by an interpolation (`#{t}`), some downstream tooling/CSS treats the `#` oddly; more reliably, Radix's `SelectItem` exposes the text content for typeahead and the `#` followed by certain characters renders inconsistently. Fix by:
+- Wrapping the `#` in its own span: `<span>#</span>{t}` (or `{`#${t}`}` template literal) inside both the dropdown item and the inline tag chip in the list.
+- Apply the same fix in `TagChips.tsx` for consistency (it already uses `#{t}` — verify and harden).
 
-```ts
-{ allocated: number; committed: number; pending: number }
-```
+### 7. Show entity icon/emoji/image in transaction rows
 
-Renders three flex segments:
-- committed (tone depending on `projected/allocated`)
-- pending (warning/orange)
-- over-projected (destructive) — only if `projected > allocated`, replacing the tail
+In each transaction row, replace the plain type-icon circle with a stack:
+- Primary visual: the **category** chip (icon/emoji/image/color via `EntityChip` size `sm`, `showLabel=false`) when the row has a category, otherwise the **source account** chip.
+- Tiny corner badge with the type arrow (expense/income/transfer) overlaid bottom-right on the chip so type is still glanceable.
+- For transfer rows without a category, show source-account chip with a small arrow → destination-account chip beside it.
+- Apply same chip in the meta line for category and account names (chip + name) so the user sees the visual identity consistently.
 
-Caps at 100% width; if `projected > allocated`, scale segments proportionally to `projected`.
+### 8. Other recall helpers
 
-## UI changes
+- **Quick chips above the filter bar:** "This month", "Last month", "Last 7 days", "Last 30 days", "This year" — each sets `from`/`to`.
+- **Amount range presets:** small buttons "< 20", "20–100", "100–500", "> 500" using the new amount filter.
+- **Sort options:** dropdown for "Newest", "Oldest", "Highest amount", "Lowest amount".
+- **Result count + active filter chips:** show "N results" plus removable chips for every active filter (type, accounts, categories, tags, amount op, dates, search). One-click "Clear all".
+- **"Did you mean?" hint:** if a numeric search yields 0 exact matches, show a one-line suggestion linking to the same query as `≈ around X (±15%)`.
+- **Persist filters in URL search params** (`useSearch`/`navigate`) so a recall query is shareable/bookmarkable and survives reloads.
+- **Keyboard:** `/` focuses the search box; `Esc` clears it.
 
-### `src/routes/index.tsx` — `GroupBlock` (expense + income rows)
-- Fetch pending impacts once at the Dashboard level: `useQuery(["pending_impact_month", m], () => fetchPendingImpactsForMonth(m))`.
-- Pass map down to `GroupBlock`.
-- Expense row: replace the single-segment bar with the stacked one. Update label:
-  - main: `committed / allocated`
-  - sub (only if pending > 0): `+ <pending> pending → <projected> projected`
-  - remaining/over text uses **projected**, with a clarifying suffix like `(incl. pending)` when pending > 0.
-- Income row: append a small `+ <pending> expected` chip when pending > 0; recompute variance with projected for the colored hint.
-- Savings row: add a sub-line `+ <pending allocation> · -<pending spend> upcoming` when applicable.
+### Technical details
 
-### `src/routes/envelopes.tsx`
-- Same query (same query key — shared cache).
-- Same stacked bar, same label changes for expense/income/savings.
+Files to add:
+- `src/components/MultiSelectCombobox.tsx` — generic multi-select with `cmdk`. Props: `options: { value: string; label: string; visual?: ReactNode }[]`, `value: string[]`, `onChange`, `placeholder`, `emptyText`, `searchPlaceholder`.
+- `src/lib/highlight.tsx` — `tokenize(query)`, `normalize(s)`, `matchesAll(text, tokens)`, `highlightTokens(text, tokens)` returning `ReactNode[]`.
+- `src/lib/amountFilter.ts` — `type AmountOp = "lt"|"lte"|"eq"|"gte"|"gt"|"around"`; `matchesAmount(amount, op, target, tolerance)`.
 
-### `UpcomingCard`
-No changes — it already lists the source items. (Could add a soft visual link later, out of scope.)
+Files to edit:
+- `src/routes/transactions.tsx` — wire all of the above; switch filter state to arrays + URL sync.
+- `src/components/TagChips.tsx` — harden `#` rendering.
+- `src/i18n/index.tsx` — add new strings (around, operator labels, presets, sort, "N results", "Clear all", "Did you mean", quick range labels) for `de` and `en`.
 
-## i18n strings (EN + DE)
+No DB or schema changes. No new dependencies (cmdk, Popover, date-fns already present).
 
-Add to `src/i18n/index.tsx`:
-
-- `env.pending_suffix`: "+ {x} pending" / "+ {x} ausstehend"
-- `env.projected_suffix`: "→ {x} projected" / "→ {x} prognostiziert"
-- `env.remaining_with_pending`: "{x} remaining (incl. pending)" / "{x} verbleibend (inkl. ausstehend)"
-- `env.over_with_pending`: "Over by {x} (incl. pending)" / "Überzogen um {x} (inkl. ausstehend)"
-- `env.income_expected`: "+ {x} expected" / "+ {x} erwartet"
-- `env.savings_pending`: "Upcoming: +{a} alloc · -{b} spend" / "Ausstehend: +{a} zugeteilt · -{b} ausgaben"
-
-## Out of scope
-
-- Changing the SQL `category_month_spending` function — pending is purely a UI overlay so it stays clearly separable from real data.
-- Showing pending in `/transactions` (already visible via Upcoming card).
-- Per-day heatmap inclusion of pending — separate request if wanted later.
-
-## Files to edit
-
-- `src/lib/finance.ts` — add `fetchPendingImpactsForMonth` + types.
-- `src/routes/index.tsx` — fetch pending, stacked bar, updated labels.
-- `src/routes/envelopes.tsx` — fetch pending, stacked bar, updated labels.
-- `src/i18n/index.tsx` — new strings.
+### Out of scope
+- Server-side filtering / pagination (current page already loads all transactions).
+- Saved filter presets (can follow up).
