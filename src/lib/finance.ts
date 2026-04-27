@@ -93,7 +93,7 @@ export interface Transaction {
   recurring_rule_id?: string | null;
   split_group_id?: string | null;
 }
-export type RecurringFrequency = "monthly";
+export type RecurringFrequency = "monthly" | "quarterly";
 export type RecurringDayRule = "fixed_day" | "end_of_month" | "first_of_month";
 export type WeekendAdjust = "none" | "before" | "after";
 export type OccurrenceStatus = "pending" | "posted" | "skipped";
@@ -434,6 +434,7 @@ export async function previewRecurringRule(input: {
   ends_on: string | null;
   from: string;
   to: string;
+  frequency?: RecurringFrequency;
 }): Promise<RecurringPreviewRow[]> {
   const { data, error } = await supabase.rpc("preview_recurring_rule", {
     p_day_rule: input.day_rule,
@@ -443,6 +444,7 @@ export async function previewRecurringRule(input: {
     p_ends_on: input.ends_on,
     p_from: input.from,
     p_to: input.to,
+    p_frequency: input.frequency ?? "monthly",
   } as never);
   if (error) throw error;
   return (data || []) as RecurringPreviewRow[];
