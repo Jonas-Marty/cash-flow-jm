@@ -19,10 +19,18 @@ export function UpcomingCard({ symbol }: { symbol: string }) {
   const occQ = useQuery({ queryKey: ["pending_occurrences"], queryFn: fetchPendingOccurrences });
   const occs = occQ.data ?? [];
   const [amounts, setAmounts] = React.useState<Record<string, string>>({});
+  const [visibleCount, setVisibleCount] = React.useState(10);
+
+  React.useEffect(() => {
+    setVisibleCount(10);
+  }, [occs.length]);
 
   if (occQ.isLoading || occs.length === 0) return null;
 
   const today = new Date(); today.setHours(0, 0, 0, 0);
+
+  const visibleOccs = occs.slice(0, visibleCount);
+  const hasMore = visibleCount < occs.length;
 
   const onPost = async (o: RecurringOccurrence & { rule: RecurringRule }) => {
     try {
@@ -57,7 +65,7 @@ export function UpcomingCard({ symbol }: { symbol: string }) {
     <Card>
       <CardHeader className="pb-2"><CardTitle className="text-base">{t("dashboard.upcoming")}</CardTitle></CardHeader>
       <CardContent className="divide-y p-0">
-        {occs.map((o) => {
+        {visibleOccs.map((o) => {
           const eff = parseISO(o.effective_on);
           const diff = differenceInCalendarDays(eff, today);
           let label: string; let late = false;
@@ -106,6 +114,16 @@ export function UpcomingCard({ symbol }: { symbol: string }) {
             </div>
           );
         })}
+        {hasMore && (
+          <div className="flex items-center justify-center gap-2 px-4 py-3">
+            <Button size="sm" variant="outline" onClick={() => setVisibleCount((n) => n + 10)}>
+              {t("dashboard.upcoming.show_more")}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setVisibleCount(occs.length)}>
+              {t("dashboard.upcoming.show_all", { n: occs.length })}
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
