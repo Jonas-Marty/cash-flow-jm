@@ -16,7 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   fetchAccounts, fetchCategories, fetchRecurringRules,
   describeSchedule, previewRecurringRule, archiveRecurringRule, applyRecurringRuleBackfill, fetchSettings,
-  type RecurringRule, type RecurringDayRule, type WeekendAdjust, type TxType,
+  type RecurringRule, type RecurringDayRule, type WeekendAdjust, type TxType, type RecurringFrequency,
 } from "@/lib/finance";
 import { useI18n } from "@/i18n";
 import { DateInput } from "@/components/DateInput";
@@ -37,6 +37,7 @@ type Draft = {
   day_rule: RecurringDayRule;
   day_of_month: string;
   weekend_adjust: WeekendAdjust;
+  frequency: RecurringFrequency;
   starts_on: string;
   ends_on: string;
   auto_post: boolean;
@@ -52,6 +53,7 @@ function emptyDraft(): Draft {
     source_account_id: "", destination_account_id: "", category_id: "",
     description: "", note: "",
     day_rule: "fixed_day", day_of_month: "1", weekend_adjust: "none",
+    frequency: "monthly",
     starts_on: todayStr(), ends_on: "",
     auto_post: true,
     backfill: "none",
@@ -70,6 +72,7 @@ function ruleToDraft(r: RecurringRule): Draft {
     description: r.description ?? "", note: r.note ?? "",
     day_rule: r.day_rule, day_of_month: String(r.day_of_month ?? 1),
     weekend_adjust: r.weekend_adjust,
+    frequency: r.frequency ?? "monthly",
     starts_on: r.starts_on, ends_on: r.ends_on ?? "",
     auto_post: r.auto_post,
     backfill: "none",
@@ -79,13 +82,18 @@ function ruleToDraft(r: RecurringRule): Draft {
 function nextDueDate(r: RecurringRule, from = new Date()): Date | null {
   const start = parseISO(r.starts_on);
   const end = r.ends_on ? parseISO(r.ends_on) : null;
+  const step = r.frequency === "quarterly" ? 3 : 1;
   let cursor = new Date(Math.max(start.getTime(), from.getTime()));
-  cursor = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
-  for (let i = 0; i < 24; i++) {
+  // Align cursor to the start month, then advance in `step` increments to/past `from`.
+  cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+  while (cursor < new Date(from.getFullYear(), from.getMonth(), 1)) {
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + step, 1);
+  }
+  for (let i = 0; i < 48; i++) {
     const d = computeDue(cursor, r.day_rule, r.day_of_month ?? 1);
     const e = adjust(d, r.weekend_adjust);
     if (e >= from && e >= start && (!end || e <= end)) return e;
-    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + step, 1);
   }
   return null;
 }
