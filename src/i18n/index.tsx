@@ -162,6 +162,12 @@ const de: Dict = {
   "env.savings_booking": "Buchung",
   "env.expense_label": "Ausgabe",
   "env.reimb_short": "Rückerstattung",
+  "env.pending_suffix": "+{x} ausstehend",
+  "env.projected_suffix": "→ {x} prognostiziert",
+  "env.remaining_with_pending": "{x} verbleibend (inkl. ausstehend)",
+  "env.over_with_pending": "Überzogen um {x} (inkl. ausstehend)",
+  "env.income_expected": "+{x} erwartet",
+  "env.savings_pending": "Ausstehend: +{a} zugeteilt · −{b} Ausgaben",
 
   // Settings
   "settings.title": "Einstellungen",
