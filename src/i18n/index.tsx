@@ -38,6 +38,8 @@ const de: Dict = {
   "common.type": "Typ",
   "common.kind": "Art",
   "common.group": "Gruppe",
+  "common.clear": "Leeren",
+  "common.set": "Festlegen",
   "common.no_data": "Noch keine Daten.",
   "common.viewAll": "Alle ansehen",
 
@@ -338,6 +340,8 @@ const en: Dict = {
   "common.type": "Type",
   "common.kind": "Kind",
   "common.group": "Group",
+  "common.clear": "Clear",
+  "common.set": "Set",
   "common.no_data": "No data yet.",
   "common.viewAll": "View all",
 
