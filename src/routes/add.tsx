@@ -27,6 +27,7 @@ import { DayHeatmapCalendar } from "@/components/DayHeatmapCalendar";
 import { DateInput } from "@/components/DateInput";
 import { ShortcutsDialog } from "@/components/ShortcutsDialog";
 import { DescriptionAutocomplete } from "@/components/DescriptionAutocomplete";
+import { AttachmentsSection } from "@/components/AttachmentsSection";
 
 export const Route = createFileRoute("/add")({
   component: AddTransactionRoute,
