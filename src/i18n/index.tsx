@@ -133,7 +133,7 @@ const de: Dict = {
   "add.split.total": "Summe",
   "add.split.target_total": "Belastung",
   "add.split.diff": "Differenz",
-  "add.split.hint": "Tipp: „Keine Kategorie" für Posten, die du z. B. von der Partnerin/dem Partner zurückbekommst — sie belasten kein Budget.",
+  "add.split.hint": "Tipp: \u201eKeine Kategorie\u201c für Posten, die du z. B. von der Partnerin/dem Partner zurückbekommst — sie belasten kein Budget.",
   "add.split.toast.min": "Mindestens zwei Positionen erforderlich",
   "add.split.toast.amounts": "Alle Positionen brauchen einen Betrag > 0",
   "tx.split.label": "Aufteilung",
