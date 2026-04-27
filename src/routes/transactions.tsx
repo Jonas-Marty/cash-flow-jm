@@ -37,6 +37,45 @@ export const Route = createFileRoute("/transactions")({
 
 type SortKey = "date_desc" | "date_asc" | "amount_desc" | "amount_asc";
 
+/**
+ * Render a note string with inline #hashtags shown as chips. Plain text
+ * segments still get search-token highlighting; tag chips highlight when a
+ * search token matches the tag body.
+ */
+function renderNoteWithTags(note: string, tokens: string[]): React.ReactNode {
+  const re = /#([A-Za-z0-9_]+)/g;
+  const out: React.ReactNode[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  let i = 0;
+  while ((m = re.exec(note)) !== null) {
+    if (m.index > last) {
+      const text = note.slice(last, m.index);
+      out.push(<span key={`t${i}`}>{highlightTokens(text, tokens)}</span>);
+    }
+    const tagBody = m[1];
+    const matched = tokens.some((tok) => normalize(tagBody).includes(normalize(tok.replace(/^#/, ""))));
+    out.push(
+      <Badge
+        key={`g${i}`}
+        variant="secondary"
+        className={cn(
+          "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+          matched && "ring-1 ring-yellow-400/60",
+        )}
+      >
+        {`#${tagBody}`}
+      </Badge>,
+    );
+    last = m.index + m[0].length;
+    i++;
+  }
+  if (last < note.length) {
+    out.push(<span key={`t${i}`}>{highlightTokens(note.slice(last), tokens)}</span>);
+  }
+  return out;
+}
+
 function TransactionsPage() {
   const { t: tr, locale, lang } = useI18n();
   const qc = useQueryClient();
@@ -708,24 +747,9 @@ function TransactionsPage() {
                             </>
                           )}
                         </div>
-                        {(t.note || tags.length > 0) && (
-                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                            {t.note && <span className="text-xs text-muted-foreground">{highlightTokens(t.note, tokens)}</span>}
-                            {tags.map((tg) => {
-                              const tagMatched = tokens.some((tok) => normalize(tg).includes(normalize(tok.replace(/^#/, ""))));
-                              return (
-                                <Badge
-                                  key={tg}
-                                  variant="secondary"
-                                  className={cn(
-                                    "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
-                                    tagMatched && "ring-1 ring-yellow-400/60",
-                                  )}
-                                >
-                                  {`#${tg}`}
-                                </Badge>
-                              );
-                            })}
+                        {t.note && (
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                            {renderNoteWithTags(t.note, tokens)}
                           </div>
                         )}
                       </div>
