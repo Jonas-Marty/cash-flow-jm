@@ -1,60 +1,176 @@
-## Goal
+# Plan: Link Nextcloud documents to transactions
 
-Support a "running-balance pot" envelope (e.g. **IT-Support**) that:
-- accepts both income and expense bookings against itself,
-- shows a cumulative balance like a savings envelope,
-- does **not** appear in the regular monthly expense budget with a forced 0 budget.
+## Goals
 
-## Why the current model can't do it cleanly
+1. Each transaction can have multiple attachments (generic, source-agnostic).
+2. From the transaction edit/add UI, search Nextcloud by filename and pick a file.
+3. Authenticate to Nextcloud via OAuth2 (per user), with the least-privileged token possible.
+4. Expose an authenticated REST API so an external service can attach a link to a transaction using a per-user API token.
 
-The data model already has the right primitive: `categories.is_savings` is its own boolean, independent of group kind. A savings envelope shows a running balance and is excluded from the "remaining budget" expense framing.
+---
 
-However, the UI currently couples `is_savings` to the **group's** `kind`:
-- Adding/changing a category's group sets `is_savings = (group.kind === 'savings')`.
-- A category with no group falls into the synthetic "Uncategorized" expense bucket and demands a monthly budget.
+## 1. Database
 
-So today the only way to get savings-style behavior is to put the category into a savings-kind group — but the user wants it standalone, no group, no monthly budget.
+### Table `transaction_attachments`
 
-## Solution
+```text
+id              uuid PK
+transaction_id  uuid  -> transactions.id (cascade)
+user_id         uuid  default auth.uid()  (for RLS)
+source          text  ('nextcloud' | 'manual' | future sources)
+display_name    text
+link_url        text  (URL the user clicks to open the file)
+added_at        timestamptz default now()
+```
 
-Decouple `is_savings` from the group, and make the dashboard/envelopes treat any `is_savings` category as a savings-style row regardless of whether it has a group or which kind that group is.
+- RLS: `user_id = auth.uid()` for all ops.
+- Index on `transaction_id`.
+- No `nextcloud_path` stored — keeps schema source-agnostic.
 
-### 1. Settings UI — make "Savings envelope" a per-category toggle
+### Table `nextcloud_connections` (per user)
 
-In `src/routes/settings.tsx`:
-- Add a **"Savings envelope"** switch in the category create form and as a column on each category row.
-- Stop overwriting `is_savings` in `updateCategoryGroup`: keep whatever the user chose. Only auto-set `is_savings = true` when the group is a savings-kind group; never auto-clear it when the group changes.
-- When "Savings envelope" is on, hide / disable the **Monthly budget** input and store `allocated_budget = 0` (also skip the per-month entry in `category_budgets` for that category — see step 3).
-- The user can now create "IT-Support" with: no group, savings = on, no budget.
+```text
+user_id           uuid PK -> auth.users
+base_url          text   (e.g. https://cloud.example.com)
+access_token      text   (encrypted column via pgsodium or stored as-is in private schema)
+refresh_token    text
+token_expires_at  timestamptz
+scope             text
+created_at, updated_at
+```
 
-### 2. Envelopes & dashboard — render savings rows separately even without a group
+RLS: own row only. Service role bypasses for token refresh in server functions.
 
-In `src/routes/envelopes.tsx` and `src/routes/index.tsx` (the `groupRows` logic):
-- When grouping rows, branch on `is_savings` first: any `is_savings` category goes into a synthetic **"Savings"** bucket (or its real savings group if it has one), shown with the running-balance header that already exists for savings.
-- Only non-savings categories without a group fall into the "Uncategorized" expense bucket. So a standalone savings envelope no longer pollutes the budget section.
+### Table `api_tokens` (per user, for external service)
 
-### 3. Stop generating monthly budgets for savings envelopes
+```text
+id           uuid PK
+user_id      uuid -> auth.users
+name         text   (e.g. "nextcloud-bridge")
+token_hash   text   (sha256 of the token; raw token shown once on creation)
+last_used_at timestamptz
+created_at   timestamptz
+revoked_at   timestamptz nullable
+```
 
-In the `ensure_month_budgets` SQL function (migration):
-- Add `AND c.is_savings = false` to the inserted set, so savings envelopes never get rows in `category_budgets`.
-- Existing zero-amount rows for the new IT-Support category can be left in place (harmless) or cleaned up with a one-off delete.
+RLS: own rows only.
 
-`category_month_spending` already returns `is_savings`, and the dashboard already uses the savings code path when it's true, so no further backend change is needed for the monthly view.
+---
 
-### 4. Add transaction flow
+## 2. Nextcloud OAuth2 setup
 
-`src/routes/add.tsx` already treats `c.is_savings || kind === "savings"` as savings. Both income and expense bookings against the IT-Support envelope will flow through and be reflected in the running balance via the existing `category_savings_balance` view.
+User-side one-time setup:
 
-## Result for the user's scenario
+- In Nextcloud admin → Security → OAuth 2.0 clients, register a client.
+- Redirect URI: `https://<app>/api/nextcloud/callback`.
+- Note: Nextcloud's OAuth2 currently issues tokens that grant the same access as the user (it does not support fine-grained scopes today). To still **minimize privilege**, the plan adds these mitigations:
+  1. Recommend the user create a **dedicated Nextcloud user** (e.g. `lovable-finance-readonly`) and share only the relevant folder(s) read-only with that user, then OAuth as that account.
+  2. Server only ever issues `PROPFIND` / `SEARCH` (read) requests — never `PUT`/`DELETE`.
+  3. Document this clearly in the Settings UI.
 
-- Create category **IT-Support**, no group, toggle **Savings envelope = on**. Budget field is hidden.
-- Book income (Twint/cash receipts) against it as `income` → balance grows.
-- Book expenses (treats you buy yourself) against it as `expense` → balance shrinks.
-- It appears in the **Savings** section of the dashboard and Envelopes page with a running balance, never in the monthly expense budget.
+App-side:
 
-## Technical summary
+- Settings page section "Nextcloud": user enters `base_url`, `client_id`, `client_secret`. Stored in `nextcloud_connections` (client_secret as a secret per user — kept in the row, server-only access).
+- "Connect" button → redirects to `{base_url}/apps/oauth2/authorize?...`.
+- Callback route `/api/nextcloud/callback` exchanges code → tokens, stores in `nextcloud_connections`.
+- Helper `getValidNextcloudToken(userId)` server function refreshes if expired.
 
-- Migration: alter `public.ensure_month_budgets` to skip `is_savings` categories.
-- `src/routes/settings.tsx`: add `is_savings` toggle in create form + per-row; stop overwriting `is_savings` from group kind on update (only set true when group is savings-kind); hide budget input when savings.
-- `src/routes/envelopes.tsx` and `src/routes/index.tsx`: in `groupRows`, route any `is_savings` row into a "Savings" bucket regardless of group, keep the existing savings header rendering.
-- No schema change required (the `is_savings` column already exists).
+---
+
+## 3. File search (server function)
+
+`searchNextcloudFiles({ query })`:
+
+- Auth-required server function (uses `requireSupabaseAuth`).
+- Loads connection + valid token.
+- Calls Nextcloud WebDAV SEARCH (or the simpler `ocs/v2.php/search/providers/files/search?term=...`) — returns file name, path, mime, size, and a shareable URL.
+- Generates a link to use as `link_url`. Two options, pick at implementation time:
+  - **Direct WebDAV URL** `{base_url}/remote.php/dav/files/{user}/{path}` — opens in browser, requires user to be logged into Nextcloud. Simple and respects ACLs.
+  - **Public share link** via OCS Share API — more clickable but creates a public link (not what the user wants for non-public docs).
+  - → Plan picks **direct WebDAV URL** (private, requires Nextcloud login).
+- Returns `[{ name, path, link_url, mime, size }]` (max ~25 results).
+
+---
+
+## 4. UI
+
+### Edit/Add transaction page
+
+- New section "Attachments" (shown in edit and add mode).
+- List existing attachments with display_name + open icon + remove button.
+- "Attach file" button → opens dialog:
+  - Search input (debounced) → calls `searchNextcloudFiles`.
+  - Result list with filename + folder breadcrumb. Click to attach.
+  - Empty state with link to Settings if Nextcloud not connected.
+
+### Transactions list page
+
+- Show a small paperclip icon on rows that have attachments (count badge).
+
+### Settings page
+
+- New "Nextcloud" card: connect/disconnect, show connected account, base URL.
+- New "API tokens" card: list tokens, "Generate token" (shows raw token once + copy button), revoke.
+
+---
+
+## 5. Public REST API for external service
+
+Server route: `app/routes/api/public/attachments.ts` (POST).
+
+- Auth: `Authorization: Bearer <api_token>` header.
+- Validates token by hashing and looking up active row in `api_tokens`; loads `user_id`.
+- Body (Zod):
+  ```text
+  { transaction_id: uuid, link_url: url, display_name: string(1..255), source?: string(default "nextcloud") }
+  ```
+- Verifies the transaction belongs to the same `user_id` (using `supabaseAdmin`).
+- Inserts into `transaction_attachments`. Updates `last_used_at`.
+- Returns `{ id, transaction_id, link_url }`.
+- Rate limit: simple in-memory per-token bucket (best effort).
+
+Companion endpoint (required, useful for the external service):
+
+- `GET /api/public/transactions?from=&to=&q=` — search transactions to get IDs. Same auth.
+
+---
+
+## 6. Files to add / change
+
+**New**
+
+- `supabase/migrations/<ts>_attachments_and_nextcloud.sql` — tables + RLS + indexes.
+- `src/routes/api/nextcloud/callback.ts` — OAuth2 callback.
+- `src/routes/api/public/attachments.ts` — POST endpoint.
+- `src/utils/nextcloud.functions.ts` — `connectNextcloud`, `searchNextcloudFiles`, `disconnectNextcloud`, token refresh.
+- `src/utils/api-tokens.functions.ts` — create/list/revoke.
+- `src/utils/api-tokens.server.ts` — hash + verify helpers.
+- `src/components/AttachmentsSection.tsx` — list + add UI used inside `TransactionForm`.
+- `src/components/NextcloudFilePicker.tsx` — search dialog.
+
+**Edited**
+
+- `src/routes/add.tsx` — render `<AttachmentsSection editId={...} />` when editing (and after first save in add mode).
+- `src/routes/transactions.tsx` — paperclip indicator + count.
+- `src/routes/settings.tsx` — Nextcloud + API tokens cards.
+- `src/lib/finance.ts` — types + fetch helpers for attachments.
+- `src/i18n/index.tsx` — new strings (EN + DE).
+- [architecture.md](http://architecture.md) - describe the new api endpoints, oauth workflow, different token, how they are hashed, short guid how to get clientid etc. from nextcloud, how does search work for nextcloud
+
+---
+
+## 7. Security notes
+
+- API tokens stored only as sha256 hash; raw token shown once on creation.
+- All Nextcloud calls happen server-side; access tokens never leave the server.
+- The dedicated Nextcloud user pattern is the recommended way to enforce read-only / folder-scoped access since Nextcloud OAuth2 lacks granular scopes.
+- Public API endpoints validate that the target `transaction_id` belongs to the token's user before inserting.
+
+---
+
+## 8. Out of scope (call out so we agree)
+
+- No file upload to Nextcloud, only linking.
+- No preview/thumbnail rendering of Nextcloud files in the app.
+- No automatic OCR / matching of files to transactions (that's the external service's job).
+- No webhook from Nextcloud back into the app.
