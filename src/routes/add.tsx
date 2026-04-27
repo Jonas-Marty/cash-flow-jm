@@ -3,7 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { ArrowDown, ArrowUp, ArrowLeftRight } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowLeftRight, Plus, X } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { Button } from "@/components/ui/button";
@@ -87,6 +87,23 @@ function AddTransaction() {
   const [saving, setSaving] = React.useState(false);
   const [helpOpen, setHelpOpen] = React.useState(false);
   const amountRef = React.useRef<HTMLInputElement>(null);
+
+  // ───────── Split mode (multi-item receipt) ─────────
+  type Slice = { id: string; amount: string; categoryId: string; description: string };
+  const newSlice = (): Slice => ({
+    id: Math.random().toString(36).slice(2),
+    amount: "",
+    categoryId: "",
+    description: "",
+  });
+  const [splitMode, setSplitMode] = React.useState(false);
+  const [slices, setSlices] = React.useState<Slice[]>([newSlice(), newSlice()]);
+  const splitTotal = React.useMemo(
+    () => slices.reduce((s, x) => s + (Number(x.amount.replace(",", ".")) || 0), 0),
+    [slices],
+  );
+  const targetTotal = Number(amount.replace(",", ".")) || 0;
+  const splitDiff = +(targetTotal - splitTotal).toFixed(2);
 
   // Track which fields the user has explicitly touched, so suggestion-apply
   // in "sticky" mode doesn't overwrite their input.
@@ -181,6 +198,40 @@ function AddTransaction() {
     if (!sourceId) { toast.error(tr("toast.account_required")); return; }
     if (type === "transfer" && !destId) { toast.error(tr("toast.dest_required")); return; }
     if (type === "transfer" && destId === sourceId) { toast.error(tr("toast.dest_must_differ")); return; }
+
+    // Split path: insert N rows sharing a split_group_id
+    if (splitMode && type !== "transfer") {
+      if (slices.length < 2) { toast.error(tr("add.split.toast.min")); return; }
+      const parsed = slices.map((s) => ({
+        amount: Number(s.amount.replace(",", ".")),
+        categoryId: s.categoryId || null,
+        description: s.description.trim() || null,
+      }));
+      if (parsed.some((p) => !p.amount || p.amount <= 0)) { toast.error(tr("add.split.toast.amounts")); return; }
+
+      setSaving(true);
+      const groupId = (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
+      const occurred_on = format(date, "yyyy-MM-dd");
+      const rows = parsed.map((p) => ({
+        occurred_on,
+        amount: p.amount,
+        description: p.description,
+        note: note.trim() || null,
+        type,
+        source_account_id: sourceId,
+        destination_account_id: null,
+        category_id: p.categoryId,
+        split_group_id: groupId,
+      }));
+      const { error } = await supabase.from("transactions").insert(rows);
+      setSaving(false);
+      if (error) { toast.error(error.message); return; }
+      toast.success(tr("toast.saved"));
+      qc.invalidateQueries();
+      if (andNew) { setSplitMode(false); setSlices([newSlice(), newSlice()]); reset(); }
+      else navigate({ to: "/" });
+      return;
+    }
 
     setSaving(true);
     const payload = {
