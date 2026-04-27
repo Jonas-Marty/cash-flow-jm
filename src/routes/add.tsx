@@ -600,8 +600,8 @@ export function TransactionForm({ editId }: { editId: string | null }) {
           )}
         </div>
 
-        {/* Split toggle (only for expense/income, not transfer) */}
-        {type !== "transfer" && (
+        {/* Split toggle (only for expense/income, not transfer; hidden in edit mode) */}
+        {type !== "transfer" && !isEdit && (
           <div className="flex items-center justify-between rounded-md border border-dashed border-border/60 px-3 py-2">
             <Label htmlFor="split-toggle" className="cursor-pointer text-sm font-normal">
               {tr("add.split.toggle")}
