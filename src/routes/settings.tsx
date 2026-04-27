@@ -139,6 +139,18 @@ function SettingsPage() {
     if (error) return toast.error(error.message);
     qc.invalidateQueries();
   };
+  const toggleCategorySavings = async (id: string, isSavings: boolean) => {
+    const next = !isSavings;
+    const update: { is_savings: boolean; allocated_budget?: number } = { is_savings: next };
+    if (next) update.allocated_budget = 0;
+    const { error } = await supabase.from("categories").update(update).eq("id", id);
+    if (error) return toast.error(error.message);
+    if (next) {
+      // Drop any pre-generated monthly budget rows; savings envelopes don't use them.
+      await supabase.from("category_budgets").delete().eq("category_id", id);
+    }
+    qc.invalidateQueries();
+  };
   const delCategory = async (id: string) => {
     if (!confirm(tr("confirm.delete_envelope"))) return;
     const { error } = await supabase.from("categories").delete().eq("id", id);
