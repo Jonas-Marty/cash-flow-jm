@@ -427,7 +427,7 @@ function SettingsPage() {
               <div className="flex items-end"><Button className="w-full" onClick={addGroup}><Plus className="h-4 w-4" /> {tr("common.add")}</Button></div>
             </div>
             <ul className="divide-y">
-              {(groupsQ.data ?? []).map((g) => (
+              {(groupsQ.data ?? []).map((g, idx, arr) => (
                 <li key={g.id} className="flex items-center justify-between gap-2 py-2">
                   <div className="min-w-0">
                     <div className="font-medium">{g.name}</div>
@@ -435,9 +435,17 @@ function SettingsPage() {
                       {g.kind === "income" ? tr("settings.kind_income") : g.kind === "savings" ? tr("settings.kind_savings") : tr("settings.kind_expense")}
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => delGroup(g.id)} aria-label={tr("common.delete")}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" disabled={idx === 0} onClick={() => swapSortOrder("category_groups", g, arr[idx - 1])} aria-label={tr("settings.move_up")}>
+                      <ChevronUp className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" disabled={idx === arr.length - 1} onClick={() => swapSortOrder("category_groups", g, arr[idx + 1])} aria-label={tr("settings.move_down")}>
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => delGroup(g.id)} aria-label={tr("common.delete")}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </li>
               ))}
               {(groupsQ.data ?? []).length === 0 && <li className="py-2 text-sm text-muted-foreground">{tr("settings.no_groups")}</li>}
