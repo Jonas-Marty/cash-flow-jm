@@ -456,6 +456,12 @@ const en: Dict = {
   "env.savings_booking": "Booking",
   "env.expense_label": "Expense",
   "env.reimb_short": "Reimb.",
+  "env.pending_suffix": "+{x} pending",
+  "env.projected_suffix": "→ {x} projected",
+  "env.remaining_with_pending": "{x} remaining (incl. pending)",
+  "env.over_with_pending": "Over by {x} (incl. pending)",
+  "env.income_expected": "+{x} expected",
+  "env.savings_pending": "Upcoming: +{a} alloc · −{b} spend",
 
   "settings.title": "Settings",
   "settings.language": "Language",
