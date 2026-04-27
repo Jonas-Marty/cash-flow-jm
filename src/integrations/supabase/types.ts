@@ -435,6 +435,7 @@ export type Database = {
           occurred_on: string
           recurring_rule_id: string | null
           source_account_id: string
+          split_group_id: string | null
           type: Database["public"]["Enums"]["transaction_type"]
           updated_at: string
           user_id: string | null
@@ -450,6 +451,7 @@ export type Database = {
           occurred_on?: string
           recurring_rule_id?: string | null
           source_account_id: string
+          split_group_id?: string | null
           type: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string
           user_id?: string | null
@@ -465,6 +467,7 @@ export type Database = {
           occurred_on?: string
           recurring_rule_id?: string | null
           source_account_id?: string
+          split_group_id?: string | null
           type?: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string
           user_id?: string | null
