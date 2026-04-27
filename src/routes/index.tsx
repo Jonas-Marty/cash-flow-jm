@@ -310,12 +310,21 @@ type GroupedBlock = {
 function groupRows(rows: CategoryMonthRow[]): GroupedBlock[] {
   const map = new Map<string, GroupedBlock>();
   for (const r of rows) {
-    const key = r.group_id ?? `__${r.kind}__ungrouped`;
+    // Standalone savings envelopes (is_savings on a non-savings group, or no
+    // group at all) are routed into a synthetic Savings bucket so they render
+    // with the running-balance layout and stay out of the monthly expense
+    // budget section.
+    const isSavingsRow = r.is_savings || r.kind === "savings";
+    const effectiveKind: "income" | "expense" | "savings" = isSavingsRow ? "savings" : r.kind;
+    const useGroup = r.group_id && r.kind === effectiveKind;
+    const key = useGroup ? r.group_id! : `__${effectiveKind}__ungrouped`;
     if (!map.has(key)) {
       map.set(key, {
         key,
-        name: r.group_name ?? (r.kind === "income" ? "Income" : r.kind === "savings" ? "Savings" : "Uncategorized"),
-        kind: r.kind,
+        name: useGroup
+          ? (r.group_name ?? "")
+          : (effectiveKind === "income" ? "Income" : effectiveKind === "savings" ? "Savings" : "Uncategorized"),
+        kind: effectiveKind,
         rows: [],
       });
     }
