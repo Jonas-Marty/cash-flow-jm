@@ -82,7 +82,7 @@ function ruleToDraft(r: RecurringRule): Draft {
 function nextDueDate(r: RecurringRule, from = new Date()): Date | null {
   const start = parseISO(r.starts_on);
   const end = r.ends_on ? parseISO(r.ends_on) : null;
-  const step = r.frequency === "quarterly" ? 3 : 1;
+  const step = r.frequency === "quarterly" ? 3 : r.frequency === "yearly" ? 12 : 1;
   let cursor = new Date(Math.max(start.getTime(), from.getTime()));
   // Align cursor to the start month, then advance in `step` increments to/past `from`.
   cursor = new Date(start.getFullYear(), start.getMonth(), 1);
@@ -390,6 +390,7 @@ export function RecurringRulesCard() {
                   <SelectContent>
                     <SelectItem value="monthly">{t("recurring.freq.monthly")}</SelectItem>
                     <SelectItem value="quarterly">{t("recurring.freq.quarterly")}</SelectItem>
+                    <SelectItem value="yearly">{t("recurring.freq.yearly")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
