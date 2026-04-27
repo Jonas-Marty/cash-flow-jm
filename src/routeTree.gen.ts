@@ -15,6 +15,7 @@ import { Route as EnvelopesRouteImport } from './routes/envelopes'
 import { Route as AddRouteImport } from './routes/add'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EditIdRouteImport } from './routes/edit.$id'
+import { Route as ApiPublicTransactionsRouteImport } from './routes/api.public.transactions'
 import { Route as ApiPublicAttachmentsRouteImport } from './routes/api.public.attachments'
 import { Route as ApiNextcloudCallbackRouteImport } from './routes/api.nextcloud.callback'
 
@@ -48,6 +49,11 @@ const EditIdRoute = EditIdRouteImport.update({
   path: '/edit/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicTransactionsRoute = ApiPublicTransactionsRouteImport.update({
+  id: '/api/public/transactions',
+  path: '/api/public/transactions',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicAttachmentsRoute = ApiPublicAttachmentsRouteImport.update({
   id: '/api/public/attachments',
   path: '/api/public/attachments',
@@ -68,6 +74,7 @@ export interface FileRoutesByFullPath {
   '/edit/$id': typeof EditIdRoute
   '/api/nextcloud/callback': typeof ApiNextcloudCallbackRoute
   '/api/public/attachments': typeof ApiPublicAttachmentsRoute
+  '/api/public/transactions': typeof ApiPublicTransactionsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -78,6 +85,7 @@ export interface FileRoutesByTo {
   '/edit/$id': typeof EditIdRoute
   '/api/nextcloud/callback': typeof ApiNextcloudCallbackRoute
   '/api/public/attachments': typeof ApiPublicAttachmentsRoute
+  '/api/public/transactions': typeof ApiPublicTransactionsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -89,6 +97,7 @@ export interface FileRoutesById {
   '/edit/$id': typeof EditIdRoute
   '/api/nextcloud/callback': typeof ApiNextcloudCallbackRoute
   '/api/public/attachments': typeof ApiPublicAttachmentsRoute
+  '/api/public/transactions': typeof ApiPublicTransactionsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -101,6 +110,7 @@ export interface FileRouteTypes {
     | '/edit/$id'
     | '/api/nextcloud/callback'
     | '/api/public/attachments'
+    | '/api/public/transactions'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -111,6 +121,7 @@ export interface FileRouteTypes {
     | '/edit/$id'
     | '/api/nextcloud/callback'
     | '/api/public/attachments'
+    | '/api/public/transactions'
   id:
     | '__root__'
     | '/'
@@ -121,6 +132,7 @@ export interface FileRouteTypes {
     | '/edit/$id'
     | '/api/nextcloud/callback'
     | '/api/public/attachments'
+    | '/api/public/transactions'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -132,6 +144,7 @@ export interface RootRouteChildren {
   EditIdRoute: typeof EditIdRoute
   ApiNextcloudCallbackRoute: typeof ApiNextcloudCallbackRoute
   ApiPublicAttachmentsRoute: typeof ApiPublicAttachmentsRoute
+  ApiPublicTransactionsRoute: typeof ApiPublicTransactionsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -178,6 +191,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EditIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/transactions': {
+      id: '/api/public/transactions'
+      path: '/api/public/transactions'
+      fullPath: '/api/public/transactions'
+      preLoaderRoute: typeof ApiPublicTransactionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/attachments': {
       id: '/api/public/attachments'
       path: '/api/public/attachments'
@@ -204,6 +224,7 @@ const rootRouteChildren: RootRouteChildren = {
   EditIdRoute: EditIdRoute,
   ApiNextcloudCallbackRoute: ApiNextcloudCallbackRoute,
   ApiPublicAttachmentsRoute: ApiPublicAttachmentsRoute,
+  ApiPublicTransactionsRoute: ApiPublicTransactionsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
