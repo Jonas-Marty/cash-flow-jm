@@ -54,7 +54,10 @@ export const Route = createFileRoute("/api/public/accounts")({
         if (!includeArchived) q = q.eq("archived", false);
 
         const { data, error } = await q;
-        if (error) return json({ error: error.message }, 500);
+        if (error) {
+          console.error("[api.public.accounts] DB error:", error.message);
+          return json({ error: "Internal server error" }, 500);
+        }
         return json({ accounts: data ?? [] });
       },
     },

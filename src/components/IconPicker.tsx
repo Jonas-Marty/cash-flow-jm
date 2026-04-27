@@ -42,7 +42,9 @@ export function IconPicker({ value, entityId, onChange, labels }: Props) {
     if (file.size > 5 * 1024 * 1024) { toast.error(labels.uploadHint); return; }
     setUploading(true);
     const ext = file.name.split(".").pop() ?? "png";
-    const path = `${entityId}/${Date.now()}.${ext}`;
+    const { data: userData, error: userErr } = await supabase.auth.getUser();
+    if (userErr || !userData?.user) { setUploading(false); toast.error("Not signed in"); return; }
+    const path = `${userData.user.id}/${entityId}/${Date.now()}.${ext}`;
     const { error: upErr } = await supabase.storage.from("account-category-images").upload(path, file, { upsert: true, contentType: file.type });
     if (upErr) { setUploading(false); toast.error(upErr.message); return; }
     const { data } = supabase.storage.from("account-category-images").getPublicUrl(path);

@@ -9,6 +9,16 @@ function htmlPage(title: string, body: string) {
 </head><body><div class="card">${body}</div></body></html>`;
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  } as Record<string, string>)[c]!);
+}
+
 export const Route = createFileRoute("/api/nextcloud/callback")({
   server: {
     handlers: {
@@ -18,7 +28,7 @@ export const Route = createFileRoute("/api/nextcloud/callback")({
         const state = url.searchParams.get("state");
         const errParam = url.searchParams.get("error");
         if (errParam) {
-          return new Response(htmlPage("Nextcloud", `<h1>Authorization cancelled</h1><p>${errParam}</p><p><a href="/settings">Back to settings</a></p>`), { status: 400, headers: { "Content-Type": "text/html" } });
+          return new Response(htmlPage("Nextcloud", `<h1>Authorization cancelled</h1><p>${escapeHtml(errParam)}</p><p><a href="/settings">Back to settings</a></p>`), { status: 400, headers: { "Content-Type": "text/html" } });
         }
         if (!code || !state) {
           return new Response(htmlPage("Nextcloud", `<h1>Missing parameters</h1><p><a href="/settings">Back to settings</a></p>`), { status: 400, headers: { "Content-Type": "text/html" } });
@@ -59,7 +69,7 @@ export const Route = createFileRoute("/api/nextcloud/callback")({
           return new Response(htmlPage("Nextcloud", `<h1>Connected ✓</h1><p>You can close this tab.</p><p><a href="/settings">Back to settings</a></p>`), { status: 200, headers: { "Content-Type": "text/html" } });
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
-          return new Response(htmlPage("Nextcloud", `<h1>Connection failed</h1><p>${msg.replace(/[<>]/g, "")}</p><p><a href="/settings">Back to settings</a></p>`), { status: 500, headers: { "Content-Type": "text/html" } });
+          return new Response(htmlPage("Nextcloud", `<h1>Connection failed</h1><p>${escapeHtml(msg)}</p><p><a href="/settings">Back to settings</a></p>`), { status: 500, headers: { "Content-Type": "text/html" } });
         }
       },
     },

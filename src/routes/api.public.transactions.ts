@@ -92,7 +92,10 @@ export const Route = createFileRoute("/api/public/transactions")({
             "id, occurred_on, amount, type, source_account_id, destination_account_id, category_id, description, note, created_at",
           )
           .single();
-        if (insErr) return json({ error: insErr.message }, 500);
+        if (insErr) {
+          console.error("[api.public.transactions] DB error:", insErr.message);
+          return json({ error: "Internal server error" }, 500);
+        }
         return json({ transaction: ins }, 201);
       },
     },
