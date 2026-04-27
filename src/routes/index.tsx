@@ -50,6 +50,7 @@ function Dashboard() {
   const eoyQ = useQuery({ queryKey: ["account_balances_as_of", eoyDate], queryFn: () => fetchAccountBalancesAsOf(eoyDate) });
   const envelopesQ = useQuery({ queryKey: ["category_month_rows", m], queryFn: () => fetchCategoryMonthRows(m) });
   const savingsQ = useQuery({ queryKey: ["savings_balance"], queryFn: fetchSavingsBalances });
+  const pendingImpactQ = useQuery({ queryKey: ["pending_impact_month", m], queryFn: () => fetchPendingImpactsForMonth(m) });
   const recentQ = useQuery({ queryKey: ["transactions", "recent"], queryFn: () => fetchTransactions(8) });
   const rulesQ = useQuery({ queryKey: ["recurring_rules"], queryFn: fetchRecurringRules });
   // Run the recurring processor once when the dashboard mounts.
@@ -69,6 +70,7 @@ function Dashboard() {
 
   const envelopes = envelopesQ.data ?? [];
   const savings = savingsQ.data ?? [];
+  const pendingMap = React.useMemo(() => buildPendingMap(pendingImpactQ.data ?? []), [pendingImpactQ.data]);
 
   // Group envelopes by group_id, preserving sort order
   const grouped = React.useMemo(() => groupRows(envelopes), [envelopes]);
@@ -164,7 +166,7 @@ function Dashboard() {
           ) : (
             <div className="space-y-4">
               {grouped.map((g) => (
-                <GroupBlock key={g.key} group={g} symbol={symbol} savings={savings} tr={t} />
+                <GroupBlock key={g.key} group={g} symbol={symbol} savings={savings} pendingMap={pendingMap} tr={t} />
               ))}
             </div>
           )}
