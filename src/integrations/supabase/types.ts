@@ -65,6 +65,36 @@ export type Database = {
         }
         Relationships: []
       }
+      api_tokens: {
+        Row: {
+          created_at: string
+          id: string
+          last_used_at: string | null
+          name: string
+          revoked_at: string | null
+          token_hash: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          name: string
+          revoked_at?: string | null
+          token_hash: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          name?: string
+          revoked_at?: string | null
+          token_hash?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       auth_providers: {
         Row: {
           client_id: string | null
@@ -238,6 +268,48 @@ export type Database = {
         }
         Relationships: []
       }
+      nextcloud_connections: {
+        Row: {
+          access_token: string | null
+          base_url: string
+          client_id: string
+          client_secret: string
+          created_at: string
+          nextcloud_user: string | null
+          refresh_token: string | null
+          scope: string | null
+          token_expires_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token?: string | null
+          base_url: string
+          client_id: string
+          client_secret: string
+          created_at?: string
+          nextcloud_user?: string | null
+          refresh_token?: string | null
+          scope?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          access_token?: string | null
+          base_url?: string
+          client_id?: string
+          client_secret?: string
+          created_at?: string
+          nextcloud_user?: string | null
+          refresh_token?: string | null
+          scope?: string | null
+          token_expires_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       recurring_occurrences: {
         Row: {
           created_at: string
@@ -399,6 +471,50 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      transaction_attachments: {
+        Row: {
+          added_at: string
+          created_at: string
+          display_name: string
+          id: string
+          link_url: string
+          source: string
+          transaction_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          added_at?: string
+          created_at?: string
+          display_name: string
+          id?: string
+          link_url: string
+          source?: string
+          transaction_id: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          added_at?: string
+          created_at?: string
+          display_name?: string
+          id?: string
+          link_url?: string
+          source?: string
+          transaction_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_attachments_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       transaction_tags: {
         Row: {
