@@ -45,7 +45,7 @@ export function TagChips({
                 : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
             )}
           >
-            #{t}
+            {`#${t}`}
           </button>
         );
       })}
