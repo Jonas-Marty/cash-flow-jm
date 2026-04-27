@@ -15,10 +15,11 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import {
   fetchAccounts, fetchCategories, fetchRecurringRules,
-  describeSchedule, previewRecurringRule, archiveRecurringRule, applyRecurringRuleBackfill,
+  describeSchedule, previewRecurringRule, archiveRecurringRule, applyRecurringRuleBackfill, fetchSettings,
   type RecurringRule, type RecurringDayRule, type WeekendAdjust, type TxType,
 } from "@/lib/finance";
 import { useI18n } from "@/i18n";
+import { DateInput } from "@/components/DateInput";
 import { useQuery as useRQuery } from "@tanstack/react-query";
 
 type Draft = {
@@ -114,6 +115,7 @@ export function RecurringRulesCard() {
   const rulesQ = useQuery({ queryKey: ["recurring_rules"], queryFn: fetchRecurringRules });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
+  const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
 
   const [open, setOpen] = React.useState(false);
   const [draft, setDraft] = React.useState<Draft>(emptyDraft());
@@ -404,11 +406,33 @@ export function RecurringRulesCard() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">{t("recurring.field.starts_on")}</Label>
-                <Input type="date" value={draft.starts_on} onChange={(e) => setDraft({ ...draft, starts_on: e.target.value })} />
+                <DateInput
+                  value={parseISO(draft.starts_on)}
+                  onChange={(d) => setDraft({ ...draft, starts_on: format(d, "yyyy-MM-dd") })}
+                  formatStr={settingsQ.data?.date_format}
+                  lang={locale === "en" ? "en" : "de"}
+                />
               </div>
               <div>
                 <Label className="text-xs">{t("recurring.field.ends_on")} {t("common.optional")}</Label>
-                <Input type="date" value={draft.ends_on} onChange={(e) => setDraft({ ...draft, ends_on: e.target.value })} />
+                {draft.ends_on ? (
+                  <div className="flex gap-2">
+                    <DateInput
+                      value={parseISO(draft.ends_on)}
+                      onChange={(d) => setDraft({ ...draft, ends_on: format(d, "yyyy-MM-dd") })}
+                      formatStr={settingsQ.data?.date_format}
+                      lang={locale === "en" ? "en" : "de"}
+                      className="flex-1"
+                    />
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setDraft({ ...draft, ends_on: "" })}>
+                      {t("common.clear")}
+                    </Button>
+                  </div>
+                ) : (
+                  <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => setDraft({ ...draft, ends_on: todayStr() })}>
+                    {t("common.set")}
+                  </Button>
+                )}
               </div>
             </div>
             <div className="flex items-center justify-between rounded-md border p-3">
