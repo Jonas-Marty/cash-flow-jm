@@ -1,0 +1,1 @@
+ALTER TYPE public.recurring_frequency ADD VALUE IF NOT EXISTS 'yearly';
