@@ -325,8 +325,8 @@ function groupRows(rows: CategoryMonthRow[]): GroupedBlock[] {
 }
 
 function GroupBlock({
-  group, symbol, savings, tr,
-}: { group: GroupedBlock; symbol: string; savings: CategorySavingsBalance[]; tr: (k: string, v?: Record<string, string | number>) => string }) {
+  group, symbol, savings, pendingMap, tr,
+}: { group: GroupedBlock; symbol: string; savings: CategorySavingsBalance[]; pendingMap: Map<string, PendingCategorySigned>; tr: (k: string, v?: Record<string, string | number>) => string }) {
   const totalAlloc = group.rows.reduce((s, r) => s + Number(r.allocated), 0);
   const totalActual = group.rows.reduce((s, r) => s + Number(r.spent_or_received), 0);
   const savingsMap = new Map(savings.map((s) => [s.category_id, s]));
@@ -351,6 +351,8 @@ function GroupBlock({
       </CardHeader>
       <CardContent className="space-y-3">
         {group.rows.map((r) => {
+          const pending = pendingMap.get(r.category_id);
+          const pendingDelta = pendingDeltaForRow(pending, group.kind);
           if (group.kind === "savings") {
             const sav = savingsMap.get(r.category_id);
             const balance = Number(sav?.balance ?? 0);
@@ -365,12 +367,18 @@ function GroupBlock({
                 <div className="mt-1 text-xs text-muted-foreground tabular-nums">
                   {tr("dashboard.this_month_savings", { a: fmtMoney(Number(r.allocated), symbol), b: fmtMoney(Number(r.spent_or_received), symbol) })}
                 </div>
+                {pending && (pending.income > 0 || pending.expense > 0) && (
+                  <div className="mt-1 text-xs text-warning tabular-nums">
+                    {tr("env.savings_pending", { a: fmtMoney(pending.income, symbol), b: fmtMoney(pending.expense, symbol) })}
+                  </div>
+                )}
               </div>
             );
           }
           if (group.kind === "income") {
             const allocated = Number(r.allocated);
             const received = Number(r.spent_or_received);
+            const projected = received + pendingDelta;
             const variance = received - allocated;
             const tone = variance >= 0 ? "text-success" : "text-destructive";
             return (
@@ -380,6 +388,9 @@ function GroupBlock({
                   <span className={cn("font-semibold", tone)}>{fmtMoney(received, symbol)}</span>
                   <span className="text-muted-foreground"> / {fmtMoney(allocated, symbol)}</span>
                   <span className={cn("ml-2 text-xs", tone)}>({variance >= 0 ? "+" : ""}{fmtMoney(variance, symbol)})</span>
+                  {pendingDelta > 0 && (
+                    <span className="ml-2 text-xs text-warning">{tr("env.income_expected", { x: fmtMoney(pendingDelta, symbol) })} {tr("env.projected_suffix", { x: fmtMoney(projected, symbol) })}</span>
+                  )}
                 </div>
               </div>
             );
@@ -387,24 +398,31 @@ function GroupBlock({
           // expense
           const allocated = Number(r.allocated);
           const spent = Number(r.spent_or_received);
-          const pct = allocated > 0 ? Math.min(100, (spent / allocated) * 100) : (spent > 0 ? 100 : 0);
-          const over = allocated > 0 && spent > allocated;
-          const remaining = allocated - spent;
-          const barTone = over ? "bg-destructive" : pct >= 80 ? "bg-warning" : "bg-success";
+          const projected = spent + Math.max(0, pendingDelta);
+          const pendingPos = Math.max(0, pendingDelta);
+          const overProjected = allocated > 0 && projected > allocated;
+          const remainingProjected = allocated - projected;
           return (
             <div key={r.category_id}>
               <div className="flex items-baseline justify-between gap-3">
                 <div className="font-medium">{r.name}</div>
                 <div className="text-sm tabular-nums text-muted-foreground">
-                  <span className={cn(over && "text-destructive font-semibold")}>{fmtMoney(spent, symbol)}</span>
+                  <span className={cn(overProjected && "text-destructive font-semibold")}>{fmtMoney(spent, symbol)}</span>
                   <span> / {fmtMoney(allocated, symbol)}</span>
+                  {pendingPos > 0 && (
+                    <span className="ml-2 text-xs text-warning">{tr("env.pending_suffix", { x: fmtMoney(pendingPos, symbol) })} {tr("env.projected_suffix", { x: fmtMoney(projected, symbol) })}</span>
+                  )}
                 </div>
               </div>
-              <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-muted">
-                <div className={cn("h-full transition-all", barTone)} style={{ width: `${pct}%` }} />
-              </div>
-              <div className={cn("mt-1 text-xs tabular-nums", over ? "text-destructive" : "text-muted-foreground")}>
-                {over ? tr("dashboard.over_by", { x: fmtMoney(-remaining, symbol) }) : tr("dashboard.remaining", { x: fmtMoney(remaining, symbol) })}
+              <StackedBudgetBar className="mt-1.5" allocated={allocated} committed={spent} pending={pendingPos} />
+              <div className={cn("mt-1 text-xs tabular-nums", overProjected ? "text-destructive" : "text-muted-foreground")}>
+                {overProjected
+                  ? (pendingPos > 0
+                      ? tr("env.over_with_pending", { x: fmtMoney(-remainingProjected, symbol) })
+                      : tr("dashboard.over_by", { x: fmtMoney(-remainingProjected, symbol) }))
+                  : (pendingPos > 0
+                      ? tr("env.remaining_with_pending", { x: fmtMoney(remainingProjected, symbol) })
+                      : tr("dashboard.remaining", { x: fmtMoney(allocated - spent, symbol) }))}
               </div>
             </div>
           );
