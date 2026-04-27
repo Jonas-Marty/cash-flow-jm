@@ -467,6 +467,7 @@ export async function applyRecurringRuleBackfill(ruleId: string, mode: "none" | 
 
 export function describeSchedule(r: RecurringRule, t: (k: string, v?: Record<string, string | number>) => string): string {
   const parts: string[] = [];
+  parts.push(r.frequency === "quarterly" ? t("recurring.freq.quarterly") : t("recurring.freq.monthly"));
   if (r.day_rule === "first_of_month") parts.push(t("recurring.sched.first"));
   else if (r.day_rule === "end_of_month") parts.push(t("recurring.sched.end"));
   else parts.push(t("recurring.sched.day", { d: r.day_of_month ?? 1 }));
