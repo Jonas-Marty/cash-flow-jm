@@ -854,6 +854,12 @@ export function TransactionForm({ editId }: { editId: string | null }) {
           )}
         </div>
 
+        {isEdit && editId && (
+          <div className="pt-2">
+            <AttachmentsSection transactionId={editId} />
+          </div>
+        )}
+
         <ShortcutsDialog
           open={helpOpen}
           onOpenChange={setHelpOpen}
