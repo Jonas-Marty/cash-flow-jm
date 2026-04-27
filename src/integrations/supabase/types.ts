@@ -662,23 +662,45 @@ export type Database = {
         }
         Returns: boolean
       }
-      preview_recurring_rule: {
-        Args: {
-          p_day_of_month: number
-          p_day_rule: Database["public"]["Enums"]["recurring_day_rule"]
-          p_ends_on: string
-          p_from: string
-          p_starts_on: string
-          p_to: string
-          p_weekend_adjust: Database["public"]["Enums"]["weekend_adjust"]
-        }
-        Returns: {
-          due_on: string
-          effective_on: string
-          in_past: boolean
-        }[]
-      }
+      preview_recurring_rule:
+        | {
+            Args: {
+              p_day_of_month: number
+              p_day_rule: Database["public"]["Enums"]["recurring_day_rule"]
+              p_ends_on: string
+              p_from: string
+              p_starts_on: string
+              p_to: string
+              p_weekend_adjust: Database["public"]["Enums"]["weekend_adjust"]
+            }
+            Returns: {
+              due_on: string
+              effective_on: string
+              in_past: boolean
+            }[]
+          }
+        | {
+            Args: {
+              p_day_of_month: number
+              p_day_rule: Database["public"]["Enums"]["recurring_day_rule"]
+              p_ends_on: string
+              p_frequency?: Database["public"]["Enums"]["recurring_frequency"]
+              p_from: string
+              p_starts_on: string
+              p_to: string
+              p_weekend_adjust: Database["public"]["Enums"]["weekend_adjust"]
+            }
+            Returns: {
+              due_on: string
+              effective_on: string
+              in_past: boolean
+            }[]
+          }
       process_recurring_rules: { Args: { p_today: string }; Returns: undefined }
+      recurring_month_step: {
+        Args: { p_freq: Database["public"]["Enums"]["recurring_frequency"] }
+        Returns: number
+      }
     }
     Enums: {
       account_type: "asset" | "liability"
@@ -686,7 +708,7 @@ export type Database = {
       category_group_kind: "income" | "expense" | "savings"
       occurrence_status: "pending" | "posted" | "skipped"
       recurring_day_rule: "fixed_day" | "end_of_month" | "first_of_month"
-      recurring_frequency: "monthly"
+      recurring_frequency: "monthly" | "quarterly"
       transaction_type: "expense" | "income" | "transfer"
       weekend_adjust: "none" | "before" | "after"
     }
@@ -821,7 +843,7 @@ export const Constants = {
       category_group_kind: ["income", "expense", "savings"],
       occurrence_status: ["pending", "posted", "skipped"],
       recurring_day_rule: ["fixed_day", "end_of_month", "first_of_month"],
-      recurring_frequency: ["monthly"],
+      recurring_frequency: ["monthly", "quarterly"],
       transaction_type: ["expense", "income", "transfer"],
       weekend_adjust: ["none", "before", "after"],
     },

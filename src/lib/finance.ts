@@ -93,7 +93,7 @@ export interface Transaction {
   recurring_rule_id?: string | null;
   split_group_id?: string | null;
 }
-export type RecurringFrequency = "monthly";
+export type RecurringFrequency = "monthly" | "quarterly";
 export type RecurringDayRule = "fixed_day" | "end_of_month" | "first_of_month";
 export type WeekendAdjust = "none" | "before" | "after";
 export type OccurrenceStatus = "pending" | "posted" | "skipped";
@@ -434,6 +434,7 @@ export async function previewRecurringRule(input: {
   ends_on: string | null;
   from: string;
   to: string;
+  frequency?: RecurringFrequency;
 }): Promise<RecurringPreviewRow[]> {
   const { data, error } = await supabase.rpc("preview_recurring_rule", {
     p_day_rule: input.day_rule,
@@ -443,6 +444,7 @@ export async function previewRecurringRule(input: {
     p_ends_on: input.ends_on,
     p_from: input.from,
     p_to: input.to,
+    p_frequency: input.frequency ?? "monthly",
   } as never);
   if (error) throw error;
   return (data || []) as RecurringPreviewRow[];
@@ -465,6 +467,7 @@ export async function applyRecurringRuleBackfill(ruleId: string, mode: "none" | 
 
 export function describeSchedule(r: RecurringRule, t: (k: string, v?: Record<string, string | number>) => string): string {
   const parts: string[] = [];
+  parts.push(r.frequency === "quarterly" ? t("recurring.freq.quarterly") : t("recurring.freq.monthly"));
   if (r.day_rule === "first_of_month") parts.push(t("recurring.sched.first"));
   else if (r.day_rule === "end_of_month") parts.push(t("recurring.sched.end"));
   else parts.push(t("recurring.sched.day", { d: r.day_of_month ?? 1 }));

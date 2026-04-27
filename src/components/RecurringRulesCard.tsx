@@ -16,7 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   fetchAccounts, fetchCategories, fetchRecurringRules,
   describeSchedule, previewRecurringRule, archiveRecurringRule, applyRecurringRuleBackfill, fetchSettings,
-  type RecurringRule, type RecurringDayRule, type WeekendAdjust, type TxType,
+  type RecurringRule, type RecurringDayRule, type WeekendAdjust, type TxType, type RecurringFrequency,
 } from "@/lib/finance";
 import { useI18n } from "@/i18n";
 import { DateInput } from "@/components/DateInput";
@@ -37,6 +37,7 @@ type Draft = {
   day_rule: RecurringDayRule;
   day_of_month: string;
   weekend_adjust: WeekendAdjust;
+  frequency: RecurringFrequency;
   starts_on: string;
   ends_on: string;
   auto_post: boolean;
@@ -52,6 +53,7 @@ function emptyDraft(): Draft {
     source_account_id: "", destination_account_id: "", category_id: "",
     description: "", note: "",
     day_rule: "fixed_day", day_of_month: "1", weekend_adjust: "none",
+    frequency: "monthly",
     starts_on: todayStr(), ends_on: "",
     auto_post: true,
     backfill: "none",
@@ -70,6 +72,7 @@ function ruleToDraft(r: RecurringRule): Draft {
     description: r.description ?? "", note: r.note ?? "",
     day_rule: r.day_rule, day_of_month: String(r.day_of_month ?? 1),
     weekend_adjust: r.weekend_adjust,
+    frequency: r.frequency ?? "monthly",
     starts_on: r.starts_on, ends_on: r.ends_on ?? "",
     auto_post: r.auto_post,
     backfill: "none",
@@ -79,13 +82,18 @@ function ruleToDraft(r: RecurringRule): Draft {
 function nextDueDate(r: RecurringRule, from = new Date()): Date | null {
   const start = parseISO(r.starts_on);
   const end = r.ends_on ? parseISO(r.ends_on) : null;
+  const step = r.frequency === "quarterly" ? 3 : 1;
   let cursor = new Date(Math.max(start.getTime(), from.getTime()));
-  cursor = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
-  for (let i = 0; i < 24; i++) {
+  // Align cursor to the start month, then advance in `step` increments to/past `from`.
+  cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+  while (cursor < new Date(from.getFullYear(), from.getMonth(), 1)) {
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + step, 1);
+  }
+  for (let i = 0; i < 48; i++) {
     const d = computeDue(cursor, r.day_rule, r.day_of_month ?? 1);
     const e = adjust(d, r.weekend_adjust);
     if (e >= from && e >= start && (!end || e <= end)) return e;
-    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 1);
+    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + step, 1);
   }
   return null;
 }
@@ -149,6 +157,7 @@ export function RecurringRulesCard() {
       day_rule: draft.day_rule,
       day_of_month: draft.day_rule === "fixed_day" ? Number(draft.day_of_month) || 1 : null,
       weekend_adjust: draft.weekend_adjust,
+      frequency: draft.frequency,
       starts_on: draft.starts_on,
       ends_on: draft.ends_on || null,
       auto_post: draft.is_variable_amount ? false : draft.auto_post,
@@ -373,7 +382,17 @@ export function RecurringRulesCard() {
                 <Input value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label className="text-xs">{t("recurring.field.frequency")}</Label>
+                <Select value={draft.frequency} onValueChange={(v) => setDraft({ ...draft, frequency: v as RecurringFrequency })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">{t("recurring.freq.monthly")}</SelectItem>
+                    <SelectItem value="quarterly">{t("recurring.freq.quarterly")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div>
                 <Label className="text-xs">{t("recurring.field.day_rule")}</Label>
                 <Select value={draft.day_rule} onValueChange={(v) => setDraft({ ...draft, day_rule: v as RecurringDayRule })}>
@@ -515,7 +534,7 @@ function PreviewPanel({ draft }: { draft: Draft }) {
   const dom = draft.day_rule === "fixed_day" ? Number(draft.day_of_month) || 1 : null;
   const enabled = !!draft.starts_on;
   const previewQ = useRQuery({
-    queryKey: ["preview_recurring", draft.day_rule, dom, draft.weekend_adjust, draft.starts_on, draft.ends_on || null, fromISO, toISO],
+    queryKey: ["preview_recurring", draft.frequency, draft.day_rule, dom, draft.weekend_adjust, draft.starts_on, draft.ends_on || null, fromISO, toISO],
     queryFn: () => previewRecurringRule({
       day_rule: draft.day_rule,
       day_of_month: dom,
@@ -524,6 +543,7 @@ function PreviewPanel({ draft }: { draft: Draft }) {
       ends_on: draft.ends_on || null,
       from: fromISO,
       to: toISO,
+      frequency: draft.frequency,
     }),
     enabled,
     staleTime: 30_000,
