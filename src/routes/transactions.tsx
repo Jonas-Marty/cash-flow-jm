@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { ArrowDown, ArrowUp, ArrowLeftRight, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowLeftRight, Trash2, ChevronRight, ChevronDown, Layers } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent } from "@/components/ui/card";
@@ -94,6 +94,18 @@ function TransactionsPage() {
     qc.invalidateQueries();
   };
 
+  const delGroup = async (groupId: string) => {
+    if (!confirm(tr("confirm.delete_transaction"))) return;
+    const { error } = await supabase.from("transactions").delete().eq("split_group_id", groupId);
+    if (error) { toast.error(error.message); return; }
+    toast.success(tr("toast.deleted"));
+    qc.invalidateQueries();
+  };
+
+  const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>({});
+  const toggleGroup = (gid: string) =>
+    setOpenGroups((p) => ({ ...p, [gid]: !p[gid] }));
+
   return (
     <AppShell>
       <div className="space-y-4">
@@ -149,7 +161,94 @@ function TransactionsPage() {
           <div key={date}>
             <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">{format(new Date(date), "EEE, MMM d, yyyy", { locale })}</div>
             <Card><CardContent className="divide-y p-0">
-              {items.map((t) => {
+              {(() => {
+                // Collapse split groups: emit one virtual row per group, plus pass-through normal rows
+                type Row =
+                  | { kind: "single"; tx: typeof items[number] }
+                  | { kind: "group"; groupId: string; txs: typeof items };
+                const seen = new Set<string>();
+                const rows: Row[] = [];
+                for (const t of items) {
+                  if (t.split_group_id) {
+                    if (seen.has(t.split_group_id)) continue;
+                    seen.add(t.split_group_id);
+                    const grp = items.filter((x) => x.split_group_id === t.split_group_id);
+                    rows.push({ kind: "group", groupId: t.split_group_id, txs: grp });
+                  } else {
+                    rows.push({ kind: "single", tx: t });
+                  }
+                }
+                return rows.map((row) => {
+                  if (row.kind === "group") {
+                    const first = row.txs[0];
+                    const total = row.txs.reduce((s, x) => s + Number(x.amount), 0);
+                    const Icon = first.type === "expense" ? ArrowDown : first.type === "income" ? ArrowUp : ArrowLeftRight;
+                    const tone = first.type === "expense" ? "text-destructive" : first.type === "income" ? "text-success" : "text-muted-foreground";
+                    const sign = first.type === "expense" ? "-" : first.type === "income" ? "+" : "";
+                    const src = accountById.get(first.source_account_id)?.name ?? "?";
+                    const open = !!openGroups[row.groupId];
+                    const ChevIcon = open ? ChevronDown : ChevronRight;
+                    const headerLabel = row.txs.map((x) => x.description).filter(Boolean).slice(0, 2).join(", ") || tr("tx.split.label");
+                    return (
+                      <div key={`g-${row.groupId}`} className="bg-muted/20">
+                        <button
+                          type="button"
+                          onClick={() => toggleGroup(row.groupId)}
+                          className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-muted/40"
+                        >
+                          <div className={cn("mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted", tone)}>
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-baseline justify-between gap-2">
+                              <div className="flex min-w-0 items-center gap-1.5">
+                                <ChevIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                <span className="truncate text-sm font-medium">{headerLabel}</span>
+                                <span className="ml-1 inline-flex items-center gap-1 rounded bg-accent px-1.5 py-0.5 text-[10px] font-semibold uppercase text-accent-foreground">
+                                  <Layers className="h-3 w-3" /> {tr("tx.split.label")}
+                                </span>
+                              </div>
+                              <div className={cn("text-sm font-semibold tabular-nums whitespace-nowrap", tone)}>
+                                {sign}{fmtMoney(total, symbol).replace("-", "")}
+                              </div>
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {src} · {open ? tr("tx.split.collapse") : tr("tx.split.expand", { n: row.txs.length })}
+                            </div>
+                          </div>
+                          <Button
+                            asChild
+                            variant="ghost"
+                            size="icon"
+                            className="text-muted-foreground hover:text-destructive"
+                            aria-label={tr("common.delete")}
+                            onClick={(e) => { e.stopPropagation(); delGroup(row.groupId); }}
+                          >
+                            <span><Trash2 className="h-4 w-4" /></span>
+                          </Button>
+                        </button>
+                        {open && (
+                          <ul className="border-t bg-background">
+                            {row.txs.map((t) => {
+                              const cat = t.category_id ? categoryById.get(t.category_id)?.name : null;
+                              return (
+                                <li key={t.id} className="flex items-center justify-between gap-3 px-4 py-2 pl-14 text-sm">
+                                  <div className="min-w-0">
+                                    <div className="truncate font-medium">{t.description || tr("add.split.no_category")}</div>
+                                    <div className="text-xs text-muted-foreground">{cat ?? tr("add.split.no_category")}</div>
+                                  </div>
+                                  <div className={cn("tabular-nums font-medium", tone)}>
+                                    {sign}{fmtMoney(Number(t.amount), symbol).replace("-", "")}
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </div>
+                    );
+                  }
+                  const t = row.tx;
                 const Icon = t.type === "expense" ? ArrowDown : t.type === "income" ? ArrowUp : ArrowLeftRight;
                 const tone = t.type === "expense" ? "text-destructive" : t.type === "income" ? "text-success" : "text-muted-foreground";
                 const sign = t.type === "expense" ? "-" : t.type === "income" ? "+" : "";
@@ -195,7 +294,8 @@ function TransactionsPage() {
                     </Button>
                   </div>
                 );
-              })}
+                });
+              })()}
             </CardContent></Card>
           </div>
         ))}
