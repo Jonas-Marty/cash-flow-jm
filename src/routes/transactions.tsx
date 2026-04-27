@@ -621,6 +621,16 @@ function TransactionsPage() {
                           >
                             <span><Trash2 className="h-4 w-4" /></span>
                           </Button>
+                          <Button
+                            asChild
+                            variant="ghost"
+                            size="icon"
+                            className="text-muted-foreground hover:text-foreground"
+                            aria-label={tr("common.edit")}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Link to="/edit/$id" params={{ id: first.id }}><Pencil className="h-4 w-4" /></Link>
+                          </Button>
                         </button>
                         {open && (
                           <ul className="border-t bg-background">
