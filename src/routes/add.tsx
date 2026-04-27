@@ -503,8 +503,8 @@ export function TransactionForm({ editId }: { editId: string | null }) {
           </CardContent>
         </Card>
 
-        {/* Smart suggestions — reserve space to avoid layout jumps */}
-        <div className="space-y-2">
+        {/* Smart suggestions — reserve space to avoid layout jumps (hidden in edit mode) */}
+        {!isEdit && <div className="space-y-2">
           <div className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {tr("add.suggestions")}
           </div>
@@ -530,7 +530,7 @@ export function TransactionForm({ editId }: { editId: string | null }) {
               </button>
             </div>
           )}
-        </div>
+        </div>}
 
         {/* Account(s) */}
         <div className="space-y-3">
