@@ -382,7 +382,17 @@ export function RecurringRulesCard() {
                 <Input value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} />
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label className="text-xs">{t("recurring.field.frequency")}</Label>
+                <Select value={draft.frequency} onValueChange={(v) => setDraft({ ...draft, frequency: v as RecurringFrequency })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly">{t("recurring.freq.monthly")}</SelectItem>
+                    <SelectItem value="quarterly">{t("recurring.freq.quarterly")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
               <div>
                 <Label className="text-xs">{t("recurring.field.day_rule")}</Label>
                 <Select value={draft.day_rule} onValueChange={(v) => setDraft({ ...draft, day_rule: v as RecurringDayRule })}>
