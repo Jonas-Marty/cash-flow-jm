@@ -2,7 +2,7 @@ import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Trash2, ArchiveRestore, Archive, Pin, PinOff, Palette } from "lucide-react";
+import { Plus, Trash2, ArchiveRestore, Archive, Pin, PinOff, Palette, ChevronUp, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
 
 import { AppShell } from "@/components/AppShell";
@@ -178,6 +178,26 @@ function SettingsPage() {
     const { error } = await supabase.from("category_groups").delete().eq("id", id);
     if (error) return toast.error(error.message);
     toast.success(tr("toast.deleted"));
+    qc.invalidateQueries();
+  };
+
+  // Reorder helper: swap sort_order between two rows of the same table.
+  const swapSortOrder = async (
+    table: "category_groups" | "categories",
+    a: { id: string; sort_order: number },
+    b: { id: string; sort_order: number },
+  ) => {
+    if (a.sort_order === b.sort_order) {
+      // Normalize so the swap actually moves things.
+      const { error: e1 } = await supabase.from(table).update({ sort_order: b.sort_order + 1 }).eq("id", a.id);
+      if (e1) return toast.error(e1.message);
+      qc.invalidateQueries();
+      return;
+    }
+    const { error: e1 } = await supabase.from(table).update({ sort_order: b.sort_order }).eq("id", a.id);
+    if (e1) return toast.error(e1.message);
+    const { error: e2 } = await supabase.from(table).update({ sort_order: a.sort_order }).eq("id", b.id);
+    if (e2) return toast.error(e2.message);
     qc.invalidateQueries();
   };
 
@@ -407,7 +427,7 @@ function SettingsPage() {
               <div className="flex items-end"><Button className="w-full" onClick={addGroup}><Plus className="h-4 w-4" /> {tr("common.add")}</Button></div>
             </div>
             <ul className="divide-y">
-              {(groupsQ.data ?? []).map((g) => (
+              {(groupsQ.data ?? []).map((g, idx, arr) => (
                 <li key={g.id} className="flex items-center justify-between gap-2 py-2">
                   <div className="min-w-0">
                     <div className="font-medium">{g.name}</div>
@@ -415,9 +435,17 @@ function SettingsPage() {
                       {g.kind === "income" ? tr("settings.kind_income") : g.kind === "savings" ? tr("settings.kind_savings") : tr("settings.kind_expense")}
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => delGroup(g.id)} aria-label={tr("common.delete")}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex items-center gap-1">
+                    <Button variant="ghost" size="icon" disabled={idx === 0} onClick={() => swapSortOrder("category_groups", g, arr[idx - 1])} aria-label={tr("settings.move_up")}>
+                      <ChevronUp className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" disabled={idx === arr.length - 1} onClick={() => swapSortOrder("category_groups", g, arr[idx + 1])} aria-label={tr("settings.move_down")}>
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => delGroup(g.id)} aria-label={tr("common.delete")}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </li>
               ))}
               {(groupsQ.data ?? []).length === 0 && <li className="py-2 text-sm text-muted-foreground">{tr("settings.no_groups")}</li>}
@@ -455,10 +483,20 @@ function SettingsPage() {
               <span className="text-xs text-muted-foreground">{tr("settings.savings_envelope_hint")}</span>
             </div>
 
-            <ul className="divide-y">
-              {(categoriesQ.data ?? []).map((c) => (
+            {(() => {
+              const cats = categoriesQ.data ?? [];
+              const grps = groupsQ.data ?? [];
+              const renderRow = (c: typeof cats[number], idx: number, arr: typeof cats) => (
                 <li key={c.id} className="flex items-center justify-between gap-2 py-2">
                   <div className="flex min-w-0 items-center gap-2">
+                    <div className="flex flex-col">
+                      <Button variant="ghost" size="icon" className="h-5 w-5" disabled={idx === 0} onClick={() => swapSortOrder("categories", c, arr[idx - 1])} aria-label={tr("settings.move_up")}>
+                        <ChevronUp className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-5 w-5" disabled={idx === arr.length - 1} onClick={() => swapSortOrder("categories", c, arr[idx + 1])} aria-label={tr("settings.move_down")}>
+                        <ChevronDown className="h-3 w-3" />
+                      </Button>
+                    </div>
                     <EntityChip entity={{ id: c.id, name: c.name, icon: c.icon, emoji: c.emoji, image_url: c.image_url, color: c.color }} showLabel={false} />
                     <div className={c.archived ? "min-w-0 text-muted-foreground line-through" : "min-w-0"}>
                       <div className="font-medium">{c.name}</div>
@@ -470,7 +508,7 @@ function SettingsPage() {
                       <SelectTrigger className="w-40"><SelectValue placeholder="—" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__none">{tr("common.none")}</SelectItem>
-                        {(groupsQ.data ?? []).map((g) => (
+                        {grps.map((g) => (
                           <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
                         ))}
                       </SelectContent>
@@ -510,9 +548,37 @@ function SettingsPage() {
                     </Button>
                   </div>
                 </li>
-              ))}
-              {(categoriesQ.data ?? []).length === 0 && <li className="py-2 text-sm text-muted-foreground">{tr("settings.no_envelopes")}</li>}
-            </ul>
+              );
+              const sections: React.ReactNode[] = [];
+              for (const g of grps) {
+                const inGroup = cats.filter((c) => c.group_id === g.id);
+                sections.push(
+                  <div key={g.id} className="space-y-1">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-2">{g.name}</div>
+                    <ul className="divide-y">
+                      {inGroup.length === 0
+                        ? <li className="py-2 text-sm text-muted-foreground">{tr("settings.no_envelopes_in_group")}</li>
+                        : inGroup.map((c, i) => renderRow(c, i, inGroup))}
+                    </ul>
+                  </div>
+                );
+              }
+              const ungrouped = cats.filter((c) => !c.group_id);
+              if (ungrouped.length > 0) {
+                sections.push(
+                  <div key="__ungrouped" className="space-y-1">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-2">{tr("settings.ungrouped_envelopes")}</div>
+                    <ul className="divide-y">
+                      {ungrouped.map((c, i) => renderRow(c, i, ungrouped))}
+                    </ul>
+                  </div>
+                );
+              }
+              if (cats.length === 0) {
+                return <p className="py-2 text-sm text-muted-foreground">{tr("settings.no_envelopes")}</p>;
+              }
+              return <div className="space-y-2">{sections}</div>;
+            })()}
           </CardContent>
         </Card>
 
