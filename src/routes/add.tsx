@@ -99,6 +99,10 @@ function AddTransaction() {
   });
   const [splitMode, setSplitMode] = React.useState(false);
   const [slices, setSlices] = React.useState<Slice[]>([newSlice(), newSlice()]);
+  // Split mode is not allowed for transfers — clear it when switching.
+  React.useEffect(() => {
+    if (type === "transfer" && splitMode) setSplitMode(false);
+  }, [type, splitMode]);
   const splitTotal = React.useMemo(
     () => slices.reduce((s, x) => s + (Number(x.amount.replace(",", ".")) || 0), 0),
     [slices],
