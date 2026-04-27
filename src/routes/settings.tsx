@@ -443,8 +443,16 @@ function SettingsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.monthly_budget")}</Label><Input inputMode="decimal" value={cBudget} onChange={(e) => setCBudget(e.target.value)} /></div>
+              <div>
+                <Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.monthly_budget")}</Label>
+                <Input inputMode="decimal" value={cIsSavings ? "0" : cBudget} onChange={(e) => setCBudget(e.target.value)} disabled={cIsSavings} />
+              </div>
               <div className="flex items-end"><Button className="w-full" onClick={addCategory}><Plus className="h-4 w-4" /> {tr("common.add")}</Button></div>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <Switch id="new-cat-savings" checked={cIsSavings} onCheckedChange={setCIsSavings} />
+              <Label htmlFor="new-cat-savings" className="cursor-pointer">{tr("settings.savings_envelope")}</Label>
+              <span className="text-xs text-muted-foreground">{tr("settings.savings_envelope_hint")}</span>
             </div>
 
             <ul className="divide-y">
@@ -467,10 +475,15 @@ function SettingsPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <div className="flex items-center gap-1" title={tr("settings.savings_envelope")}>
+                      <Switch checked={c.is_savings} onCheckedChange={() => toggleCategorySavings(c.id, c.is_savings)} aria-label={tr("settings.savings_envelope")} />
+                    </div>
                     <Input
+                      key={`${c.id}-${c.is_savings}-${c.allocated_budget}`}
                       defaultValue={Number(c.allocated_budget).toString()}
                       inputMode="decimal"
                       className="w-28 text-right tabular-nums"
+                      disabled={c.is_savings}
                       onBlur={(e) => updateCategoryBudget(c.id, e.target.value)}
                     />
                     <Popover>
