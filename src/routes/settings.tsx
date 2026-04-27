@@ -92,29 +92,34 @@ function SettingsPage() {
   const [cName, setCName] = React.useState("");
   const [cBudget, setCBudget] = React.useState("0");
   const [cGroupId, setCGroupId] = React.useState<string>("");
+  const [cIsSavings, setCIsSavings] = React.useState(false);
   const addCategory = async () => {
     if (!cName.trim()) { toast.error(tr("toast.name_required")); return; }
     const sortOrder = (categoriesQ.data ?? []).length;
     const group = (groupsQ.data ?? []).find((g) => g.id === cGroupId);
-    const isSavings = group?.kind === "savings";
+    const isSavings = cIsSavings || group?.kind === "savings";
     const { error } = await supabase.from("categories").insert({
       name: cName.trim(),
-      allocated_budget: Number(cBudget) || 0,
+      allocated_budget: isSavings ? 0 : (Number(cBudget) || 0),
       sort_order: sortOrder,
       group_id: cGroupId || null,
       is_savings: isSavings,
     });
     if (error) { toast.error(error.message); return; }
     toast.success(tr("toast.envelope_added"));
-    setCName(""); setCBudget("0"); setCGroupId("");
+    setCName(""); setCBudget("0"); setCGroupId(""); setCIsSavings(false);
     qc.invalidateQueries();
   };
   const updateCategoryGroup = async (id: string, groupId: string) => {
     const group = (groupsQ.data ?? []).find((g) => g.id === groupId);
-    const { error } = await supabase.from("categories").update({
+    // Only auto-promote to savings when joining a savings-kind group;
+    // never auto-clear is_savings when changing/clearing the group, so
+    // standalone savings envelopes stay savings.
+    const patch: { group_id: string | null; is_savings?: boolean } = {
       group_id: groupId || null,
-      is_savings: group?.kind === "savings",
-    }).eq("id", id);
+    };
+    if (group?.kind === "savings") patch.is_savings = true;
+    const { error } = await supabase.from("categories").update(patch).eq("id", id);
     if (error) return toast.error(error.message);
     qc.invalidateQueries();
   };
@@ -132,6 +137,18 @@ function SettingsPage() {
   const toggleArchiveCategory = async (id: string, archived: boolean) => {
     const { error } = await supabase.from("categories").update({ archived: !archived }).eq("id", id);
     if (error) return toast.error(error.message);
+    qc.invalidateQueries();
+  };
+  const toggleCategorySavings = async (id: string, isSavings: boolean) => {
+    const next = !isSavings;
+    const update: { is_savings: boolean; allocated_budget?: number } = { is_savings: next };
+    if (next) update.allocated_budget = 0;
+    const { error } = await supabase.from("categories").update(update).eq("id", id);
+    if (error) return toast.error(error.message);
+    if (next) {
+      // Drop any pre-generated monthly budget rows; savings envelopes don't use them.
+      await supabase.from("category_budgets").delete().eq("category_id", id);
+    }
     qc.invalidateQueries();
   };
   const delCategory = async (id: string) => {
@@ -426,8 +443,16 @@ function SettingsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.monthly_budget")}</Label><Input inputMode="decimal" value={cBudget} onChange={(e) => setCBudget(e.target.value)} /></div>
+              <div>
+                <Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.monthly_budget")}</Label>
+                <Input inputMode="decimal" value={cIsSavings ? "0" : cBudget} onChange={(e) => setCBudget(e.target.value)} disabled={cIsSavings} />
+              </div>
               <div className="flex items-end"><Button className="w-full" onClick={addCategory}><Plus className="h-4 w-4" /> {tr("common.add")}</Button></div>
+            </div>
+            <div className="flex items-center gap-2 text-sm">
+              <Switch id="new-cat-savings" checked={cIsSavings} onCheckedChange={setCIsSavings} />
+              <Label htmlFor="new-cat-savings" className="cursor-pointer">{tr("settings.savings_envelope")}</Label>
+              <span className="text-xs text-muted-foreground">{tr("settings.savings_envelope_hint")}</span>
             </div>
 
             <ul className="divide-y">
@@ -450,10 +475,15 @@ function SettingsPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                    <div className="flex items-center gap-1" title={tr("settings.savings_envelope")}>
+                      <Switch checked={c.is_savings} onCheckedChange={() => toggleCategorySavings(c.id, c.is_savings)} aria-label={tr("settings.savings_envelope")} />
+                    </div>
                     <Input
+                      key={`${c.id}-${c.is_savings}-${c.allocated_budget}`}
                       defaultValue={Number(c.allocated_budget).toString()}
                       inputMode="decimal"
                       className="w-28 text-right tabular-nums"
+                      disabled={c.is_savings}
                       onBlur={(e) => updateCategoryBudget(c.id, e.target.value)}
                     />
                     <Popover>
