@@ -645,19 +645,26 @@ function AddTransaction() {
           </Card>
         )}
 
-        <div>
-          <Label htmlFor="description" className="mb-1.5 block">{tr("add.description")}</Label>
-          <DescriptionAutocomplete
-            id="description"
-            value={description}
-            onChange={(v) => { setDescription(v); mark("description"); }}
-            transactions={recentQ.data ?? []}
-            placeholder={type === "transfer" || splitMode ? tr("common.optional") : tr("add.description_placeholder")}
-          />
-        </div>
+        {!splitMode && (
+          <div>
+            <Label htmlFor="description" className="mb-1.5 block">{tr("add.description")}</Label>
+            <DescriptionAutocomplete
+              id="description"
+              value={description}
+              onChange={(v) => { setDescription(v); mark("description"); }}
+              transactions={recentQ.data ?? []}
+              placeholder={type === "transfer" ? tr("common.optional") : tr("add.description_placeholder")}
+            />
+          </div>
+        )}
 
         <div>
-          <Label htmlFor="note" className="mb-1.5 block">{tr("add.note")}</Label>
+          <Label htmlFor="note" className="mb-1.5 block">
+            {splitMode ? tr("add.note.shared") : tr("add.note")}
+          </Label>
+          {splitMode && (
+            <p className="mb-1.5 text-xs text-muted-foreground">{tr("add.note.shared_hint")}</p>
+          )}
           <Textarea id="note" rows={2} value={note} onChange={(e) => { setNote(e.target.value); mark("note"); }} placeholder={tr("add.note_placeholder")} />
           <TagChips
             className="mt-2"
