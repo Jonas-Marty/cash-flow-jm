@@ -92,29 +92,34 @@ function SettingsPage() {
   const [cName, setCName] = React.useState("");
   const [cBudget, setCBudget] = React.useState("0");
   const [cGroupId, setCGroupId] = React.useState<string>("");
+  const [cIsSavings, setCIsSavings] = React.useState(false);
   const addCategory = async () => {
     if (!cName.trim()) { toast.error(tr("toast.name_required")); return; }
     const sortOrder = (categoriesQ.data ?? []).length;
     const group = (groupsQ.data ?? []).find((g) => g.id === cGroupId);
-    const isSavings = group?.kind === "savings";
+    const isSavings = cIsSavings || group?.kind === "savings";
     const { error } = await supabase.from("categories").insert({
       name: cName.trim(),
-      allocated_budget: Number(cBudget) || 0,
+      allocated_budget: isSavings ? 0 : (Number(cBudget) || 0),
       sort_order: sortOrder,
       group_id: cGroupId || null,
       is_savings: isSavings,
     });
     if (error) { toast.error(error.message); return; }
     toast.success(tr("toast.envelope_added"));
-    setCName(""); setCBudget("0"); setCGroupId("");
+    setCName(""); setCBudget("0"); setCGroupId(""); setCIsSavings(false);
     qc.invalidateQueries();
   };
   const updateCategoryGroup = async (id: string, groupId: string) => {
     const group = (groupsQ.data ?? []).find((g) => g.id === groupId);
-    const { error } = await supabase.from("categories").update({
+    // Only auto-promote to savings when joining a savings-kind group;
+    // never auto-clear is_savings when changing/clearing the group, so
+    // standalone savings envelopes stay savings.
+    const patch: { group_id: string | null; is_savings?: boolean } = {
       group_id: groupId || null,
-      is_savings: group?.kind === "savings",
-    }).eq("id", id);
+    };
+    if (group?.kind === "savings") patch.is_savings = true;
+    const { error } = await supabase.from("categories").update(patch).eq("id", id);
     if (error) return toast.error(error.message);
     qc.invalidateQueries();
   };
