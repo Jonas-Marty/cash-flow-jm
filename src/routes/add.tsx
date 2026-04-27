@@ -448,7 +448,7 @@ function AddTransaction() {
             </div>
           )}
 
-          {type !== "transfer" && (
+          {type !== "transfer" && !splitMode && (
             <div>
               <Label className="mb-1.5 block">
                 {tr("add.category")} {type === "income" && <span className="text-xs font-normal text-muted-foreground">{tr("add.category_optional_reimb")}</span>}
@@ -480,6 +480,130 @@ function AddTransaction() {
           )}
         </div>
 
+        {/* Split toggle (only for expense/income, not transfer) */}
+        {type !== "transfer" && (
+          <div className="flex items-center justify-between rounded-md border border-dashed border-border/60 px-3 py-2">
+            <Label htmlFor="split-toggle" className="cursor-pointer text-sm font-normal">
+              {tr("add.split.toggle")}
+            </Label>
+            <input
+              id="split-toggle"
+              type="checkbox"
+              className="h-4 w-4 cursor-pointer"
+              checked={splitMode}
+              onChange={(e) => setSplitMode(e.target.checked)}
+            />
+          </div>
+        )}
+
+        {/* Split panel */}
+        {splitMode && type !== "transfer" && (
+          <Card>
+            <CardContent className="space-y-3 py-4">
+              <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {tr("add.split.title")}
+              </div>
+              <p className="text-xs text-muted-foreground">{tr("add.split.hint")}</p>
+              <ul className="space-y-3">
+                {slices.map((s, idx) => (
+                  <li key={s.id} className="rounded-md border border-border/60 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <span className="text-xs font-medium text-muted-foreground">
+                        {tr("add.split.slice", { n: idx + 1 })}
+                      </span>
+                      {slices.length > 2 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                          aria-label={tr("add.split.remove_slice")}
+                          onClick={() => setSlices((cur) => cur.filter((_, i) => i !== idx))}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 gap-2 md:grid-cols-[120px_1fr]">
+                      <div>
+                        <Label className="mb-1 block text-xs">{tr("add.split.amount")}</Label>
+                        <Input
+                          inputMode="decimal"
+                          placeholder="0.00"
+                          value={s.amount}
+                          onChange={(e) => {
+                            const v = e.target.value.replace(/[^0-9.,]/g, "");
+                            setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, amount: v } : x)));
+                          }}
+                          className="tabular-nums"
+                        />
+                      </div>
+                      <div>
+                        <Label className="mb-1 block text-xs">{tr("add.split.description")}</Label>
+                        <Input
+                          value={s.description}
+                          onChange={(e) =>
+                            setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, description: e.target.value } : x)))
+                          }
+                          placeholder={tr("add.description_placeholder")}
+                        />
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      <Label className="mb-1 block text-xs">{tr("add.split.category")}</Label>
+                      <ChipPicker
+                        items={categoryChips}
+                        value={s.categoryId || null}
+                        onChange={(v) =>
+                          setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, categoryId: v ?? "" } : x)))
+                        }
+                        allowClear
+                        clearLabel={tr("add.split.no_category")}
+                        placeholder={tr("add.select_category")}
+                        moreLabel={tr("picker.more")}
+                        searchPlaceholder={tr("picker.search")}
+                        emptyLabel={tr("picker.no_match")}
+                      />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setSlices((cur) => [...cur, newSlice()])}
+              >
+                <Plus className="mr-1 h-4 w-4" /> {tr("add.split.add_slice")}
+              </Button>
+
+              <div className="rounded-md bg-muted px-3 py-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{tr("add.split.total")}</span>
+                  <span className="tabular-nums font-medium">
+                    {splitTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {symbol}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{tr("add.split.target_total")}</span>
+                  <span className="tabular-nums">
+                    {targetTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {symbol}
+                  </span>
+                </div>
+                {Math.abs(splitDiff) > 0.005 && targetTotal > 0 && (
+                  <div className={cn("mt-1 flex justify-between font-medium", splitDiff > 0 ? "text-warning" : "text-destructive")}>
+                    <span>{tr("add.split.diff")}</span>
+                    <span className="tabular-nums">
+                      {splitDiff.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {symbol}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <div>
           <Label htmlFor="description" className="mb-1.5 block">{tr("add.description")}</Label>
           <DescriptionAutocomplete
@@ -487,7 +611,7 @@ function AddTransaction() {
             value={description}
             onChange={(v) => { setDescription(v); mark("description"); }}
             transactions={recentQ.data ?? []}
-            placeholder={type === "transfer" ? tr("common.optional") : tr("add.description_placeholder")}
+            placeholder={type === "transfer" || splitMode ? tr("common.optional") : tr("add.description_placeholder")}
           />
         </div>
 
