@@ -75,11 +75,16 @@ function EnvelopesPage() {
   const groups = React.useMemo(() => {
     const map = new Map<string, { name: string; kind: CategoryMonthRow["kind"]; rows: CategoryMonthRow[] }>();
     for (const r of rows) {
-      const key = r.group_id ?? `__${r.kind}__`;
+      const isSavingsRow = r.is_savings || r.kind === "savings";
+      const effectiveKind: CategoryMonthRow["kind"] = isSavingsRow ? "savings" : r.kind;
+      const useGroup = r.group_id && r.kind === effectiveKind;
+      const key = useGroup ? r.group_id! : `__${effectiveKind}__`;
       if (!map.has(key)) {
         map.set(key, {
-          name: r.group_name ?? (r.kind === "income" ? "Income" : r.kind === "savings" ? "Savings" : "Uncategorized"),
-          kind: r.kind,
+          name: useGroup
+            ? (r.group_name ?? "")
+            : (effectiveKind === "income" ? "Income" : effectiveKind === "savings" ? "Savings" : "Uncategorized"),
+          kind: effectiveKind,
           rows: [],
         });
       }
