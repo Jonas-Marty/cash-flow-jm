@@ -572,6 +572,40 @@ function AddTransaction() {
                         emptyLabel={tr("picker.no_match")}
                       />
                     </div>
+                    <div className="mt-2">
+                      <Label className="mb-1 block text-xs">{tr("add.split.note")}</Label>
+                      <Textarea
+                        rows={2}
+                        value={s.note}
+                        onChange={(e) =>
+                          setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, note: e.target.value } : x)))
+                        }
+                        placeholder={tr("add.split.note_placeholder")}
+                      />
+                      <TagChips
+                        className="mt-2"
+                        transactions={recentQ.data ?? []}
+                        currentNote={s.note}
+                        onAppend={(tag) => {
+                          setSlices((cur) =>
+                            cur.map((x, i) => {
+                              if (i !== idx) return x;
+                              const present = new Set(extractTags(x.note));
+                              if (present.has(tag)) return x;
+                              const sep = x.note.length === 0 || x.note.endsWith(" ") ? "" : " ";
+                              return { ...x, note: x.note + sep + "#" + tag };
+                            }),
+                          );
+                        }}
+                      />
+                      {extractTags(s.note).length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {extractTags(s.note).map((t) => (
+                            <span key={t} className="inline-flex items-center rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">{`#${t}`}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>
