@@ -458,7 +458,13 @@ export function TransactionForm({ editId }: { editId: string | null }) {
   return (
     <AppShell>
       <div className="space-y-5">
-        <h1 className="text-2xl font-semibold tracking-tight">{tr("add.title")}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{isEdit ? tr("edit.title") : tr("add.title")}</h1>
+        {isEdit && editQ.isLoading && (
+          <p className="text-sm text-muted-foreground">{tr("common.loading")}</p>
+        )}
+        {isEdit && editQ.isError && (
+          <p className="text-sm text-destructive">{(editQ.error as Error)?.message ?? "Error"}</p>
+        )}
 
         {/* Type segmented control */}
         <div className="flex gap-1 rounded-lg bg-muted p-1">
