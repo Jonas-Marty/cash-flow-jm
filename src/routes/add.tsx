@@ -124,8 +124,73 @@ export function TransactionForm({ editId }: { editId: string | null }) {
     prev: { amount: string; description: string; note: string; sourceId: string; categoryId: string };
   }>(null);
 
-  // Default source = most-used account in recent transactions
+  const isEdit = !!editId;
+
+  // ───────── Edit mode: load the transaction (and split-group siblings) ─────────
+  const editQ = useQuery({
+    queryKey: ["transaction", "edit", editId],
+    enabled: !!editId,
+    queryFn: async () => {
+      const { data: tx, error } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("id", editId!)
+        .maybeSingle();
+      if (error) throw error;
+      if (!tx) throw new Error("Transaction not found");
+      let group: Transaction[] | null = null;
+      if (tx.split_group_id) {
+        const { data: sib, error: sErr } = await supabase
+          .from("transactions")
+          .select("*")
+          .eq("split_group_id", tx.split_group_id)
+          .order("created_at", { ascending: true });
+        if (sErr) throw sErr;
+        group = (sib ?? []) as Transaction[];
+      }
+      return { tx: tx as Transaction, group };
+    },
+  });
+
+  // Hydrate form once when edit data arrives.
+  const hydratedRef = React.useRef(false);
   React.useEffect(() => {
+    if (!isEdit || hydratedRef.current || !editQ.data) return;
+    const { tx, group } = editQ.data;
+    hydratedRef.current = true;
+    setType(tx.type);
+    setSourceId(tx.source_account_id);
+    setDestId(tx.destination_account_id ?? "");
+    setDate(new Date(tx.occurred_on + "T00:00:00"));
+    if (group && group.length > 1) {
+      // Edit a split group: amount = total, slices = group rows
+      const total = group.reduce((s, x) => s + Number(x.amount), 0);
+      setAmount(total.toFixed(2));
+      setDescription("");
+      setNote("");
+      setSplitMode(true);
+      setSlices(
+        group.map((g) => ({
+          id: g.id,
+          amount: Number(g.amount).toFixed(2),
+          categoryId: g.category_id ?? "",
+          description: g.description ?? "",
+          note: g.note ?? "",
+        })),
+      );
+    } else {
+      setAmount(Number(tx.amount).toFixed(2));
+      setCategoryId(tx.category_id ?? "");
+      setDescription(tx.description ?? "");
+      setNote(tx.note ?? "");
+    }
+    // mark all fields as touched so suggestions never overwrite loaded data
+    setTouched({ amount: true, description: true, note: true, sourceId: true, categoryId: true });
+  }, [isEdit, editQ.data]);
+
+  // Default source = most-used account in recent transactions (skip in edit mode)
+  React.useEffect(() => {
+    if (isEdit) return;
     if (sourceId || accounts.length === 0) return;
     const counts = new Map<string, number>();
     (recentQ.data ?? []).forEach((t) => counts.set(t.source_account_id, (counts.get(t.source_account_id) ?? 0) + 1));
@@ -136,7 +201,7 @@ export function TransactionForm({ editId }: { editId: string | null }) {
       if (n > bestN) { bestN = n; best = a.id; }
     }
     if (best) setSourceId(best);
-  }, [accounts, recentQ.data, sourceId]);
+  }, [accounts, recentQ.data, sourceId, isEdit]);
 
   const tags = extractTags(note);
 
