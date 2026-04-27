@@ -53,7 +53,10 @@ export const Route = createFileRoute("/api/public/categories")({
           .order("name");
         if (!includeArchived) catQ = catQ.eq("archived", false);
         const { data: cats, error: catErr } = await catQ;
-        if (catErr) return json({ error: catErr.message }, 500);
+        if (catErr) {
+          console.error("[api.public.categories] DB error:", catErr.message);
+          return json({ error: "Internal server error" }, 500);
+        }
 
         const { data: groups, error: gErr } = await supabaseAdmin
           .from("category_groups")
@@ -61,7 +64,10 @@ export const Route = createFileRoute("/api/public/categories")({
           .eq("user_id", auth.userId)
           .order("sort_order")
           .order("name");
-        if (gErr) return json({ error: gErr.message }, 500);
+        if (gErr) {
+          console.error("[api.public.categories] DB error:", gErr.message);
+          return json({ error: "Internal server error" }, 500);
+        }
 
         return json({ categories: cats ?? [], groups: groups ?? [] });
       },
