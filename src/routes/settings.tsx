@@ -483,10 +483,20 @@ function SettingsPage() {
               <span className="text-xs text-muted-foreground">{tr("settings.savings_envelope_hint")}</span>
             </div>
 
-            <ul className="divide-y">
-              {(categoriesQ.data ?? []).map((c) => (
+            {(() => {
+              const cats = categoriesQ.data ?? [];
+              const grps = groupsQ.data ?? [];
+              const renderRow = (c: typeof cats[number], idx: number, arr: typeof cats) => (
                 <li key={c.id} className="flex items-center justify-between gap-2 py-2">
                   <div className="flex min-w-0 items-center gap-2">
+                    <div className="flex flex-col">
+                      <Button variant="ghost" size="icon" className="h-5 w-5" disabled={idx === 0} onClick={() => swapSortOrder("categories", c, arr[idx - 1])} aria-label={tr("settings.move_up")}>
+                        <ChevronUp className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-5 w-5" disabled={idx === arr.length - 1} onClick={() => swapSortOrder("categories", c, arr[idx + 1])} aria-label={tr("settings.move_down")}>
+                        <ChevronDown className="h-3 w-3" />
+                      </Button>
+                    </div>
                     <EntityChip entity={{ id: c.id, name: c.name, icon: c.icon, emoji: c.emoji, image_url: c.image_url, color: c.color }} showLabel={false} />
                     <div className={c.archived ? "min-w-0 text-muted-foreground line-through" : "min-w-0"}>
                       <div className="font-medium">{c.name}</div>
@@ -498,7 +508,7 @@ function SettingsPage() {
                       <SelectTrigger className="w-40"><SelectValue placeholder="—" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__none">{tr("common.none")}</SelectItem>
-                        {(groupsQ.data ?? []).map((g) => (
+                        {grps.map((g) => (
                           <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
                         ))}
                       </SelectContent>
@@ -538,9 +548,37 @@ function SettingsPage() {
                     </Button>
                   </div>
                 </li>
-              ))}
-              {(categoriesQ.data ?? []).length === 0 && <li className="py-2 text-sm text-muted-foreground">{tr("settings.no_envelopes")}</li>}
-            </ul>
+              );
+              const sections: React.ReactNode[] = [];
+              for (const g of grps) {
+                const inGroup = cats.filter((c) => c.group_id === g.id);
+                sections.push(
+                  <div key={g.id} className="space-y-1">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-2">{g.name}</div>
+                    <ul className="divide-y">
+                      {inGroup.length === 0
+                        ? <li className="py-2 text-sm text-muted-foreground">{tr("settings.no_envelopes_in_group")}</li>
+                        : inGroup.map((c, i) => renderRow(c, i, inGroup))}
+                    </ul>
+                  </div>
+                );
+              }
+              const ungrouped = cats.filter((c) => !c.group_id);
+              if (ungrouped.length > 0) {
+                sections.push(
+                  <div key="__ungrouped" className="space-y-1">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-2">{tr("settings.ungrouped_envelopes")}</div>
+                    <ul className="divide-y">
+                      {ungrouped.map((c, i) => renderRow(c, i, ungrouped))}
+                    </ul>
+                  </div>
+                );
+              }
+              if (cats.length === 0) {
+                return <p className="py-2 text-sm text-muted-foreground">{tr("settings.no_envelopes")}</p>;
+              }
+              return <div className="space-y-2">{sections}</div>;
+            })()}
           </CardContent>
         </Card>
 
