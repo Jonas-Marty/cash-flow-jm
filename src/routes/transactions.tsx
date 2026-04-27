@@ -120,7 +120,7 @@ function TransactionsPage() {
     const amtStrs = [
       amtAbs.toFixed(2),
       String(Math.round(amtAbs)),
-      amtAbs.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      amtAbs.toLocaleString(lang === "de" ? "de-CH" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
     ];
     const haystack = normalize([desc, note, cat, src, dst, tags.join(" "), amtStrs.join(" ")].join("  "));
     return tokens.every((tok) => {
