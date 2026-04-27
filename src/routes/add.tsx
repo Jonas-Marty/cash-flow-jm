@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings, fetchTransactions, extractTags, type TxType } from "@/lib/finance";
+import { fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings, fetchTransactions, extractTags, type TxType, type Transaction } from "@/lib/finance";
 import { useI18n } from "@/i18n";
 import { useSuggestions } from "@/lib/suggestions/useSuggestions";
 import type { Suggestion } from "@/lib/suggestions/types";
@@ -29,10 +29,14 @@ import { ShortcutsDialog } from "@/components/ShortcutsDialog";
 import { DescriptionAutocomplete } from "@/components/DescriptionAutocomplete";
 
 export const Route = createFileRoute("/add")({
-  component: AddTransaction,
+  component: AddTransactionRoute,
 });
 
-function AddTransaction() {
+function AddTransactionRoute() {
+  return <TransactionForm editId={null} />;
+}
+
+export function TransactionForm({ editId }: { editId: string | null }) {
   const { t: tr, locale, lang } = useI18n();
   const navigate = useNavigate();
   const qc = useQueryClient();
