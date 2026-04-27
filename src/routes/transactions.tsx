@@ -708,24 +708,9 @@ function TransactionsPage() {
                             </>
                           )}
                         </div>
-                        {(t.note || tags.length > 0) && (
-                          <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                            {t.note && <span className="text-xs text-muted-foreground">{highlightTokens(t.note, tokens)}</span>}
-                            {tags.map((tg) => {
-                              const tagMatched = tokens.some((tok) => normalize(tg).includes(normalize(tok.replace(/^#/, ""))));
-                              return (
-                                <Badge
-                                  key={tg}
-                                  variant="secondary"
-                                  className={cn(
-                                    "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
-                                    tagMatched && "ring-1 ring-yellow-400/60",
-                                  )}
-                                >
-                                  {`#${tg}`}
-                                </Badge>
-                              );
-                            })}
+                        {t.note && (
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                            {renderNoteWithTags(t.note, tokens)}
                           </div>
                         )}
                       </div>
