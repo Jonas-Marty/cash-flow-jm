@@ -110,7 +110,7 @@ function adjust(d: Date, w: WeekendAdjust): Date {
 }
 
 export function RecurringRulesCard() {
-  const { t, locale } = useI18n();
+  const { t, locale, lang } = useI18n();
   const qc = useQueryClient();
   const rulesQ = useQuery({ queryKey: ["recurring_rules"], queryFn: fetchRecurringRules });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
@@ -410,7 +410,8 @@ export function RecurringRulesCard() {
                   value={parseISO(draft.starts_on)}
                   onChange={(d) => setDraft({ ...draft, starts_on: format(d, "yyyy-MM-dd") })}
                   formatStr={settingsQ.data?.date_format}
-                  lang={locale === "en" ? "en" : "de"}
+                  lang={lang}
+                  locale={locale}
                 />
               </div>
               <div>
@@ -421,7 +422,8 @@ export function RecurringRulesCard() {
                       value={parseISO(draft.ends_on)}
                       onChange={(d) => setDraft({ ...draft, ends_on: format(d, "yyyy-MM-dd") })}
                       formatStr={settingsQ.data?.date_format}
-                      lang={locale === "en" ? "en" : "de"}
+                      lang={lang}
+                      locale={locale}
                       className="flex-1"
                     />
                     <Button type="button" variant="ghost" size="sm" onClick={() => setDraft({ ...draft, ends_on: "" })}>
