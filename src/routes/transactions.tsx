@@ -68,6 +68,17 @@ function TransactionsPage() {
     return m;
   }, [tagsQ.data]);
 
+  // Sum of amounts per split_group_id, so amount filters/search/highlight
+  // can match the group total in addition to individual leg amounts.
+  const splitGroupTotals = React.useMemo(() => {
+    const m = new Map<string, number>();
+    (txQ.data ?? []).forEach((t) => {
+      if (!t.split_group_id) return;
+      m.set(t.split_group_id, (m.get(t.split_group_id) ?? 0) + Number(t.amount));
+    });
+    return m;
+  }, [txQ.data]);
+
   // ----- Filter state (multi-select arrays) -----
   const [filterTypes, setFilterTypes] = React.useState<TxType[]>([]);
   const [filterAccounts, setFilterAccounts] = React.useState<string[]>([]);
@@ -117,17 +128,31 @@ function TransactionsPage() {
     const dst = t.destination_account_id ? accountById.get(t.destination_account_id)?.name ?? "" : "";
     const tags = tagsByTx.get(t.id) ?? [];
     const amtAbs = Math.abs(Number(t.amount));
+    const groupAbs = t.split_group_id
+      ? Math.abs(splitGroupTotals.get(t.split_group_id) ?? 0)
+      : null;
     const amtStrs = [
       amtAbs.toFixed(2),
       String(Math.round(amtAbs)),
       amtAbs.toLocaleString(lang === "de" ? "de-CH" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
     ];
+    if (groupAbs != null) {
+      amtStrs.push(
+        groupAbs.toFixed(2),
+        String(Math.round(groupAbs)),
+        groupAbs.toLocaleString(lang === "de" ? "de-CH" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      );
+    }
     const haystack = normalize([desc, note, cat, src, dst, tags.join(" "), amtStrs.join(" ")].join("  "));
     return tokens.every((tok) => {
       const ntok = normalize(tok);
       if (haystack.includes(ntok)) return true;
       const num = parseLooseNumber(tok);
-      if (num != null && Math.abs(amtAbs - Math.abs(num)) < 0.005) return true;
+      if (num != null) {
+        const target = Math.abs(num);
+        if (Math.abs(amtAbs - target) < 0.005) return true;
+        if (groupAbs != null && Math.abs(groupAbs - target) < 0.005) return true;
+      }
       return false;
     });
   };
@@ -153,13 +178,18 @@ function TransactionsPage() {
       }
       if (fromStr && t.occurred_on < fromStr) return false;
       if (toStr && t.occurred_on > toStr) return false;
-      if (!matchesAmount(Number(t.amount), amountOp, amountTarget, tolerance)) return false;
+      if (amountOp !== "any" && amountTarget != null) {
+        const ownMatch = matchesAmount(Number(t.amount), amountOp, amountTarget, tolerance);
+        const groupTotal = t.split_group_id ? splitGroupTotals.get(t.split_group_id) : undefined;
+        const groupMatch = groupTotal != null && matchesAmount(groupTotal, amountOp, amountTarget, tolerance);
+        if (!ownMatch && !groupMatch) return false;
+      }
       if (!matchesSearch(t)) return false;
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [txQ.data, filterTypes, filterAccounts, filterCategories, filterTags, fromStr, toStr,
-      amountOp, amountTarget, tolerance, tokens, accountById, categoryById, tagsByTx]);
+      amountOp, amountTarget, tolerance, tokens, accountById, categoryById, tagsByTx, splitGroupTotals]);
 
   const sorted = React.useMemo(() => {
     const arr = filtered.slice();
