@@ -249,6 +249,8 @@ const de: Dict = {
   "dashboard.upcoming.late_by_one": "1 Tag überfällig",
   "dashboard.upcoming.post": "Buchen",
   "dashboard.upcoming.skip": "Überspringen",
+  "dashboard.upcoming.show_more": "Weitere 10 anzeigen",
+  "dashboard.upcoming.show_all": "Alle anzeigen ({n})",
 
   // Picker (DE)
   "picker.more": "Mehr",
@@ -532,6 +534,8 @@ const en: Dict = {
   "dashboard.upcoming.late_by_one": "1 day late",
   "dashboard.upcoming.post": "Post",
   "dashboard.upcoming.skip": "Skip",
+  "dashboard.upcoming.show_more": "Show 10 more",
+  "dashboard.upcoming.show_all": "Show all ({n})",
 
   // Picker (EN)
   "picker.more": "More",
