@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, subMonths, subDays, startOfYear } from "date-fns";
 import {
-  ArrowDown, ArrowUp, ArrowLeftRight, Trash2, ChevronRight, ChevronDown, Layers, X,
+  ArrowDown, ArrowUp, ArrowLeftRight, Trash2, ChevronRight, ChevronDown, Layers, X, Pencil,
 } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
@@ -584,11 +584,12 @@ function TransactionsPage() {
                     const amtMatch = amountMatchedFor(total);
                     return (
                       <div key={`g-${row.groupId}`} className="bg-muted/20">
-                        <button
-                          type="button"
-                          onClick={() => toggleGroup(row.groupId)}
-                          className="flex w-full items-start gap-3 px-4 py-3 text-left hover:bg-muted/40"
-                        >
+                        <div className="flex w-full items-start gap-3 px-4 py-3 hover:bg-muted/40">
+                          <button
+                            type="button"
+                            onClick={() => toggleGroup(row.groupId)}
+                            className="flex flex-1 items-start gap-3 text-left"
+                          >
                           <RowVisual entity={src ?? null} typeIcon={<Icon className="h-3 w-3" />} tone={tone} />
                           <div className="min-w-0 flex-1">
                             <div className="flex items-baseline justify-between gap-2">
@@ -611,17 +612,14 @@ function TransactionsPage() {
                               {highlightTokens(src?.name ?? "?", tokens)} · {open ? tr("tx.split.collapse") : tr("tx.split.expand", { n: row.txs.length })}
                             </div>
                           </div>
-                          <Button
-                            asChild
-                            variant="ghost"
-                            size="icon"
-                            className="text-muted-foreground hover:text-destructive"
-                            aria-label={tr("common.delete")}
-                            onClick={(e) => { e.stopPropagation(); delGroup(row.groupId); }}
-                          >
-                            <span><Trash2 className="h-4 w-4" /></span>
+                          </button>
+                          <Button asChild variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" aria-label={tr("common.edit")}>
+                            <Link to="/edit/$id" params={{ id: first.id }}><Pencil className="h-4 w-4" /></Link>
                           </Button>
-                        </button>
+                          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" aria-label={tr("common.delete")} onClick={() => delGroup(row.groupId)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                         {open && (
                           <ul className="border-t bg-background">
                             {row.txs.map((t) => {
@@ -731,6 +729,9 @@ function TransactionsPage() {
                           </div>
                         )}
                       </div>
+                      <Button asChild variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" aria-label={tr("common.edit")}>
+                        <Link to="/edit/$id" params={{ id: t.id }}><Pencil className="h-4 w-4" /></Link>
+                      </Button>
                       <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => del(t.id)} aria-label={tr("common.delete")}>
                         <Trash2 className="h-4 w-4" />
                       </Button>

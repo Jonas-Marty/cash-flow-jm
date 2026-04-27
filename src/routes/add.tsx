@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings, fetchTransactions, extractTags, type TxType } from "@/lib/finance";
+import { fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings, fetchTransactions, extractTags, type TxType, type Transaction } from "@/lib/finance";
 import { useI18n } from "@/i18n";
 import { useSuggestions } from "@/lib/suggestions/useSuggestions";
 import type { Suggestion } from "@/lib/suggestions/types";
@@ -29,10 +29,14 @@ import { ShortcutsDialog } from "@/components/ShortcutsDialog";
 import { DescriptionAutocomplete } from "@/components/DescriptionAutocomplete";
 
 export const Route = createFileRoute("/add")({
-  component: AddTransaction,
+  component: AddTransactionRoute,
 });
 
-function AddTransaction() {
+function AddTransactionRoute() {
+  return <TransactionForm editId={null} />;
+}
+
+export function TransactionForm({ editId }: { editId: string | null }) {
   const { t: tr, locale, lang } = useI18n();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -120,8 +124,73 @@ function AddTransaction() {
     prev: { amount: string; description: string; note: string; sourceId: string; categoryId: string };
   }>(null);
 
-  // Default source = most-used account in recent transactions
+  const isEdit = !!editId;
+
+  // ───────── Edit mode: load the transaction (and split-group siblings) ─────────
+  const editQ = useQuery({
+    queryKey: ["transaction", "edit", editId],
+    enabled: !!editId,
+    queryFn: async () => {
+      const { data: tx, error } = await supabase
+        .from("transactions")
+        .select("*")
+        .eq("id", editId!)
+        .maybeSingle();
+      if (error) throw error;
+      if (!tx) throw new Error("Transaction not found");
+      let group: Transaction[] | null = null;
+      if (tx.split_group_id) {
+        const { data: sib, error: sErr } = await supabase
+          .from("transactions")
+          .select("*")
+          .eq("split_group_id", tx.split_group_id)
+          .order("created_at", { ascending: true });
+        if (sErr) throw sErr;
+        group = (sib ?? []) as Transaction[];
+      }
+      return { tx: tx as Transaction, group };
+    },
+  });
+
+  // Hydrate form once when edit data arrives.
+  const hydratedRef = React.useRef(false);
   React.useEffect(() => {
+    if (!isEdit || hydratedRef.current || !editQ.data) return;
+    const { tx, group } = editQ.data;
+    hydratedRef.current = true;
+    setType(tx.type);
+    setSourceId(tx.source_account_id);
+    setDestId(tx.destination_account_id ?? "");
+    setDate(new Date(tx.occurred_on + "T00:00:00"));
+    if (group && group.length > 1) {
+      // Edit a split group: amount = total, slices = group rows
+      const total = group.reduce((s, x) => s + Number(x.amount), 0);
+      setAmount(total.toFixed(2));
+      setDescription("");
+      setNote("");
+      setSplitMode(true);
+      setSlices(
+        group.map((g) => ({
+          id: g.id,
+          amount: Number(g.amount).toFixed(2),
+          categoryId: g.category_id ?? "",
+          description: g.description ?? "",
+          note: g.note ?? "",
+        })),
+      );
+    } else {
+      setAmount(Number(tx.amount).toFixed(2));
+      setCategoryId(tx.category_id ?? "");
+      setDescription(tx.description ?? "");
+      setNote(tx.note ?? "");
+    }
+    // mark all fields as touched so suggestions never overwrite loaded data
+    setTouched({ amount: true, description: true, note: true, sourceId: true, categoryId: true });
+  }, [isEdit, editQ.data]);
+
+  // Default source = most-used account in recent transactions (skip in edit mode)
+  React.useEffect(() => {
+    if (isEdit) return;
     if (sourceId || accounts.length === 0) return;
     const counts = new Map<string, number>();
     (recentQ.data ?? []).forEach((t) => counts.set(t.source_account_id, (counts.get(t.source_account_id) ?? 0) + 1));
@@ -132,7 +201,7 @@ function AddTransaction() {
       if (n > bestN) { bestN = n; best = a.id; }
     }
     if (best) setSourceId(best);
-  }, [accounts, recentQ.data, sourceId]);
+  }, [accounts, recentQ.data, sourceId, isEdit]);
 
   const tags = extractTags(note);
 
@@ -212,6 +281,7 @@ function AddTransaction() {
         const sliceNote = s.note.trim();
         const merged = [sharedNote, sliceNote].filter(Boolean).join(" ");
         return {
+          id: s.id,
           amount: Number(s.amount.replace(",", ".")),
           categoryId: s.categoryId || null,
           description: s.description.trim() || null,
@@ -221,8 +291,32 @@ function AddTransaction() {
       if (parsed.some((p) => !p.amount || p.amount <= 0)) { toast.error(tr("add.split.toast.amounts")); return; }
 
       setSaving(true);
-      const groupId = (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
       const occurred_on = format(date, "yyyy-MM-dd");
+      if (isEdit && editQ.data?.tx.split_group_id) {
+        // Update existing split group: replace rows (delete all then insert).
+        const groupId = editQ.data.tx.split_group_id;
+        const delRes = await supabase.from("transactions").delete().eq("split_group_id", groupId);
+        if (delRes.error) { setSaving(false); toast.error(delRes.error.message); return; }
+        const rows = parsed.map((p) => ({
+          occurred_on,
+          amount: p.amount,
+          description: p.description,
+          note: p.note,
+          type,
+          source_account_id: sourceId,
+          destination_account_id: null,
+          category_id: p.categoryId,
+          split_group_id: groupId,
+        }));
+        const { error } = await supabase.from("transactions").insert(rows);
+        setSaving(false);
+        if (error) { toast.error(error.message); return; }
+        toast.success(tr("toast.saved"));
+        qc.invalidateQueries();
+        navigate({ to: "/transactions" });
+        return;
+      }
+      const groupId = (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
       const rows = parsed.map((p) => ({
         occurred_on,
         amount: p.amount,
@@ -255,6 +349,15 @@ function AddTransaction() {
       destination_account_id: type === "transfer" ? destId : null,
       category_id: type === "transfer" ? null : (categoryId || null),
     };
+    if (isEdit && editId) {
+      const { error } = await supabase.from("transactions").update(payload).eq("id", editId);
+      setSaving(false);
+      if (error) { toast.error(error.message); return; }
+      toast.success(tr("toast.saved"));
+      qc.invalidateQueries();
+      navigate({ to: "/transactions" });
+      return;
+    }
     const { error } = await supabase.from("transactions").insert(payload);
     setSaving(false);
     if (error) { toast.error(error.message); return; }
@@ -355,7 +458,13 @@ function AddTransaction() {
   return (
     <AppShell>
       <div className="space-y-5">
-        <h1 className="text-2xl font-semibold tracking-tight">{tr("add.title")}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">{isEdit ? tr("edit.title") : tr("add.title")}</h1>
+        {isEdit && editQ.isLoading && (
+          <p className="text-sm text-muted-foreground">{tr("common.loading")}</p>
+        )}
+        {isEdit && editQ.isError && (
+          <p className="text-sm text-destructive">{(editQ.error as Error)?.message ?? "Error"}</p>
+        )}
 
         {/* Type segmented control */}
         <div className="flex gap-1 rounded-lg bg-muted p-1">
@@ -394,8 +503,8 @@ function AddTransaction() {
           </CardContent>
         </Card>
 
-        {/* Smart suggestions — reserve space to avoid layout jumps */}
-        <div className="space-y-2">
+        {/* Smart suggestions — reserve space to avoid layout jumps (hidden in edit mode) */}
+        {!isEdit && <div className="space-y-2">
           <div className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {tr("add.suggestions")}
           </div>
@@ -421,7 +530,7 @@ function AddTransaction() {
               </button>
             </div>
           )}
-        </div>
+        </div>}
 
         {/* Account(s) */}
         <div className="space-y-3">
@@ -491,8 +600,8 @@ function AddTransaction() {
           )}
         </div>
 
-        {/* Split toggle (only for expense/income, not transfer) */}
-        {type !== "transfer" && (
+        {/* Split toggle (only for expense/income, not transfer; hidden in edit mode) */}
+        {type !== "transfer" && !isEdit && (
           <div className="flex items-center justify-between rounded-md border border-dashed border-border/60 px-3 py-2">
             <Label htmlFor="split-toggle" className="cursor-pointer text-sm font-normal">
               {tr("add.split.toggle")}
@@ -731,8 +840,17 @@ function AddTransaction() {
         </div>
 
         <div className="flex gap-2 pt-2">
-          <Button variant="outline" className="flex-1" disabled={saving} onClick={() => save(true)}>{tr("add.save_new")}</Button>
-          <Button className="flex-1" disabled={saving} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("common.save")}</Button>
+          {isEdit ? (
+            <>
+              <Button variant="outline" className="flex-1" disabled={saving} onClick={() => navigate({ to: "/transactions" })}>{tr("common.cancel")}</Button>
+              <Button className="flex-1" disabled={saving} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("edit.save_changes")}</Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" className="flex-1" disabled={saving} onClick={() => save(true)}>{tr("add.save_new")}</Button>
+              <Button className="flex-1" disabled={saving} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("common.save")}</Button>
+            </>
+          )}
         </div>
 
         <ShortcutsDialog

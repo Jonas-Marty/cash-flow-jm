@@ -42,6 +42,10 @@ const de: Dict = {
   "common.set": "Festlegen",
   "common.no_data": "Noch keine Daten.",
   "common.viewAll": "Alle ansehen",
+  "common.loading": "Lädt…",
+  "common.edit": "Bearbeiten",
+  "edit.title": "Buchung bearbeiten",
+  "edit.save_changes": "Änderungen speichern",
 
   // Toasts
   "toast.saved": "Gespeichert",
@@ -387,6 +391,10 @@ const en: Dict = {
   "common.set": "Set",
   "common.no_data": "No data yet.",
   "common.viewAll": "View all",
+  "common.loading": "Loading…",
+  "common.edit": "Edit",
+  "edit.title": "Edit transaction",
+  "edit.save_changes": "Save changes",
 
   "toast.saved": "Saved",
   "toast.deleted": "Deleted",
