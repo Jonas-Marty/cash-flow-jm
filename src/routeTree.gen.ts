@@ -15,6 +15,7 @@ import { Route as EnvelopesRouteImport } from './routes/envelopes'
 import { Route as AddRouteImport } from './routes/add'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EditIdRouteImport } from './routes/edit.$id'
+import { Route as ApiNextcloudCallbackRouteImport } from './routes/api.nextcloud.callback'
 
 const TransactionsRoute = TransactionsRouteImport.update({
   id: '/transactions',
@@ -46,6 +47,11 @@ const EditIdRoute = EditIdRouteImport.update({
   path: '/edit/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiNextcloudCallbackRoute = ApiNextcloudCallbackRouteImport.update({
+  id: '/api/nextcloud/callback',
+  path: '/api/nextcloud/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRoute
   '/edit/$id': typeof EditIdRoute
+  '/api/nextcloud/callback': typeof ApiNextcloudCallbackRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRoute
   '/edit/$id': typeof EditIdRoute
+  '/api/nextcloud/callback': typeof ApiNextcloudCallbackRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,6 +79,7 @@ export interface FileRoutesById {
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRoute
   '/edit/$id': typeof EditIdRoute
+  '/api/nextcloud/callback': typeof ApiNextcloudCallbackRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -81,8 +90,16 @@ export interface FileRouteTypes {
     | '/settings'
     | '/transactions'
     | '/edit/$id'
+    | '/api/nextcloud/callback'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/add' | '/envelopes' | '/settings' | '/transactions' | '/edit/$id'
+  to:
+    | '/'
+    | '/add'
+    | '/envelopes'
+    | '/settings'
+    | '/transactions'
+    | '/edit/$id'
+    | '/api/nextcloud/callback'
   id:
     | '__root__'
     | '/'
@@ -91,6 +108,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/transactions'
     | '/edit/$id'
+    | '/api/nextcloud/callback'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -100,6 +118,7 @@ export interface RootRouteChildren {
   SettingsRoute: typeof SettingsRoute
   TransactionsRoute: typeof TransactionsRoute
   EditIdRoute: typeof EditIdRoute
+  ApiNextcloudCallbackRoute: typeof ApiNextcloudCallbackRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -146,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EditIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/nextcloud/callback': {
+      id: '/api/nextcloud/callback'
+      path: '/api/nextcloud/callback'
+      fullPath: '/api/nextcloud/callback'
+      preLoaderRoute: typeof ApiNextcloudCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -156,6 +182,7 @@ const rootRouteChildren: RootRouteChildren = {
   SettingsRoute: SettingsRoute,
   TransactionsRoute: TransactionsRoute,
   EditIdRoute: EditIdRoute,
+  ApiNextcloudCallbackRoute: ApiNextcloudCallbackRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
