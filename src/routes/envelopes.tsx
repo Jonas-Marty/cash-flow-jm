@@ -15,6 +15,7 @@ import {
   fetchCategoryMonthRows,
   fetchSavingsBalances,
   fetchSettings,
+  fetchAccounts,
   fmtMoney,
   monthKey,
   fetchPendingImpactsForMonth,
@@ -24,6 +25,7 @@ import {
   type CategoryMonthRow,
 } from "@/lib/finance";
 import { StackedBudgetBar } from "@/components/StackedBudgetBar";
+import { useFxRates, convert } from "@/lib/fx";
 
 export const Route = createFileRoute("/envelopes")({
   component: EnvelopesPage,
@@ -55,13 +57,65 @@ function EnvelopesPage() {
     queryKey: ["envelope_month_tx", format(month, "yyyy-MM")],
     queryFn: () => fetchMonthCategoryTx(month),
   });
+  const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
 
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
+  const mainCode = settingsQ.data?.currency_code ?? "CHF";
   const rows = rowsQ.data ?? [];
   const savings = savingsQ.data ?? [];
   const savingsMap = new Map(savings.map((s) => [s.category_id, s]));
   const pendingMap = React.useMemo(() => buildPendingMap(pendingImpactQ.data ?? []), [pendingImpactQ.data]);
   const txs = txQ.data ?? [];
+  const accountById = React.useMemo(
+    () => new Map((accountsQ.data ?? []).map((a) => [a.id, a])),
+    [accountsQ.data],
+  );
+  const hasForeign = React.useMemo(
+    () => (accountsQ.data ?? []).some((a) => (a.currency_code ?? mainCode) !== mainCode),
+    [accountsQ.data, mainCode],
+  );
+  const fxQ = useFxRates(mainCode, hasForeign);
+
+  // Per-category, FX-converted spent_or_received in main currency. Only
+  // overrides DB rows when the category had at least one foreign-currency tx.
+  const convertedSpentByCat = React.useMemo(() => {
+    const m = new Map<string, { converted: number; hadForeign: boolean }>();
+    for (const t of txs) {
+      if (!t.category_id) continue;
+      const acc = accountById.get(t.source_account_id);
+      const code = acc?.currency_code ?? mainCode;
+      const raw = Number(t.amount);
+      // Sign matches `category_month_spending`: expense positive, income negative
+      const signed = t.type === "expense" ? raw : t.type === "income" ? -raw : 0;
+      let mainAmt: number;
+      if (code === mainCode) {
+        mainAmt = signed;
+      } else {
+        const c = convert(signed, code, mainCode, fxQ.data);
+        mainAmt = c ?? signed; // fall back to raw if FX not loaded yet
+      }
+      const cur = m.get(t.category_id) ?? { converted: 0, hadForeign: false };
+      cur.converted += mainAmt;
+      if (code !== mainCode) cur.hadForeign = true;
+      m.set(t.category_id, cur);
+    }
+    return m;
+  }, [txs, accountById, mainCode, fxQ.data]);
+
+  // Build effective rows: replace spent_or_received with converted total when foreign txs exist
+  const effectiveRows = React.useMemo(() => {
+    if (!hasForeign) return rows;
+    return rows.map((r) => {
+      const c = convertedSpentByCat.get(r.category_id);
+      if (!c?.hadForeign) return r;
+      // For income groups, category_month_spending stores income as positive;
+      // our convertedSpentByCat uses expense-positive convention. Flip sign back.
+      const signed = r.kind === "income" ? -c.converted : c.converted;
+      const allocated = Number(r.allocated);
+      const variance = r.kind === "income" ? signed - allocated : allocated - signed;
+      return { ...r, spent_or_received: signed, variance };
+    });
+  }, [rows, convertedSpentByCat, hasForeign]);
 
   const byCategory = new Map<string, Transaction[]>();
   txs.forEach((t) => {
@@ -74,7 +128,7 @@ function EnvelopesPage() {
   // Group rows by group_id preserving sort
   const groups = React.useMemo(() => {
     const map = new Map<string, { name: string; kind: CategoryMonthRow["kind"]; rows: CategoryMonthRow[] }>();
-    for (const r of rows) {
+    for (const r of effectiveRows) {
       const isSavingsRow = r.is_savings || r.kind === "savings";
       const effectiveKind: CategoryMonthRow["kind"] = isSavingsRow ? "savings" : r.kind;
       const useGroup = r.group_id && r.kind === effectiveKind;
@@ -91,12 +145,17 @@ function EnvelopesPage() {
       map.get(key)!.rows.push(r);
     }
     return Array.from(map.values());
-  }, [rows]);
+  }, [effectiveRows]);
 
   return (
     <AppShell>
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold tracking-tight">{tr("env.title")}</h1>
+        {hasForeign && (
+          <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+            {tr("env.fx_converted_hint", { cur: mainCode })}
+          </div>
+        )}
 
         <div className="flex items-center justify-between">
           <Button variant="outline" size="sm" onClick={() => setMonth((m) => addMonths(m, -1))}>
