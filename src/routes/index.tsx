@@ -149,22 +149,26 @@ function Dashboard() {
             <CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.networth")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={cn(
-              "text-3xl font-bold tabular-nums",
-              netWorth >= 0 ? "text-success" : "text-destructive",
-            )}>
-              {balancesQ.isLoading ? <Skeleton className="h-9 w-48" /> : fmtMoney(netWorth, symbol)}
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-              <div className="rounded-md border p-3">
-                <div className="text-muted-foreground">{t("dashboard.assets")}</div>
-                <div className={cn("mt-1 font-semibold tabular-nums", totalAssets < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(totalAssets, symbol)}</div>
-              </div>
-              <div className="rounded-md border p-3">
-                <div className="text-muted-foreground">{t("dashboard.liabilities")}</div>
-                <div className={cn("mt-1 font-semibold tabular-nums", totalLiabilities < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(totalLiabilities, symbol)}</div>
-              </div>
-            </div>
+            <NetWorthBlock
+              showConverted={showConverted}
+              hasForeign={hasForeign}
+              loading={balancesQ.isLoading}
+              netWorthMain={netWorthMainOnly}
+              netWorthConverted={netWorthConverted}
+              totalAssetsMain={totalAssetsMain}
+              totalLiabMain={totalLiabMain}
+              totalAssetsConverted={totalAssetsConverted}
+              totalLiabConverted={totalLiabConverted}
+              assetsByCur={assetsByCur}
+              liabByCur={liabByCur}
+              symbol={symbol}
+              mainCode={mainCode}
+              symbolForCode={symbolForCode}
+              showOther={showOther}
+              setShowOther={setShowOther}
+              fxReady={!hasForeign || !!fxQ.data}
+              tr={t}
+            />
           </CardContent>
         </Card>
 
