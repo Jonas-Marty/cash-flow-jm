@@ -1,0 +1,1 @@
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS theme text NOT NULL DEFAULT 'system' CHECK (theme IN ('light','dark','system'));
