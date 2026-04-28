@@ -469,7 +469,7 @@ function SettingsPage() {
             <div className="grid gap-2 md:grid-cols-[1fr_180px_auto]">
               <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label><Input value={gName} onChange={(e) => setGName(e.target.value)} placeholder="Fixkosten" /></div>
               <div>
-                <Label className="mb-1 block text-xs text-muted-foreground">{tr("common.kind")}</Label>
+                <Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.group_kind_label")}</Label>
                 <Select value={gKind} onValueChange={(v) => setGKind(v as GroupKind)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -481,6 +481,7 @@ function SettingsPage() {
               </div>
               <div className="flex items-end"><Button className="w-full" onClick={addGroup}><Plus className="h-4 w-4" /> {tr("common.add")}</Button></div>
             </div>
+            <p className="text-xs text-muted-foreground">{tr("settings.group_kind_hint")}</p>
             <ul className="divide-y">
               {(groupsQ.data ?? []).map((g, idx, arr) => (
                 <li key={g.id} className="flex items-center justify-between gap-2 py-2">
@@ -516,7 +517,17 @@ function SettingsPage() {
               <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label><Input value={cName} onChange={(e) => setCName(e.target.value)} placeholder="Groceries" /></div>
               <div>
                 <Label className="mb-1 block text-xs text-muted-foreground">{tr("common.group")}</Label>
-                <Select value={cGroupId || "__none"} onValueChange={(v) => setCGroupId(v === "__none" ? "" : v)}>
+                <Select
+                  value={cGroupId || "__none"}
+                  onValueChange={(v) => {
+                    const next = v === "__none" ? "" : v;
+                    setCGroupId(next);
+                    // Pre-default savings toggle to match the chosen group's
+                    // default behaviour. The user can still override.
+                    const g = (groupsQ.data ?? []).find((x) => x.id === next);
+                    if (g) setCIsSavings(g.kind === "savings");
+                  }}
+                >
                   <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none">{tr("common.none")}</SelectItem>
@@ -556,6 +567,15 @@ function SettingsPage() {
                     <div className={c.archived ? "min-w-0 text-muted-foreground line-through" : "min-w-0"}>
                       <div className="font-medium">{c.name}</div>
                       {c.is_savings && <div className="text-[10px] font-semibold uppercase text-muted-foreground">{tr("add.savings_badge")}</div>}
+                      {(() => {
+                        const g = (groupsQ.data ?? []).find((x) => x.id === c.group_id);
+                        if (!g) return null;
+                        const diverges = (g.kind === "savings") !== c.is_savings;
+                        if (!diverges) return null;
+                        return (
+                          <div className="text-[10px] text-warning" title={tr("settings.behaviour_diverges")}>⚠ {tr("settings.behaviour_diverges")}</div>
+                        );
+                      })()}
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 md:flex-nowrap md:justify-end">

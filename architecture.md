@@ -32,7 +32,7 @@ accounts                          category_groups
         │                               ├ sort_order
         │                               ├ archived
         │                               ├ group_id ──────────┘
-        │                               └ is_savings (cached from group.kind=savings)
+         │                               └ is_savings (per-envelope behaviour switch; see §3.3)
         │                                    ▲
         │                                    │
         │                              category_budgets   (per-month history)
@@ -89,15 +89,64 @@ All tables have `created_at`, `updated_at`, and a nullable `user_id` for future 
 
 Paying off a credit card = Transfer from Asset (bank) → Liability (card).
 
-### 3.3 Envelope flavours (driven by `category_groups.kind`)
+### 3.3 Envelope flavours: `category_groups.kind` vs `categories.is_savings`
 
-| Kind | Behaviour | Variance shown to user |
+Two coordinated fields classify an envelope. They have **distinct, non-overlapping jobs**:
+
+| Field | Job |
+|---|---|
+| `category_groups.kind` ∈ {`income`, `expense`, `savings`} | **Taxonomy + default for new envelopes.** Drives the section header on the envelopes screen, and pre-selects the savings toggle when an envelope is created inside that group. Does **not** by itself decide a single envelope's accounting behaviour. |
+| `categories.is_savings` (boolean) | **Per-envelope behaviour switch.** When true, the envelope accumulates across months (savings balance) and is excluded from monthly spend totals. When false, the envelope behaves as monthly expense or monthly income depending on its group's `kind`. |
+
+#### Effective kind (the one truth)
+
+Both UI and SQL derive the per-row **effective kind** identically:
+
+```
+effective_kind =
+  is_savings                       ? 'savings'
+  : group.kind === 'income'        ? 'income'
+  : 'expense'                      // includes ungrouped non-savings envelopes
+```
+
+This rule lives in `category_month_spending(p_month)` (returned as the `kind` column) and is reused by the envelopes screen and the Add transaction form. The client never recomputes it from `is_savings + group.kind` independently.
+
+#### Behaviour table (effective kind)
+
+| Effective kind | Behaviour | Variance shown to user |
 |---|---|---|
 | **income** | `received` = sum of income transactions in the month assigned to this envelope. `allocated` = expected income. | `variance = received − allocated`. Positive = over (green), negative = under (red). |
-| **expense** (default) | `spent = Σ(expense.amount) − Σ(income.amount)` for that month. Resets monthly, no rollover. | `variance = allocated − spent`. Bar turns amber at ≥80%, red when over budget. |
-| **savings / Rückstellung** | Accumulates across months. Allocations and bookings are independent of monthly spend totals. | Headline = all-time **balance** = Σ(allocations) − Σ(bookings). Negative balance = under-saved (red). Bookings against savings are *excluded* from the month's expense total and never trigger over-budget warnings. |
+| **expense** | `spent = Σ(expense.amount) − Σ(income.amount)` for that month. Resets monthly, no rollover. | `variance = allocated − spent`. Bar turns amber at ≥80%, red when over budget. |
+| **savings / Rückstellung** | Accumulates across months. Allocations and bookings are independent of monthly spend totals. | Headline = all-time **balance** = Σ(allocations) − Σ(bookings) from `category_savings_balance`. Negative balance = under-saved (red). Bookings against savings are *excluded* from the month's expense total and never trigger over-budget warnings. |
 
 The savings concept models things like the SBB GA: you allocate ~320 CHF/month into a Bahnabos envelope; when the yearly bill arrives you book it against Bahnabos paid by your credit card. The card balance moves; the month's expense totals stay flat; the savings balance just absorbs the accumulated allocation.
+
+#### Allowed / divergent combinations
+
+`is_savings` can disagree with the parent group's `kind`. This is intentional: a single "Holiday fund" envelope can sit inside an otherwise expense-flavoured "Variable" group without forcing the user to spin up a sibling savings group. The Settings UI flags such rows with a small "behaviour differs from group" badge so the divergence stays visible. The synthetic group header on the envelopes screen still uses the parent group's name; only the row math follows the row's own effective kind.
+
+| `group.kind` | `is_savings` | Effective kind | Notes |
+|---|---|---|---|
+| `expense` | false | expense | default case |
+| `expense` | true  | savings | standalone savings pot inside an expense group (badge in Settings) |
+| `income`  | false | income | default income envelope |
+| `income`  | true  | savings | rare; possible (e.g. "set aside 10% of salary"); badge shown |
+| `savings` | true  | savings | default when the user picked a savings-flavoured group |
+| `savings` | false | expense | unusual; allowed; badge shown |
+| *no group* | false | expense | ungrouped envelope, monthly expense behaviour |
+| *no group* | true  | savings | standalone savings pot, no parent group |
+
+#### Why both fields exist (and why we don't collapse them)
+
+- **Why `kind` survives:** users want a stable taxonomy for headers and a default for new envelopes. Removing it would force every envelope creation to ask "what flavour?" individually.
+- **Why `is_savings` survives:** standalone savings envelopes (no group) need *some* per-row marker, and users sometimes want a single savings pot inside a non-savings group.
+- **Why we don't add an `is_income` per category:** there is no concrete use case for "one income envelope inside an expense group". Income behaviour stays group-derived. If that ever changes, it generalises cleanly to a per-category enum without altering the existing `is_savings` semantics.
+
+#### Invariants enforced in the database
+
+- `category_month_spending` returns the effective kind directly, so any other consumer (RPC caller, public API) sees the same answer.
+- A trigger (`cleanup_budgets_on_savings_flip`) deletes monthly `category_budgets` rows when a category is flipped to `is_savings = true`. Savings envelopes don't use them and stale rows would otherwise drift the UI.
+- The Settings UI auto-defaults `is_savings` to match the chosen group's `kind` on envelope creation, but never auto-clears it when the group changes later (so a savings envelope cannot be silently demoted).
 
 ### 3.4 Monthly budget history & rollover-of-allocation
 

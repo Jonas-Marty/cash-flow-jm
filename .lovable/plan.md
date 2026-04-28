@@ -1,85 +1,166 @@
-# Continue Multi-Currency: UI + Net Worth + Envelopes + Public APIs
+# Reconcile `category_groups.kind` ↔ `categories.is_savings`
 
-Pick up where the foundation (DB schema, FX lib, Settings UI) left off.
+## The problem today
 
-## 1. Add / Edit transaction form (`src/routes/add.tsx`)
+Two overlapping mechanisms classify an envelope's behaviour:
 
-- Read the selected source/destination accounts and pull their `currency_symbol` from the cached accounts list.
-- Replace the static currency symbol next to the amount input with the **source account's symbol** (or destination's symbol for income).
-- For `transfer` type: when source and destination have **different `currency_code`**, render a second amount input labelled "Amount received" with the destination account's currency symbol.
-  - Auto-suggest the destination amount using the live FX rate from `src/lib/fx.ts` (rounded to 2 decimals), but let the user overwrite it (they should enter the actual amount their cash machine dispensed).
-  - Pre-fill on currency change; do not overwrite if user already edited.
-- When currencies match, keep `destination_amount = null` (the trigger enforces this anyway).
-- Wire `destination_amount` into the insert/update payload through the existing `transactionInputSchema`.
+1. `category_groups.kind` ∈ {`income`, `expense`, `savings`} — original design.
+2. `categories.is_savings` (boolean) — added later when standalone savings envelopes
+  without a parent group were needed.
 
-## 2. Transaction lists & detail rows
+They are inconsistently coupled:
 
-Files: `src/components/TransactionList.tsx` (or wherever rows render — find via `rg`), `src/routes/transactions.tsx`, `src/routes/index.tsx` recent-transactions card, account detail screen.
+- **SQL truth** (`category_month_spending`): math is driven **only** by `g.kind`.
+Income groups receive; expense/savings groups use the expense formula. The
+`is_savings` column is returned but **not used** to switch formulas.
+- **UI truth** (`envelopes.tsx`): grouping is driven by an *effective kind*
+= `is_savings || group.kind==='savings' ? 'savings' : group.kind`. A row with
+`is_savings=true` inside an expense group is rendered under a synthetic
+"Savings" header → inconsistent with what the RPC actually computed.
+- **Settings**: adding a category to a savings-kind group force-sets
+`is_savings=true`; clearing the group keeps `is_savings=true`. So the two
+fields drift apart on purpose.
+- **Allocated budget**: savings envelopes use `category_savings_balance`
+(all-time view, keyed on `is_savings=true`), while monthly budget rows are
+suppressed for them. So `is_savings` *is* a real switch — just not for the
+monthly RPC.
 
-- Render each row's amount with the **source account's `currency_symbol`** (for transfers, also show `→ <destSymbol> <destination_amount>` when present).
-- Group totals at the top of the transactions page **per currency** instead of summing across currencies. Format: `-CHF 120.00 · -EUR 40.00`.
-- Account detail balance header: use the account's own currency symbol (already available from `account_balances_as_of`).
+Net: a category can be (group=expense, is_savings=true) and the dashboard,
+envelopes screen, and savings totals all disagree about what it is.
 
-## 3. Net Worth display (`src/components/AccountBalances.tsx` or net-worth widget)
+## Decision: keep both, but with crisp, documented roles
 
-- Group accounts by `currency_code`.
-- **Main currency** (from `settings.currency_code`) is always shown as a top-line total.
-- **Foreign currencies**: only render the section if the user actually has at least one account with a non-main currency. Render it **collapsed by default** with a chevron toggle showing per-currency subtotals.
-- Add a Settings toggle `net_worth_show_converted` (boolean, default false). When on:
-  - Use `src/lib/fx.ts` to convert each foreign-currency subtotal into main currency and show a single "Net worth (converted)" line under the breakdown with caption "approx, FX as of <date>".
-  - On FX failure, silently fall back to per-currency breakdown.
-- Toggle lives in Settings → "Display" section.
+Rather than collapsing one into the other, formalise this:
 
-## 4. Envelopes / category variance (live FX)
+- `**categories.is_savings` becomes the single source of truth for *behaviour***
+(does this envelope accumulate across months, or reset monthly?).
+- `**category_groups.kind` becomes purely a *taxonomy / default* concern**
+(where new envelopes land, what header they render under, what the "add
+envelope" form pre-selects). It is **not** used to drive math anymore.
 
-- The `category_month_spending` RPC sums `t.amount` directly, currency-blind. We need to convert foreign-currency expenses to main currency before they enter variance.
-- Approach: keep the SQL RPC as-is (returns raw native sums per category), and do the conversion **client-side** in the envelopes screen:
-  - Fetch transactions for the month (already fetched in many places) joined with their account's currency.
-  - For each transaction whose account currency ≠ main currency, convert via `src/lib/fx.ts` (live rate, cached 12h via React Query).
-  - Recompute `spent_or_received` and `variance` per category using converted values.
-  - Show a small "≈" indicator on category rows that contain converted foreign-currency expenses, with tooltip "Includes foreign-currency expenses converted at live FX rate".
-- Wrap in a hook `useCategoryMonthSpendingConverted(month)` that wraps the existing query and applies the conversion.
+Why not drop `kind` entirely?
 
-## 5. Settings additions
+- Users want a header taxonomy ("Income", "Fixed costs", "Variable", "Savings
+pots") that survives even when a single category is reclassified.
+- Standalone (no-group) envelopes still need *some* bucket on screen — the
+synthetic income/expense/savings buckets we already render.
+- A group with `kind=income` is a useful default: any envelope created inside
+it should default to "income behaviour" (and any transaction logged against
+it defaults to income type in the Add form).
 
-- Add toggle: **"Convert net worth to main currency"** (writes `settings.net_worth_show_converted`).
-- Migration: `ALTER TABLE settings ADD COLUMN net_worth_show_converted boolean NOT NULL DEFAULT false;`
+Why not drop `is_savings`?
 
-## 6. Public API endpoints
+- Standalone savings envelopes (no group) must exist.
+- Users sometimes want a *single* savings pot inside an otherwise expense
+group ("Misc → Holiday fund"). Forcing them to create a sibling savings group
+for one envelope is friction.
 
-Files: `src/routes/api/public/accounts.ts`, `src/routes/api/public/transactions.ts` (find with `rg`).
+## Concrete changes
 
-- **Accounts response**: include `currency_code`, `currency_symbol`.
-- **Transactions response**: include `destination_amount` (nullable). Update OpenAPI/JSON shape comment if any.
-- **Transactions POST/PATCH**: accept optional `destination_amount`; pass through to insert/update. Validation trigger handles correctness — return 400 with the trigger's error message on failure.
+### 1. SQL — make `is_savings` the behaviour switch
 
-## 7. Transaction edit flow
+Update `category_month_spending(p_month)` so the income/expense/savings branch
+is selected per row by:
 
-If there's a separate edit route/sheet (`src/routes/transactions.$id.tsx` or similar), apply the same dynamic symbol + second amount field as the Add form. Find with `rg "destination_account_id" src/routes`.
+```
+effective_kind =
+  CASE
+    WHEN c.is_savings THEN 'savings'
+    WHEN g.kind = 'income' THEN 'income'
+    ELSE 'expense'
+  END
+```
 
-## Technical details
+Returned `kind` column = `effective_kind` (so the UI no longer needs to
+recompute). A savings row returns `allocated=0`, `spent_or_received=0`,
+`variance=0` from this RPC — its real numbers come from
+`category_savings_balance` as today.
 
-- FX hook (already built): `useFxRate(from, to)` from `src/lib/fx.ts`, returns `{ rate, asOf, isLoading }`.
-- Currency formatting helper: add `formatMoney(amount, symbol)` to `src/lib/finance.ts` if not present, used everywhere instead of hard-coding the global symbol.
-- Per-currency grouping helper: `groupByCurrency<T>(items, getAmount, getCurrency)` → `Map<currencyCode, total>`.
-- All conversion is **display-only**; persisted amounts always stay in the account's native currency.
+Migration also: when a savings envelope's `is_savings` flips on, delete its
+`category_budgets` rows (already done in UI; enforce via trigger so it can't
+drift).
 
-## Files
+### 2. Settings UX — clarify the contract
 
-**New**
-- `src/hooks/useCategoryMonthSpendingConverted.ts`
-- `src/lib/money.ts` (formatting + grouping helpers, or extend `finance.ts`)
+- **Group form**: keep the kind selector, relabel to "Default behaviour for
+new envelopes" with helper text:
+*"New envelopes added to this group will default to this behaviour. You can
+override per-envelope."*
+- **Envelope form / row**: the "Savings envelope" toggle stays. When you add
+an envelope to a group, the toggle **pre-selects** to match `group.kind`
+(`income`-kind groups → toggle is replaced by an "Income envelope" indicator
+derived from group kind; `savings`-kind → toggle on; `expense`-kind →
+toggle off). The user can flip it.
+- **Visual cue**: in the envelope list, show a small badge when a category's
+effective behaviour differs from its group's kind ("Savings in Expense
+group"), so the divergence is intentional and visible.
+- **Income envelopes**: today there is no per-category "is_income" flag. We
+keep that derived from the group: an envelope in an income-kind group is
+treated as income. Standalone (no group) envelopes default to expense unless
+`is_savings=true`. This is the only remaining case where `kind` drives
+math — documented as such.
+
+### 3. Envelopes screen — single computation path
+
+Remove the client-side `effectiveKind` logic. Trust the RPC's returned `kind`.
+Group rows by:
+
+- If the row has a `group_id`, render under that group header (with the group's
+display name). The header subtitle shows the group's *default* kind.
+- If no `group_id`, fall back to a synthetic header named after the row's
+effective kind.
+
+Mixed-behaviour groups (e.g. an expense group containing one savings envelope)
+render under the group header; each row's body uses the per-row effective
+kind for its formula. This is consistent with the SQL.
+
+### 4. Architecture doc
+
+Rewrite §3.3 to explain the new model explicitly:
+
+- Two coordinated fields, two clear jobs:
+  - `category_groups.kind` = **taxonomy + default for new envelopes**.
+  - `categories.is_savings` = **per-envelope behaviour switch (savings vs not)**.
+  - Income behaviour stays group-derived (no `is_income` per category) because
+  we have no use case for "one income envelope inside an expense group".
+- A truth table showing what (`group.kind`, `is_savings`) combinations mean
+and which formula applies.
+- A "why not collapse them" subsection capturing the design rationale above
+so a future contributor doesn't try to merge them again.
+
+## Files to change
+
+**SQL migration**
+
+- New migration: rewrite `category_month_spending` to use `effective_kind`;
+optional trigger to clear `category_budgets` when `is_savings` flips on.
 
 **Edited**
-- `src/routes/add.tsx` — dynamic symbol, conditional second amount field
-- `src/routes/transactions.tsx` — per-currency totals, per-row symbols
-- `src/routes/index.tsx` — recent transactions row symbols
-- `src/components/AccountBalances.tsx` (or equivalent) — grouped net worth + collapsible foreign section + optional conversion
-- `src/routes/settings.tsx` — net-worth conversion toggle
-- `src/routes/envelopes.tsx` (or equivalent) — converted variance + indicator
-- `src/routes/api/public/accounts.ts` — expose currency fields
-- `src/routes/api/public/transactions.ts` — expose + accept `destination_amount`
-- Any transaction edit screen found via `rg`
 
-**Migration**
-- Add `net_worth_show_converted boolean` to `settings`.
+- `src/routes/envelopes.tsx` — drop client-side `effectiveKind` logic, trust
+RPC `kind`, render mixed groups correctly.
+- `src/routes/settings.tsx` — relabel group-kind selector, smarter
+`is_savings` defaulting on add, divergence badge in the list.
+- `src/routes/add.tsx` / `edit.$id.tsx` — derive default tx type from the
+selected category's effective kind (using group + is_savings).
+- `src/lib/finance.ts` — small helper `effectiveKind(category, group)` for
+client use where the RPC isn't involved.
+- `architecture.md` — rewrite §3.3, add the truth table and rationale.
+
+**Not changed**
+
+- `category_savings_balance` view (already keyed on `is_savings`).
+- Existing data: no row migration needed; the new RPC formula yields the
+same numbers for all current rows because today every `is_savings=true`
+row already lives in a savings-kind group (the UI enforces it).
+
+## Open question for you
+
+Before I implement, please confirm one preference:
+
+**Should the group `kind` selector stay visible in the Settings UI, or
+should it be hidden and inferred from "what's the most common behaviour
+of envelopes in this group"?** My recommendation is to keep it visible
+(option A above) because it's a useful default and a clear taxonomy
+header — but if you'd rather have one less concept on screen, I can hide
+it and infer.
