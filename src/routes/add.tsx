@@ -20,6 +20,7 @@ import type { Suggestion } from "@/lib/suggestions/types";
 import { SuggestionRow } from "@/components/SuggestionRow";
 import { QuickAmountChips } from "@/components/QuickAmountChips";
 import { TagChips } from "@/components/TagChips";
+import { TagAutocompleteTextarea } from "@/components/TagAutocompleteTextarea";
 import { DateShortcuts } from "@/components/DateShortcuts";
 import { ChipPicker, type ChipPickerItem } from "@/components/ChipPicker";
 import { scoreAccounts, scoreCategories, sortByPinAndScore } from "@/lib/usageScoring";
