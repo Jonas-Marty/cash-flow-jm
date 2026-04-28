@@ -89,7 +89,7 @@ export const Route = createFileRoute("/api/public/transactions")({
           .from("transactions")
           .insert({ ...payload, user_id: auth.userId })
           .select(
-            "id, occurred_on, amount, type, source_account_id, destination_account_id, category_id, description, note, created_at",
+            "id, occurred_on, amount, destination_amount, type, source_account_id, destination_account_id, category_id, description, note, created_at",
           )
           .single();
         if (insErr) {

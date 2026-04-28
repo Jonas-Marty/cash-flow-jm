@@ -47,7 +47,7 @@ export const Route = createFileRoute("/api/public/accounts")({
 
         let q = supabaseAdmin
           .from("accounts")
-          .select("id, name, type, archived")
+          .select("id, name, type, archived, currency_code, currency_symbol")
           .eq("user_id", auth.userId)
           .order("type")
           .order("name");
