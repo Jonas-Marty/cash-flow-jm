@@ -313,6 +313,33 @@ function SettingsPage() {
           </CardContent>
         </Card>
 
+        {/* Theme */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">{tr("settings.theme")}</CardTitle></CardHeader>
+          <CardContent>
+            <Select
+              value={(settingsQ.data?.theme as string) ?? "system"}
+              onValueChange={async (v) => {
+                if (!settingsQ.data) return;
+                const { error } = await supabase
+                  .from("settings")
+                  .update({ theme: v })
+                  .eq("id", settingsQ.data.id);
+                if (error) { toast.error(error.message); return; }
+                toast.success(tr("toast.saved"));
+                qc.invalidateQueries({ queryKey: ["settings"] });
+              }}
+            >
+              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="system">{tr("settings.theme.system")}</SelectItem>
+                <SelectItem value="light">{tr("settings.theme.light")}</SelectItem>
+                <SelectItem value="dark">{tr("settings.theme.dark")}</SelectItem>
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+
         {/* Currency */}
         <Card>
           <CardHeader><CardTitle className="text-base">{tr("settings.currency")}</CardTitle></CardHeader>
