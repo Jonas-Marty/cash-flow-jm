@@ -233,6 +233,10 @@ export function TransactionForm({ editId }: { editId: string | null }) {
       setCategoryId(tx.category_id ?? "");
       setDescription(tx.description ?? "");
       setNote(tx.note ?? "");
+      if (tx.destination_amount != null) {
+        setDestAmount(Number(tx.destination_amount).toFixed(2));
+        setDestAmountTouched(true);
+      }
     }
     // mark all fields as touched so suggestions never overwrite loaded data
     setTouched({ amount: true, description: true, note: true, sourceId: true, categoryId: true });
