@@ -517,7 +517,17 @@ function SettingsPage() {
               <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label><Input value={cName} onChange={(e) => setCName(e.target.value)} placeholder="Groceries" /></div>
               <div>
                 <Label className="mb-1 block text-xs text-muted-foreground">{tr("common.group")}</Label>
-                <Select value={cGroupId || "__none"} onValueChange={(v) => setCGroupId(v === "__none" ? "" : v)}>
+                <Select
+                  value={cGroupId || "__none"}
+                  onValueChange={(v) => {
+                    const next = v === "__none" ? "" : v;
+                    setCGroupId(next);
+                    // Pre-default savings toggle to match the chosen group's
+                    // default behaviour. The user can still override.
+                    const g = (groupsQ.data ?? []).find((x) => x.id === next);
+                    if (g) setCIsSavings(g.kind === "savings");
+                  }}
+                >
                   <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none">{tr("common.none")}</SelectItem>
