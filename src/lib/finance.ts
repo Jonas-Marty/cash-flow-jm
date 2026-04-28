@@ -142,6 +142,7 @@ export interface Settings {
   day_heatmap_threshold: number;
   date_format: string;
   net_worth_show_converted: boolean;
+  theme: "light" | "dark" | "system";
 }
 
 export const fmtMoney = (n: number, symbol = "CHF") => {
