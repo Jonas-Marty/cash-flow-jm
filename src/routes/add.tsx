@@ -67,17 +67,6 @@ export function TransactionForm({ editId }: { editId: string | null }) {
     () => new Map(accounts.map((a) => [a.id, a])),
     [accounts],
   );
-  const sourceAccount = sourceId ? accountById.get(sourceId) : undefined;
-  const destAccount = destId ? accountById.get(destId) : undefined;
-  // For income, the destination of money is the chosen account (= source field)
-  // — same field, so source symbol always governs the main amount input.
-  const symbol = sourceAccount?.currency_symbol ?? mainSymbol;
-  const destSymbol = destAccount?.currency_symbol ?? symbol;
-  const isCrossCurrency =
-    type === "transfer" &&
-    !!sourceAccount &&
-    !!destAccount &&
-    sourceAccount.currency_code !== destAccount.currency_code;
 
   // Sorted account/category chips: pinned first, then recency-weighted usage
   const accountChips: ChipPickerItem[] = React.useMemo(() => {
