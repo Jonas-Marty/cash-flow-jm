@@ -669,6 +669,8 @@ export type Database = {
         Row: {
           archived: boolean | null
           balance: number | null
+          currency_code: string | null
+          currency_symbol: string | null
           id: string | null
           name: string | null
           opening_balance: number | null
@@ -677,6 +679,8 @@ export type Database = {
         Insert: {
           archived?: boolean | null
           balance?: never
+          currency_code?: string | null
+          currency_symbol?: string | null
           id?: string | null
           name?: string | null
           opening_balance?: number | null
@@ -685,6 +689,8 @@ export type Database = {
         Update: {
           archived?: boolean | null
           balance?: never
+          currency_code?: string | null
+          currency_symbol?: string | null
           id?: string | null
           name?: string | null
           opening_balance?: number | null
@@ -734,6 +740,8 @@ export type Database = {
         Returns: {
           archived: boolean
           balance: number
+          currency_code: string
+          currency_symbol: string
           id: string
           name: string
           opening_balance: number
