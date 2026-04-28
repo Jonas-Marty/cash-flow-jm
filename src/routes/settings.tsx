@@ -400,11 +400,17 @@ function SettingsPage() {
                     <div className="min-w-0">
                       <div className={a.archived ? "text-muted-foreground line-through" : "font-medium"}>{a.name}</div>
                       <div className="text-xs text-muted-foreground">
-                        {a.type === "asset" ? tr("settings.account_asset") : tr("settings.account_liability")} · {tr("settings.opening_balance")} {Number(a.opening_balance).toFixed(2)}
+                        {a.type === "asset" ? tr("settings.account_asset") : tr("settings.account_liability")} · {a.currency_code} · {tr("settings.opening_balance")} {Number(a.opening_balance).toFixed(2)}
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex items-center gap-1">
+                    <Select value={a.currency_code} onValueChange={(v) => updateAccountCurrency(a.id, v)}>
+                      <SelectTrigger className="h-8 w-[78px] text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {CURRENCIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.code}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button variant="ghost" size="icon" aria-label={tr("settings.visual.edit")}><Palette className="h-4 w-4" /></Button>
