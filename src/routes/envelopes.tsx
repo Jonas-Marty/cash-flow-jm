@@ -125,20 +125,20 @@ function EnvelopesPage() {
     byCategory.set(t.category_id, arr);
   });
 
-  // Group rows by group_id preserving sort
+  // Group rows by group_id preserving sort. The RPC already returns the
+  // effective per-row kind (driven by categories.is_savings, falling back to
+  // category_groups.kind), so we trust it directly. Rows without a group fall
+  // into a synthetic bucket per effective kind.
   const groups = React.useMemo(() => {
     const map = new Map<string, { name: string; kind: CategoryMonthRow["kind"]; rows: CategoryMonthRow[] }>();
     for (const r of effectiveRows) {
-      const isSavingsRow = r.is_savings || r.kind === "savings";
-      const effectiveKind: CategoryMonthRow["kind"] = isSavingsRow ? "savings" : r.kind;
-      const useGroup = r.group_id && r.kind === effectiveKind;
-      const key = useGroup ? r.group_id! : `__${effectiveKind}__`;
+      const key = r.group_id ?? `__${r.kind}__`;
       if (!map.has(key)) {
         map.set(key, {
-          name: useGroup
+          name: r.group_id
             ? (r.group_name ?? "")
-            : (effectiveKind === "income" ? "Income" : effectiveKind === "savings" ? "Savings" : "Uncategorized"),
-          kind: effectiveKind,
+            : (r.kind === "income" ? "Income" : r.kind === "savings" ? "Savings" : "Uncategorized"),
+          kind: r.kind,
           rows: [],
         });
       }
@@ -189,11 +189,15 @@ function EnvelopesPage() {
                 const allocated = Number(r.allocated);
                 const actual = Number(r.spent_or_received);
                 const pending = pendingMap.get(r.category_id);
-                const pendingDelta = pendingDeltaForRow(pending, g.kind);
+                // Use the row's own effective kind (from RPC), not the group's,
+                // so a savings envelope inside an expense group still computes
+                // correctly.
+                const rowKind = r.kind;
+                const pendingDelta = pendingDeltaForRow(pending, rowKind);
                 const pendingPos = Math.max(0, pendingDelta);
 
                 let header: React.ReactNode;
-                if (g.kind === "savings") {
+                if (rowKind === "savings") {
                   const balance = Number(savingsMap.get(r.category_id)?.balance ?? 0);
                   header = (
                     <>
@@ -210,7 +214,7 @@ function EnvelopesPage() {
                       )}
                     </>
                   );
-                } else if (g.kind === "income") {
+                } else if (rowKind === "income") {
                   const variance = actual - allocated;
                   const tone = variance >= 0 ? "text-success" : "text-destructive";
                   const projected = actual + pendingDelta;
@@ -266,9 +270,9 @@ function EnvelopesPage() {
                       <ul className="mt-3 divide-y border-t pt-2">
                         {items.map((t) => {
                           const isInflow = t.type === "income";
-                          const label = g.kind === "income"
+                          const label = rowKind === "income"
                             ? (isInflow ? tr("env.income_label") : tr("env.income_adjustment"))
-                            : g.kind === "savings"
+                            : rowKind === "savings"
                               ? (isInflow ? tr("env.savings_refund") : tr("env.savings_booking"))
                               : (isInflow ? tr("env.reimb_short") : tr("env.expense_label"));
                           const acc = accountById.get(t.source_account_id);
