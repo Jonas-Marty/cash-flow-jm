@@ -469,7 +469,7 @@ function SettingsPage() {
             <div className="grid gap-2 md:grid-cols-[1fr_180px_auto]">
               <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label><Input value={gName} onChange={(e) => setGName(e.target.value)} placeholder="Fixkosten" /></div>
               <div>
-                <Label className="mb-1 block text-xs text-muted-foreground">{tr("common.kind")}</Label>
+                <Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.group_kind_label")}</Label>
                 <Select value={gKind} onValueChange={(v) => setGKind(v as GroupKind)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -481,6 +481,7 @@ function SettingsPage() {
               </div>
               <div className="flex items-end"><Button className="w-full" onClick={addGroup}><Plus className="h-4 w-4" /> {tr("common.add")}</Button></div>
             </div>
+            <p className="text-xs text-muted-foreground">{tr("settings.group_kind_hint")}</p>
             <ul className="divide-y">
               {(groupsQ.data ?? []).map((g, idx, arr) => (
                 <li key={g.id} className="flex items-center justify-between gap-2 py-2">
