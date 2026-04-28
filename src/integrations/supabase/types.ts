@@ -451,6 +451,7 @@ export type Database = {
           day_heatmap_threshold: number
           id: string
           language: string
+          net_worth_show_converted: boolean
           updated_at: string
           user_id: string | null
         }
@@ -462,6 +463,7 @@ export type Database = {
           day_heatmap_threshold?: number
           id?: string
           language?: string
+          net_worth_show_converted?: boolean
           updated_at?: string
           user_id?: string | null
         }
@@ -473,6 +475,7 @@ export type Database = {
           day_heatmap_threshold?: number
           id?: string
           language?: string
+          net_worth_show_converted?: boolean
           updated_at?: string
           user_id?: string | null
         }

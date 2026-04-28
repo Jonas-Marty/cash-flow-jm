@@ -1,0 +1,1 @@
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS net_worth_show_converted boolean NOT NULL DEFAULT false;
