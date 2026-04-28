@@ -67,14 +67,31 @@ function SettingsPage() {
   const [aName, setAName] = React.useState("");
   const [aType, setAType] = React.useState<AccountType>("asset");
   const [aOpening, setAOpening] = React.useState("0");
+  const [aCurrency, setACurrency] = React.useState<string>("");
+  React.useEffect(() => {
+    if (!aCurrency && settingsQ.data?.currency_code) setACurrency(settingsQ.data.currency_code);
+  }, [settingsQ.data?.currency_code, aCurrency]);
   const addAccount = async () => {
     if (!aName.trim()) { toast.error(tr("toast.name_required")); return; }
+    const code = aCurrency || settingsQ.data?.currency_code || "CHF";
+    const sym = CURRENCIES.find((c) => c.code === code)?.symbol ?? code;
     const { error } = await supabase.from("accounts").insert({
       name: aName.trim(), type: aType, opening_balance: Number(aOpening) || 0,
+      currency_code: code, currency_symbol: sym,
     });
     if (error) { toast.error(error.message); return; }
     toast.success(tr("toast.account_added"));
     setAName(""); setAOpening("0");
+    qc.invalidateQueries();
+  };
+  const updateAccountCurrency = async (id: string, code: string) => {
+    const sym = CURRENCIES.find((c) => c.code === code)?.symbol ?? code;
+    const { error } = await supabase
+      .from("accounts")
+      .update({ currency_code: code, currency_symbol: sym })
+      .eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success(tr("toast.saved"));
     qc.invalidateQueries();
   };
   const toggleArchiveAccount = async (id: string, archived: boolean) => {
