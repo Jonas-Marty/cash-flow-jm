@@ -799,12 +799,13 @@ export function TransactionForm({ editId }: { editId: string | null }) {
                     </div>
                     <div className="mt-2">
                       <Label className="mb-1 block text-xs">{tr("add.split.note")}</Label>
-                      <Textarea
+                      <TagAutocompleteTextarea
                         rows={2}
                         value={s.note}
-                        onChange={(e) =>
-                          setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, note: e.target.value } : x)))
+                        onChange={(next) =>
+                          setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, note: next } : x)))
                         }
+                        transactions={recentQ.data ?? []}
                         placeholder={tr("add.split.note_placeholder")}
                       />
                       <TagChips
@@ -890,7 +891,14 @@ export function TransactionForm({ editId }: { editId: string | null }) {
           {splitMode && (
             <p className="mb-1.5 text-xs text-muted-foreground">{tr("add.note.shared_hint")}</p>
           )}
-          <Textarea id="note" rows={2} value={note} onChange={(e) => { setNote(e.target.value); mark("note"); }} placeholder={tr("add.note_placeholder")} />
+          <TagAutocompleteTextarea
+            id="note"
+            rows={2}
+            value={note}
+            onChange={(next) => { setNote(next); mark("note"); }}
+            transactions={recentQ.data ?? []}
+            placeholder={tr("add.note_placeholder")}
+          />
           <TagChips
             className="mt-2"
             transactions={recentQ.data ?? []}
