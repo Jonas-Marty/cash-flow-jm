@@ -366,7 +366,7 @@ function SettingsPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">{tr("settings.accounts")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-2 md:grid-cols-[1fr_140px_140px_auto]">
+            <div className="grid gap-2 md:grid-cols-[1fr_140px_120px_120px_auto]">
               <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label><Input value={aName} onChange={(e) => setAName(e.target.value)} placeholder="Main Bank" /></div>
               <div>
                 <Label className="mb-1 block text-xs text-muted-foreground">{tr("common.type")}</Label>
@@ -379,6 +379,15 @@ function SettingsPage() {
                 </Select>
               </div>
               <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.opening_balance")}</Label><Input inputMode="decimal" value={aOpening} onChange={(e) => setAOpening(e.target.value)} /></div>
+              <div>
+                <Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.currency")}</Label>
+                <Select value={aCurrency || (settingsQ.data?.currency_code ?? "CHF")} onValueChange={setACurrency}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CURRENCIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.code}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="flex items-end"><Button className="w-full" onClick={addAccount}><Plus className="h-4 w-4" /> {tr("common.add")}</Button></div>
             </div>
             <p className="text-xs text-muted-foreground">{tr("settings.accounts.asset_hint")}</p>
