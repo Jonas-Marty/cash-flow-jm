@@ -247,6 +247,8 @@ function Dashboard() {
                 const Icon = tx.type === "expense" ? ArrowDown : tx.type === "income" ? ArrowUp : ArrowLeftRight;
                 const tone = tx.type === "expense" ? "text-destructive" : tx.type === "income" ? "text-success" : "text-muted-foreground";
                 const sign = tx.type === "expense" ? "-" : tx.type === "income" ? "+" : "";
+                const srcAcc = accountById.get(tx.source_account_id);
+                const txSym = srcAcc?.currency_symbol ?? symbol;
                 return (
                   <div key={tx.id} className="flex items-center gap-3 px-4 py-3">
                     <div className={cn("flex h-9 w-9 items-center justify-center rounded-full bg-muted", tone)}>
@@ -266,7 +268,7 @@ function Dashboard() {
                       <div className="text-xs text-muted-foreground">{format(new Date(tx.occurred_on), "MMM d", { locale })}</div>
                     </div>
                     <div className={cn("text-sm font-semibold tabular-nums", tone)}>
-                      {sign}{fmtMoney(Number(tx.amount), symbol).replace("-", "")}
+                      {sign}{fmtMoney(Number(tx.amount), txSym).replace("-", "")}
                     </div>
                   </div>
                 );
