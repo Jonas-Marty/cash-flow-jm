@@ -438,6 +438,7 @@ const en: Dict = {
   "toast.account_required": "Pick an account",
   "toast.dest_required": "Pick a destination account",
   "toast.dest_must_differ": "Source and destination must differ",
+  "toast.dest_amount_required": "Enter the amount received",
   "toast.currency_updated": "Currency updated",
   "toast.language_updated": "Language updated",
   "toast.account_added": "Account added",
