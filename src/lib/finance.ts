@@ -212,7 +212,7 @@ export async function fetchSettings(): Promise<Settings> {
   if (!data) {
     const { data: created, error: cErr } = await supabase
       .from("settings")
-      .insert({ currency_code: "CHF", currency_symbol: "CHF", day_heatmap_threshold: 100, date_format: "dd.MM.yyyy" })
+      .insert({ currency_code: "CHF", currency_symbol: "CHF", day_heatmap_threshold: 100, date_format: "dd.MM.yyyy", net_worth_show_converted: false })
       .select()
       .single();
     if (cErr) throw cErr;
