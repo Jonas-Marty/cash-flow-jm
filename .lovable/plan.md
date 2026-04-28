@@ -1,73 +1,85 @@
-## Goal
+# Continue Multi-Currency: UI + Net Worth + Envelopes + Public APIs
 
-Track foreign-currency cash spending during vacations without converting every transaction back to your main currency. Cash account balances stay in their native currency; net worth optionally shows them converted at a current FX rate.
+Pick up where the foundation (DB schema, FX lib, Settings UI) left off.
 
-## Concept
+## 1. Add / Edit transaction form (`src/routes/add.tsx`)
 
-Introduce a per-account currency. Today, currency is a single global setting on `settings` (e.g. CHF) and every amount is implicitly that currency. We extend this so each account carries its own `currency_code` + `currency_symbol`, defaulting to the user's main currency. Transactions stay denominated in their **source account's** currency — no conversion stored on the transaction itself.
+- Read the selected source/destination accounts and pull their `currency_symbol` from the cached accounts list.
+- Replace the static currency symbol next to the amount input with the **source account's symbol** (or destination's symbol for income).
+- For `transfer` type: when source and destination have **different `currency_code`**, render a second amount input labelled "Amount received" with the destination account's currency symbol.
+  - Auto-suggest the destination amount using the live FX rate from `src/lib/fx.ts` (rounded to 2 decimals), but let the user overwrite it (they should enter the actual amount their cash machine dispensed).
+  - Pre-fill on currency change; do not overwrite if user already edited.
+- When currencies match, keep `destination_amount = null` (the trigger enforces this anyway).
+- Wire `destination_amount` into the insert/update payload through the existing `transactionInputSchema`.
 
-Use cases handled:
+## 2. Transaction lists & detail rows
 
-- **Card payment abroad** → card account stays in CHF; merchant amount you record is the CHF amount your bank charged. No change in behaviour.
-- **Cash withdrawal abroad** → modeled as a **transfer** from your CHF card/bank account to a foreign-currency cash account. Because source and destination currencies differ, the transfer captures **two amounts**: amount leaving source (CHF) and amount arriving at destination (e.g. EUR).
-- **Cash spend abroad** → normal expense from the EUR cash account, entered in EUR. Envelope budgets are in your main currency, so foreign-cash expenses are excluded from envelope spending (or optionally converted at a per-account "display rate" — see Open Questions).
+Files: `src/components/TransactionList.tsx` (or wherever rows render — find via `rg`), `src/routes/transactions.tsx`, `src/routes/index.tsx` recent-transactions card, account detail screen.
 
-Recurring rules are unchanged (you confirmed not needed).
+- Render each row's amount with the **source account's `currency_symbol`** (for transfers, also show `→ <destSymbol> <destination_amount>` when present).
+- Group totals at the top of the transactions page **per currency** instead of summing across currencies. Format: `-CHF 120.00 · -EUR 40.00`.
+- Account detail balance header: use the account's own currency symbol (already available from `account_balances_as_of`).
 
-## Data Model Changes
+## 3. Net Worth display (`src/components/AccountBalances.tsx` or net-worth widget)
 
-Migration adds:
+- Group accounts by `currency_code`.
+- **Main currency** (from `settings.currency_code`) is always shown as a top-line total.
+- **Foreign currencies**: only render the section if the user actually has at least one account with a non-main currency. Render it **collapsed by default** with a chevron toggle showing per-currency subtotals.
+- Add a Settings toggle `net_worth_show_converted` (boolean, default false). When on:
+  - Use `src/lib/fx.ts` to convert each foreign-currency subtotal into main currency and show a single "Net worth (converted)" line under the breakdown with caption "approx, FX as of <date>".
+  - On FX failure, silently fall back to per-currency breakdown.
+- Toggle lives in Settings → "Display" section.
 
-1. `accounts.currency_code text not null default 'CHF'` and `accounts.currency_symbol text not null default 'CHF'`. Backfilled from each user's `settings` row.
-2. `transactions.destination_amount numeric` — only set when `type = 'transfer'` AND source/destination currencies differ. Represents the amount credited to the destination account in its own currency. When null on a transfer, destination receives the same `amount` as source (current behaviour).
-3. Validation trigger on `transactions`: `destination_amount` must be > 0 when set; must be null for non-transfers; must be null when source and destination share the same currency.
+## 4. Envelopes / category variance (live FX)
 
-### Functions to update
+- The `category_month_spending` RPC sums `t.amount` directly, currency-blind. We need to convert foreign-currency expenses to main currency before they enter variance.
+- Approach: keep the SQL RPC as-is (returns raw native sums per category), and do the conversion **client-side** in the envelopes screen:
+  - Fetch transactions for the month (already fetched in many places) joined with their account's currency.
+  - For each transaction whose account currency ≠ main currency, convert via `src/lib/fx.ts` (live rate, cached 12h via React Query).
+  - Recompute `spent_or_received` and `variance` per category using converted values.
+  - Show a small "≈" indicator on category rows that contain converted foreign-currency expenses, with tooltip "Includes foreign-currency expenses converted at live FX rate".
+- Wrap in a hook `useCategoryMonthSpendingConverted(month)` that wraps the existing query and applies the conversion.
 
-- `account_balances` view + `account_balances_as_of(date)` RPC: when summing transfers crediting an account, use `coalesce(destination_amount, amount)` instead of `amount`.
-- `category_month_spending` and the savings balance view are unaffected — they sum transactions that already use the source account's currency and savings categories are typically tied to main-currency accounts. We will document the constraint: an envelope (category) implicitly inherits the currency of the transactions posted to it. For vacation cash, attach those expenses to a dedicated "Travel cash" envelope so totals stay coherent.
+## 5. Settings additions
 
-## API & Types
+- Add toggle: **"Convert net worth to main currency"** (writes `settings.net_worth_show_converted`).
+- Migration: `ALTER TABLE settings ADD COLUMN net_worth_show_converted boolean NOT NULL DEFAULT false;`
 
-- `Account` interface gains `currency_code` and `currency_symbol`.
-- `transactionInputSchema` gains optional `destination_amount` (positive number, required when transfer crosses currencies). `normalizeTransactionInput` enforces the cross-currency rule.
-- Public REST API (`/api/public/transactions`, `/api/public/accounts`) surfaces the new fields.
+## 6. Public API endpoints
 
-## UI Changes
+Files: `src/routes/api/public/accounts.ts`, `src/routes/api/public/transactions.ts` (find with `rg`).
 
-**Settings → Accounts**: each account row gets a currency selector (default = user main currency). Disabled once the account has transactions, unless you confirm a destructive change (out of scope for this plan).
+- **Accounts response**: include `currency_code`, `currency_symbol`.
+- **Transactions response**: include `destination_amount` (nullable). Update OpenAPI/JSON shape comment if any.
+- **Transactions POST/PATCH**: accept optional `destination_amount`; pass through to insert/update. Validation trigger handles correctness — return 400 with the trigger's error message on failure.
 
-**Add / Edit transaction (`add.tsx`, `edit.$id.tsx`)**:
+## 7. Transaction edit flow
 
-- The amount input shows the **source account's** currency symbol (already pulled per-account instead of the global one).
-- For transfers, when source and destination currencies differ, a second amount field appears labelled "Amount received (EUR)" with its own currency symbol. Required to submit.
-- Quick-amount chips and validation continue to operate on the source amount.
+If there's a separate edit route/sheet (`src/routes/transactions.$id.tsx` or similar), apply the same dynamic symbol + second amount field as the Add form. Find with `rg "destination_account_id" src/routes`.
 
-**Lists (`transactions.tsx`, `index.tsx` recent, `DayPreview`)**: each transaction is rendered with the symbol of its source account, not the global setting. Daily/transfer totals group per currency (e.g. "−CHF 120 · −EUR 40") rather than summing across currencies.
+## Technical details
 
-**Envelopes (`envelopes.tsx`, dashboard envelopes)**: continue to display in main currency. Foreign-currency expenses linked to an envelope are shown with their native symbol in the transaction list under the envelope, but the totals/variance bars only count main-currency amounts. A subtle hint ("+ EUR 40 in foreign currency") is appended when applicable.
+- FX hook (already built): `useFxRate(from, to)` from `src/lib/fx.ts`, returns `{ rate, asOf, isLoading }`.
+- Currency formatting helper: add `formatMoney(amount, symbol)` to `src/lib/finance.ts` if not present, used everywhere instead of hard-coding the global symbol.
+- Per-currency grouping helper: `groupByCurrency<T>(items, getAmount, getCurrency)` → `Map<currencyCode, total>`.
+- All conversion is **display-only**; persisted amounts always stay in the account's native currency.
 
-**Net worth (`index.tsx`)**:
+## Files
 
-- Default: a "Total in CHF" line plus per-currency sub-totals ("EUR 85 · USD 0"). No FX call; clear and deterministic.
-- Optional toggle in Settings → "Convert foreign balances to main currency" — when on, fetches rates from a free public endpoint (e.g. `https://api.frankfurter.app/latest?from=EUR&to=CHF`) once per session, caches in React Query for 12 h, and shows a single combined net worth with a small "(approx., FX as of …)" caption. If the fetch fails, fall back to the per-currency view.
+**New**
+- `src/hooks/useCategoryMonthSpendingConverted.ts`
+- `src/lib/money.ts` (formatting + grouping helpers, or extend `finance.ts`)
 
-## Technical Details
+**Edited**
+- `src/routes/add.tsx` — dynamic symbol, conditional second amount field
+- `src/routes/transactions.tsx` — per-currency totals, per-row symbols
+- `src/routes/index.tsx` — recent transactions row symbols
+- `src/components/AccountBalances.tsx` (or equivalent) — grouped net worth + collapsible foreign section + optional conversion
+- `src/routes/settings.tsx` — net-worth conversion toggle
+- `src/routes/envelopes.tsx` (or equivalent) — converted variance + indicator
+- `src/routes/api/public/accounts.ts` — expose currency fields
+- `src/routes/api/public/transactions.ts` — expose + accept `destination_amount`
+- Any transaction edit screen found via `rg`
 
-- Migration order: add columns with defaults → backfill `accounts` from `settings.currency_*` → add validation trigger → update views/RPCs.
-- Trigger uses `EXISTS` lookups on `accounts` to compare currencies; marked `STABLE` and runs on `BEFORE INSERT OR UPDATE`.
-- FX fetch lives in a small helper `src/lib/fx.ts` using `fetch`. No API key, no secret needed (Frankfurter is free, ECB-backed). Wired through TanStack Query with `staleTime: 12h`.
-- Backwards compatibility: existing transactions have `destination_amount = null`, so balances are unchanged for same-currency setups.
-
-## Out of Scope (call out explicitly)
-
-- Per-transaction FX rate history / P&L on FX gains.
-- Multi-currency recurring rules.
-- Multi-currency envelopes / budgets in non-main currency.
-- Editing an account's currency after it has transactions.
-
-## Open Questions
-
-- For envelopes, do you want foreign-cash expenses **excluded** from variance (cleanest, recommended) or **converted at a fixed per-account display rate** you set manually (e.g. "1 EUR = 0.95 CHF")? Go with reccomended
-- For net worth, default to **per-currency breakdown** or **auto-convert via Frankfurter API**? Can we have both? Foreign currency collapsed by default to save space. 
-- Should the cash withdrawal flow get a dedicated shortcut on the Add screen ("Withdraw cash abroad") that pre-fills a transfer with two amount fields, or is the generic transfer with the second amount field enough? Generic transfer enough. Force the user to only fill second field when source an target account differ. Also only show in that case 
+**Migration**
+- Add `net_worth_show_converted boolean` to `settings`.
