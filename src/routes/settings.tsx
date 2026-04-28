@@ -489,7 +489,7 @@ function SettingsPage() {
               const cats = categoriesQ.data ?? [];
               const grps = groupsQ.data ?? [];
               const renderRow = (c: typeof cats[number], idx: number, arr: typeof cats) => (
-                <li key={c.id} className="flex items-center justify-between gap-2 py-2">
+                <li key={c.id} className="flex flex-col gap-2 py-2 md:flex-row md:items-center md:justify-between">
                   <div className="flex min-w-0 items-center gap-2">
                     <div className="flex flex-col">
                       <Button variant="ghost" size="icon" className="h-5 w-5" disabled={idx === 0} onClick={() => swapSortOrder("categories", c, arr[idx - 1])} aria-label={tr("settings.move_up")}>
@@ -505,9 +505,9 @@ function SettingsPage() {
                       {c.is_savings && <div className="text-[10px] font-semibold uppercase text-muted-foreground">{tr("add.savings_badge")}</div>}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2 md:flex-nowrap md:justify-end">
                     <Select value={c.group_id ?? "__none"} onValueChange={(v) => updateCategoryGroup(c.id, v === "__none" ? "" : v)}>
-                      <SelectTrigger className="w-40"><SelectValue placeholder="—" /></SelectTrigger>
+                      <SelectTrigger className="w-36 md:w-40"><SelectValue placeholder="—" /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="__none">{tr("common.none")}</SelectItem>
                         {grps.map((g) => (
@@ -522,7 +522,7 @@ function SettingsPage() {
                       key={`${c.id}-${c.is_savings}-${c.allocated_budget}`}
                       defaultValue={Number(c.allocated_budget).toString()}
                       inputMode="decimal"
-                      className="w-28 text-right tabular-nums"
+                      className="w-24 text-right tabular-nums md:w-28"
                       disabled={c.is_savings}
                       onBlur={(e) => updateCategoryBudget(c.id, e.target.value)}
                     />
