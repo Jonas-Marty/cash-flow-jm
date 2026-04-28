@@ -567,6 +567,15 @@ function SettingsPage() {
                     <div className={c.archived ? "min-w-0 text-muted-foreground line-through" : "min-w-0"}>
                       <div className="font-medium">{c.name}</div>
                       {c.is_savings && <div className="text-[10px] font-semibold uppercase text-muted-foreground">{tr("add.savings_badge")}</div>}
+                      {(() => {
+                        const g = (groupsQ.data ?? []).find((x) => x.id === c.group_id);
+                        if (!g) return null;
+                        const diverges = (g.kind === "savings") !== c.is_savings;
+                        if (!diverges) return null;
+                        return (
+                          <div className="text-[10px] text-warning" title={tr("settings.behaviour_diverges")}>⚠ {tr("settings.behaviour_diverges")}</div>
+                        );
+                      })()}
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 md:flex-nowrap md:justify-end">
