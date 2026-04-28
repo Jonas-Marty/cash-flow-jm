@@ -32,7 +32,7 @@ accounts                          category_groups
         │                               ├ sort_order
         │                               ├ archived
         │                               ├ group_id ──────────┘
-        │                               └ is_savings (cached from group.kind=savings)
+         │                               └ is_savings (per-envelope behaviour switch; see §3.3)
         │                                    ▲
         │                                    │
         │                              category_budgets   (per-month history)
