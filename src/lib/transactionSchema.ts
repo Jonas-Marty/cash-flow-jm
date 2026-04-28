@@ -55,6 +55,7 @@ export const transactionInputSchema = z
     category_id: z.string().uuid().nullable().optional(),
     description: trimmedNullable(500),
     note: trimmedNullable(2000),
+    destination_amount: amountSchema.optional().nullable(),
   })
   .superRefine((data, ctx) => {
     if (data.type === "transfer") {
@@ -71,6 +72,13 @@ export const transactionInputSchema = z
           message: "Destination account must differ from source account",
         });
       }
+    }
+    if (data.destination_amount != null && data.type !== "transfer") {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["destination_amount"],
+        message: "destination_amount is only allowed on transfers",
+      });
     }
   });
 
@@ -100,5 +108,7 @@ export function normalizeTransactionInput(input: TransactionInput) {
     category_id: input.type === "transfer" ? null : input.category_id ?? null,
     description: input.description,
     note: input.note,
+    destination_amount:
+      input.type === "transfer" ? input.destination_amount ?? null : null,
   };
 }

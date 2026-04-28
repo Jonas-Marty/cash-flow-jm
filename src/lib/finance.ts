@@ -16,6 +16,8 @@ export interface Account {
   color?: string | null;
   pinned?: boolean;
   pin_order?: number | null;
+  currency_code: string;
+  currency_symbol: string;
 }
 export interface AccountBalance {
   id: string;
@@ -24,6 +26,8 @@ export interface AccountBalance {
   archived: boolean;
   opening_balance: number;
   balance: number;
+  currency_code?: string;
+  currency_symbol?: string;
 }
 export interface Category {
   id: string;
@@ -92,6 +96,7 @@ export interface Transaction {
   created_at: string;
   recurring_rule_id?: string | null;
   split_group_id?: string | null;
+  destination_amount?: number | null;
 }
 export type RecurringFrequency = "monthly" | "quarterly" | "yearly";
 export type RecurringDayRule = "fixed_day" | "end_of_month" | "first_of_month";

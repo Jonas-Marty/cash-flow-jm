@@ -67,14 +67,31 @@ function SettingsPage() {
   const [aName, setAName] = React.useState("");
   const [aType, setAType] = React.useState<AccountType>("asset");
   const [aOpening, setAOpening] = React.useState("0");
+  const [aCurrency, setACurrency] = React.useState<string>("");
+  React.useEffect(() => {
+    if (!aCurrency && settingsQ.data?.currency_code) setACurrency(settingsQ.data.currency_code);
+  }, [settingsQ.data?.currency_code, aCurrency]);
   const addAccount = async () => {
     if (!aName.trim()) { toast.error(tr("toast.name_required")); return; }
+    const code = aCurrency || settingsQ.data?.currency_code || "CHF";
+    const sym = CURRENCIES.find((c) => c.code === code)?.symbol ?? code;
     const { error } = await supabase.from("accounts").insert({
       name: aName.trim(), type: aType, opening_balance: Number(aOpening) || 0,
+      currency_code: code, currency_symbol: sym,
     });
     if (error) { toast.error(error.message); return; }
     toast.success(tr("toast.account_added"));
     setAName(""); setAOpening("0");
+    qc.invalidateQueries();
+  };
+  const updateAccountCurrency = async (id: string, code: string) => {
+    const sym = CURRENCIES.find((c) => c.code === code)?.symbol ?? code;
+    const { error } = await supabase
+      .from("accounts")
+      .update({ currency_code: code, currency_symbol: sym })
+      .eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success(tr("toast.saved"));
     qc.invalidateQueries();
   };
   const toggleArchiveAccount = async (id: string, archived: boolean) => {
@@ -349,7 +366,7 @@ function SettingsPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">{tr("settings.accounts")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-2 md:grid-cols-[1fr_140px_140px_auto]">
+            <div className="grid gap-2 md:grid-cols-[1fr_140px_120px_120px_auto]">
               <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label><Input value={aName} onChange={(e) => setAName(e.target.value)} placeholder="Main Bank" /></div>
               <div>
                 <Label className="mb-1 block text-xs text-muted-foreground">{tr("common.type")}</Label>
@@ -362,6 +379,15 @@ function SettingsPage() {
                 </Select>
               </div>
               <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.opening_balance")}</Label><Input inputMode="decimal" value={aOpening} onChange={(e) => setAOpening(e.target.value)} /></div>
+              <div>
+                <Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.currency")}</Label>
+                <Select value={aCurrency || (settingsQ.data?.currency_code ?? "CHF")} onValueChange={setACurrency}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CURRENCIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.code}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="flex items-end"><Button className="w-full" onClick={addAccount}><Plus className="h-4 w-4" /> {tr("common.add")}</Button></div>
             </div>
             <p className="text-xs text-muted-foreground">{tr("settings.accounts.asset_hint")}</p>
@@ -374,11 +400,17 @@ function SettingsPage() {
                     <div className="min-w-0">
                       <div className={a.archived ? "text-muted-foreground line-through" : "font-medium"}>{a.name}</div>
                       <div className="text-xs text-muted-foreground">
-                        {a.type === "asset" ? tr("settings.account_asset") : tr("settings.account_liability")} · {tr("settings.opening_balance")} {Number(a.opening_balance).toFixed(2)}
+                        {a.type === "asset" ? tr("settings.account_asset") : tr("settings.account_liability")} · {a.currency_code} · {tr("settings.opening_balance")} {Number(a.opening_balance).toFixed(2)}
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-1">
+                  <div className="flex items-center gap-1">
+                    <Select value={a.currency_code} onValueChange={(v) => updateAccountCurrency(a.id, v)}>
+                      <SelectTrigger className="h-8 w-[78px] text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {CURRENCIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.code}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button variant="ghost" size="icon" aria-label={tr("settings.visual.edit")}><Palette className="h-4 w-4" /></Button>
