@@ -19,6 +19,8 @@ export type Database = {
           archived: boolean
           color: string | null
           created_at: string
+          currency_code: string
+          currency_symbol: string
           emoji: string | null
           icon: string | null
           id: string
@@ -35,6 +37,8 @@ export type Database = {
           archived?: boolean
           color?: string | null
           created_at?: string
+          currency_code?: string
+          currency_symbol?: string
           emoji?: string | null
           icon?: string | null
           id?: string
@@ -51,6 +55,8 @@ export type Database = {
           archived?: boolean
           color?: string | null
           created_at?: string
+          currency_code?: string
+          currency_symbol?: string
           emoji?: string | null
           icon?: string | null
           id?: string
@@ -546,6 +552,7 @@ export type Database = {
           created_at: string
           description: string | null
           destination_account_id: string | null
+          destination_amount: number | null
           id: string
           note: string | null
           occurred_on: string
@@ -562,6 +569,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           destination_account_id?: string | null
+          destination_amount?: number | null
           id?: string
           note?: string | null
           occurred_on?: string
@@ -578,6 +586,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           destination_account_id?: string | null
+          destination_amount?: number | null
           id?: string
           note?: string | null
           occurred_on?: string
