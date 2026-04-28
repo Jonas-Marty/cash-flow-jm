@@ -452,6 +452,7 @@ export type Database = {
           id: string
           language: string
           net_worth_show_converted: boolean
+          theme: string
           updated_at: string
           user_id: string | null
         }
@@ -464,6 +465,7 @@ export type Database = {
           id?: string
           language?: string
           net_worth_show_converted?: boolean
+          theme?: string
           updated_at?: string
           user_id?: string | null
         }
@@ -476,6 +478,7 @@ export type Database = {
           id?: string
           language?: string
           net_worth_show_converted?: boolean
+          theme?: string
           updated_at?: string
           user_id?: string | null
         }

@@ -7,6 +7,7 @@ import { fetchSettings } from "@/lib/finance";
 import { supabase } from "@/integrations/supabase/client";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { AuthPage } from "@/components/AuthPage";
+import { ThemeApplier, type ThemeMode } from "@/lib/theme";
 
 import appCss from "../styles.css?url";
 
@@ -90,6 +91,7 @@ function I18nGate({ children }: { children: React.ReactNode }) {
   const qc = useQueryClient();
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const lang = ((settingsQ.data?.language as Lang | undefined) ?? "de") as Lang;
+  const theme = ((settingsQ.data?.theme as ThemeMode | undefined) ?? "system") as ThemeMode;
   const setLang = React.useCallback(
     async (l: Lang) => {
       if (!settingsQ.data) return;
@@ -104,6 +106,7 @@ function I18nGate({ children }: { children: React.ReactNode }) {
   );
   return (
     <I18nProvider lang={lang} setLang={setLang}>
+      <ThemeApplier mode={theme} />
       {children}
     </I18nProvider>
   );
