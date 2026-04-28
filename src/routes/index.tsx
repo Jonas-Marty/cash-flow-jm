@@ -1,7 +1,7 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, ArrowLeftRight, Plus } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowLeftRight, Plus, ChevronDown, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 
 import { AppShell } from "@/components/AppShell";
@@ -18,12 +18,15 @@ import {
   fetchSavingsBalances,
   fetchSettings,
   fetchTransactions,
+  fetchAccounts,
   fetchRecurringRules,
   processRecurringRules,
   fetchPendingImpactsForMonth,
   buildPendingMap,
   pendingDeltaForRow,
   fmtMoney,
+  groupSumByCurrency,
+  formatPerCurrency,
   monthKey,
   endOfMonthISO,
   endOfYearISO,
@@ -33,6 +36,7 @@ import {
   type PendingCategorySigned,
 } from "@/lib/finance";
 import { StackedBudgetBar } from "@/components/StackedBudgetBar";
+import { useFxRates, convert } from "@/lib/fx";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
@@ -52,6 +56,7 @@ function Dashboard() {
   const savingsQ = useQuery({ queryKey: ["savings_balance"], queryFn: fetchSavingsBalances });
   const pendingImpactQ = useQuery({ queryKey: ["pending_impact_month", m], queryFn: () => fetchPendingImpactsForMonth(m) });
   const recentQ = useQuery({ queryKey: ["transactions", "recent"], queryFn: () => fetchTransactions(8) });
+  const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const rulesQ = useQuery({ queryKey: ["recurring_rules"], queryFn: fetchRecurringRules });
   // Run the recurring processor once when the dashboard mounts.
   // Idempotent — safe even if the user reloads many times.
@@ -60,17 +65,67 @@ function Dashboard() {
   }, []);
 
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
+  const mainCode = settingsQ.data?.currency_code ?? "CHF";
+  const showConverted = !!settingsQ.data?.net_worth_show_converted;
   const accounts = balancesQ.data ?? [];
   const assets = accounts.filter((a) => a.type === "asset" && !a.archived);
   const liabilities = accounts.filter((a) => a.type === "liability" && !a.archived);
 
-  const totalAssets = assets.reduce((s, a) => s + Number(a.balance), 0);
-  const totalLiabilities = liabilities.reduce((s, a) => s + Number(a.balance), 0);
-  const netWorth = totalAssets + totalLiabilities; // liabilities are stored as negatives via transfers
+  // Detect any non-main currency among balances. If absent, render exactly
+  // like before — single total in the user's main currency.
+  const hasForeign = React.useMemo(
+    () => accounts.some((a) => !a.archived && (a.currency_code ?? mainCode) !== mainCode),
+    [accounts, mainCode],
+  );
+  const fxQ = useFxRates(mainCode, hasForeign);
+
+  // Per-currency totals (separate buckets, no FX involved)
+  const assetsByCur = React.useMemo(
+    () => groupSumByCurrency(assets, (a) => a.currency_code ?? mainCode, (a) => Number(a.balance)),
+    [assets, mainCode],
+  );
+  const liabByCur = React.useMemo(
+    () => groupSumByCurrency(liabilities, (a) => a.currency_code ?? mainCode, (a) => Number(a.balance)),
+    [liabilities, mainCode],
+  );
+  const symbolForCode = React.useCallback(
+    (code: string) => {
+      const acc = accounts.find((a) => (a.currency_code ?? mainCode) === code);
+      return acc?.currency_symbol ?? (code === mainCode ? symbol : code);
+    },
+    [accounts, mainCode, symbol],
+  );
+
+  // Main-currency-only totals (used for the headline when no foreign currencies exist)
+  const totalAssetsMain = (assetsByCur.get(mainCode) ?? 0);
+  const totalLiabMain = (liabByCur.get(mainCode) ?? 0);
+
+  // Converted totals (only used when toggle is on or for projection tiles fallback)
+  const convertedTotal = React.useCallback(
+    (rows: AccountBalance[]) =>
+      rows.reduce((s, a) => {
+        const code = a.currency_code ?? mainCode;
+        const v = Number(a.balance);
+        if (code === mainCode) return s + v;
+        const c = convert(v, code, mainCode, fxQ.data);
+        return s + (c ?? 0);
+      }, 0),
+    [fxQ.data, mainCode],
+  );
+  const totalAssetsConverted = convertedTotal(assets);
+  const totalLiabConverted = convertedTotal(liabilities);
+  const netWorthConverted = totalAssetsConverted + totalLiabConverted;
+  const netWorthMainOnly = totalAssetsMain + totalLiabMain;
+
+  const [showOther, setShowOther] = React.useState(false);
 
   const envelopes = envelopesQ.data ?? [];
   const savings = savingsQ.data ?? [];
   const pendingMap = React.useMemo(() => buildPendingMap(pendingImpactQ.data ?? []), [pendingImpactQ.data]);
+  const accountById = React.useMemo(
+    () => new Map((accountsQ.data ?? []).map((a) => [a.id, a])),
+    [accountsQ.data],
+  );
 
   // Group envelopes by group_id, preserving sort order
   const grouped = React.useMemo(() => groupRows(envelopes), [envelopes]);
