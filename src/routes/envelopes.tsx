@@ -271,6 +271,8 @@ function EnvelopesPage() {
                             : g.kind === "savings"
                               ? (isInflow ? tr("env.savings_refund") : tr("env.savings_booking"))
                               : (isInflow ? tr("env.reimb_short") : tr("env.expense_label"));
+                          const acc = accountById.get(t.source_account_id);
+                          const txSym = acc?.currency_symbol ?? symbol;
                           return (
                             <li key={t.id} className="flex items-center justify-between gap-3 py-2 text-sm">
                               <div className="min-w-0 flex-1">
@@ -278,7 +280,7 @@ function EnvelopesPage() {
                                 <div className="text-xs text-muted-foreground">{format(new Date(t.occurred_on), "MMM d", { locale })}</div>
                               </div>
                               <div className={cn("tabular-nums font-medium", isInflow ? "text-success" : "text-destructive")}>
-                                {isInflow ? "+" : "-"}{fmtMoney(Number(t.amount), symbol).replace("-", "")}
+                                {isInflow ? "+" : "-"}{fmtMoney(Number(t.amount), txSym).replace("-", "")}
                               </div>
                             </li>
                           );
