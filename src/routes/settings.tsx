@@ -359,6 +359,27 @@ function SettingsPage() {
               </Select>
               <p className="mt-1 text-xs text-muted-foreground">{tr("settings.date_format.hint")}</p>
             </div>
+            <div className="pt-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="space-y-0.5">
+                  <Label htmlFor="networth-convert" className="text-sm">{tr("settings.networth_convert")}</Label>
+                  <p className="text-xs text-muted-foreground">{tr("settings.networth_convert.hint")}</p>
+                </div>
+                <Switch
+                  id="networth-convert"
+                  checked={!!settingsQ.data?.net_worth_show_converted}
+                  onCheckedChange={async (checked) => {
+                    if (!settingsQ.data) return;
+                    const { error } = await supabase
+                      .from("settings")
+                      .update({ net_worth_show_converted: checked })
+                      .eq("id", settingsQ.data.id);
+                    if (error) { toast.error(error.message); return; }
+                    qc.invalidateQueries({ queryKey: ["settings"] });
+                  }}
+                />
+              </div>
+            </div>
           </CardContent>
         </Card>
 

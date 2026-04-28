@@ -617,6 +617,7 @@ function TransactionsPage() {
                     const tone = first.type === "expense" ? "text-destructive" : first.type === "income" ? "text-success" : "text-muted-foreground";
                     const sign = first.type === "expense" ? "-" : first.type === "income" ? "+" : "";
                     const src = accountById.get(first.source_account_id);
+                    const grpSym = src?.currency_symbol ?? symbol;
                     const open = !!openGroups[row.groupId];
                     const ChevIcon = open ? ChevronDown : ChevronRight;
                     const headerLabel = row.txs.map((x) => x.description).filter(Boolean).slice(0, 2).join(", ") || tr("tx.split.label");
@@ -641,9 +642,9 @@ function TransactionsPage() {
                               </div>
                               <div className={cn("text-sm font-semibold tabular-nums whitespace-nowrap", tone)}>
                                 {amtMatch ? (
-                                  <mark className="rounded bg-yellow-200/70 px-1 dark:bg-yellow-500/30">{sign}{fmtMoney(total, symbol).replace("-", "")}</mark>
+                                  <mark className="rounded bg-yellow-200/70 px-1 dark:bg-yellow-500/30">{sign}{fmtMoney(total, grpSym).replace("-", "")}</mark>
                                 ) : (
-                                  <>{sign}{fmtMoney(total, symbol).replace("-", "")}</>
+                                  <>{sign}{fmtMoney(total, grpSym).replace("-", "")}</>
                                 )}
                               </div>
                             </div>
@@ -670,7 +671,7 @@ function TransactionsPage() {
                                     <div className="text-xs text-muted-foreground">{highlightTokens(cat?.name ?? tr("add.split.no_category"), tokens)}</div>
                                   </div>
                                   <div className={cn("tabular-nums font-medium", tone)}>
-                                    {sign}{fmtMoney(Number(t.amount), symbol).replace("-", "")}
+                                    {sign}{fmtMoney(Number(t.amount), grpSym).replace("-", "")}
                                   </div>
                                 </li>
                               );
@@ -691,6 +692,9 @@ function TransactionsPage() {
                   const tags = tagsByTx.get(t.id) ?? [];
                   const primary = cat ?? src;
                   const amtMatch = amountMatchedFor(Number(t.amount));
+                  const txSym = src?.currency_symbol ?? symbol;
+                  const dstSym = dst?.currency_symbol ?? txSym;
+                  const showDstAmount = t.type === "transfer" && dst && t.destination_amount != null && (src?.currency_code ?? "") !== (dst?.currency_code ?? "");
                   return (
                     <div key={t.id} className="flex items-start gap-3 px-4 py-3">
                       <RowVisual entity={primary} typeIcon={<Icon className="h-3 w-3" />} tone={tone} />
@@ -710,9 +714,14 @@ function TransactionsPage() {
                           </div>
                           <div className={cn("text-sm font-semibold tabular-nums whitespace-nowrap", tone)}>
                             {amtMatch ? (
-                              <mark className="rounded bg-yellow-200/70 px-1 dark:bg-yellow-500/30">{sign}{fmtMoney(Number(t.amount), symbol).replace("-", "")}</mark>
+                              <mark className="rounded bg-yellow-200/70 px-1 dark:bg-yellow-500/30">{sign}{fmtMoney(Number(t.amount), txSym).replace("-", "")}</mark>
                             ) : (
-                              <>{sign}{fmtMoney(Number(t.amount), symbol).replace("-", "")}</>
+                              <>{sign}{fmtMoney(Number(t.amount), txSym).replace("-", "")}</>
+                            )}
+                            {showDstAmount && (
+                              <span className="ml-1 text-xs font-normal text-muted-foreground">
+                                → {fmtMoney(Number(t.destination_amount), dstSym).replace("-", "")}
+                              </span>
                             )}
                           </div>
                         </div>

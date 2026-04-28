@@ -1,7 +1,7 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, ArrowLeftRight, Plus } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowLeftRight, Plus, ChevronDown, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 
 import { AppShell } from "@/components/AppShell";
@@ -18,12 +18,15 @@ import {
   fetchSavingsBalances,
   fetchSettings,
   fetchTransactions,
+  fetchAccounts,
   fetchRecurringRules,
   processRecurringRules,
   fetchPendingImpactsForMonth,
   buildPendingMap,
   pendingDeltaForRow,
   fmtMoney,
+  groupSumByCurrency,
+  formatPerCurrency,
   monthKey,
   endOfMonthISO,
   endOfYearISO,
@@ -33,6 +36,7 @@ import {
   type PendingCategorySigned,
 } from "@/lib/finance";
 import { StackedBudgetBar } from "@/components/StackedBudgetBar";
+import { useFxRates, convert } from "@/lib/fx";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
@@ -52,6 +56,7 @@ function Dashboard() {
   const savingsQ = useQuery({ queryKey: ["savings_balance"], queryFn: fetchSavingsBalances });
   const pendingImpactQ = useQuery({ queryKey: ["pending_impact_month", m], queryFn: () => fetchPendingImpactsForMonth(m) });
   const recentQ = useQuery({ queryKey: ["transactions", "recent"], queryFn: () => fetchTransactions(8) });
+  const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const rulesQ = useQuery({ queryKey: ["recurring_rules"], queryFn: fetchRecurringRules });
   // Run the recurring processor once when the dashboard mounts.
   // Idempotent — safe even if the user reloads many times.
@@ -60,17 +65,67 @@ function Dashboard() {
   }, []);
 
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
+  const mainCode = settingsQ.data?.currency_code ?? "CHF";
+  const showConverted = !!settingsQ.data?.net_worth_show_converted;
   const accounts = balancesQ.data ?? [];
   const assets = accounts.filter((a) => a.type === "asset" && !a.archived);
   const liabilities = accounts.filter((a) => a.type === "liability" && !a.archived);
 
-  const totalAssets = assets.reduce((s, a) => s + Number(a.balance), 0);
-  const totalLiabilities = liabilities.reduce((s, a) => s + Number(a.balance), 0);
-  const netWorth = totalAssets + totalLiabilities; // liabilities are stored as negatives via transfers
+  // Detect any non-main currency among balances. If absent, render exactly
+  // like before — single total in the user's main currency.
+  const hasForeign = React.useMemo(
+    () => accounts.some((a) => !a.archived && (a.currency_code ?? mainCode) !== mainCode),
+    [accounts, mainCode],
+  );
+  const fxQ = useFxRates(mainCode, hasForeign);
+
+  // Per-currency totals (separate buckets, no FX involved)
+  const assetsByCur = React.useMemo(
+    () => groupSumByCurrency(assets, (a) => a.currency_code ?? mainCode, (a) => Number(a.balance)),
+    [assets, mainCode],
+  );
+  const liabByCur = React.useMemo(
+    () => groupSumByCurrency(liabilities, (a) => a.currency_code ?? mainCode, (a) => Number(a.balance)),
+    [liabilities, mainCode],
+  );
+  const symbolForCode = React.useCallback(
+    (code: string) => {
+      const acc = accounts.find((a) => (a.currency_code ?? mainCode) === code);
+      return acc?.currency_symbol ?? (code === mainCode ? symbol : code);
+    },
+    [accounts, mainCode, symbol],
+  );
+
+  // Main-currency-only totals (used for the headline when no foreign currencies exist)
+  const totalAssetsMain = (assetsByCur.get(mainCode) ?? 0);
+  const totalLiabMain = (liabByCur.get(mainCode) ?? 0);
+
+  // Converted totals (only used when toggle is on or for projection tiles fallback)
+  const convertedTotal = React.useCallback(
+    (rows: AccountBalance[]) =>
+      rows.reduce((s, a) => {
+        const code = a.currency_code ?? mainCode;
+        const v = Number(a.balance);
+        if (code === mainCode) return s + v;
+        const c = convert(v, code, mainCode, fxQ.data);
+        return s + (c ?? 0);
+      }, 0),
+    [fxQ.data, mainCode],
+  );
+  const totalAssetsConverted = convertedTotal(assets);
+  const totalLiabConverted = convertedTotal(liabilities);
+  const netWorthConverted = totalAssetsConverted + totalLiabConverted;
+  const netWorthMainOnly = totalAssetsMain + totalLiabMain;
+
+  const [showOther, setShowOther] = React.useState(false);
 
   const envelopes = envelopesQ.data ?? [];
   const savings = savingsQ.data ?? [];
   const pendingMap = React.useMemo(() => buildPendingMap(pendingImpactQ.data ?? []), [pendingImpactQ.data]);
+  const accountById = React.useMemo(
+    () => new Map((accountsQ.data ?? []).map((a) => [a.id, a])),
+    [accountsQ.data],
+  );
 
   // Group envelopes by group_id, preserving sort order
   const grouped = React.useMemo(() => groupRows(envelopes), [envelopes]);
@@ -94,22 +149,26 @@ function Dashboard() {
             <CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.networth")}</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={cn(
-              "text-3xl font-bold tabular-nums",
-              netWorth >= 0 ? "text-success" : "text-destructive",
-            )}>
-              {balancesQ.isLoading ? <Skeleton className="h-9 w-48" /> : fmtMoney(netWorth, symbol)}
-            </div>
-            <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-              <div className="rounded-md border p-3">
-                <div className="text-muted-foreground">{t("dashboard.assets")}</div>
-                <div className={cn("mt-1 font-semibold tabular-nums", totalAssets < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(totalAssets, symbol)}</div>
-              </div>
-              <div className="rounded-md border p-3">
-                <div className="text-muted-foreground">{t("dashboard.liabilities")}</div>
-                <div className={cn("mt-1 font-semibold tabular-nums", totalLiabilities < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(totalLiabilities, symbol)}</div>
-              </div>
-            </div>
+            <NetWorthBlock
+              showConverted={showConverted}
+              hasForeign={hasForeign}
+              loading={balancesQ.isLoading}
+              netWorthMain={netWorthMainOnly}
+              netWorthConverted={netWorthConverted}
+              totalAssetsMain={totalAssetsMain}
+              totalLiabMain={totalLiabMain}
+              totalAssetsConverted={totalAssetsConverted}
+              totalLiabConverted={totalLiabConverted}
+              assetsByCur={assetsByCur}
+              liabByCur={liabByCur}
+              symbol={symbol}
+              mainCode={mainCode}
+              symbolForCode={symbolForCode}
+              showOther={showOther}
+              setShowOther={setShowOther}
+              fxReady={!hasForeign || !!fxQ.data}
+              tr={t}
+            />
           </CardContent>
         </Card>
 
@@ -188,6 +247,8 @@ function Dashboard() {
                 const Icon = tx.type === "expense" ? ArrowDown : tx.type === "income" ? ArrowUp : ArrowLeftRight;
                 const tone = tx.type === "expense" ? "text-destructive" : tx.type === "income" ? "text-success" : "text-muted-foreground";
                 const sign = tx.type === "expense" ? "-" : tx.type === "income" ? "+" : "";
+                const srcAcc = accountById.get(tx.source_account_id);
+                const txSym = srcAcc?.currency_symbol ?? symbol;
                 return (
                   <div key={tx.id} className="flex items-center gap-3 px-4 py-3">
                     <div className={cn("flex h-9 w-9 items-center justify-center rounded-full bg-muted", tone)}>
@@ -207,7 +268,7 @@ function Dashboard() {
                       <div className="text-xs text-muted-foreground">{format(new Date(tx.occurred_on), "MMM d", { locale })}</div>
                     </div>
                     <div className={cn("text-sm font-semibold tabular-nums", tone)}>
-                      {sign}{fmtMoney(Number(tx.amount), symbol).replace("-", "")}
+                      {sign}{fmtMoney(Number(tx.amount), txSym).replace("-", "")}
                     </div>
                   </div>
                 );
@@ -272,7 +333,7 @@ function AccountsCard({
 }: {
   title: string;
   tone?: "success" | "destructive";
-  items: { id: string; name: string; balance: number }[];
+  items: { id: string; name: string; balance: number; currency_symbol?: string }[];
   symbol: string;
   loading: boolean;
   emptyHint: string;
@@ -289,7 +350,7 @@ function AccountsCard({
               <li key={a.id} className="flex items-center justify-between py-2 text-sm">
                 <span className="truncate">{a.name}</span>
                 <span className={cn("tabular-nums font-medium", Number(a.balance) < 0 ? "text-destructive" : "text-foreground")}>
-                  {fmtMoney(Number(a.balance), symbol)}
+                  {fmtMoney(Number(a.balance), a.currency_symbol ?? symbol)}
                 </span>
               </li>
             ))}
@@ -438,5 +499,102 @@ function GroupBlock({
         })}
       </CardContent>
     </Card>
+  );
+}
+
+function NetWorthBlock({
+  showConverted, hasForeign, loading,
+  netWorthMain, netWorthConverted,
+  totalAssetsMain, totalLiabMain,
+  totalAssetsConverted, totalLiabConverted,
+  assetsByCur, liabByCur,
+  symbol, mainCode, symbolForCode,
+  showOther, setShowOther, fxReady, tr,
+}: {
+  showConverted: boolean;
+  hasForeign: boolean;
+  loading: boolean;
+  netWorthMain: number;
+  netWorthConverted: number;
+  totalAssetsMain: number;
+  totalLiabMain: number;
+  totalAssetsConverted: number;
+  totalLiabConverted: number;
+  assetsByCur: Map<string, number>;
+  liabByCur: Map<string, number>;
+  symbol: string;
+  mainCode: string;
+  symbolForCode: (code: string) => string;
+  showOther: boolean;
+  setShowOther: (b: boolean) => void;
+  fxReady: boolean;
+  tr: (k: string, v?: Record<string, string | number>) => string;
+}) {
+  // Effective values: when toggle on AND fx ready, show converted; else main-only
+  const useConverted = showConverted && hasForeign && fxReady;
+  const net = useConverted ? netWorthConverted : netWorthMain;
+  const a = useConverted ? totalAssetsConverted : totalAssetsMain;
+  const l = useConverted ? totalLiabConverted : totalLiabMain;
+
+  // Foreign breakdown (excludes main currency)
+  const otherAssets = Array.from(assetsByCur.entries()).filter(([code]) => code !== mainCode);
+  const otherLiab = Array.from(liabByCur.entries()).filter(([code]) => code !== mainCode);
+  const otherCount = new Set([...otherAssets.map(([c]) => c), ...otherLiab.map(([c]) => c)]).size;
+
+  return (
+    <>
+      <div className={cn(
+        "text-3xl font-bold tabular-nums",
+        net >= 0 ? "text-success" : "text-destructive",
+      )}>
+        {loading ? <Skeleton className="h-9 w-48" /> : fmtMoney(net, symbol)}
+      </div>
+      {useConverted && (
+        <div className="mt-1 text-xs text-muted-foreground">{tr("dashboard.networth_converted_hint")}</div>
+      )}
+      <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+        <div className="rounded-md border p-3">
+          <div className="text-muted-foreground">{tr("dashboard.assets")}</div>
+          <div className={cn("mt-1 font-semibold tabular-nums", a < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(a, symbol)}</div>
+        </div>
+        <div className="rounded-md border p-3">
+          <div className="text-muted-foreground">{tr("dashboard.liabilities")}</div>
+          <div className={cn("mt-1 font-semibold tabular-nums", l < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(l, symbol)}</div>
+        </div>
+      </div>
+
+      {hasForeign && otherCount > 0 && (
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={() => setShowOther(!showOther)}
+            className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+          >
+            {showOther ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            {tr("dashboard.networth_other")} ({otherCount})
+          </button>
+          {showOther && (
+            <div className="mt-2 space-y-2 rounded-md border p-3">
+              {otherAssets.length > 0 && (
+                <div className="flex items-baseline justify-between gap-2 text-sm">
+                  <span className="text-muted-foreground">{tr("dashboard.assets")}</span>
+                  <span className="tabular-nums font-medium">
+                    {otherAssets.map(([code, v]) => fmtMoney(v, symbolForCode(code))).join(" · ")}
+                  </span>
+                </div>
+              )}
+              {otherLiab.length > 0 && (
+                <div className="flex items-baseline justify-between gap-2 text-sm">
+                  <span className="text-muted-foreground">{tr("dashboard.liabilities")}</span>
+                  <span className="tabular-nums font-medium">
+                    {otherLiab.map(([code, v]) => fmtMoney(v, symbolForCode(code))).join(" · ")}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </>
   );
 }
