@@ -402,7 +402,19 @@ export function TransactionForm({ editId }: { editId: string | null }) {
       source_account_id: sourceId,
       destination_account_id: type === "transfer" ? destId : null,
       category_id: type === "transfer" ? null : (categoryId || null),
+      destination_amount:
+        type === "transfer" && isCrossCurrency
+          ? (() => {
+              const dn = Number(destAmount.replace(",", "."));
+              return Number.isFinite(dn) && dn > 0 ? dn : null;
+            })()
+          : null,
     };
+    if (type === "transfer" && isCrossCurrency && payload.destination_amount == null) {
+      setSaving(false);
+      toast.error(tr("toast.dest_amount_required"));
+      return;
+    }
     if (isEdit && editId) {
       const { error } = await supabase.from("transactions").update(payload).eq("id", editId);
       setSaving(false);
