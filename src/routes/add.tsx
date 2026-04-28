@@ -631,6 +631,51 @@ export function TransactionForm({ editId }: { editId: string | null }) {
                 searchPlaceholder={tr("picker.search")}
                 emptyLabel={tr("picker.no_match")}
               />
+              {isCrossCurrency && (
+                <div className="mt-3 rounded-md border border-dashed border-border/60 p-3">
+                  <Label htmlFor="dest-amount" className="mb-1 block text-xs">
+                    {tr("add.dest_amount.label", { sym: destSymbol })}
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                      {destSymbol}
+                    </span>
+                    <Input
+                      id="dest-amount"
+                      inputMode="decimal"
+                      placeholder="0.00"
+                      value={destAmount}
+                      onChange={(e) => {
+                        setDestAmount(e.target.value.replace(/[^0-9.,]/g, ""));
+                        setDestAmountTouched(true);
+                      }}
+                      className="tabular-nums"
+                    />
+                    {destAmountTouched && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => setDestAmountTouched(false)}
+                      >
+                        {tr("add.dest_amount.use_fx")}
+                      </Button>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {fxQ.data
+                      ? tr("add.dest_amount.hint_fx", {
+                          from: sourceAccount!.currency_code,
+                          to: destAccount!.currency_code,
+                          date: fxQ.data.date,
+                        })
+                      : fxQ.isLoading
+                        ? tr("add.dest_amount.hint_loading")
+                        : tr("add.dest_amount.hint_offline")}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
