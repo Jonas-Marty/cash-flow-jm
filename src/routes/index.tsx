@@ -501,3 +501,100 @@ function GroupBlock({
     </Card>
   );
 }
+
+function NetWorthBlock({
+  showConverted, hasForeign, loading,
+  netWorthMain, netWorthConverted,
+  totalAssetsMain, totalLiabMain,
+  totalAssetsConverted, totalLiabConverted,
+  assetsByCur, liabByCur,
+  symbol, mainCode, symbolForCode,
+  showOther, setShowOther, fxReady, tr,
+}: {
+  showConverted: boolean;
+  hasForeign: boolean;
+  loading: boolean;
+  netWorthMain: number;
+  netWorthConverted: number;
+  totalAssetsMain: number;
+  totalLiabMain: number;
+  totalAssetsConverted: number;
+  totalLiabConverted: number;
+  assetsByCur: Map<string, number>;
+  liabByCur: Map<string, number>;
+  symbol: string;
+  mainCode: string;
+  symbolForCode: (code: string) => string;
+  showOther: boolean;
+  setShowOther: (b: boolean) => void;
+  fxReady: boolean;
+  tr: (k: string, v?: Record<string, string | number>) => string;
+}) {
+  // Effective values: when toggle on AND fx ready, show converted; else main-only
+  const useConverted = showConverted && hasForeign && fxReady;
+  const net = useConverted ? netWorthConverted : netWorthMain;
+  const a = useConverted ? totalAssetsConverted : totalAssetsMain;
+  const l = useConverted ? totalLiabConverted : totalLiabMain;
+
+  // Foreign breakdown (excludes main currency)
+  const otherAssets = Array.from(assetsByCur.entries()).filter(([code]) => code !== mainCode);
+  const otherLiab = Array.from(liabByCur.entries()).filter(([code]) => code !== mainCode);
+  const otherCount = new Set([...otherAssets.map(([c]) => c), ...otherLiab.map(([c]) => c)]).size;
+
+  return (
+    <>
+      <div className={cn(
+        "text-3xl font-bold tabular-nums",
+        net >= 0 ? "text-success" : "text-destructive",
+      )}>
+        {loading ? <Skeleton className="h-9 w-48" /> : fmtMoney(net, symbol)}
+      </div>
+      {useConverted && (
+        <div className="mt-1 text-xs text-muted-foreground">{tr("dashboard.networth_converted_hint")}</div>
+      )}
+      <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+        <div className="rounded-md border p-3">
+          <div className="text-muted-foreground">{tr("dashboard.assets")}</div>
+          <div className={cn("mt-1 font-semibold tabular-nums", a < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(a, symbol)}</div>
+        </div>
+        <div className="rounded-md border p-3">
+          <div className="text-muted-foreground">{tr("dashboard.liabilities")}</div>
+          <div className={cn("mt-1 font-semibold tabular-nums", l < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(l, symbol)}</div>
+        </div>
+      </div>
+
+      {hasForeign && otherCount > 0 && (
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={() => setShowOther(!showOther)}
+            className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+          >
+            {showOther ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+            {tr("dashboard.networth_other")} ({otherCount})
+          </button>
+          {showOther && (
+            <div className="mt-2 space-y-2 rounded-md border p-3">
+              {otherAssets.length > 0 && (
+                <div className="flex items-baseline justify-between gap-2 text-sm">
+                  <span className="text-muted-foreground">{tr("dashboard.assets")}</span>
+                  <span className="tabular-nums font-medium">
+                    {otherAssets.map(([code, v]) => fmtMoney(v, symbolForCode(code))).join(" · ")}
+                  </span>
+                </div>
+              )}
+              {otherLiab.length > 0 && (
+                <div className="flex items-baseline justify-between gap-2 text-sm">
+                  <span className="text-muted-foreground">{tr("dashboard.liabilities")}</span>
+                  <span className="tabular-nums font-medium">
+                    {otherLiab.map(([code, v]) => fmtMoney(v, symbolForCode(code))).join(" · ")}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+}
