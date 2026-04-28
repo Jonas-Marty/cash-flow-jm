@@ -141,6 +141,7 @@ export interface Settings {
   language: string;
   day_heatmap_threshold: number;
   date_format: string;
+  net_worth_show_converted: boolean;
 }
 
 export const fmtMoney = (n: number, symbol = "CHF") => {
@@ -151,6 +152,49 @@ export const fmtMoney = (n: number, symbol = "CHF") => {
     maximumFractionDigits: 2,
   })}`;
 };
+
+/**
+ * Group amounts by currency code. Each entry is the signed sum in that
+ * currency. Used by transaction lists and net-worth widgets to avoid
+ * incorrectly summing across currencies.
+ */
+export function groupSumByCurrency<T>(
+  items: T[],
+  getCurrency: (item: T) => string,
+  getAmount: (item: T) => number,
+): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const it of items) {
+    const cur = getCurrency(it) || "CHF";
+    m.set(cur, (m.get(cur) ?? 0) + getAmount(it));
+  }
+  return m;
+}
+
+/**
+ * Format a per-currency total map as e.g. `-CHF 120.00 · -EUR 40.00`.
+ * Currencies with a zero balance are omitted unless `keepZero` is true.
+ * `symbolByCode` lets the caller render the user's preferred symbol per code.
+ */
+export function formatPerCurrency(
+  totals: Map<string, number>,
+  symbolByCode: (code: string) => string,
+  opts: { sign?: "auto" | "expense" | "income" | "transfer"; keepZero?: boolean } = {},
+): string {
+  const entries = Array.from(totals.entries()).filter(([, v]) =>
+    opts.keepZero ? true : Math.abs(v) > 0.005,
+  );
+  if (entries.length === 0) return fmtMoney(0, symbolByCode("CHF"));
+  entries.sort((a, b) => a[0].localeCompare(b[0]));
+  return entries
+    .map(([code, v]) => {
+      const sym = symbolByCode(code);
+      if (opts.sign === "expense") return "-" + fmtMoney(Math.abs(v), sym).replace("-", "");
+      if (opts.sign === "income") return "+" + fmtMoney(Math.abs(v), sym).replace("-", "");
+      return fmtMoney(v, sym);
+    })
+    .join(" · ");
+}
 
 export const extractTags = (note: string | null | undefined): string[] => {
   if (!note) return [];
