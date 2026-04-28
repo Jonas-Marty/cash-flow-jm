@@ -98,6 +98,50 @@ export function TransactionForm({ editId }: { editId: string | null }) {
   const [helpOpen, setHelpOpen] = React.useState(false);
   const amountRef = React.useRef<HTMLInputElement>(null);
 
+  // Cross-currency dual-amount field: when source/dest currencies differ on
+  // a transfer, the user enters the amount that actually arrived in the
+  // destination account (e.g. EUR cash dispensed from a CHF bank withdrawal).
+  const [destAmount, setDestAmount] = React.useState("");
+  const [destAmountTouched, setDestAmountTouched] = React.useState(false);
+
+  const sourceAccount = sourceId ? accountById.get(sourceId) : undefined;
+  const destAccount = destId ? accountById.get(destId) : undefined;
+  // For income/expense, the source field IS the account holding the money,
+  // so the source-account symbol always governs the main amount input.
+  const symbol = sourceAccount?.currency_symbol ?? mainSymbol;
+  const destSymbol = destAccount?.currency_symbol ?? symbol;
+  const isCrossCurrency =
+    type === "transfer" &&
+    !!sourceAccount &&
+    !!destAccount &&
+    sourceAccount.currency_code !== destAccount.currency_code;
+
+  const fxQ = useFxRates(sourceAccount?.currency_code, isCrossCurrency);
+  // Auto-suggest destination amount via live FX, but never overwrite a value
+  // the user has already edited. Reset suggestion when accounts/amount change.
+  React.useEffect(() => {
+    if (!isCrossCurrency || destAmountTouched) return;
+    const n = Number(amount.replace(",", "."));
+    if (!Number.isFinite(n) || n <= 0) {
+      setDestAmount("");
+      return;
+    }
+    const conv = convert(
+      n,
+      sourceAccount!.currency_code,
+      destAccount!.currency_code,
+      fxQ.data,
+    );
+    setDestAmount(conv != null ? conv.toFixed(2) : "");
+  }, [isCrossCurrency, amount, sourceAccount, destAccount, fxQ.data, destAmountTouched]);
+  // Reset cross-currency state when leaving transfer mode or matching currencies.
+  React.useEffect(() => {
+    if (!isCrossCurrency) {
+      setDestAmount("");
+      setDestAmountTouched(false);
+    }
+  }, [isCrossCurrency]);
+
   // ───────── Split mode (multi-item receipt) ─────────
   type Slice = { id: string; amount: string; categoryId: string; description: string; note: string };
   const newSlice = (): Slice => ({
