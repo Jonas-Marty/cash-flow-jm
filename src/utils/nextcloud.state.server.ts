@@ -1,8 +1,15 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 function getSecret(): string {
-  const s = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_PUBLISHABLE_KEY;
-  if (!s) throw new Error("Server secret not configured");
+  // Prefer a dedicated state-signing secret; fall back ONLY to the service role key.
+  // We must NOT fall back to the publishable/anon key — it is exposed to browsers and
+  // would let anyone forge OAuth state tokens.
+  const s = process.env.NEXTCLOUD_STATE_SECRET ?? process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!s) {
+    throw new Error(
+      "OAuth state signing secret not configured (NEXTCLOUD_STATE_SECRET or SUPABASE_SERVICE_ROLE_KEY required)",
+    );
+  }
   return s;
 }
 
