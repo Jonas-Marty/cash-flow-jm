@@ -1,176 +1,73 @@
-# Plan: Link Nextcloud documents to transactions
+## Goal
 
-## Goals
+Track foreign-currency cash spending during vacations without converting every transaction back to your main currency. Cash account balances stay in their native currency; net worth optionally shows them converted at a current FX rate.
 
-1. Each transaction can have multiple attachments (generic, source-agnostic).
-2. From the transaction edit/add UI, search Nextcloud by filename and pick a file.
-3. Authenticate to Nextcloud via OAuth2 (per user), with the least-privileged token possible.
-4. Expose an authenticated REST API so an external service can attach a link to a transaction using a per-user API token.
+## Concept
 
----
+Introduce a per-account currency. Today, currency is a single global setting on `settings` (e.g. CHF) and every amount is implicitly that currency. We extend this so each account carries its own `currency_code` + `currency_symbol`, defaulting to the user's main currency. Transactions stay denominated in their **source account's** currency — no conversion stored on the transaction itself.
 
-## 1. Database
+Use cases handled:
 
-### Table `transaction_attachments`
+- **Card payment abroad** → card account stays in CHF; merchant amount you record is the CHF amount your bank charged. No change in behaviour.
+- **Cash withdrawal abroad** → modeled as a **transfer** from your CHF card/bank account to a foreign-currency cash account. Because source and destination currencies differ, the transfer captures **two amounts**: amount leaving source (CHF) and amount arriving at destination (e.g. EUR).
+- **Cash spend abroad** → normal expense from the EUR cash account, entered in EUR. Envelope budgets are in your main currency, so foreign-cash expenses are excluded from envelope spending (or optionally converted at a per-account "display rate" — see Open Questions).
 
-```text
-id              uuid PK
-transaction_id  uuid  -> transactions.id (cascade)
-user_id         uuid  default auth.uid()  (for RLS)
-source          text  ('nextcloud' | 'manual' | future sources)
-display_name    text
-link_url        text  (URL the user clicks to open the file)
-added_at        timestamptz default now()
-```
+Recurring rules are unchanged (you confirmed not needed).
 
-- RLS: `user_id = auth.uid()` for all ops.
-- Index on `transaction_id`.
-- No `nextcloud_path` stored — keeps schema source-agnostic.
+## Data Model Changes
 
-### Table `nextcloud_connections` (per user)
+Migration adds:
 
-```text
-user_id           uuid PK -> auth.users
-base_url          text   (e.g. https://cloud.example.com)
-access_token      text   (encrypted column via pgsodium or stored as-is in private schema)
-refresh_token    text
-token_expires_at  timestamptz
-scope             text
-created_at, updated_at
-```
+1. `accounts.currency_code text not null default 'CHF'` and `accounts.currency_symbol text not null default 'CHF'`. Backfilled from each user's `settings` row.
+2. `transactions.destination_amount numeric` — only set when `type = 'transfer'` AND source/destination currencies differ. Represents the amount credited to the destination account in its own currency. When null on a transfer, destination receives the same `amount` as source (current behaviour).
+3. Validation trigger on `transactions`: `destination_amount` must be > 0 when set; must be null for non-transfers; must be null when source and destination share the same currency.
 
-RLS: own row only. Service role bypasses for token refresh in server functions.
+### Functions to update
 
-### Table `api_tokens` (per user, for external service)
+- `account_balances` view + `account_balances_as_of(date)` RPC: when summing transfers crediting an account, use `coalesce(destination_amount, amount)` instead of `amount`.
+- `category_month_spending` and the savings balance view are unaffected — they sum transactions that already use the source account's currency and savings categories are typically tied to main-currency accounts. We will document the constraint: an envelope (category) implicitly inherits the currency of the transactions posted to it. For vacation cash, attach those expenses to a dedicated "Travel cash" envelope so totals stay coherent.
 
-```text
-id           uuid PK
-user_id      uuid -> auth.users
-name         text   (e.g. "nextcloud-bridge")
-token_hash   text   (sha256 of the token; raw token shown once on creation)
-last_used_at timestamptz
-created_at   timestamptz
-revoked_at   timestamptz nullable
-```
+## API & Types
 
-RLS: own rows only.
+- `Account` interface gains `currency_code` and `currency_symbol`.
+- `transactionInputSchema` gains optional `destination_amount` (positive number, required when transfer crosses currencies). `normalizeTransactionInput` enforces the cross-currency rule.
+- Public REST API (`/api/public/transactions`, `/api/public/accounts`) surfaces the new fields.
 
----
+## UI Changes
 
-## 2. Nextcloud OAuth2 setup
+**Settings → Accounts**: each account row gets a currency selector (default = user main currency). Disabled once the account has transactions, unless you confirm a destructive change (out of scope for this plan).
 
-User-side one-time setup:
+**Add / Edit transaction (`add.tsx`, `edit.$id.tsx`)**:
 
-- In Nextcloud admin → Security → OAuth 2.0 clients, register a client.
-- Redirect URI: `https://<app>/api/nextcloud/callback`.
-- Note: Nextcloud's OAuth2 currently issues tokens that grant the same access as the user (it does not support fine-grained scopes today). To still **minimize privilege**, the plan adds these mitigations:
-  1. Recommend the user create a **dedicated Nextcloud user** (e.g. `lovable-finance-readonly`) and share only the relevant folder(s) read-only with that user, then OAuth as that account.
-  2. Server only ever issues `PROPFIND` / `SEARCH` (read) requests — never `PUT`/`DELETE`.
-  3. Document this clearly in the Settings UI.
+- The amount input shows the **source account's** currency symbol (already pulled per-account instead of the global one).
+- For transfers, when source and destination currencies differ, a second amount field appears labelled "Amount received (EUR)" with its own currency symbol. Required to submit.
+- Quick-amount chips and validation continue to operate on the source amount.
 
-App-side:
+**Lists (`transactions.tsx`, `index.tsx` recent, `DayPreview`)**: each transaction is rendered with the symbol of its source account, not the global setting. Daily/transfer totals group per currency (e.g. "−CHF 120 · −EUR 40") rather than summing across currencies.
 
-- Settings page section "Nextcloud": user enters `base_url`, `client_id`, `client_secret`. Stored in `nextcloud_connections` (client_secret as a secret per user — kept in the row, server-only access).
-- "Connect" button → redirects to `{base_url}/apps/oauth2/authorize?...`.
-- Callback route `/api/nextcloud/callback` exchanges code → tokens, stores in `nextcloud_connections`.
-- Helper `getValidNextcloudToken(userId)` server function refreshes if expired.
+**Envelopes (`envelopes.tsx`, dashboard envelopes)**: continue to display in main currency. Foreign-currency expenses linked to an envelope are shown with their native symbol in the transaction list under the envelope, but the totals/variance bars only count main-currency amounts. A subtle hint ("+ EUR 40 in foreign currency") is appended when applicable.
 
----
+**Net worth (`index.tsx`)**:
 
-## 3. File search (server function)
+- Default: a "Total in CHF" line plus per-currency sub-totals ("EUR 85 · USD 0"). No FX call; clear and deterministic.
+- Optional toggle in Settings → "Convert foreign balances to main currency" — when on, fetches rates from a free public endpoint (e.g. `https://api.frankfurter.app/latest?from=EUR&to=CHF`) once per session, caches in React Query for 12 h, and shows a single combined net worth with a small "(approx., FX as of …)" caption. If the fetch fails, fall back to the per-currency view.
 
-`searchNextcloudFiles({ query })`:
+## Technical Details
 
-- Auth-required server function (uses `requireSupabaseAuth`).
-- Loads connection + valid token.
-- Calls Nextcloud WebDAV SEARCH (or the simpler `ocs/v2.php/search/providers/files/search?term=...`) — returns file name, path, mime, size, and a shareable URL.
-- Generates a link to use as `link_url`. Two options, pick at implementation time:
-  - **Direct WebDAV URL** `{base_url}/remote.php/dav/files/{user}/{path}` — opens in browser, requires user to be logged into Nextcloud. Simple and respects ACLs.
-  - **Public share link** via OCS Share API — more clickable but creates a public link (not what the user wants for non-public docs).
-  - → Plan picks **direct WebDAV URL** (private, requires Nextcloud login).
-- Returns `[{ name, path, link_url, mime, size }]` (max ~25 results).
+- Migration order: add columns with defaults → backfill `accounts` from `settings.currency_*` → add validation trigger → update views/RPCs.
+- Trigger uses `EXISTS` lookups on `accounts` to compare currencies; marked `STABLE` and runs on `BEFORE INSERT OR UPDATE`.
+- FX fetch lives in a small helper `src/lib/fx.ts` using `fetch`. No API key, no secret needed (Frankfurter is free, ECB-backed). Wired through TanStack Query with `staleTime: 12h`.
+- Backwards compatibility: existing transactions have `destination_amount = null`, so balances are unchanged for same-currency setups.
 
----
+## Out of Scope (call out explicitly)
 
-## 4. UI
+- Per-transaction FX rate history / P&L on FX gains.
+- Multi-currency recurring rules.
+- Multi-currency envelopes / budgets in non-main currency.
+- Editing an account's currency after it has transactions.
 
-### Edit/Add transaction page
+## Open Questions
 
-- New section "Attachments" (shown in edit and add mode).
-- List existing attachments with display_name + open icon + remove button.
-- "Attach file" button → opens dialog:
-  - Search input (debounced) → calls `searchNextcloudFiles`.
-  - Result list with filename + folder breadcrumb. Click to attach.
-  - Empty state with link to Settings if Nextcloud not connected.
-
-### Transactions list page
-
-- Show a small paperclip icon on rows that have attachments (count badge).
-
-### Settings page
-
-- New "Nextcloud" card: connect/disconnect, show connected account, base URL.
-- New "API tokens" card: list tokens, "Generate token" (shows raw token once + copy button), revoke.
-
----
-
-## 5. Public REST API for external service
-
-Server route: `app/routes/api/public/attachments.ts` (POST).
-
-- Auth: `Authorization: Bearer <api_token>` header.
-- Validates token by hashing and looking up active row in `api_tokens`; loads `user_id`.
-- Body (Zod):
-  ```text
-  { transaction_id: uuid, link_url: url, display_name: string(1..255), source?: string(default "nextcloud") }
-  ```
-- Verifies the transaction belongs to the same `user_id` (using `supabaseAdmin`).
-- Inserts into `transaction_attachments`. Updates `last_used_at`.
-- Returns `{ id, transaction_id, link_url }`.
-- Rate limit: simple in-memory per-token bucket (best effort).
-
-Companion endpoint (required, useful for the external service):
-
-- `GET /api/public/transactions?from=&to=&q=` — search transactions to get IDs. Same auth.
-
----
-
-## 6. Files to add / change
-
-**New**
-
-- `supabase/migrations/<ts>_attachments_and_nextcloud.sql` — tables + RLS + indexes.
-- `src/routes/api/nextcloud/callback.ts` — OAuth2 callback.
-- `src/routes/api/public/attachments.ts` — POST endpoint.
-- `src/utils/nextcloud.functions.ts` — `connectNextcloud`, `searchNextcloudFiles`, `disconnectNextcloud`, token refresh.
-- `src/utils/api-tokens.functions.ts` — create/list/revoke.
-- `src/utils/api-tokens.server.ts` — hash + verify helpers.
-- `src/components/AttachmentsSection.tsx` — list + add UI used inside `TransactionForm`.
-- `src/components/NextcloudFilePicker.tsx` — search dialog.
-
-**Edited**
-
-- `src/routes/add.tsx` — render `<AttachmentsSection editId={...} />` when editing (and after first save in add mode).
-- `src/routes/transactions.tsx` — paperclip indicator + count.
-- `src/routes/settings.tsx` — Nextcloud + API tokens cards.
-- `src/lib/finance.ts` — types + fetch helpers for attachments.
-- `src/i18n/index.tsx` — new strings (EN + DE).
-- [architecture.md](http://architecture.md) - describe the new api endpoints, oauth workflow, different token, how they are hashed, short guid how to get clientid etc. from nextcloud, how does search work for nextcloud
-
----
-
-## 7. Security notes
-
-- API tokens stored only as sha256 hash; raw token shown once on creation.
-- All Nextcloud calls happen server-side; access tokens never leave the server.
-- The dedicated Nextcloud user pattern is the recommended way to enforce read-only / folder-scoped access since Nextcloud OAuth2 lacks granular scopes.
-- Public API endpoints validate that the target `transaction_id` belongs to the token's user before inserting.
-
----
-
-## 8. Out of scope (call out so we agree)
-
-- No file upload to Nextcloud, only linking.
-- No preview/thumbnail rendering of Nextcloud files in the app.
-- No automatic OCR / matching of files to transactions (that's the external service's job).
-- No webhook from Nextcloud back into the app.
+- For envelopes, do you want foreign-cash expenses **excluded** from variance (cleanest, recommended) or **converted at a fixed per-account display rate** you set manually (e.g. "1 EUR = 0.95 CHF")? Go with reccomended
+- For net worth, default to **per-currency breakdown** or **auto-convert via Frankfurter API**? Can we have both? Foreign currency collapsed by default to save space. 
+- Should the cash withdrawal flow get a dedicated shortcut on the Add screen ("Withdraw cash abroad") that pre-fills a transfer with two amount fields, or is the generic transfer with the second amount field enough? Generic transfer enough. Force the user to only fill second field when source an target account differ. Also only show in that case 
