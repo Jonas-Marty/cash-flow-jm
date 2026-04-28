@@ -333,7 +333,7 @@ function AccountsCard({
 }: {
   title: string;
   tone?: "success" | "destructive";
-  items: { id: string; name: string; balance: number }[];
+  items: { id: string; name: string; balance: number; currency_symbol?: string }[];
   symbol: string;
   loading: boolean;
   emptyHint: string;
@@ -350,7 +350,7 @@ function AccountsCard({
               <li key={a.id} className="flex items-center justify-between py-2 text-sm">
                 <span className="truncate">{a.name}</span>
                 <span className={cn("tabular-nums font-medium", Number(a.balance) < 0 ? "text-destructive" : "text-foreground")}>
-                  {fmtMoney(Number(a.balance), symbol)}
+                  {fmtMoney(Number(a.balance), a.currency_symbol ?? symbol)}
                 </span>
               </li>
             ))}
