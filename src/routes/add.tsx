@@ -28,6 +28,7 @@ import { DateInput } from "@/components/DateInput";
 import { ShortcutsDialog } from "@/components/ShortcutsDialog";
 import { DescriptionAutocomplete } from "@/components/DescriptionAutocomplete";
 import { AttachmentsSection } from "@/components/AttachmentsSection";
+import { useFxRates, convert } from "@/lib/fx";
 
 export const Route = createFileRoute("/add")({
   component: AddTransactionRoute,
@@ -61,7 +62,11 @@ export function TransactionForm({ editId }: { editId: string | null }) {
   const accounts = (accountsQ.data ?? []).filter((a) => !a.archived);
   const categories = (categoriesQ.data ?? []).filter((c) => !c.archived);
   const groupKindById = new Map((groupsQ.data ?? []).map((g) => [g.id, g.kind]));
-  const symbol = settingsQ.data?.currency_symbol ?? "CHF";
+  const mainSymbol = settingsQ.data?.currency_symbol ?? "CHF";
+  const accountById = React.useMemo(
+    () => new Map(accounts.map((a) => [a.id, a])),
+    [accounts],
+  );
 
   // Sorted account/category chips: pinned first, then recency-weighted usage
   const accountChips: ChipPickerItem[] = React.useMemo(() => {
@@ -92,6 +97,50 @@ export function TransactionForm({ editId }: { editId: string | null }) {
   const [saving, setSaving] = React.useState(false);
   const [helpOpen, setHelpOpen] = React.useState(false);
   const amountRef = React.useRef<HTMLInputElement>(null);
+
+  // Cross-currency dual-amount field: when source/dest currencies differ on
+  // a transfer, the user enters the amount that actually arrived in the
+  // destination account (e.g. EUR cash dispensed from a CHF bank withdrawal).
+  const [destAmount, setDestAmount] = React.useState("");
+  const [destAmountTouched, setDestAmountTouched] = React.useState(false);
+
+  const sourceAccount = sourceId ? accountById.get(sourceId) : undefined;
+  const destAccount = destId ? accountById.get(destId) : undefined;
+  // For income/expense, the source field IS the account holding the money,
+  // so the source-account symbol always governs the main amount input.
+  const symbol = sourceAccount?.currency_symbol ?? mainSymbol;
+  const destSymbol = destAccount?.currency_symbol ?? symbol;
+  const isCrossCurrency =
+    type === "transfer" &&
+    !!sourceAccount &&
+    !!destAccount &&
+    sourceAccount.currency_code !== destAccount.currency_code;
+
+  const fxQ = useFxRates(sourceAccount?.currency_code, isCrossCurrency);
+  // Auto-suggest destination amount via live FX, but never overwrite a value
+  // the user has already edited. Reset suggestion when accounts/amount change.
+  React.useEffect(() => {
+    if (!isCrossCurrency || destAmountTouched) return;
+    const n = Number(amount.replace(",", "."));
+    if (!Number.isFinite(n) || n <= 0) {
+      setDestAmount("");
+      return;
+    }
+    const conv = convert(
+      n,
+      sourceAccount!.currency_code,
+      destAccount!.currency_code,
+      fxQ.data,
+    );
+    setDestAmount(conv != null ? conv.toFixed(2) : "");
+  }, [isCrossCurrency, amount, sourceAccount, destAccount, fxQ.data, destAmountTouched]);
+  // Reset cross-currency state when leaving transfer mode or matching currencies.
+  React.useEffect(() => {
+    if (!isCrossCurrency) {
+      setDestAmount("");
+      setDestAmountTouched(false);
+    }
+  }, [isCrossCurrency]);
 
   // ───────── Split mode (multi-item receipt) ─────────
   type Slice = { id: string; amount: string; categoryId: string; description: string; note: string };
@@ -184,6 +233,10 @@ export function TransactionForm({ editId }: { editId: string | null }) {
       setCategoryId(tx.category_id ?? "");
       setDescription(tx.description ?? "");
       setNote(tx.note ?? "");
+      if (tx.destination_amount != null) {
+        setDestAmount(Number(tx.destination_amount).toFixed(2));
+        setDestAmountTouched(true);
+      }
     }
     // mark all fields as touched so suggestions never overwrite loaded data
     setTouched({ amount: true, description: true, note: true, sourceId: true, categoryId: true });
@@ -349,7 +402,19 @@ export function TransactionForm({ editId }: { editId: string | null }) {
       source_account_id: sourceId,
       destination_account_id: type === "transfer" ? destId : null,
       category_id: type === "transfer" ? null : (categoryId || null),
+      destination_amount:
+        type === "transfer" && isCrossCurrency
+          ? (() => {
+              const dn = Number(destAmount.replace(",", "."));
+              return Number.isFinite(dn) && dn > 0 ? dn : null;
+            })()
+          : null,
     };
+    if (type === "transfer" && isCrossCurrency && payload.destination_amount == null) {
+      setSaving(false);
+      toast.error(tr("toast.dest_amount_required"));
+      return;
+    }
     if (isEdit && editId) {
       const { error } = await supabase.from("transactions").update(payload).eq("id", editId);
       setSaving(false);
@@ -566,6 +631,51 @@ export function TransactionForm({ editId }: { editId: string | null }) {
                 searchPlaceholder={tr("picker.search")}
                 emptyLabel={tr("picker.no_match")}
               />
+              {isCrossCurrency && (
+                <div className="mt-3 rounded-md border border-dashed border-border/60 p-3">
+                  <Label htmlFor="dest-amount" className="mb-1 block text-xs">
+                    {tr("add.dest_amount.label", { sym: destSymbol })}
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                      {destSymbol}
+                    </span>
+                    <Input
+                      id="dest-amount"
+                      inputMode="decimal"
+                      placeholder="0.00"
+                      value={destAmount}
+                      onChange={(e) => {
+                        setDestAmount(e.target.value.replace(/[^0-9.,]/g, ""));
+                        setDestAmountTouched(true);
+                      }}
+                      className="tabular-nums"
+                    />
+                    {destAmountTouched && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-xs"
+                        onClick={() => setDestAmountTouched(false)}
+                      >
+                        {tr("add.dest_amount.use_fx")}
+                      </Button>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {fxQ.data
+                      ? tr("add.dest_amount.hint_fx", {
+                          from: sourceAccount!.currency_code,
+                          to: destAccount!.currency_code,
+                          date: fxQ.data.date,
+                        })
+                      : fxQ.isLoading
+                        ? tr("add.dest_amount.hint_loading")
+                        : tr("add.dest_amount.hint_offline")}
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
