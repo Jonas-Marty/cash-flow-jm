@@ -28,6 +28,7 @@ import { DateInput } from "@/components/DateInput";
 import { ShortcutsDialog } from "@/components/ShortcutsDialog";
 import { DescriptionAutocomplete } from "@/components/DescriptionAutocomplete";
 import { AttachmentsSection } from "@/components/AttachmentsSection";
+import { useFxRates, convert } from "@/lib/fx";
 
 export const Route = createFileRoute("/add")({
   component: AddTransactionRoute,
@@ -61,7 +62,22 @@ export function TransactionForm({ editId }: { editId: string | null }) {
   const accounts = (accountsQ.data ?? []).filter((a) => !a.archived);
   const categories = (categoriesQ.data ?? []).filter((c) => !c.archived);
   const groupKindById = new Map((groupsQ.data ?? []).map((g) => [g.id, g.kind]));
-  const symbol = settingsQ.data?.currency_symbol ?? "CHF";
+  const mainSymbol = settingsQ.data?.currency_symbol ?? "CHF";
+  const accountById = React.useMemo(
+    () => new Map(accounts.map((a) => [a.id, a])),
+    [accounts],
+  );
+  const sourceAccount = sourceId ? accountById.get(sourceId) : undefined;
+  const destAccount = destId ? accountById.get(destId) : undefined;
+  // For income, the destination of money is the chosen account (= source field)
+  // — same field, so source symbol always governs the main amount input.
+  const symbol = sourceAccount?.currency_symbol ?? mainSymbol;
+  const destSymbol = destAccount?.currency_symbol ?? symbol;
+  const isCrossCurrency =
+    type === "transfer" &&
+    !!sourceAccount &&
+    !!destAccount &&
+    sourceAccount.currency_code !== destAccount.currency_code;
 
   // Sorted account/category chips: pinned first, then recency-weighted usage
   const accountChips: ChipPickerItem[] = React.useMemo(() => {
