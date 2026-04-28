@@ -55,6 +55,7 @@ const de: Dict = {
   "toast.account_required": "Konto auswählen",
   "toast.dest_required": "Zielkonto auswählen",
   "toast.dest_must_differ": "Quelle und Ziel müssen unterschiedlich sein",
+  "toast.dest_amount_required": "Erhaltenen Betrag eingeben",
   "toast.currency_updated": "Währung aktualisiert",
   "toast.language_updated": "Sprache aktualisiert",
   "toast.account_added": "Konto hinzugefügt",
