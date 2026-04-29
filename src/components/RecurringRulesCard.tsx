@@ -44,7 +44,7 @@ type Draft = {
   starts_on: string;
   ends_on: string;
   auto_post: boolean;
-  backfill: "none" | "post";
+  backfill: "none" | "post" | "pending";
 };
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
