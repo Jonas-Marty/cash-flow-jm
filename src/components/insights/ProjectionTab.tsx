@@ -27,7 +27,7 @@ import {
 import { buildProjection, type NetWorthPoint } from "@/lib/insights";
 
 type Window = 6 | 12 | 24;
-type Ahead = 3 | 6 | 12 | 24;
+type AheadPreset = "3mo" | "6mo" | "12mo" | "24mo" | "eoy" | "eoy_next" | "10y";
 
 function endOfMonthISO(year: number, month0: number): string {
   const d = new Date(year, month0 + 1, 0);
@@ -50,8 +50,26 @@ function netWorthOf(balances: AccountBalance[]): { net: number; assets: number; 
 export function ProjectionTab({ symbol }: { symbol: string }) {
   const { t } = useI18n();
   const [windowMo, setWindowMo] = React.useState<Window>(12);
-  const [ahead, setAhead] = React.useState<Ahead>(12);
+  const [aheadPreset, setAheadPreset] = React.useState<AheadPreset>("12mo");
   const [cutPct, setCutPct] = React.useState<number[]>([0]);
+
+  const today = React.useMemo(() => new Date(), []);
+  const currentYear = today.getFullYear();
+
+  // Resolve preset → number of months ahead from this month.
+  const ahead = React.useMemo(() => {
+    const monthsTo = (year: number, month0: number) =>
+      (year - currentYear) * 12 + (month0 - today.getMonth());
+    switch (aheadPreset) {
+      case "3mo": return 3;
+      case "6mo": return 6;
+      case "12mo": return 12;
+      case "24mo": return 24;
+      case "eoy": return Math.max(1, monthsTo(currentYear, 11));
+      case "eoy_next": return monthsTo(currentYear + 1, 11);
+      case "10y": return 120;
+    }
+  }, [aheadPreset, currentYear, today]);
 
   // Build the list of month-end dates we want snapshots for.
   const monthEnds = React.useMemo(() => {
@@ -151,13 +169,16 @@ export function ProjectionTab({ symbol }: { symbol: string }) {
         />
         <ChipGroup
           label={t("insights.projection.ahead")}
-          value={String(ahead)}
-          onChange={(v) => setAhead(Number(v) as Ahead)}
+          value={aheadPreset}
+          onChange={(v) => setAheadPreset(v as AheadPreset)}
           options={[
-            { v: "3", l: "3 mo" },
-            { v: "6", l: "6 mo" },
-            { v: "12", l: "12 mo" },
-            { v: "24", l: "24 mo" },
+            { v: "3mo", l: "3 mo" },
+            { v: "6mo", l: "6 mo" },
+            { v: "12mo", l: "12 mo" },
+            { v: "24mo", l: "24 mo" },
+            { v: "eoy", l: t("insights.projection.preset.eoy", { year: String(currentYear) }) },
+            { v: "eoy_next", l: t("insights.projection.preset.eoy", { year: String(currentYear + 1) }) },
+            { v: "10y", l: t("insights.projection.preset.ten_years") },
           ]}
         />
       </div>
