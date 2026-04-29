@@ -12,16 +12,18 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { supabase } from "@/integrations/supabase/client";
 import {
   fetchAccounts, fetchCategories, fetchRecurringRules,
-  describeSchedule, previewRecurringRule, archiveRecurringRule, applyRecurringRuleBackfill, fetchSettings,
+  describeSchedule, previewRecurringRule, archiveRecurringRule, applyRecurringRuleBackfill, fetchSettings, fetchTransactions,
   type RecurringRule, type RecurringDayRule, type WeekendAdjust, type TxType, type RecurringFrequency,
 } from "@/lib/finance";
 import { useI18n } from "@/i18n";
 import { DateInput } from "@/components/DateInput";
 import { useQuery as useRQuery } from "@tanstack/react-query";
-import { interpolate, resolveFormatLocale, describeTokens } from "@/lib/placeholders";
+import { interpolate, resolveFormatLocale, describeTokens, type TokenInfo } from "@/lib/placeholders";
+import { TagAutocompleteTextarea } from "@/components/TagAutocompleteTextarea";
 
 type Draft = {
   id?: string;
@@ -42,7 +44,7 @@ type Draft = {
   starts_on: string;
   ends_on: string;
   auto_post: boolean;
-  backfill: "none" | "post";
+  backfill: "none" | "post" | "pending";
 };
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
@@ -125,9 +127,19 @@ export function RecurringRulesCard() {
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
+  // Past transactions feed the #tag autocomplete in the note field, mirroring
+  // the experience in the Add Transaction dialog.
+  const txQ = useQuery({ queryKey: ["transactions"], queryFn: () => fetchTransactions() });
 
   const [open, setOpen] = React.useState(false);
   const [draft, setDraft] = React.useState<Draft>(emptyDraft());
+
+  // Track which text field is focused so a placeholder click inserts at the
+  // caret of that field (description Input or note Textarea). Defaults to
+  // description when the dialog opens.
+  const descRef = React.useRef<HTMLInputElement | null>(null);
+  const noteRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const [activeField, setActiveField] = React.useState<"description" | "note">("description");
 
   const openAdd = () => { setDraft(emptyDraft()); setOpen(true); };
   const openEdit = (r: RecurringRule) => { setDraft(ruleToDraft(r)); setOpen(true); };
@@ -390,33 +402,36 @@ export function RecurringRulesCard() {
                 </Select>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">{t("add.description")}</Label>
-                <Input value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
-              </div>
-              <div>
-                <Label className="text-xs">{t("add.note")}</Label>
-                <Input value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} />
-              </div>
+            <div>
+              <Label className="text-xs" htmlFor="rec-description">{t("add.description")}</Label>
+              <Input
+                id="rec-description"
+                ref={descRef}
+                value={draft.description}
+                onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+                onFocus={() => setActiveField("description")}
+              />
             </div>
-            <div className="rounded-md border p-2">
-              <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
-                {t("recurring.placeholders.title")}
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {describeTokens().map((tok) => (
-                  <button
-                    key={tok.token}
-                    type="button"
-                    onClick={() => setDraft({ ...draft, description: `${draft.description}\${${tok.token}}` })}
-                    className="rounded border bg-muted/50 px-1.5 py-0.5 font-mono text-[11px] hover:bg-muted"
-                    title={tok.help}
-                  >
-                    {`\${${tok.token}}`}
-                  </button>
-                ))}
-              </div>
+            <PlaceholderPalette
+              formatLocaleCode={settingsQ.data?.format_locale}
+              onInsert={(snippet) => insertPlaceholder({
+                snippet,
+                target: activeField,
+                draft, setDraft,
+                descRef, noteRef,
+              })}
+            />
+            <div>
+              <Label className="text-xs" htmlFor="rec-note">{t("add.note")}</Label>
+              <TagAutocompleteTextarea
+                id="rec-note"
+                ref={noteRef as never}
+                value={draft.note}
+                onChange={(v) => setDraft({ ...draft, note: v })}
+                transactions={txQ.data ?? []}
+                onFocus={() => setActiveField("note")}
+                rows={3}
+              />
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div>
@@ -533,6 +548,16 @@ export function RecurringRulesCard() {
                       <span>{t("recurring.backfill.post")}</span>
                     </label>
                   )}
+                  <label className="flex items-start gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="backfill"
+                      className="mt-1"
+                      checked={draft.backfill === "pending"}
+                      onChange={() => setDraft({ ...draft, backfill: "pending" })}
+                    />
+                    <span>{t("recurring.backfill.pending")}</span>
+                  </label>
                 </div>
               </div>
             )}
@@ -545,6 +570,111 @@ export function RecurringRulesCard() {
         </DialogContent>
       </Dialog>
     </Card>
+  );
+}
+
+/**
+ * Insert `snippet` at the caret of the currently focused field. Falls back to
+ * appending if the field's selection isn't accessible (e.g. lost focus).
+ */
+function insertPlaceholder({
+  snippet,
+  target,
+  draft,
+  setDraft,
+  descRef,
+  noteRef,
+}: {
+  snippet: string;
+  target: "description" | "note";
+  draft: Draft;
+  setDraft: (d: Draft) => void;
+  descRef: React.RefObject<HTMLInputElement | null>;
+  noteRef: React.RefObject<HTMLTextAreaElement | null>;
+}): void {
+  const isDesc = target === "description";
+  const el: HTMLInputElement | HTMLTextAreaElement | null =
+    isDesc ? descRef.current : noteRef.current;
+  const current = isDesc ? draft.description : draft.note;
+  const start = el && typeof el.selectionStart === "number" ? el.selectionStart : current.length;
+  const end = el && typeof el.selectionEnd === "number" ? el.selectionEnd : current.length;
+  const next = current.slice(0, start) + snippet + current.slice(end);
+  if (isDesc) setDraft({ ...draft, description: next });
+  else setDraft({ ...draft, note: next });
+  // Restore focus + caret position after React re-render.
+  const newCaret = start + snippet.length;
+  requestAnimationFrame(() => {
+    if (!el) return;
+    el.focus();
+    try { el.setSelectionRange(newCaret, newCaret); } catch { /* unsupported */ }
+  });
+}
+
+function PlaceholderPalette({
+  onInsert,
+  formatLocaleCode,
+}: {
+  onInsert: (snippet: string) => void;
+  formatLocaleCode?: string;
+}) {
+  const { t } = useI18n();
+  const fmtLocale = resolveFormatLocale(formatLocaleCode);
+  const sampleCtx = React.useMemo(() => {
+    const today = new Date();
+    const prev = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+    const next = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+    return { date: today, dueDate: today, prevDate: prev, nextDate: next, today, runNumber: 3, locale: fmtLocale };
+  }, [fmtLocale]);
+  return (
+    <div className="rounded-md border p-2">
+      <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
+        {t("recurring.placeholders.title")}
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {describeTokens().map((tok) => (
+          <PlaceholderChip key={tok.token} tok={tok} sampleCtx={sampleCtx} onInsert={onInsert} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PlaceholderChip({
+  tok,
+  sampleCtx,
+  onInsert,
+}: {
+  tok: TokenInfo;
+  sampleCtx: Parameters<typeof interpolate>[1];
+  onInsert: (snippet: string) => void;
+}) {
+  const snippet = `\${${tok.token}}`;
+  const exampleResolved = interpolate(tok.example, sampleCtx);
+  return (
+    <HoverCard openDelay={200} closeDelay={80}>
+      <HoverCardTrigger asChild>
+        <button
+          type="button"
+          // Prevent the field from losing focus before the click handler runs,
+          // so we can read its selection range to insert at the caret.
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => onInsert(snippet)}
+          className="rounded border bg-muted/50 px-1.5 py-0.5 font-mono text-[11px] hover:bg-muted"
+        >
+          {snippet}
+        </button>
+      </HoverCardTrigger>
+      <HoverCardContent side="top" className="w-72 space-y-1 text-xs">
+        <div className="font-medium">{snippet}</div>
+        <div className="text-muted-foreground">{tok.help}</div>
+        <div className="font-mono text-[11px]">
+          <span className="text-muted-foreground">e.g. </span>
+          <span>{tok.example}</span>
+          <span className="text-muted-foreground"> → </span>
+          <span>{exampleResolved}</span>
+        </div>
+      </HoverCardContent>
+    </HoverCard>
   );
 }
 
