@@ -1,166 +1,198 @@
-# Reconcile `category_groups.kind` ↔ `categories.is_savings`
+## Goal
 
-## The problem today
+Extend recurring rules so that, before posting a non-auto-post occurrence, the user can:
 
-Two overlapping mechanisms classify an envelope's behaviour:
+1. Edit the **transaction date** (occurred_on).
+2. Edit the **description**, with support for **placeholder interpolation** (date tokens, period boundaries, counters).
+3. See **resolved placeholders in the preview** befor posting and during editing and creating reccurong transactions.
+4. Use a **separate "format locale"** (independent of UI language) for month/day name rendering.
 
-1. `category_groups.kind` ∈ {`income`, `expense`, `savings`} — original design.
-2. `categories.is_savings` (boolean) — added later when standalone savings envelopes
-  without a parent group were needed.
+---
 
-They are inconsistently coupled:
+## 1. Placeholder syntax
 
-- **SQL truth** (`category_month_spending`): math is driven **only** by `g.kind`.
-Income groups receive; expense/savings groups use the expense formula. The
-`is_savings` column is returned but **not used** to switch formulas.
-- **UI truth** (`envelopes.tsx`): grouping is driven by an *effective kind*
-= `is_savings || group.kind==='savings' ? 'savings' : group.kind`. A row with
-`is_savings=true` inside an expense group is rendered under a synthetic
-"Savings" header → inconsistent with what the RPC actually computed.
-- **Settings**: adding a category to a savings-kind group force-sets
-`is_savings=true`; clearing the group keeps `is_savings=true`. So the two
-fields drift apart on purpose.
-- **Allocated budget**: savings envelopes use `category_savings_balance`
-(all-time view, keyed on `is_savings=true`), while monthly budget rows are
-suppressed for them. So `is_savings` *is* a real switch — just not for the
-monthly RPC.
+Use `${name}` and `${name:format}`, with familiar JS-style escaping (`$$` → literal `$`). Chosen because:
 
-Net: a category can be (group=expense, is_savings=true) and the dashboard,
-envelopes screen, and savings totals all disagree about what it is.
+- It mirrors JS template literals (already familiar).
+- Doesn't collide with `#tags` already used in notes.
+- Curly braces let format strings contain `:`, `.`, `-`, spaces.
 
-## Decision: keep both, but with crisp, documented roles
-
-Rather than collapsing one into the other, formalise this:
-
-- `**categories.is_savings` becomes the single source of truth for *behaviour***
-(does this envelope accumulate across months, or reset monthly?).
-- `**category_groups.kind` becomes purely a *taxonomy / default* concern**
-(where new envelopes land, what header they render under, what the "add
-envelope" form pre-selects). It is **not** used to drive math anymore.
-
-Why not drop `kind` entirely?
-
-- Users want a header taxonomy ("Income", "Fixed costs", "Variable", "Savings
-pots") that survives even when a single category is reclassified.
-- Standalone (no-group) envelopes still need *some* bucket on screen — the
-synthetic income/expense/savings buckets we already render.
-- A group with `kind=income` is a useful default: any envelope created inside
-it should default to "income behaviour" (and any transaction logged against
-it defaults to income type in the Add form).
-
-Why not drop `is_savings`?
-
-- Standalone savings envelopes (no group) must exist.
-- Users sometimes want a *single* savings pot inside an otherwise expense
-group ("Misc → Holiday fund"). Forcing them to create a sibling savings group
-for one envelope is friction.
-
-## Concrete changes
-
-### 1. SQL — make `is_savings` the behaviour switch
-
-Update `category_month_spending(p_month)` so the income/expense/savings branch
-is selected per row by:
+Example:
 
 ```
-effective_kind =
-  CASE
-    WHEN c.is_savings THEN 'savings'
-    WHEN g.kind = 'income' THEN 'income'
-    ELSE 'expense'
-  END
+Electricity ${periodStart:dd.MM.yyyy} – ${periodEnd:dd.MM.yyyy}
+Rent ${date:MMMM yyyy}
+Q${quarter} ${date:yyyy} VAT
+Subscription #${runNumber} (${date:MMM yyyy})
 ```
 
-Returned `kind` column = `effective_kind` (so the UI no longer needs to
-recompute). A savings row returns `allocated=0`, `spent_or_received=0`,
-`variance=0` from this RPC — its real numbers come from
-`category_savings_balance` as today.
+### Date tokens (each accepts an optional `:format`)
 
-Migration also: when a savings envelope's `is_savings` flips on, delete its
-`category_budgets` rows (already done in UI; enforce via trigger so it can't
-drift).
 
-### 2. Settings UX — clarify the contract
+| Token         | Meaning                                                                                                        |
+| ------------- | -------------------------------------------------------------------------------------------------------------- |
+| `date`        | Effective transaction date (= occurred_on at post time)                                                        |
+| `dueDate`     | Original due date (before weekend adjustment)                                                                  |
+| `prevDate`    | Effective date of the previous occurrence of this rule (or `starts_on` if none)                                |
+| `nextDate`    | Effective date of the next scheduled occurrence                                                                |
+| `periodStart` | Day after `prevDate` — i.e. start of the period this occurrence covers. For the first occurrence: `starts_on`. |
+| `periodEnd`   | `date` itself — end of the period this occurrence covers.                                                      |
+| `today`       | Real "now" at the moment of posting                                                                            |
 
-- **Group form**: keep the kind selector, relabel to "Default behaviour for
-new envelopes" with helper text:
-*"New envelopes added to this group will default to this behaviour. You can
-override per-envelope."*
-- **Envelope form / row**: the "Savings envelope" toggle stays. When you add
-an envelope to a group, the toggle **pre-selects** to match `group.kind`
-(`income`-kind groups → toggle is replaced by an "Income envelope" indicator
-derived from group kind; `savings`-kind → toggle on; `expense`-kind →
-toggle off). The user can flip it.
-- **Visual cue**: in the envelope list, show a small badge when a category's
-effective behaviour differs from its group's kind ("Savings in Expense
-group"), so the divergence is intentional and visible.
-- **Income envelopes**: today there is no per-category "is_income" flag. We
-keep that derived from the group: an envelope in an income-kind group is
-treated as income. Standalone (no group) envelopes default to expense unless
-`is_savings=true`. This is the only remaining case where `kind` drives
-math — documented as such.
 
-### 3. Envelopes screen — single computation path
+### Number/counter tokens (no format, but `:00` style padding supported)
 
-Remove the client-side `effectiveKind` logic. Trust the RPC's returned `kind`.
-Group rows by:
 
-- If the row has a `group_id`, render under that group header (with the group's
-display name). The header subtitle shows the group's *default* kind.
-- If no `group_id`, fall back to a synthetic header named after the row's
-effective kind.
+| Token         | Meaning                                                                            |
+| ------------- | ---------------------------------------------------------------------------------- |
+| `runNumber`   | 1-based count of posted+skipped occurrences of this rule including the current one |
+| `quarter`     | 1–4, calendar quarter of `date`                                                    |
+| `semester`    | 1–2, half-year of `date`                                                           |
+| `trimester`   | 1–3, third-of-year of `date`                                                       |
+| `weekOfYear`  | ISO week number of `date`                                                          |
+| `monthOfYear` | 1–12                                                                               |
+| `year`        | Full year                                                                          |
 
-Mixed-behaviour groups (e.g. an expense group containing one savings envelope)
-render under the group header; each row's body uses the per-row effective
-kind for its formula. This is consistent with the SQL.
 
-### 4. Architecture doc
+### Format strings
 
-Rewrite §3.3 to explain the new model explicitly:
+For date tokens, format follows date-fns `format()` syntax. Highlights:
 
-- Two coordinated fields, two clear jobs:
-  - `category_groups.kind` = **taxonomy + default for new envelopes**.
-  - `categories.is_savings` = **per-envelope behaviour switch (savings vs not)**.
-  - Income behaviour stays group-derived (no `is_income` per category) because
-  we have no use case for "one income envelope inside an expense group".
-- A truth table showing what (`group.kind`, `is_savings`) combinations mean
-and which formula applies.
-- A "why not collapse them" subsection capturing the design rationale above
-so a future contributor doesn't try to merge them again.
+- `yyyy`, `MM`, `dd`, `HH`, `mm`, `ss`, `SSS`
+- `MMM` (Jan, Feb…), `MMMM` (January…)
+- `ddd` is not date-fns standard → we map `ddd`→`EEE` and `dddd`→`EEEE` before calling date-fns, so users can use the convention they asked for.
+- Default (no format given) = ISO `yyyy-MM-dd`.
+- A literal `:` inside the format works because parsing is bracket-bounded by `{}`.
 
-## Files to change
+For numeric tokens, `:00`, `:000` mean zero-padding width.
 
-**SQL migration**
+### Format locale
 
-- New migration: rewrite `category_month_spending` to use `effective_kind`;
-optional trigger to clear `category_budgets` when `is_savings` flips on.
+New setting `format_locale` (text, default = current `language`). Used **only** for month/day names in placeholders. UI language stays separate. Initial supported locales: `de`, `en` (extendable). Stored on `settings` table.
 
-**Edited**
+---
 
-- `src/routes/envelopes.tsx` — drop client-side `effectiveKind` logic, trust
-RPC `kind`, render mixed groups correctly.
-- `src/routes/settings.tsx` — relabel group-kind selector, smarter
-`is_savings` defaulting on add, divergence badge in the list.
-- `src/routes/add.tsx` / `edit.$id.tsx` — derive default tx type from the
-selected category's effective kind (using group + is_savings).
-- `src/lib/finance.ts` — small helper `effectiveKind(category, group)` for
-client use where the RPC isn't involved.
-- `architecture.md` — rewrite §3.3, add the truth table and rationale.
+## 2. UI changes
 
-**Not changed**
+### a) Settings → "Format locale" select
 
-- `category_savings_balance` view (already keyed on `is_savings`).
-- Existing data: no row migration needed; the new RPC formula yields the
-same numbers for all current rows because today every `is_savings=true`
-row already lives in a savings-kind group (the UI enforces it).
+In `src/routes/settings.tsx`, add next to "Date format":
 
-## Open question for you
+- Label: "Format locale for placeholders"
+- Options: German / English (mirror existing language list).
 
-Before I implement, please confirm one preference:
+### b) Recurring rule edit dialog (`RecurringRulesCard.tsx`)
 
-**Should the group `kind` selector stay visible in the Settings UI, or
-should it be hidden and inferred from "what's the most common behaviour
-of envelopes in this group"?** My recommendation is to keep it visible
-(option A above) because it's a useful default and a clear taxonomy
-header — but if you'd rather have one less concept on screen, I can hide
-it and infer.
+Below the description input add a small **"Available placeholders"** help block (collapsible) listing tokens with one-line examples — purely informational.
+
+Extend `PreviewPanel` to also resolve and display the **rendered description** for each preview row, given the rule's current draft. Rendered output is shown in muted text under each date row:
+
+```
+14.05.2026   [future]
+Electricity 15.04.2026 – 14.05.2026
+```
+
+This requires the preview to know `prevDate` per row → trivially derived from previous row's `effective_on` (or `starts_on` if first). `runNumber` in preview = index+1.
+
+### c) "Post occurrence" dialog (NEW)
+
+Currently `UpcomingCard` posts in one click. Change behavior:
+
+- **Auto-post rules** keep working as today (no UI change; happens server-side via `process_recurring_rules`).
+- **Non-auto-post rules** (manual): clicking **Post** opens a small dialog with:
+  - **Date** (DateInput, defaults to `effective_on`)
+  - **Description** (Input, defaults to rule's `description`, with placeholder hint)
+  - **Note** (Input, defaults to rule's `note`)
+  - **Amount** field (only when `is_variable_amount`, same as today)
+  - **Live preview** of the resolved description below the description field
+  - Buttons: Cancel / Post
+
+The dialog uses the same `interpolate()` function as the preview. On Post, it calls `postOccurrence(o, { occurred_on, description: resolved, note: resolvedNote, amount? })` — `postOccurrence` already accepts `description`, `note`, `occurred_on`, `amount` overrides.
+
+The user passes the **already-resolved** strings to `postOccurrence`, so the saved transaction has the literal expanded text (no surprise re-render later).
+
+---
+
+## 3. Technical: interpolation engine
+
+New file `src/lib/placeholders.ts`:
+
+```ts
+export interface PlaceholderContext {
+  date: Date;          // effective / occurred_on
+  dueDate: Date;
+  prevDate: Date;      // or starts_on for first
+  nextDate: Date | null;
+  today: Date;
+  runNumber: number;
+  locale: Locale;      // date-fns locale chosen via settings.format_locale
+}
+
+export function interpolate(template: string, ctx: PlaceholderContext): string;
+export function describeTokens(): { token: string; help: string; example: string }[];
+```
+
+Parser: single regex `/\$\$|\$\{([a-zA-Z]+)(?::([^}]*))?\}/g`, with `$$` escaping to `$`.
+
+Format normalization: replace `dddd`→`EEEE`, `ddd`→`EEE` (bare, not inside `[...]` literal escape — date-fns treats `[...]` as literals).
+
+Derived values:
+
+- `periodStart` = day after `prevDate` (or `starts_on` for first occurrence)
+- `periodEnd` = `date`
+- `quarter` = `Math.floor(month/3)+1`
+- `semester` = `month < 6 ? 1 : 2`
+- `trimester` = `Math.floor(month/4)+1`
+- `weekOfYear` = `getISOWeek(date)`
+
+Unknown tokens render as the literal `${token}` (so users see typos).
+
+---
+
+## 4. Database / schema
+
+- Add column `settings.format_locale text not null default 'de'`.
+- No other schema change. Override values are passed transiently to `postOccurrence`; they end up in `transactions.description`/`note`/`occurred_on` which already exist.
+
+(Migration file under `supabase/migrations/`.)
+
+---
+
+## 5. Files touched
+
+- **NEW** `src/lib/placeholders.ts` — interpolation + token catalogue.
+- **NEW** `src/components/PostOccurrenceDialog.tsx` — manual-post editor.
+- `src/components/UpcomingCard.tsx` — open dialog for non-auto-post rules instead of one-click post; keep skip and amount-only path for backward compat. Keep auto-post badge behavior.
+- `src/components/RecurringRulesCard.tsx` — small placeholder hint under description; extend `PreviewPanel` to compute `prevDate` per row and render resolved description per occurrence.
+- `src/routes/settings.tsx` — Format locale selector.
+- `src/lib/finance.ts` — extend `Settings` type with `format_locale`.
+- `src/i18n/index.tsx` — new keys (placeholder labels, dialog labels, format-locale label, helper for available locales).
+- `architecture.md` — new short section "§3.x Placeholders in recurring rules" explaining tokens, scope creep, and why model still holds.
+- Migration: `settings.format_locale`.
+
+---
+
+## 6. Challenge: are recurring rules still the right model?
+
+You're right that this stretches "recurring transaction" toward "recurring planned event". But the model still works because:
+
+- **Schedule generation is unchanged.** The cadence + day rule + weekend adjust + frequency still uniquely produce due dates. Placeholders only affect the *content* of the resulting transaction, not when it fires.
+- **Ground truth stays in `transactions`.** After post, the resolved string is stored verbatim — no template re-evaluation later, no drift.
+- **Variable-amount rules already broke the "fixed" assumption.** Editable date + description on manual post is the natural next step on the same axis: fixed schedule, variable content. Auto-post rules remain truly fixed.
+- **Period semantics fall out of the cadence**, not new metadata. `periodStart = prevDate+1day, periodEnd = date` works deterministically for monthly/quarterly/yearly without introducing a separate "billing period" concept.
+
+Where it would start to break (and we should *not* go there in this change):
+
+- Rules with **multiple bills per period** (e.g. weekly within a month).
+- Rules where the period is **decoupled from the cadence** (post in May for Jan–Mar). That would need an explicit `period_start_offset`/`period_end_offset` per rule — out of scope.
+- **Auto-post + placeholders** is fine technically (server-side rendering at post time), but for the first iteration we can keep auto-post using the raw description as today, and only resolve in the manual post dialog and preview. If you want auto-post resolution too, add the same `interpolate` server-side later (Postgres function) — flagged as a follow-up, not in this plan.
+
+If the answer to either of those becomes "yes" in the future, we'd promote the rule into a separate "PlannedExpense"/"BillingSchedule" entity. For now, extending `recurring_rules` is the right call.
+
+---
+
+## 7. Out of scope (explicit)
+
+- Server-side placeholder resolution for auto-post rules (kept as raw text for now).
+- Internationalization of placeholder *names* (`${date}` stays English-keyword).
+- Format locales beyond `de` and `en` (easy to add later).

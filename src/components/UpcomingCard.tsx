@@ -12,6 +12,7 @@ import {
   type RecurringOccurrence, type RecurringRule,
 } from "@/lib/finance";
 import { useI18n } from "@/i18n";
+import { PostOccurrenceDialog } from "@/components/PostOccurrenceDialog";
 
 export function UpcomingCard({ symbol }: { symbol: string }) {
   const { t, locale } = useI18n();
@@ -20,6 +21,7 @@ export function UpcomingCard({ symbol }: { symbol: string }) {
   const occs = occQ.data ?? [];
   const [amounts, setAmounts] = React.useState<Record<string, string>>({});
   const [visibleCount, setVisibleCount] = React.useState(10);
+  const [dialogOcc, setDialogOcc] = React.useState<(RecurringOccurrence & { rule: RecurringRule }) | null>(null);
 
   React.useEffect(() => {
     setVisibleCount(10);
@@ -33,6 +35,13 @@ export function UpcomingCard({ symbol }: { symbol: string }) {
   const hasMore = visibleCount < occs.length;
 
   const onPost = async (o: RecurringOccurrence & { rule: RecurringRule }) => {
+    // Non-auto-post rules: open the rich dialog so the user can edit
+    // date / description / note (with placeholder interpolation) before
+    // the transaction is created.
+    if (!o.rule.auto_post) {
+      setDialogOcc(o);
+      return;
+    }
     try {
       if (o.rule.is_variable_amount) {
         const raw = amounts[o.id];
@@ -125,6 +134,46 @@ export function UpcomingCard({ symbol }: { symbol: string }) {
           </div>
         )}
       </CardContent>
+      <PostOccurrenceDialog
+        occurrence={dialogOcc}
+        runNumber={dialogOcc ? computeRunNumber(occs, dialogOcc) : 1}
+        prevDate={dialogOcc ? computePrevDate(occs, dialogOcc) : ""}
+        nextDate={dialogOcc ? computeNextDate(occs, dialogOcc) : null}
+        onClose={() => setDialogOcc(null)}
+        onPosted={() => qc.invalidateQueries()}
+      />
     </Card>
   );
+}
+
+/** Count of posted+skipped+this occurrences for the rule up to and including `target`.
+ * We approximate by counting pending occurrences for the same rule that are
+ * scheduled on or before the target's effective_on plus 1 (the target itself
+ * not yet posted). For the run-number we need ALL historic posts too; since
+ * we only have pendings here, fall back to: position among pendings of this
+ * rule sorted by effective_on (1-based). This is a best-effort counter that
+ * matches what the user sees on screen. */
+function computeRunNumber(all: (RecurringOccurrence & { rule: RecurringRule })[], target: RecurringOccurrence & { rule: RecurringRule }): number {
+  const sameRule = all
+    .filter((o) => o.rule.id === target.rule.id)
+    .sort((a, b) => a.effective_on.localeCompare(b.effective_on));
+  const idx = sameRule.findIndex((o) => o.id === target.id);
+  return Math.max(1, idx + 1);
+}
+
+function computePrevDate(all: (RecurringOccurrence & { rule: RecurringRule })[], target: RecurringOccurrence & { rule: RecurringRule }): string {
+  const sameRule = all
+    .filter((o) => o.rule.id === target.rule.id)
+    .sort((a, b) => a.effective_on.localeCompare(b.effective_on));
+  const idx = sameRule.findIndex((o) => o.id === target.id);
+  if (idx > 0) return sameRule[idx - 1].effective_on;
+  return target.rule.starts_on;
+}
+
+function computeNextDate(all: (RecurringOccurrence & { rule: RecurringRule })[], target: RecurringOccurrence & { rule: RecurringRule }): string | null {
+  const sameRule = all
+    .filter((o) => o.rule.id === target.rule.id)
+    .sort((a, b) => a.effective_on.localeCompare(b.effective_on));
+  const idx = sameRule.findIndex((o) => o.id === target.id);
+  return idx >= 0 && idx < sameRule.length - 1 ? sameRule[idx + 1].effective_on : null;
 }
