@@ -548,6 +548,16 @@ export function RecurringRulesCard() {
                       <span>{t("recurring.backfill.post")}</span>
                     </label>
                   )}
+                  <label className="flex items-start gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="backfill"
+                      className="mt-1"
+                      checked={draft.backfill === "pending"}
+                      onChange={() => setDraft({ ...draft, backfill: "pending" })}
+                    />
+                    <span>{t("recurring.backfill.pending")}</span>
+                  </label>
                 </div>
               </div>
             )}
