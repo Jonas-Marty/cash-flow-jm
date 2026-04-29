@@ -37,6 +37,7 @@ import {
 } from "@/lib/finance";
 import { StackedBudgetBar } from "@/components/StackedBudgetBar";
 import { useFxRates, convert } from "@/lib/fx";
+import { MonthBudgetSummary } from "@/components/MonthBudgetSummary";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
@@ -224,6 +225,12 @@ function Dashboard() {
             </CardContent></Card>
           ) : (
             <div className="space-y-4">
+              <MonthBudgetSummary
+                rows={envelopes}
+                pendingMap={pendingMap}
+                symbol={symbol}
+                monthLabel={format(monthStart, "MMMM yyyy", { locale })}
+              />
               {grouped.map((g) => (
                 <GroupBlock key={g.key} group={g} symbol={symbol} savings={savings} pendingMap={pendingMap} tr={t} />
               ))}
