@@ -133,7 +133,7 @@ export function interpolate(template: string | null | undefined, ctx: Placeholde
       if (!d) return ""; // e.g. nextDate unknown
       const f = fmt && fmt.length > 0 ? normalizeDateFormat(fmt) : "yyyy-MM-dd";
       try {
-        return fmtDate(d, f, { locale: ctx.locale });
+        return formatRespectingMMM(d, f, ctx.locale);
       } catch {
         return match;
       }
