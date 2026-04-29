@@ -24,6 +24,8 @@ const searchSchema = z.object({
   chart: fallback(z.enum(["pie", "bar", "treemap"]), "pie").default("pie"),
 });
 
+type InsightsSearch = z.infer<typeof searchSchema>;
+
 export const Route = createFileRoute("/insights")({
   validateSearch: zodValidator(searchSchema),
   component: InsightsPage,
@@ -56,13 +58,13 @@ function InsightsPage() {
           <h1 className="text-xl font-semibold">{t("nav.insights")}</h1>
           <PeriodPicker
             value={search.period as PeriodKey}
-            onChange={(p) => navigate({ search: (prev) => ({ ...prev, period: p }), replace: true })}
+            onChange={(p) => navigate({ search: (prev: InsightsSearch) => ({ ...prev, period: p }), replace: true })}
           />
         </div>
 
         <Tabs
           value={search.tab}
-          onValueChange={(v) => navigate({ search: (prev) => ({ ...prev, tab: v as typeof search.tab }), replace: true })}
+          onValueChange={(v) => navigate({ search: (prev: InsightsSearch) => ({ ...prev, tab: v as InsightsSearch["tab"] }), replace: true })}
         >
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">{t("insights.tab.overview")}</TabsTrigger>
@@ -82,11 +84,11 @@ function InsightsPage() {
               to={range.to}
               symbol={symbol}
               group={search.group as GroupKey}
-              onGroupChange={(g) => navigate({ search: (prev) => ({ ...prev, group: g }), replace: true })}
+              onGroupChange={(g) => navigate({ search: (prev: InsightsSearch) => ({ ...prev, group: g }), replace: true })}
               txFilter={search.txFilter as TxFilter}
-              onTxFilterChange={(f) => navigate({ search: (prev) => ({ ...prev, txFilter: f }), replace: true })}
+              onTxFilterChange={(f) => navigate({ search: (prev: InsightsSearch) => ({ ...prev, txFilter: f }), replace: true })}
               chart={search.chart as ChartKind}
-              onChartChange={(c) => navigate({ search: (prev) => ({ ...prev, chart: c }), replace: true })}
+              onChartChange={(c) => navigate({ search: (prev: InsightsSearch) => ({ ...prev, chart: c }), replace: true })}
             />
           </TabsContent>
 
