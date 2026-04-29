@@ -23,6 +23,8 @@ import { useI18n, LANGUAGES, type Lang } from "@/i18n";
 import { RecurringRulesCard } from "@/components/RecurringRulesCard";
 import { NextcloudCard } from "@/components/NextcloudCard";
 import { ApiTokensCard } from "@/components/ApiTokensCard";
+import { BudgetBalanceCard } from "@/components/BudgetBalanceCard";
+import { fmtMoney } from "@/lib/finance";
 import { useAuth, useIsAdmin } from "@/lib/auth";
 import { Switch } from "@/components/ui/switch";
 import { useQuery as useRQ } from "@tanstack/react-query";
@@ -119,7 +121,7 @@ function SettingsPage() {
     const isSavings = cIsSavings || group?.kind === "savings";
     const { error } = await supabase.from("categories").insert({
       name: cName.trim(),
-      allocated_budget: isSavings ? 0 : (Number(cBudget) || 0),
+      allocated_budget: Number(cBudget) || 0,
       sort_order: sortOrder,
       group_id: cGroupId || null,
       is_savings: isSavings,
@@ -160,9 +162,9 @@ function SettingsPage() {
   };
   const toggleCategorySavings = async (id: string, isSavings: boolean) => {
     const next = !isSavings;
-    const update: { is_savings: boolean; allocated_budget?: number } = { is_savings: next };
-    if (next) update.allocated_budget = 0;
-    const { error } = await supabase.from("categories").update(update).eq("id", id);
+    // Keep the user's allocation when flipping savings on/off — the value
+    // is now the monthly *target* for savings envelopes too.
+    const { error } = await supabase.from("categories").update({ is_savings: next }).eq("id", id);
     if (error) return toast.error(error.message);
     if (next) {
       // Drop any pre-generated monthly budget rows; savings envelopes don't use them.
