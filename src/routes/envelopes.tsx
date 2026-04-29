@@ -26,6 +26,7 @@ import {
 } from "@/lib/finance";
 import { StackedBudgetBar } from "@/components/StackedBudgetBar";
 import { useFxRates, convert } from "@/lib/fx";
+import { MonthBudgetSummary } from "@/components/MonthBudgetSummary";
 
 export const Route = createFileRoute("/envelopes")({
   component: EnvelopesPage,
@@ -173,15 +174,66 @@ function EnvelopesPage() {
           <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">
             {tr("env.no_envelopes")} <Link to="/settings" className="text-primary underline-offset-2 hover:underline">{tr("dashboard.create_in_settings")}</Link>.
           </CardContent></Card>
-        ) : groups.map((g) => (
+        ) : (
+          <>
+            <MonthBudgetSummary
+              rows={effectiveRows}
+              pendingMap={pendingMap}
+              symbol={symbol}
+              monthLabel={format(month, "MMMM yyyy", { locale })}
+            />
+            {groups.map((g) => {
+              const totalAlloc = g.rows.reduce((s, r) => s + Number(r.allocated), 0);
+              const totalActual = g.rows.reduce((s, r) => s + Number(r.spent_or_received), 0);
+              const totalPending = g.rows.reduce((s, r) => {
+                const p = pendingMap.get(r.category_id);
+                const d = pendingDeltaForRow(p, g.kind);
+                return s + (g.kind === "income" ? d : Math.max(0, d));
+              }, 0);
+              const overProjected = g.kind === "expense" && totalAlloc > 0 && totalActual + totalPending > totalAlloc;
+              const remaining = totalAlloc - totalActual - totalPending;
+              return (
           <Card key={g.name + g.kind}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                {g.name}
-                <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-muted-foreground">
-                  {g.kind === "income" ? tr("settings.kind_income") : g.kind === "savings" ? tr("settings.kind_savings") : tr("settings.kind_expense")}
-                </span>
-              </CardTitle>
+            <CardHeader className="pb-2 space-y-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                  {g.name}
+                  <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-muted-foreground">
+                    {g.kind === "income" ? tr("settings.kind_income") : g.kind === "savings" ? tr("settings.kind_savings") : tr("settings.kind_expense")}
+                  </span>
+                </CardTitle>
+                <div className={cn("text-base font-semibold tabular-nums", overProjected && "text-destructive")}>
+                  {g.kind === "savings"
+                    ? fmtMoney(totalAlloc, symbol)
+                    : `${fmtMoney(totalActual, symbol)} / ${fmtMoney(totalAlloc, symbol)}`}
+                </div>
+              </div>
+              {g.kind !== "savings" && (
+                <>
+                  <div className="text-xs tabular-nums text-muted-foreground flex flex-wrap gap-x-3">
+                    {g.kind === "income" ? (
+                      <>
+                        <span>{tr("dashboard.group.received", { x: fmtMoney(totalActual, symbol) })}</span>
+                        {totalPending > 0 && <span className="text-warning">{tr("dashboard.group.expected", { x: fmtMoney(totalPending, symbol) })}</span>}
+                        <span className="ml-auto">{tr("dashboard.group.of_target", { x: fmtMoney(totalAlloc, symbol) })}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>{tr("dashboard.group.spent", { x: fmtMoney(totalActual, symbol) })}</span>
+                        {totalPending > 0 && <span className="text-warning">{tr("dashboard.group.pending", { x: fmtMoney(totalPending, symbol) })}</span>}
+                        <span className="ml-auto">
+                          {overProjected
+                            ? <span className="text-destructive">{tr("dashboard.group.over_by", { x: fmtMoney(-remaining, symbol) })}</span>
+                            : tr("dashboard.group.left", { x: fmtMoney(remaining, symbol) })}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  {g.kind === "expense" && (
+                    <StackedBudgetBar allocated={totalAlloc} committed={totalActual} pending={totalPending} />
+                  )}
+                </>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               {g.rows.map((r) => {
@@ -296,7 +348,10 @@ function EnvelopesPage() {
               })}
             </CardContent>
           </Card>
-        ))}
+              );
+            })}
+          </>
+        )}
       </div>
     </AppShell>
   );
