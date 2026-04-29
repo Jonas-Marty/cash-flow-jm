@@ -350,6 +350,12 @@ function EnvelopesPage() {
                   const projected = actual + pendingPos;
                   const overProjected = allocated > 0 && projected > allocated;
                   const remainingProjected = allocated - projected;
+                  const cat = categoriesById.get(r.category_id);
+                  const groupOverride = r.group_id ? groupSweepById.get(r.group_id) ?? null : null;
+                  const resolvedSweepId = (cat as unknown as { sweep_target_category_id?: string | null } | undefined)?.sweep_target_category_id ?? groupOverride ?? defaultSweepId;
+                  const isOverride = ((cat as unknown as { sweep_target_category_id?: string | null } | undefined)?.sweep_target_category_id ?? null) !== null
+                    || (r.group_id != null && groupOverride !== null);
+                  const sweepTargetName = resolvedSweepId ? (categoriesById.get(resolvedSweepId)?.name ?? null) : null;
                   header = (
                     <>
                       <div className="flex items-baseline justify-between gap-3">
@@ -371,6 +377,11 @@ function EnvelopesPage() {
                             : tr("dashboard.remaining", { x: fmtMoney(remainingProjected, symbol) })}
                         </span>
                       </div>
+                      {isOverride && sweepTargetName && (
+                        <div className="mt-1 text-[11px] text-muted-foreground italic">
+                          {tr("envelopes.sweep.target")}: {sweepTargetName}
+                        </div>
+                      )}
                     </>
                   );
                 }
