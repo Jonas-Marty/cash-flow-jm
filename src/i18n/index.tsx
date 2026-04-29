@@ -712,7 +712,7 @@ const en: Dict = {
   "recurring.preview.empty": "No occurrences in the preview window.",
   "recurring.preview.note_past": "Start date is in the past. Choose below whether to create the past entries.",
   "recurring.placeholders.title": "Placeholders (click to insert)",
-  "recurring.placeholders.hint": "Use ${'$'}{token} or ${'$'}{token:format}. Example: Electricity ${'$'}{periodStart:dd.MM.yyyy} – ${'$'}{periodEnd:dd.MM.yyyy}",
+  "recurring.placeholders.hint": "Use {token} or {token:format} prefixed with a dollar sign. Example: Electricity {periodStart:dd.MM.yyyy} – {periodEnd:dd.MM.yyyy} (each brace prefixed by $).",
   "recurring.preview.resolved": "Description",
   "recurring.post_dialog.title": "Post transaction",
   "recurring.post_dialog.date": "Date",
