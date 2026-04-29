@@ -1,12 +1,12 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { LayoutDashboard, Plus, ListOrdered, Settings as SettingsIcon, Wallet, PiggyBank, LogOut } from "lucide-react";
+import { LayoutDashboard, Plus, ListOrdered, Settings as SettingsIcon, Wallet, PiggyBank, LogOut, LineChart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 
 type Tab = {
-  to: "/" | "/transactions" | "/add" | "/envelopes" | "/settings";
+  to: "/" | "/transactions" | "/add" | "/envelopes" | "/insights" | "/settings";
   labelKey: string;
   icon: typeof LayoutDashboard;
   exact?: boolean;
@@ -15,8 +15,9 @@ type Tab = {
 const tabs: Tab[] = [
   { to: "/", labelKey: "nav.dashboard", icon: LayoutDashboard, exact: true },
   { to: "/transactions", labelKey: "nav.transactions", icon: ListOrdered },
-  { to: "/add", labelKey: "nav.add", icon: Plus, primary: true },
   { to: "/envelopes", labelKey: "nav.envelopes", icon: PiggyBank },
+  { to: "/add", labelKey: "nav.add", icon: Plus, primary: true },
+  { to: "/insights", labelKey: "nav.insights", icon: LineChart },
   { to: "/settings", labelKey: "nav.settings", icon: SettingsIcon },
 ];
 
@@ -68,7 +69,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-background md:hidden">
-        <ul className="mx-auto grid max-w-3xl grid-cols-5">
+        <ul className="mx-auto grid max-w-3xl grid-cols-6">
           {tabs.map((tab) => {
             const active = tab.exact ? loc.pathname === tab.to : loc.pathname.startsWith(tab.to);
             const Icon = tab.icon;
