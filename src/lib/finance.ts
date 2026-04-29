@@ -72,6 +72,34 @@ export interface CategorySavingsBalance {
   spent_total: number;
   balance: number;
 }
+
+export interface CategorySavingsBalanceV2 {
+  category_id: string;
+  name: string;
+  archived: boolean;
+  cumulative_balance: number;
+  month_activity: number;
+  from_transactions: number;
+  from_reallocations: number;
+  from_sweeps: number;
+}
+
+export interface ReconciliationSummary {
+  accounts_total: number;
+  savings_total: number;
+  unswept_current_month: number;
+  drift: number;
+}
+
+export interface CategoryReallocation {
+  id: string;
+  from_category_id: string;
+  to_category_id: string;
+  amount: number;
+  occurred_on: string;
+  note: string | null;
+  created_at: string;
+}
 export interface PendingCategoryImpact {
   category_id: string;
   type: "expense" | "income";
