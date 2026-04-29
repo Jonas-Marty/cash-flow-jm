@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TransactionsRouteImport } from './routes/transactions'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as EnvelopesRouteImport } from './routes/envelopes'
 import { Route as AddRouteImport } from './routes/add'
 import { Route as IndexRouteImport } from './routes/index'
@@ -29,6 +30,11 @@ const TransactionsRoute = TransactionsRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const InsightsRoute = InsightsRouteImport.update({
+  id: '/insights',
+  path: '/insights',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EnvelopesRoute = EnvelopesRouteImport.update({
@@ -81,6 +87,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/add': typeof AddRoute
   '/envelopes': typeof EnvelopesRoute
+  '/insights': typeof InsightsRoute
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRoute
   '/edit/$id': typeof EditIdRoute
@@ -94,6 +101,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/add': typeof AddRoute
   '/envelopes': typeof EnvelopesRoute
+  '/insights': typeof InsightsRoute
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRoute
   '/edit/$id': typeof EditIdRoute
@@ -108,6 +116,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/add': typeof AddRoute
   '/envelopes': typeof EnvelopesRoute
+  '/insights': typeof InsightsRoute
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRoute
   '/edit/$id': typeof EditIdRoute
@@ -123,6 +132,7 @@ export interface FileRouteTypes {
     | '/'
     | '/add'
     | '/envelopes'
+    | '/insights'
     | '/settings'
     | '/transactions'
     | '/edit/$id'
@@ -136,6 +146,7 @@ export interface FileRouteTypes {
     | '/'
     | '/add'
     | '/envelopes'
+    | '/insights'
     | '/settings'
     | '/transactions'
     | '/edit/$id'
@@ -149,6 +160,7 @@ export interface FileRouteTypes {
     | '/'
     | '/add'
     | '/envelopes'
+    | '/insights'
     | '/settings'
     | '/transactions'
     | '/edit/$id'
@@ -163,6 +175,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AddRoute: typeof AddRoute
   EnvelopesRoute: typeof EnvelopesRoute
+  InsightsRoute: typeof InsightsRoute
   SettingsRoute: typeof SettingsRoute
   TransactionsRoute: typeof TransactionsRoute
   EditIdRoute: typeof EditIdRoute
@@ -187,6 +200,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/insights': {
+      id: '/insights'
+      path: '/insights'
+      fullPath: '/insights'
+      preLoaderRoute: typeof InsightsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/envelopes': {
@@ -259,6 +279,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AddRoute: AddRoute,
   EnvelopesRoute: EnvelopesRoute,
+  InsightsRoute: InsightsRoute,
   SettingsRoute: SettingsRoute,
   TransactionsRoute: TransactionsRoute,
   EditIdRoute: EditIdRoute,
@@ -271,3 +292,12 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
