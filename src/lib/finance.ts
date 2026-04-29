@@ -172,6 +172,7 @@ export interface Settings {
   net_worth_show_converted: boolean;
   theme: "light" | "dark" | "system";
   format_locale: "de" | "en";
+  default_sweep_category_id?: string | null;
 }
 
 export const fmtMoney = (n: number, symbol = "CHF") => {
