@@ -294,7 +294,24 @@ export function RecurringRulesCard() {
       </CardContent>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent
+          className="max-h-[90vh] overflow-y-auto"
+          onPointerDownOutside={(e) => {
+            // Radix Select / Popover content lives in a portal outside the Dialog.
+            // Clicking an item there fires pointerdown-outside on the Dialog and
+            // would otherwise close it, losing the user's draft. Ignore those.
+            const target = e.target as HTMLElement | null;
+            if (target?.closest("[data-radix-popper-content-wrapper], [role='listbox'], [role='option'], [data-radix-select-content], [data-radix-popover-content]")) {
+              e.preventDefault();
+            }
+          }}
+          onInteractOutside={(e) => {
+            const target = e.target as HTMLElement | null;
+            if (target?.closest("[data-radix-popper-content-wrapper], [role='listbox'], [role='option'], [data-radix-select-content], [data-radix-popover-content]")) {
+              e.preventDefault();
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>{draft.id ? t("recurring.edit") : t("recurring.add")}</DialogTitle>
           </DialogHeader>
