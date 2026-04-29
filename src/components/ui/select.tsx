@@ -15,13 +15,23 @@ const SelectValue = SelectPrimitive.Value;
 const SelectTrigger = React.forwardRef<
   React.ElementRef<typeof SelectPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>
->(({ className, children, ...props }, ref) => (
+>(({ className, children, onPointerDown, ...props }, ref) => (
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
       "flex h-9 w-full items-center justify-between whitespace-nowrap rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm ring-offset-background data-[placeholder]:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1",
       className,
     )}
+    onPointerDown={(e) => {
+      // Workaround for Radix Select on touch devices: the synthesized click
+      // following touchend can land on the just-opened content and immediately
+      // close it. Preventing default on the touch pointerdown stops the
+      // subsequent click without blocking Radix's own open-on-pointerdown.
+      if (e.pointerType === "touch") {
+        e.preventDefault();
+      }
+      onPointerDown?.(e);
+    }}
     {...props}
   >
     {children}
