@@ -406,6 +406,14 @@ function GroupBlock({
 }: { group: GroupedBlock; symbol: string; savings: CategorySavingsBalance[]; pendingMap: Map<string, PendingCategorySigned>; tr: (k: string, v?: Record<string, string | number>) => string }) {
   const totalAlloc = group.rows.reduce((s, r) => s + Number(r.allocated), 0);
   const totalActual = group.rows.reduce((s, r) => s + Number(r.spent_or_received), 0);
+  const totalPending = group.rows.reduce((s, r) => {
+    const p = pendingMap.get(r.category_id);
+    const d = pendingDeltaForRow(p, group.kind);
+    return s + (group.kind === "income" ? d : Math.max(0, d));
+  }, 0);
+  const totalProjected = totalActual + totalPending;
+  const remaining = totalAlloc - totalProjected;
+  const overProjected = group.kind !== "savings" && group.kind !== "income" && totalAlloc > 0 && totalProjected > totalAlloc;
   const savingsMap = new Map(savings.map((s) => [s.category_id, s]));
   const groupKindLabel = group.kind === "income" ? tr("settings.kind_income")
     : group.kind === "savings" ? tr("settings.kind_savings")
@@ -413,7 +421,7 @@ function GroupBlock({
 
   return (
     <Card>
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-2 space-y-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
             {group.name}
@@ -421,10 +429,38 @@ function GroupBlock({
               {groupKindLabel}
             </span>
           </CardTitle>
-          <div className="text-xs tabular-nums text-muted-foreground">
-            {fmtMoney(totalActual, symbol)} / {fmtMoney(totalAlloc, symbol)}
+          <div className={cn("text-base font-semibold tabular-nums", overProjected && "text-destructive")}>
+            {group.kind === "savings"
+              ? fmtMoney(totalAlloc, symbol)
+              : `${fmtMoney(totalActual, symbol)} / ${fmtMoney(totalAlloc, symbol)}`}
           </div>
         </div>
+        {group.kind !== "savings" && (
+          <>
+            <div className="text-xs tabular-nums text-muted-foreground flex flex-wrap gap-x-3">
+              {group.kind === "income" ? (
+                <>
+                  <span>{tr("dashboard.group.received", { x: fmtMoney(totalActual, symbol) })}</span>
+                  {totalPending > 0 && <span className="text-warning">{tr("dashboard.group.expected", { x: fmtMoney(totalPending, symbol) })}</span>}
+                  <span className="ml-auto">{tr("dashboard.group.of_target", { x: fmtMoney(totalAlloc, symbol) })}</span>
+                </>
+              ) : (
+                <>
+                  <span>{tr("dashboard.group.spent", { x: fmtMoney(totalActual, symbol) })}</span>
+                  {totalPending > 0 && <span className="text-warning">{tr("dashboard.group.pending", { x: fmtMoney(totalPending, symbol) })}</span>}
+                  <span className="ml-auto">
+                    {overProjected
+                      ? <span className="text-destructive">{tr("dashboard.group.over_by", { x: fmtMoney(-remaining, symbol) })}</span>
+                      : tr("dashboard.group.left", { x: fmtMoney(remaining, symbol) })}
+                  </span>
+                </>
+              )}
+            </div>
+            {group.kind === "expense" && (
+              <StackedBudgetBar allocated={totalAlloc} committed={totalActual} pending={totalPending} />
+            )}
+          </>
+        )}
       </CardHeader>
       <CardContent className="space-y-3">
         {group.rows.map((r) => {
