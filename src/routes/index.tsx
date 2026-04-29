@@ -11,11 +11,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
 import { UpcomingCard } from "@/components/UpcomingCard";
+import { TopMonthTransactionsCard } from "@/components/TopMonthTransactionsCard";
+import { TrendStripCard } from "@/components/TrendStripCard";
 import {
   fetchAccountBalances,
   fetchAccountBalancesAsOf,
   fetchCategoryMonthRows,
-  fetchSavingsBalances,
   fetchSettings,
   fetchTransactions,
   fetchAccounts,
@@ -23,19 +24,13 @@ import {
   processRecurringRules,
   fetchPendingImpactsForMonth,
   buildPendingMap,
-  pendingDeltaForRow,
   fmtMoney,
   groupSumByCurrency,
-  formatPerCurrency,
   monthKey,
   endOfMonthISO,
   endOfYearISO,
-  type CategoryMonthRow,
-  type CategorySavingsBalance,
   type AccountBalance,
-  type PendingCategorySigned,
 } from "@/lib/finance";
-import { StackedBudgetBar } from "@/components/StackedBudgetBar";
 import { useFxRates, convert } from "@/lib/fx";
 import { MonthBudgetSummary } from "@/components/MonthBudgetSummary";
 
@@ -54,9 +49,13 @@ function Dashboard() {
   const eomQ = useQuery({ queryKey: ["account_balances_as_of", eomDate], queryFn: () => fetchAccountBalancesAsOf(eomDate) });
   const eoyQ = useQuery({ queryKey: ["account_balances_as_of", eoyDate], queryFn: () => fetchAccountBalancesAsOf(eoyDate) });
   const envelopesQ = useQuery({ queryKey: ["category_month_rows", m], queryFn: () => fetchCategoryMonthRows(m) });
-  const savingsQ = useQuery({ queryKey: ["savings_balance"], queryFn: fetchSavingsBalances });
   const pendingImpactQ = useQuery({ queryKey: ["pending_impact_month", m], queryFn: () => fetchPendingImpactsForMonth(m) });
-  const recentQ = useQuery({ queryKey: ["transactions", "recent"], queryFn: () => fetchTransactions(8) });
+  const recentQ = useQuery({ queryKey: ["transactions", "recent"], queryFn: () => fetchTransactions(5) });
+  // Larger window used by TopMonth (current month) — small enough to be cheap.
+  const monthTxQ = useQuery({
+    queryKey: ["transactions", "month_window"],
+    queryFn: () => fetchTransactions(500),
+  });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const rulesQ = useQuery({ queryKey: ["recurring_rules"], queryFn: fetchRecurringRules });
   // Run the recurring processor once when the dashboard mounts.
@@ -121,15 +120,11 @@ function Dashboard() {
   const [showOther, setShowOther] = React.useState(false);
 
   const envelopes = envelopesQ.data ?? [];
-  const savings = savingsQ.data ?? [];
   const pendingMap = React.useMemo(() => buildPendingMap(pendingImpactQ.data ?? []), [pendingImpactQ.data]);
   const accountById = React.useMemo(
     () => new Map((accountsQ.data ?? []).map((a) => [a.id, a])),
     [accountsQ.data],
   );
-
-  // Group envelopes by group_id, preserving sort order
-  const grouped = React.useMemo(() => groupRows(envelopes), [envelopes]);
 
   return (
     <AppShell>
@@ -211,30 +206,25 @@ function Dashboard() {
         {/* Upcoming & due (recurring) */}
         <UpcomingCard symbol={symbol} />
 
-        {/* Envelopes */}
+        {/* This month — budget verdict (summary only) */}
         <section>
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-lg font-semibold">{t("dashboard.envelopes_month")}</h2>
             <Link to="/envelopes" className="text-sm text-muted-foreground hover:text-foreground">{t("common.viewAll")}</Link>
           </div>
           {envelopesQ.isLoading ? (
-            <div className="space-y-2"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>
+            <Skeleton className="h-24 w-full" />
           ) : envelopes.length === 0 ? (
             <Card><CardContent className="py-6 text-center text-sm text-muted-foreground">
               {t("dashboard.no_envelopes")} <Link to="/settings" className="font-medium text-primary underline-offset-2 hover:underline">{t("dashboard.create_in_settings")}</Link>.
             </CardContent></Card>
           ) : (
-            <div className="space-y-4">
-              <MonthBudgetSummary
-                rows={envelopes}
-                pendingMap={pendingMap}
-                symbol={symbol}
-                monthLabel={format(monthStart, "MMMM yyyy", { locale })}
-              />
-              {grouped.map((g) => (
-                <GroupBlock key={g.key} group={g} symbol={symbol} savings={savings} pendingMap={pendingMap} tr={t} />
-              ))}
-            </div>
+            <MonthBudgetSummary
+              rows={envelopes}
+              pendingMap={pendingMap}
+              symbol={symbol}
+              monthLabel={format(monthStart, "MMMM yyyy", { locale })}
+            />
           )}
         </section>
 
@@ -283,6 +273,17 @@ function Dashboard() {
             </CardContent></Card>
           )}
         </section>
+
+        {/* Top transactions this month (non-recurring) */}
+        <TopMonthTransactionsCard
+          transactions={monthTxQ.data ?? []}
+          accountById={accountById}
+          symbol={symbol}
+          monthStart={monthStart}
+        />
+
+        {/* Trend strip */}
+        <TrendStripCard symbol={symbol} />
       </div>
     </AppShell>
   );
@@ -368,186 +369,6 @@ function AccountsCard({
   );
 }
 
-type GroupedBlock = {
-  key: string;
-  name: string;
-  kind: "income" | "expense" | "savings";
-  rows: CategoryMonthRow[];
-};
-
-function groupRows(rows: CategoryMonthRow[]): GroupedBlock[] {
-  const map = new Map<string, GroupedBlock>();
-  for (const r of rows) {
-    // Standalone savings envelopes (is_savings on a non-savings group, or no
-    // group at all) are routed into a synthetic Savings bucket so they render
-    // with the running-balance layout and stay out of the monthly expense
-    // budget section.
-    const isSavingsRow = r.is_savings || r.kind === "savings";
-    const effectiveKind: "income" | "expense" | "savings" = isSavingsRow ? "savings" : r.kind;
-    const useGroup = r.group_id && r.kind === effectiveKind;
-    const key = useGroup ? r.group_id! : `__${effectiveKind}__ungrouped`;
-    if (!map.has(key)) {
-      map.set(key, {
-        key,
-        name: useGroup
-          ? (r.group_name ?? "")
-          : (effectiveKind === "income" ? "Income" : effectiveKind === "savings" ? "Savings" : "Uncategorized"),
-        kind: effectiveKind,
-        rows: [],
-      });
-    }
-    map.get(key)!.rows.push(r);
-  }
-  return Array.from(map.values());
-}
-
-function GroupBlock({
-  group, symbol, savings, pendingMap, tr,
-}: { group: GroupedBlock; symbol: string; savings: CategorySavingsBalance[]; pendingMap: Map<string, PendingCategorySigned>; tr: (k: string, v?: Record<string, string | number>) => string }) {
-  const totalAlloc = group.rows.reduce((s, r) => s + Number(r.allocated), 0);
-  const totalActual = group.rows.reduce((s, r) => s + Number(r.spent_or_received), 0);
-  const totalPending = group.rows.reduce((s, r) => {
-    const p = pendingMap.get(r.category_id);
-    const d = pendingDeltaForRow(p, group.kind);
-    return s + (group.kind === "income" ? d : Math.max(0, d));
-  }, 0);
-  const totalProjected = totalActual + totalPending;
-  const remaining = totalAlloc - totalProjected;
-  const overProjected = group.kind !== "savings" && group.kind !== "income" && totalAlloc > 0 && totalProjected > totalAlloc;
-  const savingsMap = new Map(savings.map((s) => [s.category_id, s]));
-  const groupKindLabel = group.kind === "income" ? tr("settings.kind_income")
-    : group.kind === "savings" ? tr("settings.kind_savings")
-    : tr("settings.kind_expense");
-
-  return (
-    <Card>
-      <CardHeader className="pb-2 space-y-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base font-semibold uppercase tracking-wide text-foreground">
-            {group.name}
-            <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-muted-foreground">
-              {groupKindLabel}
-            </span>
-          </CardTitle>
-          <div className={cn("text-lg font-bold tabular-nums", overProjected && "text-destructive")}>
-            {group.kind === "savings"
-              ? fmtMoney(totalAlloc, symbol)
-              : `${fmtMoney(totalProjected, symbol)} / ${fmtMoney(totalAlloc, symbol)}`}
-          </div>
-        </div>
-        {group.kind !== "savings" && (
-          <>
-            <div className="text-xs tabular-nums text-muted-foreground flex flex-wrap gap-x-3">
-              {group.kind === "income" ? (
-                <>
-                  <span>{tr("dashboard.group.received", { x: fmtMoney(totalActual, symbol) })}</span>
-                  {totalPending > 0 && <span className="text-warning">{tr("dashboard.group.expected", { x: fmtMoney(totalPending, symbol) })}</span>}
-                  <span className="ml-auto">{tr("dashboard.group.of_target", { x: fmtMoney(totalAlloc, symbol) })}</span>
-                </>
-              ) : (
-                <>
-                  <span>{tr("dashboard.group.spent", { x: fmtMoney(totalActual, symbol) })}</span>
-                  {totalPending > 0 && <span className="text-warning">{tr("dashboard.group.pending", { x: fmtMoney(totalPending, symbol) })}</span>}
-                  <span className="ml-auto">
-                    {overProjected
-                      ? <span className="text-destructive">{tr("dashboard.group.over_by", { x: fmtMoney(-remaining, symbol) })}</span>
-                      : tr("dashboard.group.left", { x: fmtMoney(remaining, symbol) })}
-                  </span>
-                </>
-              )}
-            </div>
-            {group.kind === "expense" && (
-              <StackedBudgetBar className="h-3" allocated={totalAlloc} committed={totalActual} pending={totalPending} />
-            )}
-          </>
-        )}
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {group.rows.map((r) => {
-          const pending = pendingMap.get(r.category_id);
-          const pendingDelta = pendingDeltaForRow(pending, group.kind);
-          if (group.kind === "savings") {
-            const sav = savingsMap.get(r.category_id);
-            const balance = Number(sav?.balance ?? 0);
-            return (
-              <div key={r.category_id} className="rounded-md border p-3">
-                <div className="flex items-baseline justify-between gap-3">
-                  <div className="font-medium">{r.name}</div>
-                  <div className={cn("text-lg font-semibold tabular-nums", balance < 0 ? "text-destructive" : "text-foreground")}>
-                    {fmtMoney(balance, symbol)}
-                  </div>
-                </div>
-                <div className="mt-1 text-xs text-muted-foreground tabular-nums">
-                  {tr("dashboard.this_month_savings", { a: fmtMoney(Number(r.allocated), symbol), b: fmtMoney(Number(r.spent_or_received), symbol) })}
-                </div>
-                {pending && (pending.income > 0 || pending.expense > 0) && (
-                  <div className="mt-1 text-xs text-warning tabular-nums">
-                    {tr("env.savings_pending", { a: fmtMoney(pending.income, symbol), b: fmtMoney(pending.expense, symbol) })}
-                  </div>
-                )}
-              </div>
-            );
-          }
-          if (group.kind === "income") {
-            const allocated = Number(r.allocated);
-            const received = Number(r.spent_or_received);
-            const projected = received + pendingDelta;
-            const variance = received - allocated;
-            const tone = variance >= 0 ? "text-success" : "text-destructive";
-            return (
-              <div key={r.category_id} className="border-b pb-2 last:border-0 last:pb-0">
-                <div className="flex items-baseline justify-between gap-3">
-                  <div className="font-medium">{r.name}</div>
-                  <div className="text-sm font-semibold tabular-nums">
-                    <span className={tone}>{fmtMoney(projected, symbol)}</span>
-                    <span className="text-muted-foreground font-normal"> / {fmtMoney(allocated, symbol)}</span>
-                  </div>
-                </div>
-                <div className="mt-0.5 text-xs tabular-nums text-muted-foreground flex flex-wrap gap-x-2">
-                  <span>{fmtMoney(received, symbol)} {tr("dashboard.summary.received_label")}</span>
-                  {pendingDelta > 0 && (
-                    <span className="text-warning">+{fmtMoney(pendingDelta, symbol)} {tr("dashboard.summary.expected_label")}</span>
-                  )}
-                  <span className={cn("ml-auto", tone)}>({variance >= 0 ? "+" : ""}{fmtMoney(variance, symbol)})</span>
-                </div>
-              </div>
-            );
-          }
-          // expense
-          const allocated = Number(r.allocated);
-          const spent = Number(r.spent_or_received);
-          const projected = spent + Math.max(0, pendingDelta);
-          const pendingPos = Math.max(0, pendingDelta);
-          const overProjected = allocated > 0 && projected > allocated;
-          const remainingProjected = allocated - projected;
-          return (
-            <div key={r.category_id}>
-              <div className="flex items-baseline justify-between gap-3">
-                <div className="font-medium">{r.name}</div>
-                <div className="text-sm font-semibold tabular-nums">
-                  <span className={cn(overProjected ? "text-destructive" : "text-foreground")}>{fmtMoney(projected, symbol)}</span>
-                  <span className="text-muted-foreground font-normal"> / {fmtMoney(allocated, symbol)}</span>
-                </div>
-              </div>
-              <StackedBudgetBar className="mt-1.5 h-1.5" allocated={allocated} committed={spent} pending={pendingPos} />
-              <div className="mt-1 text-xs tabular-nums text-muted-foreground flex flex-wrap gap-x-2">
-                <span>{fmtMoney(spent, symbol)} {tr("dashboard.summary.spent_label")}</span>
-                {pendingPos > 0 && (
-                  <span className="text-warning">+{fmtMoney(pendingPos, symbol)} {tr("dashboard.summary.pending_label")}</span>
-                )}
-                <span className={cn("ml-auto", overProjected && "text-destructive font-medium")}>
-                  {overProjected
-                    ? tr("dashboard.over_by", { x: fmtMoney(-remainingProjected, symbol) })
-                    : tr("dashboard.remaining", { x: fmtMoney(remainingProjected, symbol) })}
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </CardContent>
-    </Card>
-  );
-}
 
 function NetWorthBlock({
   showConverted, hasForeign, loading,
