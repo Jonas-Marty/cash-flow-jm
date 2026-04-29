@@ -89,6 +89,15 @@ function EnvelopesPage() {
 
   const [reallocOpen, setReallocOpen] = React.useState(false);
   const [reallocFrom, setReallocFrom] = React.useState<string | null>(null);
+  const [expandedCats, setExpandedCats] = React.useState<Set<string>>(() => new Set());
+  const toggleExpanded = React.useCallback((id: string) => {
+    setExpandedCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
   const pendingMap = React.useMemo(() => buildPendingMap(pendingImpactQ.data ?? []), [pendingImpactQ.data]);
   const txs = txQ.data ?? [];
   const accountById = React.useMemo(
