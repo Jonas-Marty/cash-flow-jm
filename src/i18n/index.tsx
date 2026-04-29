@@ -573,6 +573,8 @@ const de: Dict = {
   "insights.projection.whatif.title": "Was-wäre-wenn",
   "insights.projection.whatif.label": "Ausgaben kürzen um",
   "insights.projection.whatif.hint": "Verschiebt die Ø-Linie. Hilft, Sparziele zu testen.",
+  "insights.projection.preset.eoy": "Ende {year}",
+  "insights.projection.preset.ten_years": "10 Jahre",
   "insights.detector.title": "Wiederkehrende Ausgaben erkennen",
   "insights.detector.hint": "Findet Ausgaben mit stabilen Beträgen über mehrere Monate, die noch keine Regel haben.",
   "insights.detector.min_occ": "Min. Vorkommen",
