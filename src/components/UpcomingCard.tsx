@@ -137,7 +137,7 @@ export function UpcomingCard({ symbol }: { symbol: string }) {
       <PostOccurrenceDialog
         occurrence={dialogOcc}
         runNumber={dialogOcc ? computeRunNumber(occs, dialogOcc) : 1}
-        prevDate={dialogOcc ? computePrevDate(occs, dialogOcc) : (dialogOcc?.rule.starts_on ?? "")}
+        prevDate={dialogOcc ? computePrevDate(occs, dialogOcc) : ""}
         nextDate={dialogOcc ? computeNextDate(occs, dialogOcc) : null}
         onClose={() => setDialogOcc(null)}
         onPosted={() => qc.invalidateQueries()}
