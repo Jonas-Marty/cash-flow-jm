@@ -653,7 +653,6 @@ function SettingsPage() {
                       defaultValue={Number(c.allocated_budget).toString()}
                       inputMode="decimal"
                       className="w-24 text-right tabular-nums md:w-28"
-                      disabled={c.is_savings}
                       onBlur={(e) => updateCategoryBudget(c.id, e.target.value)}
                     />
                     <Popover>
