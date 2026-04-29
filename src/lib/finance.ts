@@ -43,6 +43,7 @@ export interface Category {
   color?: string | null;
   pinned?: boolean;
   pin_order?: number | null;
+  sweep_target_category_id?: string | null;
 }
 export interface CategoryGroup {
   id: string;
@@ -50,6 +51,7 @@ export interface CategoryGroup {
   kind: GroupKind;
   sort_order: number;
   archived: boolean;
+  sweep_target_category_id?: string | null;
 }
 export interface CategoryMonthRow {
   category_id: string;
