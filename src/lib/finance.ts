@@ -560,3 +560,103 @@ export function describeSchedule(r: RecurringRule, t: (k: string, v?: Record<str
   else if (r.weekend_adjust === "after") parts.push(t("recurring.sched.weekend_after"));
   return parts.join(" · ");
 }
+
+// --- Savings reallocations & sweeps ---
+
+export async function fetchSavingsBalancesV2(asOf?: string): Promise<CategorySavingsBalanceV2[]> {
+  const date = asOf ?? todayISO();
+  const { data, error } = await supabase.rpc("category_savings_balance_v2", { p_as_of: date });
+  if (error) throw error;
+  return (data || []) as CategorySavingsBalanceV2[];
+}
+
+export async function fetchReconciliationSummary(asOf?: string): Promise<ReconciliationSummary | null> {
+  const date = asOf ?? todayISO();
+  const { data, error } = await supabase.rpc("reconciliation_summary", { p_as_of: date });
+  if (error) throw error;
+  const rows = (data || []) as ReconciliationSummary[];
+  return rows[0] ?? null;
+}
+
+export async function fetchReallocations(): Promise<CategoryReallocation[]> {
+  const { data, error } = await supabase
+    .from("category_reallocations")
+    .select("id, from_category_id, to_category_id, amount, occurred_on, note, created_at")
+    .order("occurred_on", { ascending: false })
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data || []) as CategoryReallocation[];
+}
+
+export async function createReallocation(input: {
+  from_category_id: string;
+  to_category_id: string;
+  amount: number;
+  occurred_on?: string;
+  note?: string | null;
+}): Promise<void> {
+  const { error } = await supabase.from("category_reallocations").insert({
+    from_category_id: input.from_category_id,
+    to_category_id: input.to_category_id,
+    amount: input.amount,
+    occurred_on: input.occurred_on ?? todayISO(),
+    note: input.note ?? null,
+  });
+  if (error) throw error;
+}
+
+export async function updateReallocation(id: string, patch: Partial<{
+  from_category_id: string;
+  to_category_id: string;
+  amount: number;
+  occurred_on: string;
+  note: string | null;
+}>): Promise<void> {
+  const { error } = await supabase.from("category_reallocations").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteReallocation(id: string): Promise<void> {
+  const { error } = await supabase.from("category_reallocations").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function archiveSavingsEnvelope(id: string, moveRemainingTo: string | null): Promise<void> {
+  const { error } = await supabase.rpc("archive_savings_envelope", {
+    p_id: id,
+    p_move_remaining_to: moveRemainingTo,
+  });
+  if (error) throw error;
+}
+
+export async function setCategorySweepTarget(categoryId: string, targetId: string | null): Promise<void> {
+  const { error } = await supabase
+    .from("categories")
+    .update({ sweep_target_category_id: targetId })
+    .eq("id", categoryId);
+  if (error) throw error;
+}
+
+export async function setGroupSweepTarget(groupId: string, targetId: string | null): Promise<void> {
+  const { error } = await supabase
+    .from("category_groups")
+    .update({ sweep_target_category_id: targetId })
+    .eq("id", groupId);
+  if (error) throw error;
+}
+
+export async function setDefaultSweepTarget(targetId: string | null): Promise<void> {
+  // Settings has only one row per user
+  const { data: existing, error: selErr } = await supabase
+    .from("settings")
+    .select("id")
+    .limit(1)
+    .maybeSingle();
+  if (selErr) throw selErr;
+  if (!existing) throw new Error("Settings row not found");
+  const { error } = await supabase
+    .from("settings")
+    .update({ default_sweep_category_id: targetId })
+    .eq("id", existing.id);
+  if (error) throw error;
+}
