@@ -184,6 +184,22 @@ A **recurring rule** is a transaction template + schedule. It does not affect ba
 
 **Archiving**: deleting a rule from the UI sets `archived = true`. Posted historical transactions stay; pending occurrences for archived rules remain in the table but stop being shown / generated.
 
+**Manual-post editing & description placeholders**: rules with `auto_post = false` open a post dialog (`PostOccurrenceDialog`) instead of one-tap posting. The user can adjust `occurred_on` and rewrite `description` / `note` before the transaction is created. Both fields support template interpolation via `src/lib/placeholders.ts` using the syntax `${token}` or `${token:format}` (with `$$` escaping a literal `$`).
+
+Available tokens:
+- **Date tokens** (formatted with date-fns syntax; `ddd`/`dddd` are aliased to `EEE`/`EEEE`): `date` (= effective `occurred_on`), `dueDate` (pre-weekend-shift), `prevDate` (previous occurrence's effective date, or `starts_on` for the first), `nextDate`, `periodStart` (= `prevDate + 1 day`), `periodEnd` (= `date`), `today`.
+- **Numeric tokens** (with optional `:00` zero-pad width): `runNumber`, `quarter`, `semester`, `trimester`, `weekOfYear`, `monthOfYear`, `year`.
+
+Period semantics derive purely from cadence: `periodStart = prevDate + 1d`, `periodEnd = date`. This works deterministically for any frequency without introducing a separate "billing period" entity.
+
+The **format locale** for month/day names lives in `settings.format_locale` (currently `de` | `en`) and is independent of the UI language — so a German-UI user can render `MMM yyyy` as `May 2026` for invoices to English-speaking counterparts.
+
+Resolution happens client-side at post time and the **already-resolved** strings are written to `transactions`. There is no template re-render later — the saved transaction is the single source of truth and won't drift if the rule is edited or deleted afterwards. The recurring-rule edit dialog also resolves placeholders inline next to each preview row so users can validate the output before saving.
+
+**Why the model still holds (vs. promoting recurring rules to a "PlannedExpense" entity)**: the cadence + day rule + weekend adjust still uniquely produce due dates; placeholders only affect the *content* of the resulting transaction, not when it fires. Variable-amount rules already broke the "fixed" assumption on the amount axis — editable date + description on manual post is the same axis (fixed schedule, variable content). Auto-post rules remain truly fixed and use the raw `description` verbatim (server-side placeholder resolution is a follow-up).
+
+The model would need to be split if (a) a single rule needed multiple bills per period, or (b) the period were decoupled from the cadence (e.g. post in May for Jan–Mar). Neither is on the table today.
+
 ### 3.7 Shared / split expenses
 
 Shared costs (split rent, joint subscriptions, group dinners) are modelled with the **reimbursement rule** from §3.2 — no new schema, no new transaction type. Pattern:
