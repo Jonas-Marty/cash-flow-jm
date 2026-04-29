@@ -1136,6 +1136,8 @@ const en: Dict = {
   "insights.projection.whatif.title": "What if",
   "insights.projection.whatif.label": "Cut expenses by",
   "insights.projection.whatif.hint": "Shifts the average projection — handy to test savings targets.",
+  "insights.projection.preset.eoy": "End of {year}",
+  "insights.projection.preset.ten_years": "10 years",
   "insights.detector.title": "Recurring expense detector",
   "insights.detector.hint": "Finds expenses with stable amounts repeating over months that aren't yet a rule.",
   "insights.detector.min_occ": "Min occurrences",
