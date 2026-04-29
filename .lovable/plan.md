@@ -1,198 +1,215 @@
 ## Goal
 
-Extend recurring rules so that, before posting a non-auto-post occurrence, the user can:
+Make the budget feature actionable in two places:
 
-1. Edit the **transaction date** (occurred_on).
-2. Edit the **description**, with support for **placeholder interpolation** (date tokens, period boundaries, counters).
-3. See **resolved placeholders in the preview** befor posting and during editing and creating reccurong transactions.
-4. Use a **separate "format locale"** (independent of UI language) for month/day name rendering.
+1. **In Settings (Envelopes card)** — show whether the plan is balanced
+   (`income − expenses − savings = 0`) **while** allocations are being edited.
+2. **In the monthly Overview (`/`) and `/envelopes`** — show an overall
+   month verdict ("you'll stay within budget" / "projected overspend X")
+   plus richer per-group totals (allocated, committed, projected, remaining).
 
----
-
-## 1. Placeholder syntax
-
-Use `${name}` and `${name:format}`, with familiar JS-style escaping (`$$` → literal `$`). Chosen because:
-
-- It mirrors JS template literals (already familiar).
-- Doesn't collide with `#tags` already used in notes.
-- Curly braces let format strings contain `:`, `.`, `-`, spaces.
-
-Example:
-
-```
-Electricity ${periodStart:dd.MM.yyyy} – ${periodEnd:dd.MM.yyyy}
-Rent ${date:MMMM yyyy}
-Q${quarter} ${date:yyyy} VAT
-Subscription #${runNumber} (${date:MMM yyyy})
-```
-
-### Date tokens (each accepts an optional `:format`)
-
-
-| Token         | Meaning                                                                                                        |
-| ------------- | -------------------------------------------------------------------------------------------------------------- |
-| `date`        | Effective transaction date (= occurred_on at post time)                                                        |
-| `dueDate`     | Original due date (before weekend adjustment)                                                                  |
-| `prevDate`    | Effective date of the previous occurrence of this rule (or `starts_on` if none)                                |
-| `nextDate`    | Effective date of the next scheduled occurrence                                                                |
-| `periodStart` | Day after `prevDate` — i.e. start of the period this occurrence covers. For the first occurrence: `starts_on`. |
-| `periodEnd`   | `date` itself — end of the period this occurrence covers.                                                      |
-| `today`       | Real "now" at the moment of posting                                                                            |
-
-
-### Number/counter tokens (no format, but `:00` style padding supported)
-
-
-| Token         | Meaning                                                                            |
-| ------------- | ---------------------------------------------------------------------------------- |
-| `runNumber`   | 1-based count of posted+skipped occurrences of this rule including the current one |
-| `quarter`     | 1–4, calendar quarter of `date`                                                    |
-| `semester`    | 1–2, half-year of `date`                                                           |
-| `trimester`   | 1–3, third-of-year of `date`                                                       |
-| `weekOfYear`  | ISO week number of `date`                                                          |
-| `monthOfYear` | 1–12                                                                               |
-| `year`        | Full year                                                                          |
-
-
-### Format strings
-
-For date tokens, format follows date-fns `format()` syntax. Highlights:
-
-- `yyyy`, `MM`, `dd`, `HH`, `mm`, `ss`, `SSS`
-- `MMM` (Jan, Feb…), `MMMM` (January…)
-- `ddd` is not date-fns standard → we map `ddd`→`EEE` and `dddd`→`EEEE` before calling date-fns, so users can use the convention they asked for.
-- Default (no format given) = ISO `yyyy-MM-dd`.
-- A literal `:` inside the format works because parsing is bracket-bounded by `{}`.
-
-For numeric tokens, `:00`, `:000` mean zero-padding width.
-
-### Format locale
-
-New setting `format_locale` (text, default = current `language`). Used **only** for month/day names in placeholders. UI language stays separate. Initial supported locales: `de`, `en` (extendable). Stored on `settings` table.
+Below I also list smaller useful additions and the model challenge you asked for.
 
 ---
 
-## 2. UI changes
+## 1. Budget Balance Bar in Settings
 
-### a) Settings → "Format locale" select
+Add a sticky `BudgetBalanceCard` at the top of the Envelopes section in
+`src/routes/settings.tsx`. Pure client-side computation from
+`categoriesQ.data` + `groupsQ.data` (no DB changes).
 
-In `src/routes/settings.tsx`, add next to "Date format":
+For each non-archived envelope, classify it the same way the RPC does:
 
-- Label: "Format locale for placeholders"
-- Options: German / English (mirror existing language list).
+- `is_savings === true` → savings
+- else group kind (`income` / `expense`), defaulting to `expense` when
+  ungrouped
 
-### b) Recurring rule edit dialog (`RecurringRulesCard.tsx`)
+Then compute:
 
-Below the description input add a small **"Available placeholders"** help block (collapsible) listing tokens with one-line examples — purely informational.
-
-Extend `PreviewPanel` to also resolve and display the **rendered description** for each preview row, given the rule's current draft. Rendered output is shown in muted text under each date row:
-
-```
-14.05.2026   [future]
-Electricity 15.04.2026 – 14.05.2026
+```text
+income       = Σ allocated of income envelopes
+expenses     = Σ allocated of expense envelopes
+savings      = Σ allocated of savings envelopes (manually-entered target,
+                 not the running balance)
+unallocated  = income − expenses − savings
 ```
 
-This requires the preview to know `prevDate` per row → trivially derived from previous row's `effective_on` (or `starts_on` if first). `runNumber` in preview = index+1.
+Render:
 
-### c) "Post occurrence" dialog (NEW)
-
-Currently `UpcomingCard` posts in one click. Change behavior:
-
-- **Auto-post rules** keep working as today (no UI change; happens server-side via `process_recurring_rules`).
-- **Non-auto-post rules** (manual): clicking **Post** opens a small dialog with:
-  - **Date** (DateInput, defaults to `effective_on`)
-  - **Description** (Input, defaults to rule's `description`, with placeholder hint)
-  - **Note** (Input, defaults to rule's `note`)
-  - **Amount** field (only when `is_variable_amount`, same as today)
-  - **Live preview** of the resolved description below the description field
-  - Buttons: Cancel / Post
-
-The dialog uses the same `interpolate()` function as the preview. On Post, it calls `postOccurrence(o, { occurred_on, description: resolved, note: resolvedNote, amount? })` — `postOccurrence` already accepts `description`, `note`, `occurred_on`, `amount` overrides.
-
-The user passes the **already-resolved** strings to `postOccurrence`, so the saved transaction has the literal expanded text (no surprise re-render later).
-
----
-
-## 3. Technical: interpolation engine
-
-New file `src/lib/placeholders.ts`:
-
-```ts
-export interface PlaceholderContext {
-  date: Date;          // effective / occurred_on
-  dueDate: Date;
-  prevDate: Date;      // or starts_on for first
-  nextDate: Date | null;
-  today: Date;
-  runNumber: number;
-  locale: Locale;      // date-fns locale chosen via settings.format_locale
-}
-
-export function interpolate(template: string, ctx: PlaceholderContext): string;
-export function describeTokens(): { token: string; help: string; example: string }[];
+```text
++-----------------------------------------------------+
+| Monthly plan                                        |
+| Income      CHF 6'000.00                            |
+| Expenses  − CHF 4'200.00                            |
+| Savings   − CHF 1'200.00                            |
+| ----------------------------------                  |
+| Unallocated  CHF   600.00   ✓ Balanced (>=0, <5%)   |
++-----------------------------------------------------+
+| [stacked bar: expenses | savings | buffer]          |
++-----------------------------------------------------+
 ```
 
-Parser: single regex `/\$\$|\$\{([a-zA-Z]+)(?::([^}]*))?\}/g`, with `$$` escaping to `$`.
+Status tones:
+- `unallocated > 5% of income` → info "Buffer of X (Y% of income)"
+- `unallocated ≈ 0` (|x| < 1) → success "Balanced"
+- `unallocated < 0` → destructive "Over-allocated by X — reduce X or
+  raise income"
 
-Format normalization: replace `dddd`→`EEEE`, `ddd`→`EEE` (bare, not inside `[...]` literal escape — date-fns treats `[...]` as literals).
+Updates live as the user edits any allocation (re-runs on every
+`categories` query refetch triggered by `updateCategoryBudget`). No
+debounce needed — TanStack Query already invalidates on save (blur).
 
-Derived values:
-
-- `periodStart` = day after `prevDate` (or `starts_on` for first occurrence)
-- `periodEnd` = `date`
-- `quarter` = `Math.floor(month/3)+1`
-- `semester` = `month < 6 ? 1 : 2`
-- `trimester` = `Math.floor(month/4)+1`
-- `weekOfYear` = `getISOWeek(date)`
-
-Unknown tokens render as the literal `${token}` (so users see typos).
-
----
-
-## 4. Database / schema
-
-- Add column `settings.format_locale text not null default 'de'`.
-- No other schema change. Override values are passed transiently to `postOccurrence`; they end up in `transactions.description`/`note`/`occurred_on` which already exist.
-
-(Migration file under `supabase/migrations/`.)
+> Note on **savings allocations**: `is_savings` envelopes currently have
+> their `allocated_budget` forced to 0 in the form. To make the balance
+> meaningful we need a **monthly savings target** per envelope. We'll
+> reuse the existing `allocated_budget` column for savings envelopes
+> (drop the `disabled` on the input and stop overwriting to 0). Existing
+> RPC ignores it for savings spending math, so this is a safe field
+> reuse. Migration: none — only frontend stops zeroing it.
 
 ---
 
-## 5. Files touched
+## 2. Month verdict header in `/` and `/envelopes`
 
-- **NEW** `src/lib/placeholders.ts` — interpolation + token catalogue.
-- **NEW** `src/components/PostOccurrenceDialog.tsx` — manual-post editor.
-- `src/components/UpcomingCard.tsx` — open dialog for non-auto-post rules instead of one-click post; keep skip and amount-only path for backward compat. Keep auto-post badge behavior.
-- `src/components/RecurringRulesCard.tsx` — small placeholder hint under description; extend `PreviewPanel` to compute `prevDate` per row and render resolved description per occurrence.
-- `src/routes/settings.tsx` — Format locale selector.
-- `src/lib/finance.ts` — extend `Settings` type with `format_locale`.
-- `src/i18n/index.tsx` — new keys (placeholder labels, dialog labels, format-locale label, helper for available locales).
-- `architecture.md` — new short section "§3.x Placeholders in recurring rules" explaining tokens, scope creep, and why model still holds.
-- Migration: `settings.format_locale`.
+Add a `MonthBudgetSummary` component shown above the envelope list. It
+uses the same already-fetched data
+(`fetchCategoryMonthRows`, `fetchPendingImpactsForMonth`).
+
+Compute, across all non-savings rows:
+
+```text
+incomeAllocated   = Σ allocated  (income kind)
+incomeReceived    = Σ spent_or_received (income kind)
+incomePending     = Σ pendingDelta (income kind)
+incomeProjected   = incomeReceived + incomePending
+
+expenseAllocated  = Σ allocated  (expense kind)
+expenseSpent      = Σ spent_or_received (expense kind)
+expensePending    = Σ max(0, pendingDelta) (expense kind)
+expenseProjected  = expenseSpent + expensePending
+
+savingsTarget     = Σ allocated of savings rows  (new field, see §1)
+savingsPosted     = Σ |spent_or_received| moved into savings this month
+                   (derive from existing tx query already in /envelopes;
+                   on /, fetch a small aggregate or skip the posted
+                   number and only show target)
+
+projectedNet      = incomeProjected − expenseProjected − savingsTarget
+```
+
+Render at top of the section:
+
+```text
++-----------------------------------------------------------+
+| April 2026 — projected balance: + CHF 320.00  ✓ on track  |
+| Income     5'820 / 6'000  (180 expected)                  |
+| Expenses   3'900 / 4'200  (300 pending)                   |
+| Savings      900 / 1'200                                  |
+| [horizontal bar showing projected vs allocated total]     |
++-----------------------------------------------------------+
+```
+
+States: `projectedNet ≥ 0` → success; `< 0 and > -5% of income` →
+warning "tight"; `≤ -5%` → destructive "projected overspend".
 
 ---
 
-## 6. Challenge: are recurring rules still the right model?
+## 3. Make per-group totals tell a story
 
-You're right that this stretches "recurring transaction" toward "recurring planned event". But the model still works because:
+Today the group header shows `actual / allocated` (small, muted). Replace
+with a richer 3-number block that mirrors the per-row info:
 
-- **Schedule generation is unchanged.** The cadence + day rule + weekend adjust + frequency still uniquely produce due dates. Placeholders only affect the *content* of the resulting transaction, not when it fires.
-- **Ground truth stays in `transactions`.** After post, the resolved string is stored verbatim — no template re-evaluation later, no drift.
-- **Variable-amount rules already broke the "fixed" assumption.** Editable date + description on manual post is the natural next step on the same axis: fixed schedule, variable content. Auto-post rules remain truly fixed.
-- **Period semantics fall out of the cadence**, not new metadata. `periodStart = prevDate+1day, periodEnd = date` works deterministically for monthly/quarterly/yearly without introducing a separate "billing period" concept.
+```text
+GROCERIES & HOUSEHOLD                       expense
+spent 820 · pending 120 · of 1'000   →  60 left
+[stacked bar]
+```
 
-Where it would start to break (and we should *not* go there in this change):
+Implementation: extend `GroupBlock` in `src/routes/index.tsx` and the
+group card in `src/routes/envelopes.tsx`:
 
-- Rules with **multiple bills per period** (e.g. weekly within a month).
-- Rules where the period is **decoupled from the cadence** (post in May for Jan–Mar). That would need an explicit `period_start_offset`/`period_end_offset` per rule — out of scope.
-- **Auto-post + placeholders** is fine technically (server-side rendering at post time), but for the first iteration we can keep auto-post using the raw description as today, and only resolve in the manual post dialog and preview. If you want auto-post resolution too, add the same `interpolate` server-side later (Postgres function) — flagged as a follow-up, not in this plan.
+- Sum `allocated`, `spent_or_received`, `pendingDelta` across rows.
+- Render the existing `StackedBudgetBar` at the group header level.
+- Use the same overspend/projected logic as individual rows so
+  the colour rules are consistent.
 
-If the answer to either of those becomes "yes" in the future, we'd promote the rule into a separate "PlannedExpense"/"BillingSchedule" entity. For now, extending `recurring_rules` is the right call.
+This makes the group header big and informative, fixing the "rather
+small" observation.
 
 ---
 
-## 7. Out of scope (explicit)
+## 4. Other useful additions (proposing for inclusion)
 
-- Server-side placeholder resolution for auto-post rules (kept as raw text for now).
-- Internationalization of placeholder *names* (`${date}` stays English-keyword).
-- Format locales beyond `de` and `en` (easy to add later).
+- **Carry-over hint**: in the Settings balance card, show the sum of
+  current pending recurring rules per month so the user sees their
+  "really committed" baseline vs the freely-allocated buffer.
+- **Per-group plan check in Settings**: under each group in the
+  envelopes editor, show `Σ allocated` so the user can see "Fixed
+  costs: 2'400" without doing math.
+- **Click-through**: clicking the Settings balance card jumps to the
+  first over-allocated group; clicking the Overview verdict scrolls to
+  the worst-projected envelope.
+- Skipped: per-day burn-rate gauge — adds complexity without much
+  decision value for a planning app.
+
+---
+
+## 5. Model challenge (you asked)
+
+You're right that this nudges recurring rules from "fixed events" toward
+"planned bucket spending." With these additions the model still works,
+but two pressure points appear:
+
+1. **Savings as allocation vs. as transaction**. We start treating a
+   savings envelope's `allocated_budget` as a *target* to subtract from
+   income. The actual savings tx (transfer to a savings account or
+   savings envelope booking) is what really moves money. Risk: target
+   and reality drift silently. Mitigation: the per-group "story" line
+   already shows `target` vs `posted` so the gap is visible — no
+   schema change needed, but we should label it clearly as
+   "target / saved".
+
+2. **Variable recurring rules now feed projections**. They already do
+   via `pending_impact`, using `estimated_amount`. The new month
+   verdict surfaces this prominently, which means a sloppy estimate
+   visibly distorts the verdict. That's actually a feature (it forces
+   the user to keep estimates honest) but worth a tiny UI cue:
+   show "(based on estimate)" next to the pending number when any
+   contributing rule is variable.
+
+Where this **would** break the model: if you start using envelopes as
+*real* containers (allocate 600, anything over goes red even when you
+have cash). That requires per-envelope balance carry-over month to
+month — out of scope here. The current month-by-month allocation model
+still holds for the proposed additions.
+
+---
+
+## Files to touch
+
+- `src/routes/settings.tsx` — add `BudgetBalanceCard`, allow editing
+  allocation on `is_savings` envelopes (remove the `disabled` and the
+  zero-coercion in `addCategory` / `toggleCategorySavings`), add
+  per-group `Σ allocated`.
+- `src/routes/index.tsx` — add `MonthBudgetSummary` above the envelopes
+  section, beef up `GroupBlock` totals.
+- `src/routes/envelopes.tsx` — same `MonthBudgetSummary` + richer group
+  header.
+- `src/i18n/index.tsx` — new strings: `settings.balance.*`,
+  `dashboard.month_verdict.*`, group-total labels.
+
+No database / RLS / RPC changes required.
+
+---
+
+## Acceptance
+
+- Editing any allocation in Settings updates the balance card within
+  one render; over-allocation shows destructive tone with the exact
+  delta.
+- Savings envelopes can have a non-zero monthly target.
+- The Overview shows a single verdict line per month: projected net,
+  tone, and one-sentence explanation.
+- Each group card shows `spent · pending · of allocated → remaining`
+  with a stacked bar, so "what's the state of housing this month?" is
+  answerable without scanning every row.

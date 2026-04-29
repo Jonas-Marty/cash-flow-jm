@@ -23,6 +23,8 @@ import { useI18n, LANGUAGES, type Lang } from "@/i18n";
 import { RecurringRulesCard } from "@/components/RecurringRulesCard";
 import { NextcloudCard } from "@/components/NextcloudCard";
 import { ApiTokensCard } from "@/components/ApiTokensCard";
+import { BudgetBalanceCard } from "@/components/BudgetBalanceCard";
+import { fmtMoney } from "@/lib/finance";
 import { useAuth, useIsAdmin } from "@/lib/auth";
 import { Switch } from "@/components/ui/switch";
 import { useQuery as useRQ } from "@tanstack/react-query";
@@ -119,7 +121,7 @@ function SettingsPage() {
     const isSavings = cIsSavings || group?.kind === "savings";
     const { error } = await supabase.from("categories").insert({
       name: cName.trim(),
-      allocated_budget: isSavings ? 0 : (Number(cBudget) || 0),
+      allocated_budget: Number(cBudget) || 0,
       sort_order: sortOrder,
       group_id: cGroupId || null,
       is_savings: isSavings,
@@ -160,9 +162,9 @@ function SettingsPage() {
   };
   const toggleCategorySavings = async (id: string, isSavings: boolean) => {
     const next = !isSavings;
-    const update: { is_savings: boolean; allocated_budget?: number } = { is_savings: next };
-    if (next) update.allocated_budget = 0;
-    const { error } = await supabase.from("categories").update(update).eq("id", id);
+    // Keep the user's allocation when flipping savings on/off — the value
+    // is now the monthly *target* for savings envelopes too.
+    const { error } = await supabase.from("categories").update({ is_savings: next }).eq("id", id);
     if (error) return toast.error(error.message);
     if (next) {
       // Drop any pre-generated monthly budget rows; savings envelopes don't use them.
@@ -563,6 +565,11 @@ function SettingsPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">{tr("settings.envelopes")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
+            <BudgetBalanceCard
+              categories={categoriesQ.data ?? []}
+              groups={groupsQ.data ?? []}
+              symbol={settingsQ.data?.currency_symbol ?? "CHF"}
+            />
             <div className="grid gap-2 md:grid-cols-[1fr_180px_180px_auto]">
               <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label><Input value={cName} onChange={(e) => setCName(e.target.value)} placeholder="Groceries" /></div>
               <div>
@@ -589,7 +596,7 @@ function SettingsPage() {
               </div>
               <div>
                 <Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.monthly_budget")}</Label>
-                <Input inputMode="decimal" value={cIsSavings ? "0" : cBudget} onChange={(e) => setCBudget(e.target.value)} disabled={cIsSavings} />
+                <Input inputMode="decimal" value={cBudget} onChange={(e) => setCBudget(e.target.value)} placeholder={cIsSavings ? tr("settings.savings_target_hint") : undefined} />
               </div>
               <div className="flex items-end"><Button className="w-full" onClick={addCategory}><Plus className="h-4 w-4" /> {tr("common.add")}</Button></div>
             </div>
@@ -646,7 +653,6 @@ function SettingsPage() {
                       defaultValue={Number(c.allocated_budget).toString()}
                       inputMode="decimal"
                       className="w-24 text-right tabular-nums md:w-28"
-                      disabled={c.is_savings}
                       onBlur={(e) => updateCategoryBudget(c.id, e.target.value)}
                     />
                     <Popover>
@@ -677,9 +683,16 @@ function SettingsPage() {
               const sections: React.ReactNode[] = [];
               for (const g of grps) {
                 const inGroup = cats.filter((c) => c.group_id === g.id);
+                const groupSum = inGroup.reduce((s, c) => s + (c.archived ? 0 : Number(c.allocated_budget) || 0), 0);
+                const sym = settingsQ.data?.currency_symbol ?? "CHF";
                 sections.push(
                   <div key={g.id} className="space-y-1">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-2">{g.name}</div>
+                    <div className="flex items-baseline justify-between pt-2">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{g.name}</div>
+                      <div className="text-xs tabular-nums text-muted-foreground">
+                        Σ {fmtMoney(groupSum, sym)}
+                      </div>
+                    </div>
                     <ul className="divide-y">
                       {inGroup.length === 0
                         ? <li className="py-2 text-sm text-muted-foreground">{tr("settings.no_envelopes_in_group")}</li>
@@ -690,9 +703,16 @@ function SettingsPage() {
               }
               const ungrouped = cats.filter((c) => !c.group_id);
               if (ungrouped.length > 0) {
+                const groupSum = ungrouped.reduce((s, c) => s + (c.archived ? 0 : Number(c.allocated_budget) || 0), 0);
+                const sym = settingsQ.data?.currency_symbol ?? "CHF";
                 sections.push(
                   <div key="__ungrouped" className="space-y-1">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-2">{tr("settings.ungrouped_envelopes")}</div>
+                    <div className="flex items-baseline justify-between pt-2">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tr("settings.ungrouped_envelopes")}</div>
+                      <div className="text-xs tabular-nums text-muted-foreground">
+                        Σ {fmtMoney(groupSum, sym)}
+                      </div>
+                    </div>
                     <ul className="divide-y">
                       {ungrouped.map((c, i) => renderRow(c, i, ungrouped))}
                     </ul>
