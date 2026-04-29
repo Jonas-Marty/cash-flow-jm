@@ -104,20 +104,21 @@ function SummaryLine({
   return (
     <div className="rounded-md border bg-card/50 p-2">
       <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="mt-1 text-sm tabular-nums">
-        {kind === "savings" ? (
-          <span className="font-semibold">{fmtMoney(allocated, symbol)}</span>
-        ) : (
-          <>
-            <span className="font-semibold">{fmtMoney(actual, symbol)}</span>
-            <span className="text-muted-foreground"> / {fmtMoney(allocated, symbol)}</span>
-          </>
-        )}
-      </div>
-      {pending > 0 && (
-        <div className="text-xs text-warning tabular-nums">
-          {t("dashboard.summary.pending", { x: fmtMoney(pending, symbol) })} · {t("dashboard.summary.projected", { x: fmtMoney(projected, symbol) })}
-        </div>
+      {kind === "savings" ? (
+        <div className="mt-1 text-base font-bold tabular-nums">{fmtMoney(allocated, symbol)}</div>
+      ) : (
+        <>
+          <div className="mt-1 text-base font-bold tabular-nums">
+            {fmtMoney(projected, symbol)}
+            <span className="ml-1 text-xs font-normal text-muted-foreground">/ {fmtMoney(allocated, symbol)}</span>
+          </div>
+          <div className="text-xs tabular-nums text-muted-foreground">
+            {fmtMoney(actual, symbol)} {kind === "income" ? t("dashboard.summary.received_label") : t("dashboard.summary.spent_label")}
+            {pending > 0 && (
+              <span className="text-warning"> + {fmtMoney(pending, symbol)} {kind === "income" ? t("dashboard.summary.expected_label") : t("dashboard.summary.pending_label")}</span>
+            )}
+          </div>
+        </>
       )}
     </div>
   );

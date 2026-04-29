@@ -432,7 +432,7 @@ function GroupBlock({
           <div className={cn("text-base font-semibold tabular-nums", overProjected && "text-destructive")}>
             {group.kind === "savings"
               ? fmtMoney(totalAlloc, symbol)
-              : `${fmtMoney(totalActual, symbol)} / ${fmtMoney(totalAlloc, symbol)}`}
+              : `${fmtMoney(totalProjected, symbol)} / ${fmtMoney(totalAlloc, symbol)}`}
           </div>
         </div>
         {group.kind !== "savings" && (

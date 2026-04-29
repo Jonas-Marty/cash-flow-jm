@@ -205,7 +205,7 @@ function EnvelopesPage() {
                 <div className={cn("text-base font-semibold tabular-nums", overProjected && "text-destructive")}>
                   {g.kind === "savings"
                     ? fmtMoney(totalAlloc, symbol)
-                    : `${fmtMoney(totalActual, symbol)} / ${fmtMoney(totalAlloc, symbol)}`}
+                    : `${fmtMoney(totalActual + totalPending, symbol)} / ${fmtMoney(totalAlloc, symbol)}`}
                 </div>
               </div>
               {g.kind !== "savings" && (
