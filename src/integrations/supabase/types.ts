@@ -830,7 +830,7 @@ export type Database = {
           variance: number
         }[]
       }
-      category_savings_balance: {
+      category_savings_balance_v2: {
         Args: { p_as_of: string }
         Returns: {
           archived: boolean

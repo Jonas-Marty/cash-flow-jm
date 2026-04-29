@@ -1,0 +1,1 @@
+ALTER FUNCTION public.category_savings_balance(date) RENAME TO category_savings_balance_v2;
