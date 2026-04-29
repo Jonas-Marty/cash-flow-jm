@@ -196,13 +196,13 @@ function EnvelopesPage() {
           <Card key={g.name + g.kind}>
             <CardHeader className="pb-2 space-y-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                <CardTitle className="text-base font-semibold uppercase tracking-wide text-foreground">
                   {g.name}
                   <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-muted-foreground">
                     {g.kind === "income" ? tr("settings.kind_income") : g.kind === "savings" ? tr("settings.kind_savings") : tr("settings.kind_expense")}
                   </span>
                 </CardTitle>
-                <div className={cn("text-base font-semibold tabular-nums", overProjected && "text-destructive")}>
+                <div className={cn("text-lg font-bold tabular-nums", overProjected && "text-destructive")}>
                   {g.kind === "savings"
                     ? fmtMoney(totalAlloc, symbol)
                     : `${fmtMoney(totalActual + totalPending, symbol)} / ${fmtMoney(totalAlloc, symbol)}`}
@@ -230,7 +230,7 @@ function EnvelopesPage() {
                     )}
                   </div>
                   {g.kind === "expense" && (
-                    <StackedBudgetBar allocated={totalAlloc} committed={totalActual} pending={totalPending} />
+                    <StackedBudgetBar className="h-3" allocated={totalAlloc} committed={totalActual} pending={totalPending} />
                   )}
                 </>
               )}
