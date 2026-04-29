@@ -386,7 +386,7 @@ function EnvelopesPage() {
                             : tr("dashboard.remaining", { x: fmtMoney(remainingProjected, symbol) })}
                         </span>
                       </div>
-                      {isOverride && sweepTargetName && Math.abs(allocated - actual) > 0.005 && (
+                      {isOverride && sweepTargetName && Math.abs(allocated - projected) > 0.005 && (
                         <div className="mt-1 text-[11px] text-muted-foreground italic">
                           {tr("envelopes.sweep.target")}: {sweepTargetName}
                         </div>
