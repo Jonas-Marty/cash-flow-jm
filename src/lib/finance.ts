@@ -506,7 +506,7 @@ export async function archiveRecurringRule(id: string, deletePending = true): Pr
   if (error) throw error;
 }
 
-export async function applyRecurringRuleBackfill(ruleId: string, mode: "none" | "post"): Promise<void> {
+export async function applyRecurringRuleBackfill(ruleId: string, mode: "none" | "post" | "pending"): Promise<void> {
   const today = new Date().toISOString().slice(0, 10);
   const { error } = await supabase.rpc("apply_recurring_rule_backfill", {
     p_rule_id: ruleId,
