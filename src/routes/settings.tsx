@@ -300,119 +300,118 @@ function SettingsPage() {
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold tracking-tight">{tr("settings.title")}</h1>
 
-        <AccountCard />
-        <IntegrationsCard />
-
-        {/* Language */}
-        <Card>
-          <CardHeader><CardTitle className="text-base">{tr("settings.language")}</CardTitle></CardHeader>
-          <CardContent>
-            <Select value={lang} onValueChange={onLangChange}>
-              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {LANGUAGES.map((l) => <SelectItem key={l.code} value={l.code}>{l.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-
-        {/* Theme */}
-        <Card>
-          <CardHeader><CardTitle className="text-base">{tr("settings.theme")}</CardTitle></CardHeader>
-          <CardContent>
-            <Select
-              value={(settingsQ.data?.theme as string) ?? "system"}
-              onValueChange={async (v) => {
-                if (!settingsQ.data) return;
-                const { error } = await supabase
-                  .from("settings")
-                  .update({ theme: v })
-                  .eq("id", settingsQ.data.id);
-                if (error) { toast.error(error.message); return; }
-                toast.success(tr("toast.saved"));
-                qc.invalidateQueries({ queryKey: ["settings"] });
-              }}
-            >
-              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="system">{tr("settings.theme.system")}</SelectItem>
-                <SelectItem value="light">{tr("settings.theme.light")}</SelectItem>
-                <SelectItem value="dark">{tr("settings.theme.dark")}</SelectItem>
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-
-        {/* Currency */}
-        <Card>
-          <CardHeader><CardTitle className="text-base">{tr("settings.currency")}</CardTitle></CardHeader>
-          <CardContent>
-            <Select value={settingsQ.data?.currency_code ?? "CHF"} onValueChange={setCurrency}>
-              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {CURRENCIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.code} ({c.symbol})</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-
-        {/* Preferences */}
+        {/* Preferences (merged: Localization · Appearance · Money) */}
         <Card>
           <CardHeader><CardTitle className="text-base">{tr("settings.preferences")}</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
-            <Label htmlFor="heatmap-threshold" className="text-sm">{tr("settings.heatmap_threshold")}</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="heatmap-threshold"
-                inputMode="decimal"
-                className="w-40"
-                value={thresholdDraft}
-                onChange={(e) => setThresholdDraft(e.target.value.replace(/[^0-9.,]/g, ""))}
-                onBlur={saveThreshold}
-                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-              />
-              <span className="text-sm text-muted-foreground">{settingsQ.data?.currency_symbol ?? "CHF"}</span>
-            </div>
-            <p className="text-xs text-muted-foreground">{tr("settings.heatmap_threshold.hint")}</p>
-            <div className="pt-3">
-              <Label htmlFor="date-format" className="text-sm">{tr("settings.date_format")}</Label>
-              <Select value={settingsQ.data?.date_format ?? "dd.MM.yyyy"} onValueChange={setDateFormat}>
-                <SelectTrigger id="date-format" className="mt-1 w-64"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {DATE_FORMAT_PRESETS.map((f) => (
-                    <SelectItem key={f} value={f}>
-                      <span className="font-mono">{f}</span>
-                      <span className="ml-2 text-muted-foreground">· {datePreview(f)}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="mt-1 text-xs text-muted-foreground">{tr("settings.date_format.hint")}</p>
-            </div>
-            <div className="pt-3">
-              <Label htmlFor="format-locale" className="text-sm">{tr("settings.format_locale")}</Label>
-              <Select
-                value={(settingsQ.data?.format_locale as string) ?? "de"}
-                onValueChange={async (v) => {
-                  if (!settingsQ.data) return;
-                  const { error } = await supabase
-                    .from("settings")
-                    .update({ format_locale: v })
-                    .eq("id", settingsQ.data.id);
-                  if (error) { toast.error(error.message); return; }
-                  toast.success(tr("toast.saved"));
-                  qc.invalidateQueries({ queryKey: ["settings"] });
-                }}
-              >
-                <SelectTrigger id="format-locale" className="mt-1 w-64"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="de">Deutsch</SelectItem>
-                  <SelectItem value="en">English</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="mt-1 text-xs text-muted-foreground">{tr("settings.format_locale.hint")}</p>
-            </div>
-            <div className="pt-3">
+          <CardContent className="space-y-6">
+            {/* Localization */}
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tr("settings.prefs.localization")}</h3>
+              <div>
+                <Label htmlFor="pref-lang" className="text-sm">{tr("settings.language")}</Label>
+                <Select value={lang} onValueChange={onLangChange}>
+                  <SelectTrigger id="pref-lang" className="mt-1 w-64"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {LANGUAGES.map((l) => <SelectItem key={l.code} value={l.code}>{l.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="date-format" className="text-sm">{tr("settings.date_format")}</Label>
+                <Select value={settingsQ.data?.date_format ?? "dd.MM.yyyy"} onValueChange={setDateFormat}>
+                  <SelectTrigger id="date-format" className="mt-1 w-64"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {DATE_FORMAT_PRESETS.map((f) => (
+                      <SelectItem key={f} value={f}>
+                        <span className="font-mono">{f}</span>
+                        <span className="ml-2 text-muted-foreground">· {datePreview(f)}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-xs text-muted-foreground">{tr("settings.date_format.hint")}</p>
+              </div>
+              <div>
+                <Label htmlFor="format-locale" className="text-sm">{tr("settings.format_locale")}</Label>
+                <Select
+                  value={(settingsQ.data?.format_locale as string) ?? "de"}
+                  onValueChange={async (v) => {
+                    if (!settingsQ.data) return;
+                    const { error } = await supabase
+                      .from("settings")
+                      .update({ format_locale: v })
+                      .eq("id", settingsQ.data.id);
+                    if (error) { toast.error(error.message); return; }
+                    toast.success(tr("toast.saved"));
+                    qc.invalidateQueries({ queryKey: ["settings"] });
+                  }}
+                >
+                  <SelectTrigger id="format-locale" className="mt-1 w-64"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="de">Deutsch</SelectItem>
+                    <SelectItem value="en">English</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-xs text-muted-foreground">{tr("settings.format_locale.hint")}</p>
+              </div>
+            </section>
+
+            {/* Appearance */}
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tr("settings.prefs.appearance")}</h3>
+              <div>
+                <Label htmlFor="pref-theme" className="text-sm">{tr("settings.theme")}</Label>
+                <Select
+                  value={(settingsQ.data?.theme as string) ?? "system"}
+                  onValueChange={async (v) => {
+                    if (!settingsQ.data) return;
+                    const { error } = await supabase
+                      .from("settings")
+                      .update({ theme: v })
+                      .eq("id", settingsQ.data.id);
+                    if (error) { toast.error(error.message); return; }
+                    toast.success(tr("toast.saved"));
+                    qc.invalidateQueries({ queryKey: ["settings"] });
+                  }}
+                >
+                  <SelectTrigger id="pref-theme" className="mt-1 w-64"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="system">{tr("settings.theme.system")}</SelectItem>
+                    <SelectItem value="light">{tr("settings.theme.light")}</SelectItem>
+                    <SelectItem value="dark">{tr("settings.theme.dark")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="heatmap-threshold" className="text-sm">{tr("settings.heatmap_threshold")}</Label>
+                <div className="mt-1 flex items-center gap-2">
+                  <Input
+                    id="heatmap-threshold"
+                    inputMode="decimal"
+                    className="w-40"
+                    value={thresholdDraft}
+                    onChange={(e) => setThresholdDraft(e.target.value.replace(/[^0-9.,]/g, ""))}
+                    onBlur={saveThreshold}
+                    onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                  />
+                  <span className="text-sm text-muted-foreground">{settingsQ.data?.currency_symbol ?? "CHF"}</span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{tr("settings.heatmap_threshold.hint")}</p>
+              </div>
+            </section>
+
+            {/* Money */}
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tr("settings.prefs.money")}</h3>
+              <div>
+                <Label htmlFor="pref-currency" className="text-sm">{tr("settings.currency")}</Label>
+                <Select value={settingsQ.data?.currency_code ?? "CHF"} onValueChange={setCurrency}>
+                  <SelectTrigger id="pref-currency" className="mt-1 w-64"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CURRENCIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.code} ({c.symbol})</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-0.5">
                   <Label htmlFor="networth-convert" className="text-sm">{tr("settings.networth_convert")}</Label>
@@ -432,7 +431,7 @@ function SettingsPage() {
                   }}
                 />
               </div>
-            </div>
+            </section>
           </CardContent>
         </Card>
 
