@@ -617,6 +617,7 @@ function PlaceholderPalette({
     const next = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
     return { date: today, dueDate: today, prevDate: prev, nextDate: next, today, runNumber: 3, locale: fmtLocale };
   }, [fmtLocale]);
+  const [showFormatHelp, setShowFormatHelp] = React.useState(false);
   return (
     <div className="rounded-md border p-2">
       <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
@@ -627,6 +628,19 @@ function PlaceholderPalette({
           <PlaceholderChip key={tok.token} tok={tok} sampleCtx={sampleCtx} onInsert={onInsert} />
         ))}
       </div>
+      <button
+        type="button"
+        onClick={() => setShowFormatHelp((v) => !v)}
+        className="mt-2 text-[11px] text-muted-foreground underline-offset-2 hover:underline"
+        aria-expanded={showFormatHelp}
+      >
+        {showFormatHelp ? "▾ " : "▸ "}{t("recurring.placeholders.format_help.title")}
+      </button>
+      {showFormatHelp && (
+        <div className="mt-1 whitespace-pre-line rounded border bg-muted/30 p-2 text-[11px] text-muted-foreground">
+          {t("recurring.placeholders.format_help.body")}
+        </div>
+      )}
     </div>
   );
 }
@@ -656,7 +670,13 @@ function PlaceholderChip({
           {snippet}
         </button>
       </HoverCardTrigger>
-      <HoverCardContent side="top" className="w-72 space-y-1 text-xs">
+      <HoverCardContent
+        side="top"
+        align="start"
+        collisionPadding={12}
+        avoidCollisions
+        className="w-72 space-y-1 text-xs"
+      >
         <div className="font-medium">{snippet}</div>
         <div className="text-muted-foreground">{tok.help}</div>
         <div className="font-mono text-[11px]">
