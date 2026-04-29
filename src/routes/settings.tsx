@@ -491,7 +491,6 @@ function SettingsPage() {
               groups={groupsQ.data ?? []}
               symbol={settingsQ.data?.currency_symbol ?? "CHF"}
             />
-            <SavingsAndSweepsCard />
             <div className="grid gap-2 md:grid-cols-[1fr_180px_180px_auto]">
               <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label><Input value={cName} onChange={(e) => setCName(e.target.value)} placeholder="Groceries" /></div>
               <div>
