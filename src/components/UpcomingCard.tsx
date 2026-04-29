@@ -18,18 +18,25 @@ export function UpcomingCard({ symbol }: { symbol: string }) {
   const { t, locale } = useI18n();
   const qc = useQueryClient();
   const occQ = useQuery({ queryKey: ["pending_occurrences"], queryFn: fetchPendingOccurrences });
-  const occs = occQ.data ?? [];
+  const allOccs = occQ.data ?? [];
+  // Show only this calendar month + anything overdue (regardless of month)
+  const today0 = new Date(); today0.setHours(0, 0, 0, 0);
+  const monthEnd = new Date(today0.getFullYear(), today0.getMonth() + 1, 1);
+  const occs = React.useMemo(() => allOccs.filter((o) => {
+    const eff = parseISO(o.effective_on);
+    return eff < monthEnd; // covers overdue + current month; excludes future months
+  }), [allOccs, monthEnd]);
   const [amounts, setAmounts] = React.useState<Record<string, string>>({});
-  const [visibleCount, setVisibleCount] = React.useState(10);
+  const [visibleCount, setVisibleCount] = React.useState(5);
   const [dialogOcc, setDialogOcc] = React.useState<(RecurringOccurrence & { rule: RecurringRule }) | null>(null);
 
   React.useEffect(() => {
-    setVisibleCount(10);
+    setVisibleCount(5);
   }, [occs.length]);
 
   if (occQ.isLoading || occs.length === 0) return null;
 
-  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const today = today0;
 
   const visibleOccs = occs.slice(0, visibleCount);
   const hasMore = visibleCount < occs.length;
@@ -125,7 +132,7 @@ export function UpcomingCard({ symbol }: { symbol: string }) {
         })}
         {hasMore && (
           <div className="flex items-center justify-center gap-2 px-4 py-3">
-            <Button size="sm" variant="outline" onClick={() => setVisibleCount((n) => n + 10)}>
+            <Button size="sm" variant="outline" onClick={() => setVisibleCount((n) => n + 5)}>
               {t("dashboard.upcoming.show_more")}
             </Button>
             <Button size="sm" variant="ghost" onClick={() => setVisibleCount(occs.length)}>
