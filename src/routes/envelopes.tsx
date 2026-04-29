@@ -2,7 +2,7 @@ import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, addMonths } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowLeftRight } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import { useI18n } from "@/i18n";
 import {
   fetchCategoryMonthRows,
   fetchSavingsBalances,
+  fetchSavingsBalancesV2,
   fetchSettings,
   fetchAccounts,
   fmtMoney,
@@ -21,12 +22,15 @@ import {
   fetchPendingImpactsForMonth,
   buildPendingMap,
   pendingDeltaForRow,
+  fetchCategoryGroups,
+  fetchCategories,
   type Transaction,
   type CategoryMonthRow,
 } from "@/lib/finance";
 import { StackedBudgetBar } from "@/components/StackedBudgetBar";
 import { useFxRates, convert } from "@/lib/fx";
 import { MonthBudgetSummary } from "@/components/MonthBudgetSummary";
+import { ReallocateDialog } from "@/components/ReallocateDialog";
 
 export const Route = createFileRoute("/envelopes")({
   component: EnvelopesPage,
@@ -53,6 +57,9 @@ function EnvelopesPage() {
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const rowsQ = useQuery({ queryKey: ["category_month_rows", m], queryFn: () => fetchCategoryMonthRows(m) });
   const savingsQ = useQuery({ queryKey: ["savings_balance"], queryFn: fetchSavingsBalances });
+  const savingsV2Q = useQuery({ queryKey: ["savings-balances-v2"], queryFn: () => fetchSavingsBalancesV2() });
+  const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
+  const groupsQ = useQuery({ queryKey: ["category_groups"], queryFn: fetchCategoryGroups });
   const pendingImpactQ = useQuery({ queryKey: ["pending_impact_month", m], queryFn: () => fetchPendingImpactsForMonth(m) });
   const txQ = useQuery({
     queryKey: ["envelope_month_tx", format(month, "yyyy-MM")],
@@ -65,6 +72,23 @@ function EnvelopesPage() {
   const rows = rowsQ.data ?? [];
   const savings = savingsQ.data ?? [];
   const savingsMap = new Map(savings.map((s) => [s.category_id, s]));
+  const savingsV2Map = React.useMemo(
+    () => new Map((savingsV2Q.data ?? []).map((s) => [s.category_id, s])),
+    [savingsV2Q.data],
+  );
+  const categoriesById = React.useMemo(
+    () => new Map((categoriesQ.data ?? []).map((c) => [c.id, c])),
+    [categoriesQ.data],
+  );
+  const defaultSweepId = settingsQ.data?.default_sweep_category_id ?? null;
+  const groupSweepById = React.useMemo(() => {
+    const m = new Map<string, string | null>();
+    for (const g of groupsQ.data ?? []) m.set(g.id, (g as unknown as { sweep_target_category_id: string | null }).sweep_target_category_id ?? null);
+    return m;
+  }, [groupsQ.data]);
+
+  const [reallocOpen, setReallocOpen] = React.useState(false);
+  const [reallocFrom, setReallocFrom] = React.useState<string | null>(null);
   const pendingMap = React.useMemo(() => buildPendingMap(pendingImpactQ.data ?? []), [pendingImpactQ.data]);
   const txs = txQ.data ?? [];
   const accountById = React.useMemo(
@@ -151,7 +175,17 @@ function EnvelopesPage() {
   return (
     <AppShell>
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold tracking-tight">{tr("env.title")}</h1>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight">{tr("env.title")}</h1>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => { setReallocFrom(null); setReallocOpen(true); }}
+          >
+            <ArrowLeftRight className="h-4 w-4 mr-1" />
+            {tr("envelopes.reallocate")}
+          </Button>
+        </div>
         {hasForeign && (
           <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
             {tr("env.fx_converted_hint", { cur: mainCode })}
