@@ -113,9 +113,9 @@ function SummaryLine({
             <span className="ml-1 text-xs font-normal text-muted-foreground">/ {fmtMoney(allocated, symbol)}</span>
           </div>
           <div className="text-xs tabular-nums text-muted-foreground">
-            {fmtMoney(actual, symbol)}
+            {fmtMoney(actual, symbol)} {kind === "income" ? t("dashboard.summary.received_label") : t("dashboard.summary.spent_label")}
             {pending > 0 && (
-              <span className="text-warning"> + {fmtMoney(pending, symbol)} {kind === "income" ? t("dashboard.group.expected", { x: "" }).replace(/^\+?\s*\{?\s*\}?\s*/, "").trim() || "expected" : t("dashboard.group.pending", { x: "" }).replace(/^\+?\s*\{?\s*\}?\s*/, "").trim() || "pending"}</span>
+              <span className="text-warning"> + {fmtMoney(pending, symbol)} {kind === "income" ? t("dashboard.summary.expected_label") : t("dashboard.summary.pending_label")}</span>
             )}
           </div>
         </>
