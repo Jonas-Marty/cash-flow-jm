@@ -44,7 +44,7 @@ export function ReallocateDialog({ open, defaultFromId, defaultToId, defaultAmou
   const [fromId, setFromId] = React.useState<string>("");
   const [toId, setToId] = React.useState<string>("");
   const [amount, setAmount] = React.useState<string>("");
-  const [date, setDate] = React.useState<string>(todayISO());
+  const [date, setDate] = React.useState<Date>(new Date());
   const [note, setNote] = React.useState<string>("");
 
   React.useEffect(() => {
@@ -52,7 +52,7 @@ export function ReallocateDialog({ open, defaultFromId, defaultToId, defaultAmou
     setFromId(defaultFromId ?? "");
     setToId(defaultToId ?? "");
     setAmount(defaultAmount != null ? String(defaultAmount) : "");
-    setDate(todayISO());
+    setDate(new Date());
     setNote("");
   }, [open, defaultFromId, defaultToId, defaultAmount]);
 
@@ -66,7 +66,7 @@ export function ReallocateDialog({ open, defaultFromId, defaultToId, defaultAmou
         from_category_id: fromId,
         to_category_id: toId,
         amount: amt,
-        occurred_on: date,
+        occurred_on: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
         note: note.trim() || null,
       });
     },
