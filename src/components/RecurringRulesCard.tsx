@@ -309,21 +309,13 @@ export function RecurringRulesCard() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
           className="max-h-[90vh] overflow-y-auto"
-          onPointerDownOutside={(e) => {
-            // Radix Select / Popover content lives in a portal outside the Dialog.
-            // Clicking an item there fires pointerdown-outside on the Dialog and
-            // would otherwise close it, losing the user's draft. Ignore those.
-            const target = e.target as HTMLElement | null;
-            if (target?.closest("[data-radix-popper-content-wrapper], [role='listbox'], [role='option'], [data-radix-select-content], [data-radix-popover-content]")) {
-              e.preventDefault();
-            }
-          }}
-          onInteractOutside={(e) => {
-            const target = e.target as HTMLElement | null;
-            if (target?.closest("[data-radix-popper-content-wrapper], [role='listbox'], [role='option'], [data-radix-select-content], [data-radix-popover-content]")) {
-              e.preventDefault();
-            }
-          }}
+          // Never close the dialog from outside interactions or Esc — only the
+          // Cancel / Save buttons should dismiss, so users can't accidentally
+          // lose a partially filled rule (especially when Radix Select/Popover
+          // portals fire outside-events from within the dialog).
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
         >
           <DialogHeader>
             <DialogTitle>{draft.id ? t("recurring.edit") : t("recurring.add")}</DialogTitle>
