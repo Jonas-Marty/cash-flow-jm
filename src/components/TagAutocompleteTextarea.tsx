@@ -40,15 +40,20 @@ function detectActiveTag(value: string, caret: number): { start: number; end: nu
   return null;
 }
 
-export function TagAutocompleteTextarea({
+export const TagAutocompleteTextarea = React.forwardRef<HTMLTextAreaElement, Props>(function TagAutocompleteTextarea({
   value,
   onChange,
   transactions,
   extraTags,
   className,
   ...rest
-}: Props) {
+}, forwardedRef) {
   const taRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const setRefs = React.useCallback((el: HTMLTextAreaElement | null) => {
+    taRef.current = el;
+    if (typeof forwardedRef === "function") forwardedRef(el);
+    else if (forwardedRef) (forwardedRef as React.MutableRefObject<HTMLTextAreaElement | null>).current = el;
+  }, [forwardedRef]);
   const [caret, setCaret] = React.useState(0);
   const [open, setOpen] = React.useState(false);
   const [activeIdx, setActiveIdx] = React.useState(0);
@@ -136,7 +141,7 @@ export function TagAutocompleteTextarea({
     <div className={cn("relative", className)}>
       <Textarea
         {...rest}
-        ref={taRef}
+        ref={setRefs}
         value={value}
         onChange={(e) => {
           onChange(e.target.value);
@@ -182,4 +187,4 @@ export function TagAutocompleteTextarea({
       )}
     </div>
   );
-}
+});
