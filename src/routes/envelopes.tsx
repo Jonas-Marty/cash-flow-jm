@@ -274,14 +274,17 @@ function EnvelopesPage() {
                     <>
                       <div className="flex items-baseline justify-between gap-3">
                         <div className="font-semibold">{r.name}</div>
-                        <div className="text-sm tabular-nums">
-                          <span className={cn("font-semibold", tone)}>{fmtMoney(actual, symbol)}</span>
-                          <span className="text-muted-foreground"> / {fmtMoney(allocated, symbol)}</span>
-                          <span className={cn("ml-2 text-xs", tone)}>({variance >= 0 ? "+" : ""}{fmtMoney(variance, symbol)})</span>
-                          {pendingDelta > 0 && (
-                            <span className="ml-2 text-xs text-warning">{tr("env.income_expected", { x: fmtMoney(pendingDelta, symbol) })} {tr("env.projected_suffix", { x: fmtMoney(projected, symbol) })}</span>
-                          )}
+                        <div className="text-base font-bold tabular-nums">
+                          <span className={tone}>{fmtMoney(projected, symbol)}</span>
+                          <span className="text-muted-foreground font-normal"> / {fmtMoney(allocated, symbol)}</span>
                         </div>
+                      </div>
+                      <div className="mt-1 text-xs tabular-nums text-muted-foreground flex flex-wrap gap-x-2">
+                        <span>{fmtMoney(actual, symbol)} {tr("dashboard.summary.received_label")}</span>
+                        {pendingDelta > 0 && (
+                          <span className="text-warning">+{fmtMoney(pendingDelta, symbol)} {tr("dashboard.summary.expected_label")}</span>
+                        )}
+                        <span className={cn("ml-auto", tone)}>({variance >= 0 ? "+" : ""}{fmtMoney(variance, symbol)})</span>
                       </div>
                     </>
                   );
@@ -293,23 +296,22 @@ function EnvelopesPage() {
                     <>
                       <div className="flex items-baseline justify-between gap-3">
                         <div className="font-semibold">{r.name}</div>
-                        <div className="text-sm tabular-nums text-muted-foreground">
-                          <span className={cn(overProjected && "text-destructive font-semibold")}>{fmtMoney(actual, symbol)}</span>
-                          <span> / {fmtMoney(allocated, symbol)}</span>
-                          {pendingPos > 0 && (
-                            <span className="ml-2 text-xs text-warning">{tr("env.pending_suffix", { x: fmtMoney(pendingPos, symbol) })} {tr("env.projected_suffix", { x: fmtMoney(projected, symbol) })}</span>
-                          )}
+                        <div className="text-base font-bold tabular-nums">
+                          <span className={cn(overProjected ? "text-destructive" : "text-foreground")}>{fmtMoney(projected, symbol)}</span>
+                          <span className="text-muted-foreground font-normal"> / {fmtMoney(allocated, symbol)}</span>
                         </div>
                       </div>
-                      <StackedBudgetBar className="mt-2" allocated={allocated} committed={actual} pending={pendingPos} />
-                      <div className={cn("mt-1 text-xs tabular-nums", overProjected ? "text-destructive" : "text-muted-foreground")}>
-                        {overProjected
-                          ? (pendingPos > 0
-                              ? tr("env.over_with_pending", { x: fmtMoney(-remainingProjected, symbol) })
-                              : tr("dashboard.over_by", { x: fmtMoney(-remainingProjected, symbol) }))
-                          : (pendingPos > 0
-                              ? tr("env.remaining_with_pending", { x: fmtMoney(remainingProjected, symbol) })
-                              : tr("dashboard.remaining", { x: fmtMoney(allocated - actual, symbol) }))}
+                      <StackedBudgetBar className="mt-2 h-1.5" allocated={allocated} committed={actual} pending={pendingPos} />
+                      <div className="mt-1 text-xs tabular-nums text-muted-foreground flex flex-wrap gap-x-2">
+                        <span>{fmtMoney(actual, symbol)} {tr("dashboard.summary.spent_label")}</span>
+                        {pendingPos > 0 && (
+                          <span className="text-warning">+{fmtMoney(pendingPos, symbol)} {tr("dashboard.summary.pending_label")}</span>
+                        )}
+                        <span className={cn("ml-auto", overProjected && "text-destructive font-medium")}>
+                          {overProjected
+                            ? tr("dashboard.over_by", { x: fmtMoney(-remainingProjected, symbol) })
+                            : tr("dashboard.remaining", { x: fmtMoney(remainingProjected, symbol) })}
+                        </span>
                       </div>
                     </>
                   );
