@@ -307,6 +307,8 @@ const de: Dict = {
   "recurring.preview.note_past": "Startdatum liegt in der Vergangenheit. Wähle unten, ob vergangene Buchungen erstellt werden sollen.",
   "recurring.placeholders.title": "Platzhalter (klicken zum Einfügen)",
   "recurring.placeholders.hint": "Verwende {token} oder {token:Format} mit Dollarzeichen-Klammern. Beispiel: Stromrechnung {periodStart:dd.MM.yyyy} – {periodEnd:dd.MM.yyyy} (mit $ vor jeder Klammer).",
+  "recurring.placeholders.format_help.title": "Datumsformat-Optionen",
+  "recurring.placeholders.format_help.body": "Bausteine, die du im Format-Teil eines Datum-Platzhalters kombinieren kannst (z. B. ${date:dd.MM.yyyy}):\n• yyyy = vierstelliges Jahr (2026), yy = zweistellig (26)\n• MM = Monat zweistellig (01–12), M = ohne führende Null\n• MMM = kurzer Monatsname (Jan, Feb), MMMM = langer Name (Januar)\n• dd = Tag zweistellig, d = ohne führende Null\n• ddd = kurzer Wochentag (Mo), dddd = langer Wochentag (Montag)\n• HH = Stunde 00–23, mm = Minuten, ss = Sekunden\n• Text in eckigen Klammern bleibt unverändert: [KW] ww",
   "recurring.preview.resolved": "Beschreibung",
   "recurring.post_dialog.title": "Buchung erstellen",
   "recurring.post_dialog.date": "Datum",
