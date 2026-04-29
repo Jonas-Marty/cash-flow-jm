@@ -300,119 +300,118 @@ function SettingsPage() {
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold tracking-tight">{tr("settings.title")}</h1>
 
-        <AccountCard />
-        <IntegrationsCard />
-
-        {/* Language */}
-        <Card>
-          <CardHeader><CardTitle className="text-base">{tr("settings.language")}</CardTitle></CardHeader>
-          <CardContent>
-            <Select value={lang} onValueChange={onLangChange}>
-              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {LANGUAGES.map((l) => <SelectItem key={l.code} value={l.code}>{l.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-
-        {/* Theme */}
-        <Card>
-          <CardHeader><CardTitle className="text-base">{tr("settings.theme")}</CardTitle></CardHeader>
-          <CardContent>
-            <Select
-              value={(settingsQ.data?.theme as string) ?? "system"}
-              onValueChange={async (v) => {
-                if (!settingsQ.data) return;
-                const { error } = await supabase
-                  .from("settings")
-                  .update({ theme: v })
-                  .eq("id", settingsQ.data.id);
-                if (error) { toast.error(error.message); return; }
-                toast.success(tr("toast.saved"));
-                qc.invalidateQueries({ queryKey: ["settings"] });
-              }}
-            >
-              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="system">{tr("settings.theme.system")}</SelectItem>
-                <SelectItem value="light">{tr("settings.theme.light")}</SelectItem>
-                <SelectItem value="dark">{tr("settings.theme.dark")}</SelectItem>
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-
-        {/* Currency */}
-        <Card>
-          <CardHeader><CardTitle className="text-base">{tr("settings.currency")}</CardTitle></CardHeader>
-          <CardContent>
-            <Select value={settingsQ.data?.currency_code ?? "CHF"} onValueChange={setCurrency}>
-              <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {CURRENCIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.code} ({c.symbol})</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </CardContent>
-        </Card>
-
-        {/* Preferences */}
+        {/* Preferences (merged: Localization · Appearance · Money) */}
         <Card>
           <CardHeader><CardTitle className="text-base">{tr("settings.preferences")}</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
-            <Label htmlFor="heatmap-threshold" className="text-sm">{tr("settings.heatmap_threshold")}</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="heatmap-threshold"
-                inputMode="decimal"
-                className="w-40"
-                value={thresholdDraft}
-                onChange={(e) => setThresholdDraft(e.target.value.replace(/[^0-9.,]/g, ""))}
-                onBlur={saveThreshold}
-                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-              />
-              <span className="text-sm text-muted-foreground">{settingsQ.data?.currency_symbol ?? "CHF"}</span>
-            </div>
-            <p className="text-xs text-muted-foreground">{tr("settings.heatmap_threshold.hint")}</p>
-            <div className="pt-3">
-              <Label htmlFor="date-format" className="text-sm">{tr("settings.date_format")}</Label>
-              <Select value={settingsQ.data?.date_format ?? "dd.MM.yyyy"} onValueChange={setDateFormat}>
-                <SelectTrigger id="date-format" className="mt-1 w-64"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {DATE_FORMAT_PRESETS.map((f) => (
-                    <SelectItem key={f} value={f}>
-                      <span className="font-mono">{f}</span>
-                      <span className="ml-2 text-muted-foreground">· {datePreview(f)}</span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="mt-1 text-xs text-muted-foreground">{tr("settings.date_format.hint")}</p>
-            </div>
-            <div className="pt-3">
-              <Label htmlFor="format-locale" className="text-sm">{tr("settings.format_locale")}</Label>
-              <Select
-                value={(settingsQ.data?.format_locale as string) ?? "de"}
-                onValueChange={async (v) => {
-                  if (!settingsQ.data) return;
-                  const { error } = await supabase
-                    .from("settings")
-                    .update({ format_locale: v })
-                    .eq("id", settingsQ.data.id);
-                  if (error) { toast.error(error.message); return; }
-                  toast.success(tr("toast.saved"));
-                  qc.invalidateQueries({ queryKey: ["settings"] });
-                }}
-              >
-                <SelectTrigger id="format-locale" className="mt-1 w-64"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="de">Deutsch</SelectItem>
-                  <SelectItem value="en">English</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="mt-1 text-xs text-muted-foreground">{tr("settings.format_locale.hint")}</p>
-            </div>
-            <div className="pt-3">
+          <CardContent className="space-y-6">
+            {/* Localization */}
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tr("settings.prefs.localization")}</h3>
+              <div>
+                <Label htmlFor="pref-lang" className="text-sm">{tr("settings.language")}</Label>
+                <Select value={lang} onValueChange={onLangChange}>
+                  <SelectTrigger id="pref-lang" className="mt-1 w-64"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {LANGUAGES.map((l) => <SelectItem key={l.code} value={l.code}>{l.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="date-format" className="text-sm">{tr("settings.date_format")}</Label>
+                <Select value={settingsQ.data?.date_format ?? "dd.MM.yyyy"} onValueChange={setDateFormat}>
+                  <SelectTrigger id="date-format" className="mt-1 w-64"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {DATE_FORMAT_PRESETS.map((f) => (
+                      <SelectItem key={f} value={f}>
+                        <span className="font-mono">{f}</span>
+                        <span className="ml-2 text-muted-foreground">· {datePreview(f)}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-xs text-muted-foreground">{tr("settings.date_format.hint")}</p>
+              </div>
+              <div>
+                <Label htmlFor="format-locale" className="text-sm">{tr("settings.format_locale")}</Label>
+                <Select
+                  value={(settingsQ.data?.format_locale as string) ?? "de"}
+                  onValueChange={async (v) => {
+                    if (!settingsQ.data) return;
+                    const { error } = await supabase
+                      .from("settings")
+                      .update({ format_locale: v })
+                      .eq("id", settingsQ.data.id);
+                    if (error) { toast.error(error.message); return; }
+                    toast.success(tr("toast.saved"));
+                    qc.invalidateQueries({ queryKey: ["settings"] });
+                  }}
+                >
+                  <SelectTrigger id="format-locale" className="mt-1 w-64"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="de">Deutsch</SelectItem>
+                    <SelectItem value="en">English</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="mt-1 text-xs text-muted-foreground">{tr("settings.format_locale.hint")}</p>
+              </div>
+            </section>
+
+            {/* Appearance */}
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tr("settings.prefs.appearance")}</h3>
+              <div>
+                <Label htmlFor="pref-theme" className="text-sm">{tr("settings.theme")}</Label>
+                <Select
+                  value={(settingsQ.data?.theme as string) ?? "system"}
+                  onValueChange={async (v) => {
+                    if (!settingsQ.data) return;
+                    const { error } = await supabase
+                      .from("settings")
+                      .update({ theme: v })
+                      .eq("id", settingsQ.data.id);
+                    if (error) { toast.error(error.message); return; }
+                    toast.success(tr("toast.saved"));
+                    qc.invalidateQueries({ queryKey: ["settings"] });
+                  }}
+                >
+                  <SelectTrigger id="pref-theme" className="mt-1 w-64"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="system">{tr("settings.theme.system")}</SelectItem>
+                    <SelectItem value="light">{tr("settings.theme.light")}</SelectItem>
+                    <SelectItem value="dark">{tr("settings.theme.dark")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="heatmap-threshold" className="text-sm">{tr("settings.heatmap_threshold")}</Label>
+                <div className="mt-1 flex items-center gap-2">
+                  <Input
+                    id="heatmap-threshold"
+                    inputMode="decimal"
+                    className="w-40"
+                    value={thresholdDraft}
+                    onChange={(e) => setThresholdDraft(e.target.value.replace(/[^0-9.,]/g, ""))}
+                    onBlur={saveThreshold}
+                    onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                  />
+                  <span className="text-sm text-muted-foreground">{settingsQ.data?.currency_symbol ?? "CHF"}</span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{tr("settings.heatmap_threshold.hint")}</p>
+              </div>
+            </section>
+
+            {/* Money */}
+            <section className="space-y-3">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tr("settings.prefs.money")}</h3>
+              <div>
+                <Label htmlFor="pref-currency" className="text-sm">{tr("settings.currency")}</Label>
+                <Select value={settingsQ.data?.currency_code ?? "CHF"} onValueChange={setCurrency}>
+                  <SelectTrigger id="pref-currency" className="mt-1 w-64"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CURRENCIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.code} ({c.symbol})</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-0.5">
                   <Label htmlFor="networth-convert" className="text-sm">{tr("settings.networth_convert")}</Label>
@@ -432,90 +431,11 @@ function SettingsPage() {
                   }}
                 />
               </div>
-            </div>
+            </section>
           </CardContent>
         </Card>
 
-        {/* Accounts */}
-        <Card>
-          <CardHeader><CardTitle className="text-base">{tr("settings.accounts")}</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-2 md:grid-cols-[1fr_140px_120px_120px_auto]">
-              <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label><Input value={aName} onChange={(e) => setAName(e.target.value)} placeholder="Main Bank" /></div>
-              <div>
-                <Label className="mb-1 block text-xs text-muted-foreground">{tr("common.type")}</Label>
-                <Select value={aType} onValueChange={(v) => setAType(v as AccountType)}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="asset">{tr("settings.account_asset")}</SelectItem>
-                    <SelectItem value="liability">{tr("settings.account_liability")}</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.opening_balance")}</Label><Input inputMode="decimal" value={aOpening} onChange={(e) => setAOpening(e.target.value)} /></div>
-              <div>
-                <Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.currency")}</Label>
-                <Select value={aCurrency || (settingsQ.data?.currency_code ?? "CHF")} onValueChange={setACurrency}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {CURRENCIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.code}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-end"><Button className="w-full" onClick={addAccount}><Plus className="h-4 w-4" /> {tr("common.add")}</Button></div>
-            </div>
-            <p className="text-xs text-muted-foreground">{tr("settings.accounts.asset_hint")}</p>
-
-            <ul className="divide-y">
-              {(accountsQ.data ?? []).map((a) => (
-                <li key={a.id} className="flex items-center justify-between gap-2 py-2">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <EntityChip entity={{ id: a.id, name: a.name, icon: a.icon, emoji: a.emoji, image_url: a.image_url, color: a.color }} showLabel={false} />
-                    <div className="min-w-0">
-                      <div className={a.archived ? "text-muted-foreground line-through" : "font-medium"}>{a.name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {a.type === "asset" ? tr("settings.account_asset") : tr("settings.account_liability")} · {a.currency_code} · {tr("settings.opening_balance")} {Number(a.opening_balance).toFixed(2)}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Select value={a.currency_code} onValueChange={(v) => updateAccountCurrency(a.id, v)}>
-                      <SelectTrigger className="h-8 w-[78px] text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {CURRENCIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.code}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="ghost" size="icon" aria-label={tr("settings.visual.edit")}><Palette className="h-4 w-4" /></Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-80" align="end">
-                        <IconPicker
-                          entityId={a.id}
-                          value={{ icon: a.icon, emoji: a.emoji, image_url: a.image_url, color: a.color }}
-                          onChange={(p) => updateVisual("accounts", a.id, p)}
-                          labels={visualLabels}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <Button variant="ghost" size="icon" onClick={() => togglePin("accounts", a.id, !!a.pinned)} aria-label={a.pinned ? tr("settings.unpin") : tr("settings.pin")}>
-                      {a.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => toggleArchiveAccount(a.id, a.archived)} aria-label={a.archived ? tr("common.unarchive") : tr("common.archive")}>
-                      {a.archived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
-                    </Button>
-                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => delAccount(a.id)} aria-label={tr("common.delete")}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </li>
-              ))}
-              {(accountsQ.data ?? []).length === 0 && <li className="py-2 text-sm text-muted-foreground">{tr("settings.no_accounts")}</li>}
-            </ul>
-          </CardContent>
-        </Card>
-
-        {/* Categories */}
+        {/* Groups */}
         <Card>
           <CardHeader><CardTitle className="text-base">{tr("settings.groups")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -571,7 +491,6 @@ function SettingsPage() {
               groups={groupsQ.data ?? []}
               symbol={settingsQ.data?.currency_symbol ?? "CHF"}
             />
-            <SavingsAndSweepsCard />
             <div className="grid gap-2 md:grid-cols-[1fr_180px_180px_auto]">
               <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label><Input value={cName} onChange={(e) => setCName(e.target.value)} placeholder="Groceries" /></div>
               <div>
@@ -729,13 +648,95 @@ function SettingsPage() {
           </CardContent>
         </Card>
 
+        {/* Savings & Sweeps */}
+        <SavingsAndSweepsCard />
+
         {/* Recurring rules */}
         <RecurringRulesCard />
 
+        {/* Accounts */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">{tr("settings.accounts")}</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-2 md:grid-cols-[1fr_140px_120px_120px_auto]">
+              <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label><Input value={aName} onChange={(e) => setAName(e.target.value)} placeholder="Main Bank" /></div>
+              <div>
+                <Label className="mb-1 block text-xs text-muted-foreground">{tr("common.type")}</Label>
+                <Select value={aType} onValueChange={(v) => setAType(v as AccountType)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="asset">{tr("settings.account_asset")}</SelectItem>
+                    <SelectItem value="liability">{tr("settings.account_liability")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.opening_balance")}</Label><Input inputMode="decimal" value={aOpening} onChange={(e) => setAOpening(e.target.value)} /></div>
+              <div>
+                <Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.currency")}</Label>
+                <Select value={aCurrency || (settingsQ.data?.currency_code ?? "CHF")} onValueChange={setACurrency}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CURRENCIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.code}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end"><Button className="w-full" onClick={addAccount}><Plus className="h-4 w-4" /> {tr("common.add")}</Button></div>
+            </div>
+            <p className="text-xs text-muted-foreground">{tr("settings.accounts.asset_hint")}</p>
+
+            <ul className="divide-y">
+              {(accountsQ.data ?? []).map((a) => (
+                <li key={a.id} className="flex items-center justify-between gap-2 py-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <EntityChip entity={{ id: a.id, name: a.name, icon: a.icon, emoji: a.emoji, image_url: a.image_url, color: a.color }} showLabel={false} />
+                    <div className="min-w-0">
+                      <div className={a.archived ? "text-muted-foreground line-through" : "font-medium"}>{a.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {a.type === "asset" ? tr("settings.account_asset") : tr("settings.account_liability")} · {a.currency_code} · {tr("settings.opening_balance")} {Number(a.opening_balance).toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Select value={a.currency_code} onValueChange={(v) => updateAccountCurrency(a.id, v)}>
+                      <SelectTrigger className="h-8 w-[78px] text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {CURRENCIES.map((c) => <SelectItem key={c.code} value={c.code}>{c.code}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" aria-label={tr("settings.visual.edit")}><Palette className="h-4 w-4" /></Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80" align="end">
+                        <IconPicker
+                          entityId={a.id}
+                          value={{ icon: a.icon, emoji: a.emoji, image_url: a.image_url, color: a.color }}
+                          onChange={(p) => updateVisual("accounts", a.id, p)}
+                          labels={visualLabels}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <Button variant="ghost" size="icon" onClick={() => togglePin("accounts", a.id, !!a.pinned)} aria-label={a.pinned ? tr("settings.unpin") : tr("settings.pin")}>
+                      {a.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+                    </Button>
+                    <Button variant="ghost" size="icon" onClick={() => toggleArchiveAccount(a.id, a.archived)} aria-label={a.archived ? tr("common.unarchive") : tr("common.archive")}>
+                      {a.archived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+                    </Button>
+                    <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => delAccount(a.id)} aria-label={tr("common.delete")}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </li>
+              ))}
+              {(accountsQ.data ?? []).length === 0 && <li className="py-2 text-sm text-muted-foreground">{tr("settings.no_accounts")}</li>}
+            </ul>
+          </CardContent>
+        </Card>
+
         <NextcloudCard />
         <ApiTokensCard />
-
-        <p className="pb-4 text-xs text-muted-foreground">{tr("settings.footer")}</p>
+        <IntegrationsCard />
+        <AccountCard />
       </div>
     </AppShell>
   );

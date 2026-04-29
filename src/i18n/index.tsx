@@ -240,6 +240,9 @@ const de: Dict = {
   "settings.theme.dark": "Dunkel",
   "settings.theme.system": "Systemvorgabe",
   "settings.preferences": "Einstellungen",
+  "settings.prefs.localization": "Sprache & Format",
+  "settings.prefs.appearance": "Darstellung",
+  "settings.prefs.money": "Währung & Geld",
   "settings.heatmap_threshold": "Heatmap-Schwellenwert",
   "settings.heatmap_threshold.hint": "Tage mit einem Saldo bis zu diesem Betrag werden hell, darüber kräftig eingefärbt.",
   "settings.date_format": "Datumsformat",
@@ -284,7 +287,7 @@ const de: Dict = {
   "settings.no_envelopes": "Noch keine Budgets.",
   "settings.no_groups": "Noch keine Gruppen. Lege z.B. „Fixkosten“, „Persönliche Ausgaben“, „Einnahmen“, „Rückstellungen“ an.",
   "settings.accounts.asset_hint": "Tipp: Verwende ein Vermögenskonto für Geschenkkarten oder Guthaben (z.B. Coop Geschenkkarten).",
-  "settings.footer": "Einzelnutzer-Modus · Monatliche Budgets setzen sich jeden Kalendermonat zurück, kein Übertrag · Login folgt später.",
+  "settings.footer": "",
 
   // Recurring
   "recurring.title": "Wiederkehrende Buchungen",
@@ -714,6 +717,9 @@ const en: Dict = {
   "settings.theme.dark": "Dark",
   "settings.theme.system": "System default",
   "settings.preferences": "Preferences",
+  "settings.prefs.localization": "Language & format",
+  "settings.prefs.appearance": "Appearance",
+  "settings.prefs.money": "Currency & money",
   "settings.heatmap_threshold": "Heatmap threshold",
   "settings.heatmap_threshold.hint": "Days with a net flow up to this amount get a light tint; above it, a deeper tint.",
   "settings.date_format": "Date format",
@@ -758,7 +764,7 @@ const en: Dict = {
   "settings.no_envelopes": "No envelopes yet.",
   "settings.no_groups": "No groups yet. Create groups like \"Fixed costs\", \"Personal\", \"Income\", \"Reserves\".",
   "settings.accounts.asset_hint": "Tip: Use an asset account for gift cards or stored-value (e.g. Coop Geschenkkarten).",
-  "settings.footer": "Single-user mode · monthly envelopes reset each calendar month with no rollover · authentication will plug in later.",
+  "settings.footer": "",
 
   "recurring.title": "Recurring transactions",
   "recurring.add": "Add rule",
