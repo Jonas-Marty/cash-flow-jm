@@ -108,6 +108,56 @@ function normalizeDateFormat(fmt: string): string {
   return out;
 }
 
+/**
+ * Format a date with date-fns but post-process so that the short month token
+ * `MMM` never emits a trailing period (date-fns/locale data appends "." for
+ * abbreviated German months like "Jan." / "Feb." — we want plain "Jan", "Feb").
+ * Long months (`MMMM`) are unaffected.
+ *
+ * Implementation: split the format string into segments at every `MMM` token
+ * (skipping `MMMM` which uses the full name and is left intact), format each
+ * piece independently, strip a single trailing `.` from each MMM rendering,
+ * then concatenate. Bracket-escaped literals `[...]` are kept opaque so an
+ * MMM inside them is treated as literal text by date-fns.
+ */
+function formatRespectingMMM(d: Date, fmt: string, locale: Locale): string {
+  const parts: { text: string; isMMM: boolean }[] = [];
+  let buf = "";
+  let i = 0;
+  while (i < fmt.length) {
+    if (fmt[i] === "[") {
+      const close = fmt.indexOf("]", i);
+      if (close === -1) { buf += fmt.slice(i); break; }
+      buf += fmt.slice(i, close + 1);
+      i = close + 1;
+      continue;
+    }
+    // Detect MMMM (long) — leave intact, do NOT split.
+    if (fmt.startsWith("MMMM", i)) {
+      buf += "MMMM";
+      i += 4;
+      continue;
+    }
+    // Detect MMM (short) — split here.
+    if (fmt.startsWith("MMM", i)) {
+      if (buf.length > 0) { parts.push({ text: buf, isMMM: false }); buf = ""; }
+      parts.push({ text: "MMM", isMMM: true });
+      i += 3;
+      continue;
+    }
+    buf += fmt[i];
+    i += 1;
+  }
+  if (buf.length > 0) parts.push({ text: buf, isMMM: false });
+
+  return parts
+    .map((p) => {
+      const rendered = fmtDate(d, p.text, { locale });
+      return p.isMMM ? rendered.replace(/\.$/, "") : rendered;
+    })
+    .join("");
+}
+
 function padNumber(n: number, fmt: string | undefined): string {
   if (!fmt) return String(n);
   // Treat fmt of zeros as zero-padding width.
