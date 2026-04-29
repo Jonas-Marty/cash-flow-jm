@@ -315,7 +315,6 @@ export function RecurringRulesCard() {
           // portals fire outside-events from within the dialog).
           onPointerDownOutside={(e) => e.preventDefault()}
           onInteractOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
         >
           <DialogHeader>
             <DialogTitle>{draft.id ? t("recurring.edit") : t("recurring.add")}</DialogTitle>
