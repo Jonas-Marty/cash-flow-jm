@@ -387,6 +387,29 @@ function SettingsPage() {
               <p className="mt-1 text-xs text-muted-foreground">{tr("settings.date_format.hint")}</p>
             </div>
             <div className="pt-3">
+              <Label htmlFor="format-locale" className="text-sm">{tr("settings.format_locale")}</Label>
+              <Select
+                value={(settingsQ.data?.format_locale as string) ?? "de"}
+                onValueChange={async (v) => {
+                  if (!settingsQ.data) return;
+                  const { error } = await supabase
+                    .from("settings")
+                    .update({ format_locale: v })
+                    .eq("id", settingsQ.data.id);
+                  if (error) { toast.error(error.message); return; }
+                  toast.success(tr("toast.saved"));
+                  qc.invalidateQueries({ queryKey: ["settings"] });
+                }}
+              >
+                <SelectTrigger id="format-locale" className="mt-1 w-64"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="de">Deutsch</SelectItem>
+                  <SelectItem value="en">English</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-xs text-muted-foreground">{tr("settings.format_locale.hint")}</p>
+            </div>
+            <div className="pt-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="space-y-0.5">
                   <Label htmlFor="networth-convert" className="text-sm">{tr("settings.networth_convert")}</Label>
