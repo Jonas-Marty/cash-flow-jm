@@ -424,6 +424,11 @@ function EnvelopesPage() {
           </>
         )}
       </div>
+      <ReallocateDialog
+        open={reallocOpen}
+        defaultFromId={reallocFrom}
+        onOpenChange={setReallocOpen}
+      />
     </AppShell>
   );
 }
