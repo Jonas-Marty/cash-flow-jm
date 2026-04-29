@@ -2,7 +2,7 @@ import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, addMonths } from "date-fns";
-import { ChevronLeft, ChevronRight, ArrowLeftRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowLeftRight, ChevronDown } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
