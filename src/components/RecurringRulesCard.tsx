@@ -22,7 +22,6 @@ import { useI18n } from "@/i18n";
 import { DateInput } from "@/components/DateInput";
 import { useQuery as useRQuery } from "@tanstack/react-query";
 import { interpolate, resolveFormatLocale, describeTokens } from "@/lib/placeholders";
-import { parseISO as parseISO2 } from "date-fns";
 
 type Draft = {
   id?: string;
@@ -589,7 +588,7 @@ function PreviewPanel({ draft, formatLocaleCode }: { draft: Draft; formatLocaleC
 
   const rows = previewQ.data ?? [];
   const fmtLocale = resolveFormatLocale(formatLocaleCode);
-  const startsOnDate = draft.starts_on ? parseISO2(draft.starts_on) : new Date();
+  const startsOnDate = draft.starts_on ? parseISO(draft.starts_on) : new Date();
   return (
     <div className="rounded-md border p-3">
       <div className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{t("recurring.preview.title")}</div>
