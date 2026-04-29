@@ -449,6 +449,7 @@ export type Database = {
           currency_symbol: string
           date_format: string
           day_heatmap_threshold: number
+          format_locale: string
           id: string
           language: string
           net_worth_show_converted: boolean
@@ -462,6 +463,7 @@ export type Database = {
           currency_symbol?: string
           date_format?: string
           day_heatmap_threshold?: number
+          format_locale?: string
           id?: string
           language?: string
           net_worth_show_converted?: boolean
@@ -475,6 +477,7 @@ export type Database = {
           currency_symbol?: string
           date_format?: string
           day_heatmap_threshold?: number
+          format_locale?: string
           id?: string
           language?: string
           net_worth_show_converted?: boolean
