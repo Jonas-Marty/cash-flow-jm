@@ -433,7 +433,7 @@ function EnvelopesPage() {
                                 ? Math.min(1, amt / maxOutflow)
                                 : 0;
                               const bgStyle = intensity > 0
-                                ? { backgroundColor: `color-mix(in oklab, hsl(var(--destructive)) ${Math.round(intensity * 22)}%, transparent)` }
+                                ? { backgroundColor: `color-mix(in oklab, var(--destructive) ${Math.round(intensity * 22)}%, transparent)` }
                                 : undefined;
                               return (
                                 <li
