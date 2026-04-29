@@ -716,6 +716,8 @@ const en: Dict = {
   "recurring.preview.note_past": "Start date is in the past. Choose below whether to create the past entries.",
   "recurring.placeholders.title": "Placeholders (click to insert)",
   "recurring.placeholders.hint": "Use {token} or {token:format} prefixed with a dollar sign. Example: Electricity {periodStart:dd.MM.yyyy} – {periodEnd:dd.MM.yyyy} (each brace prefixed by $).",
+  "recurring.placeholders.format_help.title": "Date format options",
+  "recurring.placeholders.format_help.body": "Building blocks for the format part of a date placeholder (e.g. ${date:dd.MM.yyyy}):\n• yyyy = 4-digit year (2026), yy = 2-digit (26)\n• MM = month padded (01–12), M = no leading zero\n• MMM = short month name (Jan, Feb), MMMM = long name (January)\n• dd = day padded, d = no leading zero\n• ddd = short weekday (Mon), dddd = long weekday (Monday)\n• HH = hour 00–23, mm = minutes, ss = seconds\n• Text in square brackets is kept literal: [W] ww",
   "recurring.preview.resolved": "Description",
   "recurring.post_dialog.title": "Post transaction",
   "recurring.post_dialog.date": "Date",
