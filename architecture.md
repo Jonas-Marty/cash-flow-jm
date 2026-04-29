@@ -194,6 +194,8 @@ Period semantics derive purely from cadence: `periodStart = prevDate + 1d`, `per
 
 The **format locale** for month/day names lives in `settings.format_locale` (currently `de` | `en`) and is independent of the UI language — so a German-UI user can render `MMM yyyy` as `May 2026` for invoices to English-speaking counterparts.
 
+**`MMM` short months never carry a trailing period.** date-fns/locale data appends `.` for some German abbreviations (`Jan.`, `Feb.`, `Sep.`); `src/lib/placeholders.ts` strips that single trailing dot from each `MMM` rendering so output stays neutral across locales. Users who want a period can write `${date:MMM}.` literally. `MMMM` (long month name) is unaffected.
+
 Resolution happens client-side at post time and the **already-resolved** strings are written to `transactions`. There is no template re-render later — the saved transaction is the single source of truth and won't drift if the rule is edited or deleted afterwards. The recurring-rule edit dialog also resolves placeholders inline next to each preview row so users can validate the output before saving.
 
 **Why the model still holds (vs. promoting recurring rules to a "PlannedExpense" entity)**: the cadence + day rule + weekend adjust still uniquely produce due dates; placeholders only affect the *content* of the resulting transaction, not when it fires. Variable-amount rules already broke the "fixed" assumption on the amount axis — editable date + description on manual post is the same axis (fixed schedule, variable content). Auto-post rules remain truly fixed and use the raw `description` verbatim (server-side placeholder resolution is a follow-up).
