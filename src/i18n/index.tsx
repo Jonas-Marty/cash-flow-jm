@@ -306,7 +306,7 @@ const de: Dict = {
   "recurring.preview.empty": "Keine Termine im Vorschauzeitraum.",
   "recurring.preview.note_past": "Startdatum liegt in der Vergangenheit. Wähle unten, ob vergangene Buchungen erstellt werden sollen.",
   "recurring.placeholders.title": "Platzhalter (klicken zum Einfügen)",
-  "recurring.placeholders.hint": "Verwende ${'$'}{token} oder ${'$'}{token:Format}. Beispiel: Stromrechnung ${'$'}{periodStart:dd.MM.yyyy} – ${'$'}{periodEnd:dd.MM.yyyy}",
+  "recurring.placeholders.hint": "Verwende {token} oder {token:Format} mit Dollarzeichen-Klammern. Beispiel: Stromrechnung {periodStart:dd.MM.yyyy} – {periodEnd:dd.MM.yyyy} (mit $ vor jeder Klammer).",
   "recurring.preview.resolved": "Beschreibung",
   "recurring.post_dialog.title": "Buchung erstellen",
   "recurring.post_dialog.date": "Datum",
