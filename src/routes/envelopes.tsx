@@ -2,7 +2,7 @@ import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, addMonths } from "date-fns";
-import { ChevronLeft, ChevronRight, ArrowLeftRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowLeftRight, ChevronDown } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -89,6 +89,15 @@ function EnvelopesPage() {
 
   const [reallocOpen, setReallocOpen] = React.useState(false);
   const [reallocFrom, setReallocFrom] = React.useState<string | null>(null);
+  const [expandedCats, setExpandedCats] = React.useState<Set<string>>(() => new Set());
+  const toggleExpanded = React.useCallback((id: string) => {
+    setExpandedCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
   const pendingMap = React.useMemo(() => buildPendingMap(pendingImpactQ.data ?? []), [pendingImpactQ.data]);
   const txs = txQ.data ?? [];
   const accountById = React.useMemo(
@@ -377,7 +386,7 @@ function EnvelopesPage() {
                             : tr("dashboard.remaining", { x: fmtMoney(remainingProjected, symbol) })}
                         </span>
                       </div>
-                      {isOverride && sweepTargetName && (
+                      {isOverride && sweepTargetName && Math.abs(allocated - actual) > 0.005 && (
                         <div className="mt-1 text-[11px] text-muted-foreground italic">
                           {tr("envelopes.sweep.target")}: {sweepTargetName}
                         </div>
@@ -386,33 +395,65 @@ function EnvelopesPage() {
                   );
                 }
 
+                const isExpanded = expandedCats.has(r.category_id);
+                // Heatmap intensity per outflow tx, scaled to the largest outflow in this category
+                const maxOutflow = items.reduce((m, t) => {
+                  if (t.type !== "expense") return m;
+                  const a = Math.abs(Number(t.amount));
+                  return a > m ? a : m;
+                }, 0);
                 return (
                   <div key={r.category_id} className="rounded-md border p-3">
                     {header}
                     {items.length > 0 && (
-                      <ul className="mt-3 divide-y border-t pt-2">
-                        {items.map((t) => {
-                          const isInflow = t.type === "income";
-                          const label = rowKind === "income"
-                            ? (isInflow ? tr("env.income_label") : tr("env.income_adjustment"))
-                            : rowKind === "savings"
-                              ? (isInflow ? tr("env.savings_refund") : tr("env.savings_booking"))
-                              : (isInflow ? tr("env.reimb_short") : tr("env.expense_label"));
-                          const acc = accountById.get(t.source_account_id);
-                          const txSym = acc?.currency_symbol ?? symbol;
-                          return (
-                            <li key={t.id} className="flex items-center justify-between gap-3 py-2 text-sm">
-                              <div className="min-w-0 flex-1">
-                                <div className="truncate">{t.description || label}</div>
-                                <div className="text-xs text-muted-foreground">{format(new Date(t.occurred_on), "MMM d", { locale })}</div>
-                              </div>
-                              <div className={cn("tabular-nums font-medium", isInflow ? "text-success" : "text-destructive")}>
-                                {isInflow ? "+" : "-"}{fmtMoney(Number(t.amount), txSym).replace("-", "")}
-                              </div>
-                            </li>
-                          );
-                        })}
-                      </ul>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => toggleExpanded(r.category_id)}
+                          className="mt-2 flex w-full items-center justify-between rounded px-1 py-1 text-xs text-muted-foreground hover:bg-muted/50 transition-colors"
+                          aria-expanded={isExpanded}
+                        >
+                          <span>{tr("env.tx_count", { n: String(items.length) })}</span>
+                          <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
+                        </button>
+                        {isExpanded && (
+                          <ul className="mt-1 divide-y border-t pt-1">
+                            {items.map((t) => {
+                              const isInflow = t.type === "income";
+                              const label = rowKind === "income"
+                                ? (isInflow ? tr("env.income_label") : tr("env.income_adjustment"))
+                                : rowKind === "savings"
+                                  ? (isInflow ? tr("env.savings_refund") : tr("env.savings_booking"))
+                                  : (isInflow ? tr("env.reimb_short") : tr("env.expense_label"));
+                              const acc = accountById.get(t.source_account_id);
+                              const txSym = acc?.currency_symbol ?? symbol;
+                              const amt = Math.abs(Number(t.amount));
+                              // Heatmap only for expenses in expense envelopes
+                              const intensity = rowKind === "expense" && !isInflow && maxOutflow > 0
+                                ? Math.min(1, amt / maxOutflow)
+                                : 0;
+                              const bgStyle = intensity > 0
+                                ? { backgroundColor: `color-mix(in oklab, var(--destructive) ${Math.round(intensity * 22)}%, transparent)` }
+                                : undefined;
+                              return (
+                                <li
+                                  key={t.id}
+                                  className="flex items-center justify-between gap-3 px-2 py-2 text-sm rounded-sm"
+                                  style={bgStyle}
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <div className="truncate">{t.description || label}</div>
+                                    <div className="text-xs text-muted-foreground">{format(new Date(t.occurred_on), "MMM d", { locale })}</div>
+                                  </div>
+                                  <div className={cn("tabular-nums font-medium", isInflow ? "text-success" : "text-destructive")}>
+                                    {isInflow ? "+" : "-"}{fmtMoney(amt, txSym).replace("-", "")}
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        )}
+                      </>
                     )}
                   </div>
                 );
