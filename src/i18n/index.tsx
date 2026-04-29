@@ -367,8 +367,20 @@ const de: Dict = {
   "dashboard.upcoming.late_by_one": "1 Tag überfällig",
   "dashboard.upcoming.post": "Buchen",
   "dashboard.upcoming.skip": "Überspringen",
-  "dashboard.upcoming.show_more": "Weitere 10 anzeigen",
+  "dashboard.upcoming.show_more": "Weitere anzeigen",
   "dashboard.upcoming.show_all": "Alle anzeigen ({n})",
+
+  // Dashboard top transactions & trend
+  "dashboard.top_month.title": "Top-Buchungen diesen Monat",
+  "dashboard.top_month.expenses": "Top Ausgaben",
+  "dashboard.top_month.income": "Top Einnahmen",
+  "dashboard.top_month.empty": "Keine nicht-wiederkehrenden Buchungen diesen Monat.",
+  "dashboard.trend.title": "Entwicklung",
+  "dashboard.trend.this_month": "Diesen Monat (bis heute)",
+  "dashboard.trend.ytd": "Jahr bis heute",
+  "dashboard.trend.vs_last_month": "ggü. Vormonat (gleicher Zeitraum)",
+  "dashboard.trend.vs_last_year": "ggü. Vorjahr (gleicher Zeitraum)",
+  "dashboard.trend.no_baseline": "Kein Vergleichswert",
 
   // Picker (DE)
   "picker.more": "Mehr",
@@ -843,8 +855,20 @@ const en: Dict = {
   "dashboard.upcoming.late_by_one": "1 day late",
   "dashboard.upcoming.post": "Post",
   "dashboard.upcoming.skip": "Skip",
-  "dashboard.upcoming.show_more": "Show 10 more",
+  "dashboard.upcoming.show_more": "Show more",
   "dashboard.upcoming.show_all": "Show all ({n})",
+
+  // Dashboard top transactions & trend
+  "dashboard.top_month.title": "Top transactions this month",
+  "dashboard.top_month.expenses": "Top expenses",
+  "dashboard.top_month.income": "Top income",
+  "dashboard.top_month.empty": "No non-recurring transactions this month.",
+  "dashboard.trend.title": "Trend",
+  "dashboard.trend.this_month": "This month (so far)",
+  "dashboard.trend.ytd": "Year to date",
+  "dashboard.trend.vs_last_month": "vs. last month (same window)",
+  "dashboard.trend.vs_last_year": "vs. last year (same window)",
+  "dashboard.trend.no_baseline": "No baseline",
 
   // Picker (EN)
   "picker.more": "More",
