@@ -683,9 +683,16 @@ function SettingsPage() {
               const sections: React.ReactNode[] = [];
               for (const g of grps) {
                 const inGroup = cats.filter((c) => c.group_id === g.id);
+                const groupSum = inGroup.reduce((s, c) => s + (c.archived ? 0 : Number(c.allocated_budget) || 0), 0);
+                const sym = settingsQ.data?.currency_symbol ?? "CHF";
                 sections.push(
                   <div key={g.id} className="space-y-1">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-2">{g.name}</div>
+                    <div className="flex items-baseline justify-between pt-2">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{g.name}</div>
+                      <div className="text-xs tabular-nums text-muted-foreground">
+                        Σ {fmtMoney(groupSum, sym)}
+                      </div>
+                    </div>
                     <ul className="divide-y">
                       {inGroup.length === 0
                         ? <li className="py-2 text-sm text-muted-foreground">{tr("settings.no_envelopes_in_group")}</li>
@@ -696,9 +703,16 @@ function SettingsPage() {
               }
               const ungrouped = cats.filter((c) => !c.group_id);
               if (ungrouped.length > 0) {
+                const groupSum = ungrouped.reduce((s, c) => s + (c.archived ? 0 : Number(c.allocated_budget) || 0), 0);
+                const sym = settingsQ.data?.currency_symbol ?? "CHF";
                 sections.push(
                   <div key="__ungrouped" className="space-y-1">
-                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-2">{tr("settings.ungrouped_envelopes")}</div>
+                    <div className="flex items-baseline justify-between pt-2">
+                      <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{tr("settings.ungrouped_envelopes")}</div>
+                      <div className="text-xs tabular-nums text-muted-foreground">
+                        Σ {fmtMoney(groupSum, sym)}
+                      </div>
+                    </div>
                     <ul className="divide-y">
                       {ungrouped.map((c, i) => renderRow(c, i, ungrouped))}
                     </ul>
