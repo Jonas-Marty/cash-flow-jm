@@ -12,16 +12,18 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { supabase } from "@/integrations/supabase/client";
 import {
   fetchAccounts, fetchCategories, fetchRecurringRules,
-  describeSchedule, previewRecurringRule, archiveRecurringRule, applyRecurringRuleBackfill, fetchSettings,
+  describeSchedule, previewRecurringRule, archiveRecurringRule, applyRecurringRuleBackfill, fetchSettings, fetchTransactions,
   type RecurringRule, type RecurringDayRule, type WeekendAdjust, type TxType, type RecurringFrequency,
 } from "@/lib/finance";
 import { useI18n } from "@/i18n";
 import { DateInput } from "@/components/DateInput";
 import { useQuery as useRQuery } from "@tanstack/react-query";
-import { interpolate, resolveFormatLocale, describeTokens } from "@/lib/placeholders";
+import { interpolate, resolveFormatLocale, describeTokens, type TokenInfo } from "@/lib/placeholders";
+import { TagAutocompleteTextarea } from "@/components/TagAutocompleteTextarea";
 
 type Draft = {
   id?: string;
