@@ -284,15 +284,39 @@ function EnvelopesPage() {
 
                 let header: React.ReactNode;
                 if (rowKind === "savings") {
-                  const balance = Number(savingsMap.get(r.category_id)?.balance ?? 0);
+                  const v2 = savingsV2Map.get(r.category_id);
+                  const balance = v2 ? Number(v2.cumulative_balance) : Number(savingsMap.get(r.category_id)?.balance ?? 0);
+                  const monthly = v2 ? Number(v2.month_activity) : 0;
                   header = (
                     <>
                       <div className="flex items-baseline justify-between gap-3">
-                        <div className="font-semibold">{r.name}</div>
+                        <div className="font-semibold flex items-center gap-2">
+                          <span>{r.name}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-xs"
+                            onClick={() => { setReallocFrom(r.category_id); setReallocOpen(true); }}
+                          >
+                            <ArrowLeftRight className="h-3 w-3 mr-1" />
+                            {tr("envelopes.reallocate")}
+                          </Button>
+                        </div>
                         <div className={cn("text-base font-bold tabular-nums", balance < 0 ? "text-destructive" : "text-foreground")}>
-                          {tr("env.balance", { x: fmtMoney(balance, symbol) })}
+                          {fmtMoney(balance, symbol)}
                         </div>
                       </div>
+                      {v2 && (
+                        <div className="mt-1 text-xs tabular-nums text-muted-foreground flex flex-wrap gap-x-3">
+                          <span>{tr("envelopes.savings.month_activity")}: <span className={cn(monthly > 0 ? "text-success" : monthly < 0 ? "text-destructive" : "")}>{monthly >= 0 ? "+" : ""}{fmtMoney(monthly, symbol)}</span></span>
+                          {Math.abs(Number(v2.from_sweeps)) > 0.005 && (
+                            <span>{tr("envelopes.savings.from_sweeps")}: {fmtMoney(Number(v2.from_sweeps), symbol)}</span>
+                          )}
+                          {Math.abs(Number(v2.from_reallocations)) > 0.005 && (
+                            <span>{tr("envelopes.savings.from_reallocations")}: {fmtMoney(Number(v2.from_reallocations), symbol)}</span>
+                          )}
+                        </div>
+                      )}
                       {pending && (pending.income > 0 || pending.expense > 0) && (
                         <div className="mt-1 text-xs text-warning tabular-nums">
                           {tr("env.savings_pending", { a: fmtMoney(pending.income, symbol), b: fmtMoney(pending.expense, symbol) })}
