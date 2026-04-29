@@ -734,6 +734,7 @@ const en: Dict = {
   "dashboard.networth_show_other": "Show other currencies",
   "dashboard.networth_hide_other": "Hide other currencies",
   "env.fx_converted_hint": "Foreign-currency amounts are converted to {cur} at the current FX rate.",
+  "env.tx_count": "{n} transactions",
   "settings.accounts": "Accounts",
   "settings.groups": "Groups",
   "settings.envelopes": "Envelopes (Categories)",
