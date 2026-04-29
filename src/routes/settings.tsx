@@ -435,8 +435,8 @@ function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Accounts */}
-        <Card>
+        {/* Accounts (moved below Recurring) */}
+        <Card data-section="accounts" className="hidden">
           <CardHeader><CardTitle className="text-base">{tr("settings.accounts")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-2 md:grid-cols-[1fr_140px_120px_120px_auto]">
