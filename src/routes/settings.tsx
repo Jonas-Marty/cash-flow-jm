@@ -24,6 +24,7 @@ import { RecurringRulesCard } from "@/components/RecurringRulesCard";
 import { NextcloudCard } from "@/components/NextcloudCard";
 import { ApiTokensCard } from "@/components/ApiTokensCard";
 import { BudgetBalanceCard } from "@/components/BudgetBalanceCard";
+import { SavingsAndSweepsCard } from "@/components/SavingsAndSweepsCard";
 import { fmtMoney } from "@/lib/finance";
 import { useAuth, useIsAdmin } from "@/lib/auth";
 import { Switch } from "@/components/ui/switch";
@@ -570,6 +571,7 @@ function SettingsPage() {
               groups={groupsQ.data ?? []}
               symbol={settingsQ.data?.currency_symbol ?? "CHF"}
             />
+            <SavingsAndSweepsCard />
             <div className="grid gap-2 md:grid-cols-[1fr_180px_180px_auto]">
               <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label><Input value={cName} onChange={(e) => setCName(e.target.value)} placeholder="Groceries" /></div>
               <div>
