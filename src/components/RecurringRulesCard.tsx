@@ -402,33 +402,36 @@ export function RecurringRulesCard() {
                 </Select>
               </div>
             )}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-xs">{t("add.description")}</Label>
-                <Input value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
-              </div>
-              <div>
-                <Label className="text-xs">{t("add.note")}</Label>
-                <Input value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} />
-              </div>
+            <div>
+              <Label className="text-xs" htmlFor="rec-description">{t("add.description")}</Label>
+              <Input
+                id="rec-description"
+                ref={descRef}
+                value={draft.description}
+                onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+                onFocus={() => setActiveField("description")}
+              />
             </div>
-            <div className="rounded-md border p-2">
-              <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
-                {t("recurring.placeholders.title")}
-              </div>
-              <div className="flex flex-wrap gap-1">
-                {describeTokens().map((tok) => (
-                  <button
-                    key={tok.token}
-                    type="button"
-                    onClick={() => setDraft({ ...draft, description: `${draft.description}\${${tok.token}}` })}
-                    className="rounded border bg-muted/50 px-1.5 py-0.5 font-mono text-[11px] hover:bg-muted"
-                    title={tok.help}
-                  >
-                    {`\${${tok.token}}`}
-                  </button>
-                ))}
-              </div>
+            <PlaceholderPalette
+              formatLocaleCode={settingsQ.data?.format_locale}
+              onInsert={(snippet) => insertPlaceholder({
+                snippet,
+                target: activeField,
+                draft, setDraft,
+                descRef, noteRef,
+              })}
+            />
+            <div>
+              <Label className="text-xs" htmlFor="rec-note">{t("add.note")}</Label>
+              <TagAutocompleteTextarea
+                id="rec-note"
+                ref={noteRef as never}
+                value={draft.note}
+                onChange={(v) => setDraft({ ...draft, note: v })}
+                transactions={txQ.data ?? []}
+                onFocus={() => setActiveField("note")}
+                rows={3}
+              />
             </div>
             <div className="grid grid-cols-3 gap-3">
               <div>
