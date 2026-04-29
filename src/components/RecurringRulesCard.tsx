@@ -127,9 +127,19 @@ export function RecurringRulesCard() {
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
+  // Past transactions feed the #tag autocomplete in the note field, mirroring
+  // the experience in the Add Transaction dialog.
+  const txQ = useQuery({ queryKey: ["transactions"], queryFn: () => fetchTransactions() });
 
   const [open, setOpen] = React.useState(false);
   const [draft, setDraft] = React.useState<Draft>(emptyDraft());
+
+  // Track which text field is focused so a placeholder click inserts at the
+  // caret of that field (description Input or note Textarea). Defaults to
+  // description when the dialog opens.
+  const descRef = React.useRef<HTMLInputElement | null>(null);
+  const noteRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const [activeField, setActiveField] = React.useState<"description" | "note">("description");
 
   const openAdd = () => { setDraft(emptyDraft()); setOpen(true); };
   const openEdit = (r: RecurringRule) => { setDraft(ruleToDraft(r)); setOpen(true); };
