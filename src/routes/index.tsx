@@ -11,11 +11,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
 import { UpcomingCard } from "@/components/UpcomingCard";
+import { TopMonthTransactionsCard } from "@/components/TopMonthTransactionsCard";
+import { TrendStripCard } from "@/components/TrendStripCard";
 import {
   fetchAccountBalances,
   fetchAccountBalancesAsOf,
   fetchCategoryMonthRows,
-  fetchSavingsBalances,
   fetchSettings,
   fetchTransactions,
   fetchAccounts,
@@ -23,19 +24,13 @@ import {
   processRecurringRules,
   fetchPendingImpactsForMonth,
   buildPendingMap,
-  pendingDeltaForRow,
   fmtMoney,
   groupSumByCurrency,
-  formatPerCurrency,
   monthKey,
   endOfMonthISO,
   endOfYearISO,
-  type CategoryMonthRow,
-  type CategorySavingsBalance,
   type AccountBalance,
-  type PendingCategorySigned,
 } from "@/lib/finance";
-import { StackedBudgetBar } from "@/components/StackedBudgetBar";
 import { useFxRates, convert } from "@/lib/fx";
 import { MonthBudgetSummary } from "@/components/MonthBudgetSummary";
 
@@ -54,9 +49,13 @@ function Dashboard() {
   const eomQ = useQuery({ queryKey: ["account_balances_as_of", eomDate], queryFn: () => fetchAccountBalancesAsOf(eomDate) });
   const eoyQ = useQuery({ queryKey: ["account_balances_as_of", eoyDate], queryFn: () => fetchAccountBalancesAsOf(eoyDate) });
   const envelopesQ = useQuery({ queryKey: ["category_month_rows", m], queryFn: () => fetchCategoryMonthRows(m) });
-  const savingsQ = useQuery({ queryKey: ["savings_balance"], queryFn: fetchSavingsBalances });
   const pendingImpactQ = useQuery({ queryKey: ["pending_impact_month", m], queryFn: () => fetchPendingImpactsForMonth(m) });
-  const recentQ = useQuery({ queryKey: ["transactions", "recent"], queryFn: () => fetchTransactions(8) });
+  const recentQ = useQuery({ queryKey: ["transactions", "recent"], queryFn: () => fetchTransactions(5) });
+  // Larger window used by TopMonth (current month) — small enough to be cheap.
+  const monthTxQ = useQuery({
+    queryKey: ["transactions", "month_window"],
+    queryFn: () => fetchTransactions(500),
+  });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const rulesQ = useQuery({ queryKey: ["recurring_rules"], queryFn: fetchRecurringRules });
   // Run the recurring processor once when the dashboard mounts.
@@ -121,15 +120,11 @@ function Dashboard() {
   const [showOther, setShowOther] = React.useState(false);
 
   const envelopes = envelopesQ.data ?? [];
-  const savings = savingsQ.data ?? [];
   const pendingMap = React.useMemo(() => buildPendingMap(pendingImpactQ.data ?? []), [pendingImpactQ.data]);
   const accountById = React.useMemo(
     () => new Map((accountsQ.data ?? []).map((a) => [a.id, a])),
     [accountsQ.data],
   );
-
-  // Group envelopes by group_id, preserving sort order
-  const grouped = React.useMemo(() => groupRows(envelopes), [envelopes]);
 
   return (
     <AppShell>
@@ -211,30 +206,25 @@ function Dashboard() {
         {/* Upcoming & due (recurring) */}
         <UpcomingCard symbol={symbol} />
 
-        {/* Envelopes */}
+        {/* This month — budget verdict (summary only) */}
         <section>
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-lg font-semibold">{t("dashboard.envelopes_month")}</h2>
             <Link to="/envelopes" className="text-sm text-muted-foreground hover:text-foreground">{t("common.viewAll")}</Link>
           </div>
           {envelopesQ.isLoading ? (
-            <div className="space-y-2"><Skeleton className="h-16 w-full" /><Skeleton className="h-16 w-full" /></div>
+            <Skeleton className="h-24 w-full" />
           ) : envelopes.length === 0 ? (
             <Card><CardContent className="py-6 text-center text-sm text-muted-foreground">
               {t("dashboard.no_envelopes")} <Link to="/settings" className="font-medium text-primary underline-offset-2 hover:underline">{t("dashboard.create_in_settings")}</Link>.
             </CardContent></Card>
           ) : (
-            <div className="space-y-4">
-              <MonthBudgetSummary
-                rows={envelopes}
-                pendingMap={pendingMap}
-                symbol={symbol}
-                monthLabel={format(monthStart, "MMMM yyyy", { locale })}
-              />
-              {grouped.map((g) => (
-                <GroupBlock key={g.key} group={g} symbol={symbol} savings={savings} pendingMap={pendingMap} tr={t} />
-              ))}
-            </div>
+            <MonthBudgetSummary
+              rows={envelopes}
+              pendingMap={pendingMap}
+              symbol={symbol}
+              monthLabel={format(monthStart, "MMMM yyyy", { locale })}
+            />
           )}
         </section>
 
@@ -283,6 +273,17 @@ function Dashboard() {
             </CardContent></Card>
           )}
         </section>
+
+        {/* Top transactions this month (non-recurring) */}
+        <TopMonthTransactionsCard
+          transactions={monthTxQ.data ?? []}
+          accountById={accountById}
+          symbol={symbol}
+          monthStart={monthStart}
+        />
+
+        {/* Trend strip */}
+        <TrendStripCard symbol={symbol} />
       </div>
     </AppShell>
   );
