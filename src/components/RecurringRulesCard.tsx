@@ -573,6 +573,111 @@ export function RecurringRulesCard() {
   );
 }
 
+/**
+ * Insert `snippet` at the caret of the currently focused field. Falls back to
+ * appending if the field's selection isn't accessible (e.g. lost focus).
+ */
+function insertPlaceholder({
+  snippet,
+  target,
+  draft,
+  setDraft,
+  descRef,
+  noteRef,
+}: {
+  snippet: string;
+  target: "description" | "note";
+  draft: Draft;
+  setDraft: (d: Draft) => void;
+  descRef: React.RefObject<HTMLInputElement | null>;
+  noteRef: React.RefObject<HTMLTextAreaElement | null>;
+}): void {
+  const isDesc = target === "description";
+  const el: HTMLInputElement | HTMLTextAreaElement | null =
+    isDesc ? descRef.current : noteRef.current;
+  const current = isDesc ? draft.description : draft.note;
+  const start = el && typeof el.selectionStart === "number" ? el.selectionStart : current.length;
+  const end = el && typeof el.selectionEnd === "number" ? el.selectionEnd : current.length;
+  const next = current.slice(0, start) + snippet + current.slice(end);
+  if (isDesc) setDraft({ ...draft, description: next });
+  else setDraft({ ...draft, note: next });
+  // Restore focus + caret position after React re-render.
+  const newCaret = start + snippet.length;
+  requestAnimationFrame(() => {
+    if (!el) return;
+    el.focus();
+    try { el.setSelectionRange(newCaret, newCaret); } catch { /* unsupported */ }
+  });
+}
+
+function PlaceholderPalette({
+  onInsert,
+  formatLocaleCode,
+}: {
+  onInsert: (snippet: string) => void;
+  formatLocaleCode?: string;
+}) {
+  const { t } = useI18n();
+  const fmtLocale = resolveFormatLocale(formatLocaleCode);
+  const sampleCtx = React.useMemo(() => {
+    const today = new Date();
+    const prev = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+    const next = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+    return { date: today, dueDate: today, prevDate: prev, nextDate: next, today, runNumber: 3, locale: fmtLocale };
+  }, [fmtLocale]);
+  return (
+    <div className="rounded-md border p-2">
+      <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
+        {t("recurring.placeholders.title")}
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {describeTokens().map((tok) => (
+          <PlaceholderChip key={tok.token} tok={tok} sampleCtx={sampleCtx} onInsert={onInsert} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PlaceholderChip({
+  tok,
+  sampleCtx,
+  onInsert,
+}: {
+  tok: TokenInfo;
+  sampleCtx: Parameters<typeof interpolate>[1];
+  onInsert: (snippet: string) => void;
+}) {
+  const snippet = `\${${tok.token}}`;
+  const exampleResolved = interpolate(tok.example, sampleCtx);
+  return (
+    <HoverCard openDelay={200} closeDelay={80}>
+      <HoverCardTrigger asChild>
+        <button
+          type="button"
+          // Prevent the field from losing focus before the click handler runs,
+          // so we can read its selection range to insert at the caret.
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => onInsert(snippet)}
+          className="rounded border bg-muted/50 px-1.5 py-0.5 font-mono text-[11px] hover:bg-muted"
+        >
+          {snippet}
+        </button>
+      </HoverCardTrigger>
+      <HoverCardContent side="top" className="w-72 space-y-1 text-xs">
+        <div className="font-medium">{snippet}</div>
+        <div className="text-muted-foreground">{tok.help}</div>
+        <div className="font-mono text-[11px]">
+          <span className="text-muted-foreground">e.g. </span>
+          <span>{tok.example}</span>
+          <span className="text-muted-foreground"> → </span>
+          <span>{exampleResolved}</span>
+        </div>
+      </HoverCardContent>
+    </HoverCard>
+  );
+}
+
 function PreviewPanel({ draft, formatLocaleCode }: { draft: Draft; formatLocaleCode?: string }) {
   const { t, locale } = useI18n();
   const today = todayStr();
