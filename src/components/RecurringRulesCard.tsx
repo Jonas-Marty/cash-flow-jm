@@ -549,7 +549,7 @@ export function RecurringRulesCard() {
   );
 }
 
-function PreviewPanel({ draft }: { draft: Draft }) {
+function PreviewPanel({ draft, formatLocaleCode }: { draft: Draft; formatLocaleCode?: string }) {
   const { t, locale } = useI18n();
   const today = todayStr();
   // Window: 12 months ahead, and far enough back to always cover starts_on.
@@ -588,6 +588,8 @@ function PreviewPanel({ draft }: { draft: Draft }) {
   });
 
   const rows = previewQ.data ?? [];
+  const fmtLocale = resolveFormatLocale(formatLocaleCode);
+  const startsOnDate = draft.starts_on ? parseISO2(draft.starts_on) : new Date();
   return (
     <div className="rounded-md border p-3">
       <div className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{t("recurring.preview.title")}</div>
@@ -596,16 +598,33 @@ function PreviewPanel({ draft }: { draft: Draft }) {
       ) : (
         <div className="max-h-40 overflow-y-auto pr-1">
           <ul className="space-y-1">
-            {rows.map((r, i) => (
-              <li key={i} className="flex items-center justify-between gap-2 text-xs">
-                <span className={r.in_past ? "text-muted-foreground" : ""}>
-                  {format(parseISO(r.effective_on), "PP", { locale })}
-                </span>
-                <Badge variant="outline" className="text-[10px]">
-                  {r.in_past ? t("recurring.preview.past") : t("recurring.preview.future")}
-                </Badge>
-              </li>
-            ))}
+            {rows.map((r, i) => {
+              const eff = parseISO(r.effective_on);
+              const due = parseISO(r.due_on);
+              const prev = i === 0 ? startsOnDate : parseISO(rows[i - 1].effective_on);
+              const next = i < rows.length - 1 ? parseISO(rows[i + 1].effective_on) : null;
+              const resolved = interpolate(draft.description, {
+                date: eff, dueDate: due, prevDate: prev, nextDate: next,
+                today: new Date(), runNumber: i + 1, locale: fmtLocale,
+              });
+              return (
+                <li key={i} className="text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className={r.in_past ? "text-muted-foreground" : ""}>
+                      {format(eff, "PP", { locale })}
+                    </span>
+                    <Badge variant="outline" className="text-[10px]">
+                      {r.in_past ? t("recurring.preview.past") : t("recurring.preview.future")}
+                    </Badge>
+                  </div>
+                  {resolved && draft.description && (
+                    <div className="truncate font-mono text-[11px] text-muted-foreground" title={resolved}>
+                      {resolved}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
