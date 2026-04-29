@@ -27,7 +27,7 @@ import {
 import { buildProjection, type NetWorthPoint } from "@/lib/insights";
 
 type Window = 6 | 12 | 24;
-type Ahead = 3 | 6 | 12 | 24;
+type AheadPreset = "3mo" | "6mo" | "12mo" | "24mo" | "eoy" | "eoy_next" | "10y";
 
 function endOfMonthISO(year: number, month0: number): string {
   const d = new Date(year, month0 + 1, 0);
@@ -50,8 +50,26 @@ function netWorthOf(balances: AccountBalance[]): { net: number; assets: number; 
 export function ProjectionTab({ symbol }: { symbol: string }) {
   const { t } = useI18n();
   const [windowMo, setWindowMo] = React.useState<Window>(12);
-  const [ahead, setAhead] = React.useState<Ahead>(12);
+  const [aheadPreset, setAheadPreset] = React.useState<AheadPreset>("12mo");
   const [cutPct, setCutPct] = React.useState<number[]>([0]);
+
+  const today = React.useMemo(() => new Date(), []);
+  const currentYear = today.getFullYear();
+
+  // Resolve preset → number of months ahead from this month.
+  const ahead = React.useMemo(() => {
+    const monthsTo = (year: number, month0: number) =>
+      (year - currentYear) * 12 + (month0 - today.getMonth());
+    switch (aheadPreset) {
+      case "3mo": return 3;
+      case "6mo": return 6;
+      case "12mo": return 12;
+      case "24mo": return 24;
+      case "eoy": return Math.max(1, monthsTo(currentYear, 11));
+      case "eoy_next": return monthsTo(currentYear + 1, 11);
+      case "10y": return 120;
+    }
+  }, [aheadPreset, currentYear, today]);
 
   // Build the list of month-end dates we want snapshots for.
   const monthEnds = React.useMemo(() => {
@@ -131,6 +149,21 @@ export function ProjectionTab({ symbol }: { symbol: string }) {
     });
   }, [projection, history, cut]);
 
+  // Derive a band-height series so we can render the uncertainty band as a
+  // stacked area (invisible base + visible height) instead of "painting over"
+  // bandLow with the background color (which broke in light/dark themes).
+  const chartPoints = React.useMemo(
+    () =>
+      adjustedPoints.map((p) => ({
+        ...p,
+        bandHeight:
+          p.bandHigh !== undefined && p.bandLow !== undefined
+            ? p.bandHigh - p.bandLow
+            : undefined,
+      })),
+    [adjustedPoints],
+  );
+
   if (loading) return <Skeleton className="h-64 w-full" />;
 
   const lastActual = history[history.length - 1];
@@ -151,13 +184,16 @@ export function ProjectionTab({ symbol }: { symbol: string }) {
         />
         <ChipGroup
           label={t("insights.projection.ahead")}
-          value={String(ahead)}
-          onChange={(v) => setAhead(Number(v) as Ahead)}
+          value={aheadPreset}
+          onChange={(v) => setAheadPreset(v as AheadPreset)}
           options={[
-            { v: "3", l: "3 mo" },
-            { v: "6", l: "6 mo" },
-            { v: "12", l: "12 mo" },
-            { v: "24", l: "24 mo" },
+            { v: "3mo", l: "3 mo" },
+            { v: "6mo", l: "6 mo" },
+            { v: "12mo", l: "12 mo" },
+            { v: "24mo", l: "24 mo" },
+            { v: "eoy", l: t("insights.projection.preset.eoy", { year: String(currentYear) }) },
+            { v: "eoy_next", l: t("insights.projection.preset.eoy", { year: String(currentYear + 1) }) },
+            { v: "10y", l: t("insights.projection.preset.ten_years") },
           ]}
         />
       </div>
@@ -166,18 +202,46 @@ export function ProjectionTab({ symbol }: { symbol: string }) {
         <CardContent className="p-3">
           <div className="h-80 w-full">
             <ResponsiveContainer>
-              <ComposedChart data={adjustedPoints} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+              <ComposedChart data={chartPoints} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                 <XAxis dataKey="date" fontSize={11} tickLine={false} tickFormatter={(s) => s.slice(0, 7)} />
                 <YAxis fontSize={11} tickLine={false} width={60} />
                 <Tooltip
-                  contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 6 }}
+                  contentStyle={{
+                    background: "var(--popover)",
+                    color: "var(--popover-foreground)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 6,
+                  }}
+                  itemStyle={{ color: "var(--popover-foreground)" }}
+                  labelStyle={{ color: "var(--popover-foreground)", fontWeight: 600 }}
                   formatter={(v: number) => fmtMoney(v, symbol)}
                   labelFormatter={(l) => String(l).slice(0, 7)}
+                  filterNull
                 />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Area type="monotone" dataKey="bandHigh" stroke="none" fill="var(--chart-3)" fillOpacity={0.08} name={t("insights.projection.band")} />
-                <Area type="monotone" dataKey="bandLow" stroke="none" fill="var(--background)" fillOpacity={1} legendType="none" />
+                {/* Invisible base for the stacked band */}
+                <Area
+                  type="monotone"
+                  dataKey="bandLow"
+                  stackId="band"
+                  stroke="none"
+                  fill="transparent"
+                  legendType="none"
+                  tooltipType="none"
+                  isAnimationActive={false}
+                />
+                {/* Visible band height stacked on top of bandLow */}
+                <Area
+                  type="monotone"
+                  dataKey="bandHeight"
+                  stackId="band"
+                  stroke="none"
+                  fill="var(--chart-3)"
+                  fillOpacity={0.18}
+                  name={t("insights.projection.band")}
+                  isAnimationActive={false}
+                />
                 <Line type="monotone" dataKey="actual" stroke="var(--chart-3)" strokeWidth={2.5} dot={false} name={t("insights.projection.actual")} />
                 <Line type="monotone" dataKey="trend" stroke="var(--chart-3)" strokeWidth={2} strokeDasharray="6 4" dot={false} name={t("insights.projection.trend")} />
                 <Line type="monotone" dataKey="avg" stroke="var(--chart-2)" strokeWidth={2} strokeDasharray="3 3" dot={false} name={t("insights.projection.avg")} />
