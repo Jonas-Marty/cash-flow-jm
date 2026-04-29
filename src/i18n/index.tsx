@@ -256,6 +256,7 @@ const de: Dict = {
   "dashboard.networth_show_other": "Weitere Währungen anzeigen",
   "dashboard.networth_hide_other": "Weitere Währungen ausblenden",
   "env.fx_converted_hint": "Beträge in anderen Währungen werden zum aktuellen Kurs in {cur} umgerechnet.",
+  "env.tx_count": "{n} Transaktionen",
   "settings.accounts": "Konten",
   "settings.groups": "Gruppen",
   "settings.envelopes": "Budgets (Kategorien)",
