@@ -428,6 +428,26 @@ export async function fetchTransactions(limit?: number): Promise<Transaction[]> 
   return (data || []) as Transaction[];
 }
 
+/**
+ * Fetch transactions within an inclusive date range. Returns up to `limit`
+ * (default 5000) rows ordered by occurrence (asc — useful for time series).
+ */
+export async function fetchTransactionsRange(
+  fromISO: string,
+  toISO: string,
+  limit = 5000,
+): Promise<Transaction[]> {
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("*")
+    .gte("occurred_on", fromISO)
+    .lte("occurred_on", toISO)
+    .order("occurred_on", { ascending: true })
+    .limit(limit);
+  if (error) throw error;
+  return (data || []) as Transaction[];
+}
+
 export async function fetchTransactionTags(): Promise<{ transaction_id: string; tag: string }[]> {
   const { data, error } = await supabase.from("transaction_tags").select("*");
   if (error) throw error;
