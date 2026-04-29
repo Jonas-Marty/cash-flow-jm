@@ -21,6 +21,8 @@ import {
 import { useI18n } from "@/i18n";
 import { DateInput } from "@/components/DateInput";
 import { useQuery as useRQuery } from "@tanstack/react-query";
+import { interpolate, resolveFormatLocale, describeTokens } from "@/lib/placeholders";
+import { parseISO as parseISO2 } from "date-fns";
 
 type Draft = {
   id?: string;
@@ -399,6 +401,24 @@ export function RecurringRulesCard() {
                 <Input value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} />
               </div>
             </div>
+            <div className="rounded-md border p-2">
+              <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
+                {t("recurring.placeholders.title")}
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {describeTokens().map((tok) => (
+                  <button
+                    key={tok.token}
+                    type="button"
+                    onClick={() => setDraft({ ...draft, description: `${draft.description}\${${tok.token}}` })}
+                    className="rounded border bg-muted/50 px-1.5 py-0.5 font-mono text-[11px] hover:bg-muted"
+                    title={tok.help}
+                  >
+                    {`\${${tok.token}}`}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <Label className="text-xs">{t("recurring.field.frequency")}</Label>
@@ -517,7 +537,7 @@ export function RecurringRulesCard() {
                 </div>
               </div>
             )}
-            <PreviewPanel draft={draft} />
+            <PreviewPanel draft={draft} formatLocaleCode={settingsQ.data?.format_locale} />
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
