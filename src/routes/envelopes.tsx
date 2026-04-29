@@ -2,7 +2,7 @@ import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, addMonths } from "date-fns";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ArrowLeftRight } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,7 @@ import { useI18n } from "@/i18n";
 import {
   fetchCategoryMonthRows,
   fetchSavingsBalances,
+  fetchSavingsBalancesV2,
   fetchSettings,
   fetchAccounts,
   fmtMoney,
@@ -21,12 +22,15 @@ import {
   fetchPendingImpactsForMonth,
   buildPendingMap,
   pendingDeltaForRow,
+  fetchCategoryGroups,
+  fetchCategories,
   type Transaction,
   type CategoryMonthRow,
 } from "@/lib/finance";
 import { StackedBudgetBar } from "@/components/StackedBudgetBar";
 import { useFxRates, convert } from "@/lib/fx";
 import { MonthBudgetSummary } from "@/components/MonthBudgetSummary";
+import { ReallocateDialog } from "@/components/ReallocateDialog";
 
 export const Route = createFileRoute("/envelopes")({
   component: EnvelopesPage,
@@ -53,6 +57,9 @@ function EnvelopesPage() {
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const rowsQ = useQuery({ queryKey: ["category_month_rows", m], queryFn: () => fetchCategoryMonthRows(m) });
   const savingsQ = useQuery({ queryKey: ["savings_balance"], queryFn: fetchSavingsBalances });
+  const savingsV2Q = useQuery({ queryKey: ["savings-balances-v2"], queryFn: () => fetchSavingsBalancesV2() });
+  const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
+  const groupsQ = useQuery({ queryKey: ["category_groups"], queryFn: fetchCategoryGroups });
   const pendingImpactQ = useQuery({ queryKey: ["pending_impact_month", m], queryFn: () => fetchPendingImpactsForMonth(m) });
   const txQ = useQuery({
     queryKey: ["envelope_month_tx", format(month, "yyyy-MM")],
@@ -65,6 +72,23 @@ function EnvelopesPage() {
   const rows = rowsQ.data ?? [];
   const savings = savingsQ.data ?? [];
   const savingsMap = new Map(savings.map((s) => [s.category_id, s]));
+  const savingsV2Map = React.useMemo(
+    () => new Map((savingsV2Q.data ?? []).map((s) => [s.category_id, s])),
+    [savingsV2Q.data],
+  );
+  const categoriesById = React.useMemo(
+    () => new Map((categoriesQ.data ?? []).map((c) => [c.id, c])),
+    [categoriesQ.data],
+  );
+  const defaultSweepId = settingsQ.data?.default_sweep_category_id ?? null;
+  const groupSweepById = React.useMemo(() => {
+    const m = new Map<string, string | null>();
+    for (const g of groupsQ.data ?? []) m.set(g.id, (g as unknown as { sweep_target_category_id: string | null }).sweep_target_category_id ?? null);
+    return m;
+  }, [groupsQ.data]);
+
+  const [reallocOpen, setReallocOpen] = React.useState(false);
+  const [reallocFrom, setReallocFrom] = React.useState<string | null>(null);
   const pendingMap = React.useMemo(() => buildPendingMap(pendingImpactQ.data ?? []), [pendingImpactQ.data]);
   const txs = txQ.data ?? [];
   const accountById = React.useMemo(
@@ -151,7 +175,17 @@ function EnvelopesPage() {
   return (
     <AppShell>
       <div className="space-y-4">
-        <h1 className="text-2xl font-semibold tracking-tight">{tr("env.title")}</h1>
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-semibold tracking-tight">{tr("env.title")}</h1>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => { setReallocFrom(null); setReallocOpen(true); }}
+          >
+            <ArrowLeftRight className="h-4 w-4 mr-1" />
+            {tr("envelopes.reallocate")}
+          </Button>
+        </div>
         {hasForeign && (
           <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
             {tr("env.fx_converted_hint", { cur: mainCode })}
@@ -250,15 +284,39 @@ function EnvelopesPage() {
 
                 let header: React.ReactNode;
                 if (rowKind === "savings") {
-                  const balance = Number(savingsMap.get(r.category_id)?.balance ?? 0);
+                  const v2 = savingsV2Map.get(r.category_id);
+                  const balance = v2 ? Number(v2.cumulative_balance) : Number(savingsMap.get(r.category_id)?.balance ?? 0);
+                  const monthly = v2 ? Number(v2.month_activity) : 0;
                   header = (
                     <>
                       <div className="flex items-baseline justify-between gap-3">
-                        <div className="font-semibold">{r.name}</div>
+                        <div className="font-semibold flex items-center gap-2">
+                          <span>{r.name}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-xs"
+                            onClick={() => { setReallocFrom(r.category_id); setReallocOpen(true); }}
+                          >
+                            <ArrowLeftRight className="h-3 w-3 mr-1" />
+                            {tr("envelopes.reallocate")}
+                          </Button>
+                        </div>
                         <div className={cn("text-base font-bold tabular-nums", balance < 0 ? "text-destructive" : "text-foreground")}>
-                          {tr("env.balance", { x: fmtMoney(balance, symbol) })}
+                          {fmtMoney(balance, symbol)}
                         </div>
                       </div>
+                      {v2 && (
+                        <div className="mt-1 text-xs tabular-nums text-muted-foreground flex flex-wrap gap-x-3">
+                          <span>{tr("envelopes.savings.month_activity")}: <span className={cn(monthly > 0 ? "text-success" : monthly < 0 ? "text-destructive" : "")}>{monthly >= 0 ? "+" : ""}{fmtMoney(monthly, symbol)}</span></span>
+                          {Math.abs(Number(v2.from_sweeps)) > 0.005 && (
+                            <span>{tr("envelopes.savings.from_sweeps")}: {fmtMoney(Number(v2.from_sweeps), symbol)}</span>
+                          )}
+                          {Math.abs(Number(v2.from_reallocations)) > 0.005 && (
+                            <span>{tr("envelopes.savings.from_reallocations")}: {fmtMoney(Number(v2.from_reallocations), symbol)}</span>
+                          )}
+                        </div>
+                      )}
                       {pending && (pending.income > 0 || pending.expense > 0) && (
                         <div className="mt-1 text-xs text-warning tabular-nums">
                           {tr("env.savings_pending", { a: fmtMoney(pending.income, symbol), b: fmtMoney(pending.expense, symbol) })}
@@ -292,6 +350,12 @@ function EnvelopesPage() {
                   const projected = actual + pendingPos;
                   const overProjected = allocated > 0 && projected > allocated;
                   const remainingProjected = allocated - projected;
+                  const cat = categoriesById.get(r.category_id);
+                  const groupOverride = r.group_id ? groupSweepById.get(r.group_id) ?? null : null;
+                  const resolvedSweepId = (cat as unknown as { sweep_target_category_id?: string | null } | undefined)?.sweep_target_category_id ?? groupOverride ?? defaultSweepId;
+                  const isOverride = ((cat as unknown as { sweep_target_category_id?: string | null } | undefined)?.sweep_target_category_id ?? null) !== null
+                    || (r.group_id != null && groupOverride !== null);
+                  const sweepTargetName = resolvedSweepId ? (categoriesById.get(resolvedSweepId)?.name ?? null) : null;
                   header = (
                     <>
                       <div className="flex items-baseline justify-between gap-3">
@@ -313,6 +377,11 @@ function EnvelopesPage() {
                             : tr("dashboard.remaining", { x: fmtMoney(remainingProjected, symbol) })}
                         </span>
                       </div>
+                      {isOverride && sweepTargetName && (
+                        <div className="mt-1 text-[11px] text-muted-foreground italic">
+                          {tr("envelopes.sweep.target")}: {sweepTargetName}
+                        </div>
+                      )}
                     </>
                   );
                 }
@@ -355,6 +424,11 @@ function EnvelopesPage() {
           </>
         )}
       </div>
+      <ReallocateDialog
+        open={reallocOpen}
+        defaultFromId={reallocFrom}
+        onOpenChange={setReallocOpen}
+      />
     </AppShell>
   );
 }

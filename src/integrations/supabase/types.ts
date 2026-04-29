@@ -153,6 +153,7 @@ export type Database = {
           pin_order: number | null
           pinned: boolean
           sort_order: number
+          sweep_target_category_id: string | null
           updated_at: string
           user_id: string | null
         }
@@ -171,6 +172,7 @@ export type Database = {
           pin_order?: number | null
           pinned?: boolean
           sort_order?: number
+          sweep_target_category_id?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -189,6 +191,7 @@ export type Database = {
           pin_order?: number | null
           pinned?: boolean
           sort_order?: number
+          sweep_target_category_id?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -249,6 +252,7 @@ export type Database = {
           kind: Database["public"]["Enums"]["category_group_kind"]
           name: string
           sort_order: number
+          sweep_target_category_id: string | null
           updated_at: string
           user_id: string | null
         }
@@ -259,6 +263,7 @@ export type Database = {
           kind: Database["public"]["Enums"]["category_group_kind"]
           name: string
           sort_order?: number
+          sweep_target_category_id?: string | null
           updated_at?: string
           user_id?: string | null
         }
@@ -269,8 +274,45 @@ export type Database = {
           kind?: Database["public"]["Enums"]["category_group_kind"]
           name?: string
           sort_order?: number
+          sweep_target_category_id?: string | null
           updated_at?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      category_reallocations: {
+        Row: {
+          amount: number
+          created_at: string
+          from_category_id: string
+          id: string
+          note: string | null
+          occurred_on: string
+          to_category_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          from_category_id: string
+          id?: string
+          note?: string | null
+          occurred_on?: string
+          to_category_id: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          from_category_id?: string
+          id?: string
+          note?: string | null
+          occurred_on?: string
+          to_category_id?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -449,6 +491,7 @@ export type Database = {
           currency_symbol: string
           date_format: string
           day_heatmap_threshold: number
+          default_sweep_category_id: string | null
           format_locale: string
           id: string
           language: string
@@ -463,6 +506,7 @@ export type Database = {
           currency_symbol?: string
           date_format?: string
           day_heatmap_threshold?: number
+          default_sweep_category_id?: string | null
           format_locale?: string
           id?: string
           language?: string
@@ -477,6 +521,7 @@ export type Database = {
           currency_symbol?: string
           date_format?: string
           day_heatmap_threshold?: number
+          default_sweep_category_id?: string | null
           format_locale?: string
           id?: string
           language?: string
@@ -765,6 +810,10 @@ export type Database = {
         Args: { p_delete_pending?: boolean; p_id: string }
         Returns: undefined
       }
+      archive_savings_envelope: {
+        Args: { p_id: string; p_move_remaining_to: string }
+        Returns: undefined
+      }
       category_month_spending: {
         Args: { p_month: string }
         Returns: {
@@ -779,6 +828,19 @@ export type Database = {
           sort_order: number
           spent_or_received: number
           variance: number
+        }[]
+      }
+      category_savings_balance_v2: {
+        Args: { p_as_of: string }
+        Returns: {
+          archived: boolean
+          category_id: string
+          cumulative_balance: number
+          from_reallocations: number
+          from_sweeps: number
+          from_transactions: number
+          month_activity: number
+          name: string
         }[]
       }
       compute_due_date: {
@@ -839,6 +901,15 @@ export type Database = {
             }[]
           }
       process_recurring_rules: { Args: { p_today: string }; Returns: undefined }
+      reconciliation_summary: {
+        Args: { p_as_of: string }
+        Returns: {
+          accounts_total: number
+          drift: number
+          savings_total: number
+          unswept_current_month: number
+        }[]
+      }
       recurring_month_step: {
         Args: { p_freq: Database["public"]["Enums"]["recurring_frequency"] }
         Returns: number
