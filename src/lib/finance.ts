@@ -625,7 +625,7 @@ export async function archiveSavingsEnvelope(id: string, moveRemainingTo: string
   const { error } = await supabase.rpc("archive_savings_envelope", {
     p_id: id,
     p_move_remaining_to: moveRemainingTo,
-  });
+  } as never);
   if (error) throw error;
 }
 
