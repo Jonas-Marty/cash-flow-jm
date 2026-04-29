@@ -240,6 +240,9 @@ const de: Dict = {
   "settings.theme.dark": "Dunkel",
   "settings.theme.system": "Systemvorgabe",
   "settings.preferences": "Einstellungen",
+  "settings.prefs.localization": "Sprache & Format",
+  "settings.prefs.appearance": "Darstellung",
+  "settings.prefs.money": "Währung & Geld",
   "settings.heatmap_threshold": "Heatmap-Schwellenwert",
   "settings.heatmap_threshold.hint": "Tage mit einem Saldo bis zu diesem Betrag werden hell, darüber kräftig eingefärbt.",
   "settings.date_format": "Datumsformat",
@@ -284,7 +287,7 @@ const de: Dict = {
   "settings.no_envelopes": "Noch keine Budgets.",
   "settings.no_groups": "Noch keine Gruppen. Lege z.B. „Fixkosten“, „Persönliche Ausgaben“, „Einnahmen“, „Rückstellungen“ an.",
   "settings.accounts.asset_hint": "Tipp: Verwende ein Vermögenskonto für Geschenkkarten oder Guthaben (z.B. Coop Geschenkkarten).",
-  "settings.footer": "Einzelnutzer-Modus · Monatliche Budgets setzen sich jeden Kalendermonat zurück, kein Übertrag · Login folgt später.",
+  "settings.footer": "",
 
   // Recurring
   "recurring.title": "Wiederkehrende Buchungen",
