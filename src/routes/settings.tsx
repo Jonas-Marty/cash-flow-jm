@@ -565,6 +565,11 @@ function SettingsPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">{tr("settings.envelopes")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
+            <BudgetBalanceCard
+              categories={categoriesQ.data ?? []}
+              groups={groupsQ.data ?? []}
+              symbol={settingsQ.data?.currency_symbol ?? "CHF"}
+            />
             <div className="grid gap-2 md:grid-cols-[1fr_180px_180px_auto]">
               <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label><Input value={cName} onChange={(e) => setCName(e.target.value)} placeholder="Groceries" /></div>
               <div>
@@ -591,7 +596,7 @@ function SettingsPage() {
               </div>
               <div>
                 <Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.monthly_budget")}</Label>
-                <Input inputMode="decimal" value={cIsSavings ? "0" : cBudget} onChange={(e) => setCBudget(e.target.value)} disabled={cIsSavings} />
+                <Input inputMode="decimal" value={cBudget} onChange={(e) => setCBudget(e.target.value)} placeholder={cIsSavings ? tr("settings.savings_target_hint") : undefined} />
               </div>
               <div className="flex items-end"><Button className="w-full" onClick={addCategory}><Plus className="h-4 w-4" /> {tr("common.add")}</Button></div>
             </div>
