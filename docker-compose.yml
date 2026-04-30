@@ -1,0 +1,70 @@
+# Docker Compose for self-hosting on Coolify (single localhost server).
+#
+# Coolify usage:
+#   1. Create a new "Docker Compose" resource and point it at this repo.
+#   2. You do NOT need to enable "Preserve Repository during Deployment" —
+#      everything is COPY'd into the image at build time.
+#   3. Add the env vars listed below in Coolify's "Environment Variables" UI
+#      (do NOT commit a real .env file).
+#   4. Set the domain in Coolify; it will inject Traefik labels automatically.
+#
+# Required env vars (set in Coolify):
+#   VITE_SUPABASE_URL              - Lovable Cloud / Supabase URL (build-time)
+#   VITE_SUPABASE_PUBLISHABLE_KEY  - anon key (build-time, public)
+#   VITE_SUPABASE_PROJECT_ID       - project ref (build-time)
+#   SUPABASE_URL                   - same URL (runtime, server fns)
+#   SUPABASE_SERVICE_ROLE_KEY      - service-role key (runtime, server-only!)
+#   METRICS_TOKEN                  - bearer for /api/public/metrics
+#   AUDIT_RETENTION_DAYS           - e.g. 365
+#
+# Optional:
+#   PORT (default 3000), LOG_SERVICE_NAME, NEXTCLOUD_*  (if you use Nextcloud)
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Vite inlines VITE_* vars at build time, so they must be passed as
+        # build args, not just runtime env.
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
+        VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID}
+    image: cash-flow-app:latest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: ${PORT:-3000}
+      HOST: 0.0.0.0
+      LOG_SERVICE_NAME: ${LOG_SERVICE_NAME:-cash-flow}
+      # Backend (server-side only)
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
+      # Also expose the publishable key at runtime in case any server code
+      # reads it from env instead of the inlined VITE_ var.
+      VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
+      VITE_SUPABASE_PROJECT_ID: ${VITE_SUPABASE_PROJECT_ID}
+      # Observability
+      METRICS_TOKEN: ${METRICS_TOKEN}
+      AUDIT_RETENTION_DAYS: ${AUDIT_RETENTION_DAYS:-365}
+      # Nextcloud (optional)
+      NEXTCLOUD_BASE_URL: ${NEXTCLOUD_BASE_URL:-}
+      NEXTCLOUD_CLIENT_ID: ${NEXTCLOUD_CLIENT_ID:-}
+      NEXTCLOUD_CLIENT_SECRET: ${NEXTCLOUD_CLIENT_SECRET:-}
+    ports:
+      # Coolify's reverse proxy will route to this; exposing on host is optional.
+      - "${HOST_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    logging:
+      # JSON file driver keeps stdout JSON intact for Promtail/Filebeat to scrape.
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
