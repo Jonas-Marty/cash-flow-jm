@@ -17,6 +17,8 @@ import { Route as AddRouteImport } from './routes/add'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EditIdRouteImport } from './routes/edit.$id'
 import { Route as ApiPublicTransactionsRouteImport } from './routes/api.public.transactions'
+import { Route as ApiPublicPruneAuditRouteImport } from './routes/api.public.prune-audit'
+import { Route as ApiPublicMetricsRouteImport } from './routes/api.public.metrics'
 import { Route as ApiPublicCategoriesRouteImport } from './routes/api.public.categories'
 import { Route as ApiPublicAttachmentsRouteImport } from './routes/api.public.attachments'
 import { Route as ApiPublicAccountsRouteImport } from './routes/api.public.accounts'
@@ -62,6 +64,16 @@ const ApiPublicTransactionsRoute = ApiPublicTransactionsRouteImport.update({
   path: '/api/public/transactions',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPruneAuditRoute = ApiPublicPruneAuditRouteImport.update({
+  id: '/api/public/prune-audit',
+  path: '/api/public/prune-audit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicMetricsRoute = ApiPublicMetricsRouteImport.update({
+  id: '/api/public/metrics',
+  path: '/api/public/metrics',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCategoriesRoute = ApiPublicCategoriesRouteImport.update({
   id: '/api/public/categories',
   path: '/api/public/categories',
@@ -95,6 +107,8 @@ export interface FileRoutesByFullPath {
   '/api/public/accounts': typeof ApiPublicAccountsRoute
   '/api/public/attachments': typeof ApiPublicAttachmentsRoute
   '/api/public/categories': typeof ApiPublicCategoriesRoute
+  '/api/public/metrics': typeof ApiPublicMetricsRoute
+  '/api/public/prune-audit': typeof ApiPublicPruneAuditRoute
   '/api/public/transactions': typeof ApiPublicTransactionsRoute
 }
 export interface FileRoutesByTo {
@@ -109,6 +123,8 @@ export interface FileRoutesByTo {
   '/api/public/accounts': typeof ApiPublicAccountsRoute
   '/api/public/attachments': typeof ApiPublicAttachmentsRoute
   '/api/public/categories': typeof ApiPublicCategoriesRoute
+  '/api/public/metrics': typeof ApiPublicMetricsRoute
+  '/api/public/prune-audit': typeof ApiPublicPruneAuditRoute
   '/api/public/transactions': typeof ApiPublicTransactionsRoute
 }
 export interface FileRoutesById {
@@ -124,6 +140,8 @@ export interface FileRoutesById {
   '/api/public/accounts': typeof ApiPublicAccountsRoute
   '/api/public/attachments': typeof ApiPublicAttachmentsRoute
   '/api/public/categories': typeof ApiPublicCategoriesRoute
+  '/api/public/metrics': typeof ApiPublicMetricsRoute
+  '/api/public/prune-audit': typeof ApiPublicPruneAuditRoute
   '/api/public/transactions': typeof ApiPublicTransactionsRoute
 }
 export interface FileRouteTypes {
@@ -140,6 +158,8 @@ export interface FileRouteTypes {
     | '/api/public/accounts'
     | '/api/public/attachments'
     | '/api/public/categories'
+    | '/api/public/metrics'
+    | '/api/public/prune-audit'
     | '/api/public/transactions'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -154,6 +174,8 @@ export interface FileRouteTypes {
     | '/api/public/accounts'
     | '/api/public/attachments'
     | '/api/public/categories'
+    | '/api/public/metrics'
+    | '/api/public/prune-audit'
     | '/api/public/transactions'
   id:
     | '__root__'
@@ -168,6 +190,8 @@ export interface FileRouteTypes {
     | '/api/public/accounts'
     | '/api/public/attachments'
     | '/api/public/categories'
+    | '/api/public/metrics'
+    | '/api/public/prune-audit'
     | '/api/public/transactions'
   fileRoutesById: FileRoutesById
 }
@@ -183,6 +207,8 @@ export interface RootRouteChildren {
   ApiPublicAccountsRoute: typeof ApiPublicAccountsRoute
   ApiPublicAttachmentsRoute: typeof ApiPublicAttachmentsRoute
   ApiPublicCategoriesRoute: typeof ApiPublicCategoriesRoute
+  ApiPublicMetricsRoute: typeof ApiPublicMetricsRoute
+  ApiPublicPruneAuditRoute: typeof ApiPublicPruneAuditRoute
   ApiPublicTransactionsRoute: typeof ApiPublicTransactionsRoute
 }
 
@@ -244,6 +270,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTransactionsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/prune-audit': {
+      id: '/api/public/prune-audit'
+      path: '/api/public/prune-audit'
+      fullPath: '/api/public/prune-audit'
+      preLoaderRoute: typeof ApiPublicPruneAuditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/metrics': {
+      id: '/api/public/metrics'
+      path: '/api/public/metrics'
+      fullPath: '/api/public/metrics'
+      preLoaderRoute: typeof ApiPublicMetricsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/categories': {
       id: '/api/public/categories'
       path: '/api/public/categories'
@@ -287,6 +327,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicAccountsRoute: ApiPublicAccountsRoute,
   ApiPublicAttachmentsRoute: ApiPublicAttachmentsRoute,
   ApiPublicCategoriesRoute: ApiPublicCategoriesRoute,
+  ApiPublicMetricsRoute: ApiPublicMetricsRoute,
+  ApiPublicPruneAuditRoute: ApiPublicPruneAuditRoute,
   ApiPublicTransactionsRoute: ApiPublicTransactionsRoute,
 }
 export const routeTree = rootRouteImport

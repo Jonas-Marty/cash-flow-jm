@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { hashToken } from "@/utils/api-tokens.server";
+import { log } from "@/lib/logger";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -54,7 +55,7 @@ export const Route = createFileRoute("/api/public/categories")({
         if (!includeArchived) catQ = catQ.eq("archived", false);
         const { data: cats, error: catErr } = await catQ;
         if (catErr) {
-          console.error("[api.public.categories] DB error:", catErr.message);
+          log.error({ event: "api.public.categories.db_error", err: catErr.message, userId: auth.userId, scope: "categories" });
           return json({ error: "Internal server error" }, 500);
         }
 
@@ -65,7 +66,7 @@ export const Route = createFileRoute("/api/public/categories")({
           .order("sort_order")
           .order("name");
         if (gErr) {
-          console.error("[api.public.categories] DB error:", gErr.message);
+          log.error({ event: "api.public.categories.db_error", err: gErr.message, userId: auth.userId, scope: "groups" });
           return json({ error: "Internal server error" }, 500);
         }
 

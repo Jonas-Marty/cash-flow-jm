@@ -471,6 +471,21 @@ const de: Dict = {
   "apitokens.confirm_delete": "Token endgültig löschen?",
   "apitokens.endpoint_hint": "POST /api/public/attachments mit Header 'Authorization: Bearer <token>' und JSON {transaction_id, link_url, display_name, source?}.",
 
+  // Audit log
+  "audit.title": "Aktivitätsprotokoll",
+  "audit.intro_user": "Letzte Änderungen an deinen Daten.",
+  "audit.intro_admin": "Letzte Änderungen aller Nutzer (Admin-Sicht).",
+  "audit.table": "Tabelle",
+  "audit.action": "Aktion",
+  "audit.row": "Datensatz",
+  "audit.user": "Nutzer",
+  "audit.when": "Wann",
+  "audit.changes": "Änderungen",
+  "audit.refresh": "Aktualisieren",
+  "audit.load_more": "Mehr laden",
+  "audit.reset_limit": "Zurücksetzen",
+  "audit.empty": "Keine Einträge.",
+
   // Reallocations & sweeps
   "envelopes.reallocate": "Umschichten",
   "envelopes.reallocate.title": "Zwischen Sparkategorien umschichten",
@@ -1033,6 +1048,21 @@ const en: Dict = {
   "apitokens.revoked": "revoked",
   "apitokens.confirm_delete": "Permanently delete token?",
   "apitokens.endpoint_hint": "POST /api/public/attachments with header 'Authorization: Bearer <token>' and JSON {transaction_id, link_url, display_name, source?}.",
+
+  // Audit log
+  "audit.title": "Audit log",
+  "audit.intro_user": "Recent changes to your data.",
+  "audit.intro_admin": "Recent changes by all users (admin view).",
+  "audit.table": "Table",
+  "audit.action": "Action",
+  "audit.row": "Row",
+  "audit.user": "User",
+  "audit.when": "When",
+  "audit.changes": "Changes",
+  "audit.refresh": "Refresh",
+  "audit.load_more": "Load more",
+  "audit.reset_limit": "Reset",
+  "audit.empty": "No entries.",
 
   // Reallocations & sweeps
   "envelopes.reallocate": "Reallocate",

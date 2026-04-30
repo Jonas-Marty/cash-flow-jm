@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { hashToken } from "@/utils/api-tokens.server";
+import { log } from "@/lib/logger";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -84,7 +85,7 @@ export const Route = createFileRoute("/api/public/attachments")({
           .select("id, transaction_id, link_url, display_name, source, added_at")
           .single();
         if (insErr) {
-          console.error("[api.public.attachments] DB error:", insErr.message);
+          log.error({ event: "api.public.attachments.db_error", err: insErr.message, userId: auth.userId });
           return json({ error: "Internal server error" }, 500);
         }
         return json({ attachment: ins }, 201);

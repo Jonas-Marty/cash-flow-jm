@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { hashToken } from "@/utils/api-tokens.server";
+import { log } from "@/lib/logger";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -55,7 +56,7 @@ export const Route = createFileRoute("/api/public/accounts")({
 
         const { data, error } = await q;
         if (error) {
-          console.error("[api.public.accounts] DB error:", error.message);
+          log.error({ event: "api.public.accounts.db_error", err: error.message, userId: auth.userId });
           return json({ error: "Internal server error" }, 500);
         }
         return json({ accounts: data ?? [] });

@@ -22,12 +22,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = React.useState(true);
 
   React.useEffect(() => {
+    let lastUserId: string | null = null;
     // Set listener BEFORE getSession (per Supabase guidance)
-    const { data: sub } = supabase.auth.onAuthStateChange((_evt, s) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((evt, s) => {
       setSession(s);
+      // Best-effort audit logging for auth events.
+      // Defer the network call so we don't block the auth state update.
+      const uid = s?.user?.id ?? null;
+      const action: "login" | "logout" | "token.refresh" | null =
+        evt === "SIGNED_IN" ? "login"
+        : evt === "SIGNED_OUT" ? "logout"
+        : evt === "TOKEN_REFRESHED" ? "token.refresh"
+        : null;
+      if (action && (action !== "login" || uid !== lastUserId)) {
+        // Avoid spamming on initial-state replays for the same user.
+        if (action === "logout" || uid) {
+          lastUserId = uid;
+          setTimeout(() => {
+            supabase.rpc("log_audit_event", {
+              p_action: action,
+              p_metadata: {
+                ua: typeof navigator !== "undefined" ? navigator.userAgent : null,
+              },
+            }).then(({ error }) => {
+              if (error && typeof console !== "undefined") {
+                // eslint-disable-next-line no-console
+                console.warn("[audit] log_audit_event failed:", error.message);
+              }
+            });
+          }, 0);
+        }
+      }
     });
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
+      lastUserId = data.session?.user?.id ?? null;
       setLoading(false);
     });
     return () => sub.subscription.unsubscribe();

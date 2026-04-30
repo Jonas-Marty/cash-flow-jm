@@ -23,6 +23,7 @@ import { useI18n, LANGUAGES, type Lang } from "@/i18n";
 import { RecurringRulesCard } from "@/components/RecurringRulesCard";
 import { NextcloudCard } from "@/components/NextcloudCard";
 import { ApiTokensCard } from "@/components/ApiTokensCard";
+import { AuditLogCard } from "@/components/AuditLogCard";
 import { BudgetBalanceCard } from "@/components/BudgetBalanceCard";
 import { SavingsAndSweepsCard } from "@/components/SavingsAndSweepsCard";
 import { fmtMoney } from "@/lib/finance";
@@ -736,6 +737,7 @@ function SettingsPage() {
         <NextcloudCard />
         <ApiTokensCard />
         <IntegrationsCard />
+        <AuditLogCard />
         <AccountCard />
       </div>
     </AppShell>
