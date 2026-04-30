@@ -471,6 +471,21 @@ const de: Dict = {
   "apitokens.confirm_delete": "Token endgültig löschen?",
   "apitokens.endpoint_hint": "POST /api/public/attachments mit Header 'Authorization: Bearer <token>' und JSON {transaction_id, link_url, display_name, source?}.",
 
+  // Audit log
+  "audit.title": "Aktivitätsprotokoll",
+  "audit.intro_user": "Letzte Änderungen an deinen Daten.",
+  "audit.intro_admin": "Letzte Änderungen aller Nutzer (Admin-Sicht).",
+  "audit.table": "Tabelle",
+  "audit.action": "Aktion",
+  "audit.row": "Datensatz",
+  "audit.user": "Nutzer",
+  "audit.when": "Wann",
+  "audit.changes": "Änderungen",
+  "audit.refresh": "Aktualisieren",
+  "audit.load_more": "Mehr laden",
+  "audit.reset_limit": "Zurücksetzen",
+  "audit.empty": "Keine Einträge.",
+
   // Reallocations & sweeps
   "envelopes.reallocate": "Umschichten",
   "envelopes.reallocate.title": "Zwischen Sparkategorien umschichten",
