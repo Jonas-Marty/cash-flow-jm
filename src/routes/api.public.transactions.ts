@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { hashToken } from "@/utils/api-tokens.server";
+import { log } from "@/lib/logger";
 import {
   transactionInputSchema,
   normalizeTransactionInput,
@@ -93,7 +94,7 @@ export const Route = createFileRoute("/api/public/transactions")({
           )
           .single();
         if (insErr) {
-          console.error("[api.public.transactions] DB error:", insErr.message);
+          log.error({ event: "api.public.transactions.db_error", err: insErr.message, userId: auth.userId });
           return json({ error: "Internal server error" }, 500);
         }
         return json({ transaction: ins }, 201);
