@@ -101,6 +101,39 @@ export type Database = {
         }
         Relationships: []
       }
+      audit_logs: {
+        Row: {
+          action: string
+          diff: Json | null
+          id: number
+          metadata: Json | null
+          occurred_at: string
+          row_id: string | null
+          table_name: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          diff?: Json | null
+          id?: number
+          metadata?: Json | null
+          occurred_at?: string
+          row_id?: string | null
+          table_name?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          diff?: Json | null
+          id?: number
+          metadata?: Json | null
+          occurred_at?: string
+          row_id?: string | null
+          table_name?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       auth_providers: {
         Row: {
           client_id: string | null
@@ -866,6 +899,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      log_audit_event: {
+        Args: { p_action: string; p_metadata?: Json }
+        Returns: number
+      }
       preview_recurring_rule:
         | {
             Args: {
@@ -901,6 +938,7 @@ export type Database = {
             }[]
           }
       process_recurring_rules: { Args: { p_today: string }; Returns: undefined }
+      prune_audit_logs: { Args: { p_keep_days: number }; Returns: number }
       reconciliation_summary: {
         Args: { p_as_of: string }
         Returns: {
