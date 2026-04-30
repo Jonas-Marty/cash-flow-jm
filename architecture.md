@@ -314,6 +314,144 @@ No schema change required for the switch.
 
 ## 7. Change log
 
+### 2026-04-30 — Observability: structured logging, audit trail, metrics
+
+New §3.13 (below). Adds end-to-end observability so the app can be operated from a Coolify container with Promtail/Filebeat shipping logs to ELK/Loki and Prometheus scraping metrics.
+
+- New table `public.audit_logs(id, occurred_at, user_id, action, table_name, row_id, diff, metadata)`. RLS allows `SELECT` for the owning user or admins; inserts only happen via `SECURITY DEFINER` triggers / RPCs (no client write policy).
+- Generic trigger `public.audit_row_change()` attached to 13 mutating tables. For `INSERT` it stores the full row, for `UPDATE` a compact `{field: {old, new}}` diff (skipping `updated_at`), for `DELETE` the old row.
+- RPC `public.log_audit_event(action, metadata)` for non-DB events. Wired into `AuthProvider` so login / logout / token refresh land in the same table.
+- Retention: `public.prune_audit_logs(days int)` plus the public endpoint `/api/public/prune-audit` (Bearer-token protected). Default retention is configurable via the `AUDIT_RETENTION_DAYS` env var (default 365).
+- Structured JSON logger at `src/lib/logger.ts`: dependency-free, emits one JSON line per event to stdout (info/debug) or stderr (warn/error). Fields: `ts, level, service, env, event, userId?, requestId?, durationMs?, status?, method?, path?, ip?, ua?, err?`. Designed for Promtail / Filebeat / Vector pickup from container stdout.
+- Request middleware in `src/start.ts` wraps every server function and route handler. Generates a `requestId`, captures `durationMs`, `status`, best-effort `userId` (decoded from the Supabase access-token cookie), and increments Prometheus counters.
+- Tiny in-process Prometheus registry at `src/lib/metrics.ts` (no deps, Worker-compatible). Pre-registered counters: `app_requests_total`, `app_request_errors_total`, `app_request_duration_ms_sum`, `app_audit_events_total`. Counters reset on Worker restart — Prometheus' `rate()` handles this.
+- Endpoint `/api/public/metrics` exposes Prometheus text format. Protected by a `METRICS_TOKEN` env-var Bearer token (configured via Lovable Cloud secrets). Also exposes business gauges by reading aggregate counts (users, transactions, recent audit events).
+- Public-facing API routes (`/api/public/{accounts,categories,transactions,attachments}`) replaced their ad-hoc `console.log` calls with the structured logger.
+- Settings page got an **Audit log** card (`src/components/AuditLogCard.tsx`) — users see their own history; admins can filter by table/action across all users.
+
+Operator integration:
+
+```
+# Prometheus scrape
+- job_name: cash-flow
+  metrics_path: /api/public/metrics
+  authorization: { type: Bearer, credentials: <METRICS_TOKEN> }
+
+# Nightly retention (Coolify scheduled task / cron)
+curl -X POST -H "Authorization: Bearer $METRICS_TOKEN" \
+     https://<host>/api/public/prune-audit
+```
+
+### 2026-04-29 — Insights area + envelope reallocations + tag fix
+
+- New `/insights` route (`src/routes/insights.tsx`) tabbed into Overview / Trends / Breakdown / Projection (`src/components/insights/*`). Pure-frontend analytics layer backed by a new helper module `src/lib/insights.ts`; data fetched through the existing finance helpers, no new SQL surface.
+- **Projection tab** now offers horizons *End of month*, *End of year*, *End of next year*, and *10 years*, with a confidence band rendered with theme-aware low-band colors (visible in both light and dark mode).
+- **Recurring detector** card (`RecurringDetectorCard.tsx`) inspects historical transactions to suggest candidate recurring rules the user has not yet formalised.
+- New table `public.category_reallocations(from_category_id, to_category_id, amount, occurred_on, note)` with a validation trigger (`validate_category_reallocation`) enforcing: amount > 0, both envelopes savings, both owned by the same user, not the same envelope. Implements moving cash between savings buckets without touching real accounts.
+- `ReallocateDialog.tsx` exposes the action from the envelope detail; `category_savings_balance` factors reallocations in.
+- New columns `categories.sweep_target_category_id` and `category_groups.sweep_target_category_id`, plus `settings.default_sweep_category_id`. These are the **(default) sweeping target**: leftover envelope balance at month end is conceptually swept to the configured target. Resolution order at the UI level: per-category target → per-group target → global default.
+- `SavingsAndSweepsCard.tsx` surfaces sweep configuration and reallocation history on the dashboard.
+- Recurring rules gained **descriptions with placeholders** for *manual-post* rules (see existing §3.6). New helper `apply_recurring_rule_backfill(rule_id, mode, today)` lets the user backfill historical occurrences either as posted transactions or as pending entries (variable-amount rules are coerced to pending — no amount known).
+- Hashtag extraction trigger `sync_transaction_tags` rewritten with a `regexp_matches(... 'g')` loop so the **first character of a tag** is no longer dropped; existing rows backfilled.
+
+### 2026-04-28 — Multi-currency, theme, format locale, role-based admin
+
+- `accounts.currency_code` / `currency_symbol` per account; `account_balances` view rebuilt as `security_invoker` so per-user RLS still applies.
+- `settings.net_worth_show_converted` toggles whether the dashboard sums all accounts at FX-converted value or shows a per-currency breakdown. Conversion utilities live in `src/lib/fx.ts`.
+- `settings.theme` (`light | dark | system`) drives `src/lib/theme.tsx` provider; `settings.format_locale` decouples date/number rendering from the UI language (continues §3.6's locale story).
+- `app_role` enum + `user_roles` table + `has_role(user_id, role)` `SECURITY DEFINER` helper. Roles live in a dedicated table to avoid privilege-escalation patterns; RLS on `audit_logs`, `auth_providers`, etc. consults `has_role(auth.uid(), 'admin')`.
+- `category_month_spending` rewritten so the per-row **effective kind** is computed in SQL with `is_savings` taking precedence over `group.kind` (matches §3.3). UI no longer recomputes.
+- Trigger `cleanup_budgets_on_savings_flip` removes monthly `category_budgets` rows when an envelope is flipped to `is_savings = true`.
+
+### 2026-04-27 — Quarterly / yearly recurrences, attachments, split transactions
+
+- `recurring_frequency` enum extended with `quarterly` and `yearly`. New `recurring_month_step(freq)` helper centralises the month delta; `process_recurring_rules` and `apply_recurring_rule_backfill` use it.
+- `recurring_rules.is_variable_amount` + `estimated_amount`: amount-less rules generate **pending** occurrences only (auto-post forced off because there's no amount to post).
+- `transactions.recurring_rule_id` back-link added so historical transactions can be traced to their rule.
+- `transactions.split_group_id` groups multiple slices of one receipt; the Add screen exposes split entry, the Transactions list collapses splits visually.
+- `transaction_attachments` table + Nextcloud OAuth integration (`nextcloud_connections`, `/api/nextcloud/callback`, `src/utils/nextcloud.*`) lets the user attach receipt files stored in their Nextcloud to a transaction.
+- Renamed `payee` → `description` on both `transactions` and `recurring_rules` (the field was being used as a free-form description in practice).
+- `account_balances` rebuilt to only count past/today transactions (future-dated transactions, e.g. scheduled posts, no longer inflate balances).
+
+### 2026-04-26 — Storage hardening, account/category visuals
+
+- `accounts` and `categories` gained `icon`, `emoji`, `image_url`, `color`, `pinned`, `pin_order` (see §3.10). Storage bucket `account-category-images` locked down: read for authenticated, write/update/delete restricted to row owner.
+
+### 2026-04-24 — Auth, recurring rules, day heatmap, date format
+
+- Lovable Cloud authentication enabled. Every existing data table flipped from `open_all` to per-user RLS (`user_id = auth.uid()`). `handle_new_user()` trigger seeds default `settings`, accounts, and categories on signup. `/login` route + `AuthPage.tsx` + `src/lib/auth.tsx` provider added.
+- `auth_providers` table + admin-only RLS for configuring social providers from the in-app Settings page.
+- `recurring_rules` + `recurring_occurrences` schema and dashboard surface (see existing §3.6 entry for the original 2026-04-24 milestone — this keeps the change-log entry accurate; nothing in §3.6 changed retroactively).
+- New `settings.day_heatmap_threshold` and `settings.date_format` columns; `DayHeatmapCalendar.tsx` colors days hotter as the daily spend approaches the threshold.
+
+## 8. Logging, auditing & metrics  *(also referenced as §3.13)*
+
+Goal: when the app is self-hosted in Coolify, the operator must be able to (a) see what happened, (b) attribute actions to a specific user, and (c) feed external observability stacks (ELK, Loki/Grafana, Prometheus/Grafana, InfluxDB) without bespoke adapters.
+
+### Layers
+
+1. **Database audit trail (`public.audit_logs`)** — Postgres triggers capture every `INSERT/UPDATE/DELETE` on the 13 user-owned tables. Updates store a compact diff `{field: {old, new}}`; inserts/deletes store the full row. Auth events (login / logout / token refresh) are written via the `log_audit_event` RPC from `AuthProvider`. RLS: read your own rows or admin-read everything; clients cannot write directly.
+2. **Structured JSON logger (`src/lib/logger.ts`)** — one JSON line per event to stdout/stderr. No dependencies, Worker-safe. Drop-in for Promtail / Filebeat / Vector running alongside the Coolify container.
+3. **Request middleware (`src/start.ts`)** — wraps every server function and route handler. Generates a `requestId`, measures `durationMs`, captures `status`, decodes `userId` from the Supabase access-token cookie best-effort, and updates Prometheus counters.
+4. **Prometheus metrics (`src/lib/metrics.ts` + `/api/public/metrics`)** — text exposition format, protected by a `METRICS_TOKEN` Bearer header. Counters reset on Worker restart by design.
+5. **Retention (`public.prune_audit_logs` + `/api/public/prune-audit`)** — call nightly from a Coolify scheduled task; honours `AUDIT_RETENTION_DAYS` (default 365).
+
+### JSON log shape
+
+```json
+{
+  "ts": "2026-04-30T08:14:22.317Z",
+  "level": "info",
+  "service": "cash-flow",
+  "env": "production",
+  "event": "request",
+  "method": "POST",
+  "path": "/api/public/transactions",
+  "status": 201,
+  "durationMs": 42,
+  "requestId": "9b3e4f1a2c0d",
+  "userId": "8d…"
+}
+```
+
+The logger always emits a single defensive `JSON.stringify`; it never throws and falls back to a minimal payload if serialization fails.
+
+### Pre-registered counters
+
+| Metric | Type | Description |
+|---|---|---|
+| `app_requests_total` | counter | Total HTTP requests handled |
+| `app_request_errors_total` | counter | Requests resulting in 4xx / 5xx |
+| `app_request_duration_ms_sum` | counter | Sum of request durations in ms (pair with `app_requests_total` for avg latency) |
+| `app_audit_events_total` | counter | Audit events written |
+
+Business gauges (current totals for users, transactions, recent audit events) are computed inside the metrics handler from aggregate queries.
+
+### Operator integration
+
+```yaml
+# Prometheus scrape config
+- job_name: cash-flow
+  metrics_path: /api/public/metrics
+  authorization:
+    type: Bearer
+    credentials: <METRICS_TOKEN>
+```
+
+```bash
+# Nightly retention prune (Coolify scheduled task or cron)
+curl -X POST -H "Authorization: Bearer $METRICS_TOKEN" \
+     https://<host>/api/public/prune-audit
+```
+
+Promtail / Filebeat picks up the container's stdout — no extra log files, no rotation needed inside the app.
+
+### Out of scope
+
+- OpenTelemetry traces (only request-level `requestId` correlation today).
+- Per-user rate limiting (could layer on top of `app_requests_total` with labels later).
+- Histogram metrics for latency buckets (current sum/count gives mean; add `Histogram` to `metrics.ts` when needed).
+
 ### 2026-04-24 — Smart suggestions on Add
 - New §3.9 documents a provider-based suggestion engine: `src/lib/suggestions/` with `historyProvider` (similar past transactions, scored) and `payeeProvider`. Top 5 ranked suggestions render as tappable chips above the form and prefill fields with sticky-typing + undo.
 - Add screen also gained Quick-amount chips, Recent-tag chips, and Today/Yesterday/Last-weekend date shortcuts.
