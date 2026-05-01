@@ -938,6 +938,10 @@ export type Database = {
             }[]
           }
       process_recurring_rules: { Args: { p_today: string }; Returns: undefined }
+      process_recurring_rules_for_all_users: {
+        Args: { p_today: string }
+        Returns: number
+      }
       prune_audit_logs: { Args: { p_keep_days: number }; Returns: number }
       reconciliation_summary: {
         Args: { p_as_of: string }
