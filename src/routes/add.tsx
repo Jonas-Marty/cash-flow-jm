@@ -980,6 +980,60 @@ export function TransactionForm({ editId }: { editId: string | null }) {
           </p>
         </div>
 
+        {/* Live summary: how this transaction will look in the list */}
+        <TransactionPreview
+          type={type}
+          amountNum={amountNum}
+          destAmountNum={(() => {
+            const n = Number(destAmount.replace(",", "."));
+            return Number.isFinite(n) && n > 0 ? n : null;
+          })()}
+          isCrossCurrency={isCrossCurrency}
+          source={sourceAccount ?? null}
+          destination={destAccount ?? null}
+          category={categoryId ? categoryById.get(categoryId) ?? null : null}
+          description={description}
+          note={note}
+          date={date}
+          locale={locale}
+          symbol={symbol}
+          destSymbol={destSymbol}
+          splitMode={splitMode}
+          slices={splitMode ? slices.map((s) => ({
+            amount: Number(s.amount.replace(",", ".")) || 0,
+            description: s.description,
+            category: s.categoryId ? categoryById.get(s.categoryId) ?? null : null,
+          })) : null}
+          labels={{
+            transfer: tr("tx.transfer_label"),
+            income: tr("add.income"),
+            expense: tr("add.expense"),
+            preview: tr("add.preview.title"),
+            split: tr("add.split.title"),
+          }}
+        />
+
+        {duplicates.length > 0 && (
+          <div
+            role="alert"
+            className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning-foreground"
+            style={{ borderColor: "hsl(38 92% 50% / 0.5)", backgroundColor: "hsl(38 92% 50% / 0.12)", color: "hsl(25 95% 35%)" }}
+          >
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "hsl(25 95% 45%)" }} />
+            <div className="min-w-0 flex-1">
+              <div className="font-medium">{tr("add.duplicate.warning")}</div>
+              <div className="mt-0.5 text-xs">
+                {tr("add.duplicate.detail", {
+                  count: String(duplicates.length),
+                  account: sourceAccount?.name ?? "",
+                  amount: amountNum != null ? fmtMoney(amountNum, symbol) : "",
+                  date: format(date, "dd.MM.yyyy"),
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex gap-2 pt-2">
           {isEdit ? (
             <>
