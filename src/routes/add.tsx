@@ -3,6 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import type { Locale } from "date-fns";
 import { ArrowDown, ArrowUp, ArrowLeftRight, Plus, X } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
@@ -13,7 +14,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings, fetchTransactions, extractTags, type TxType, type Transaction } from "@/lib/finance";
+import { fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings, fetchTransactions, extractTags, fmtMoney, type TxType, type Transaction } from "@/lib/finance";
+import { EntityVisual } from "@/components/EntityVisual";
+import { AlertTriangle } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { useSuggestions } from "@/lib/suggestions/useSuggestions";
 import type { Suggestion } from "@/lib/suggestions/types";
@@ -262,6 +265,25 @@ export function TransactionForm({ editId }: { editId: string | null }) {
     const n = Number(amount.replace(",", "."));
     return isFinite(n) && n > 0 ? n : null;
   }, [amount]);
+
+  // Duplicate-warning: same source account + same date + same amount.
+  // For splits, compare against the per-slice amount (skip — too noisy).
+  const duplicates = React.useMemo<Transaction[]>(() => {
+    if (splitMode) return [];
+    if (!sourceId || amountNum == null) return [];
+    const dateStr = format(date, "yyyy-MM-dd");
+    return (recentQ.data ?? []).filter((t) => {
+      if (isEdit && editId && t.id === editId) return false;
+      if (t.source_account_id !== sourceId) return false;
+      if (t.occurred_on !== dateStr) return false;
+      return Math.abs(Number(t.amount) - amountNum) < 0.005;
+    });
+  }, [splitMode, sourceId, amountNum, date, recentQ.data, isEdit, editId]);
+
+  const categoryById = React.useMemo(
+    () => new Map(categories.map((c) => [c.id, c])),
+    [categories],
+  );
 
   const { suggestions } = useSuggestions({
     type,
@@ -959,6 +981,60 @@ export function TransactionForm({ editId }: { editId: string | null }) {
           </p>
         </div>
 
+        {/* Live summary: how this transaction will look in the list */}
+        <TransactionPreview
+          type={type}
+          amountNum={amountNum}
+          destAmountNum={(() => {
+            const n = Number(destAmount.replace(",", "."));
+            return Number.isFinite(n) && n > 0 ? n : null;
+          })()}
+          isCrossCurrency={isCrossCurrency}
+          source={sourceAccount ?? null}
+          destination={destAccount ?? null}
+          category={categoryId ? categoryById.get(categoryId) ?? null : null}
+          description={description}
+          note={note}
+          date={date}
+          locale={locale}
+          symbol={symbol}
+          destSymbol={destSymbol}
+          splitMode={splitMode}
+          slices={splitMode ? slices.map((s) => ({
+            amount: Number(s.amount.replace(",", ".")) || 0,
+            description: s.description,
+            category: s.categoryId ? categoryById.get(s.categoryId) ?? null : null,
+          })) : null}
+          labels={{
+            transfer: tr("tx.transfer_label"),
+            income: tr("add.income"),
+            expense: tr("add.expense"),
+            preview: tr("add.preview.title"),
+            split: tr("add.split.title"),
+          }}
+        />
+
+        {duplicates.length > 0 && (
+          <div
+            role="alert"
+            className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning-foreground"
+            style={{ borderColor: "hsl(38 92% 50% / 0.5)", backgroundColor: "hsl(38 92% 50% / 0.12)", color: "hsl(25 95% 35%)" }}
+          >
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "hsl(25 95% 45%)" }} />
+            <div className="min-w-0 flex-1">
+              <div className="font-medium">{tr("add.duplicate.warning")}</div>
+              <div className="mt-0.5 text-xs">
+                {tr("add.duplicate.detail", {
+                  count: String(duplicates.length),
+                  account: sourceAccount?.name ?? "",
+                  amount: amountNum != null ? fmtMoney(amountNum, symbol) : "",
+                  date: format(date, "dd.MM.yyyy"),
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex gap-2 pt-2">
           {isEdit ? (
             <>
@@ -987,5 +1063,140 @@ export function TransactionForm({ editId }: { editId: string | null }) {
         />
       </div>
     </AppShell>
+  );
+}
+
+type PreviewEntity = {
+  name: string;
+  icon?: string | null;
+  emoji?: string | null;
+  image_url?: string | null;
+  color?: string | null;
+  currency_symbol?: string;
+} | null;
+
+function TransactionPreview({
+  type,
+  amountNum,
+  destAmountNum,
+  isCrossCurrency,
+  source,
+  destination,
+  category,
+  description,
+  note,
+  date,
+  locale,
+  symbol,
+  destSymbol,
+  splitMode,
+  slices,
+  labels,
+}: {
+  type: TxType;
+  amountNum: number | null;
+  destAmountNum: number | null;
+  isCrossCurrency: boolean;
+  source: PreviewEntity;
+  destination: PreviewEntity;
+  category: PreviewEntity;
+  description: string;
+  note: string;
+  date: Date;
+  locale: Locale;
+  symbol: string;
+  destSymbol: string;
+  splitMode: boolean;
+  slices: Array<{ amount: number; description: string; category: PreviewEntity }> | null;
+  labels: { transfer: string; income: string; expense: string; preview: string; split: string };
+}) {
+  if (amountNum == null || !source) return null;
+
+  const Icon = type === "expense" ? ArrowDown : type === "income" ? ArrowUp : ArrowLeftRight;
+  const tone =
+    type === "expense" ? "text-destructive" : type === "income" ? "text-success" : "text-muted-foreground";
+  const sign = type === "expense" ? "-" : type === "income" ? "+" : "";
+  const primary = (type !== "transfer" ? category : null) ?? source;
+  const showDst = type === "transfer" && isCrossCurrency && destAmountNum != null;
+  const fallbackTitle = type === "transfer" ? labels.transfer : type === "income" ? labels.income : labels.expense;
+
+  return (
+    <Card className="border-dashed">
+      <CardContent className="space-y-2 py-3">
+        <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          {labels.preview}
+        </div>
+        <div className="flex items-start gap-3">
+          <div className="relative mt-0.5 shrink-0">
+            <EntityVisual entity={primary} size="md" />
+            <div className={cn("absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-background ring-1 ring-border", tone)}>
+              <Icon className="h-3 w-3" />
+            </div>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline justify-between gap-2">
+              <div className="truncate text-sm font-medium">
+                {description.trim() || fallbackTitle}
+              </div>
+              <div className={cn("whitespace-nowrap text-sm font-semibold tabular-nums", tone)}>
+                {sign}
+                {fmtMoney(amountNum, symbol).replace("-", "")}
+                {showDst && (
+                  <span className="ml-1 text-xs font-normal text-muted-foreground">
+                    → {fmtMoney(destAmountNum!, destSymbol).replace("-", "")}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                {source && <EntityVisual entity={source} size="xs" />}
+                {source?.name ?? "?"}
+              </span>
+              {type === "transfer" && destination && (
+                <>
+                  <span>→</span>
+                  <span className="inline-flex items-center gap-1">
+                    <EntityVisual entity={destination} size="xs" />
+                    {destination.name}
+                  </span>
+                </>
+              )}
+              {category && type !== "transfer" && (
+                <>
+                  <span>·</span>
+                  <span className="inline-flex items-center gap-1">
+                    <EntityVisual entity={category} size="xs" />
+                    {category.name}
+                  </span>
+                </>
+              )}
+              <span>·</span>
+              <span>{format(date, "dd.MM.yyyy", { locale })}</span>
+            </div>
+            {note.trim() && (
+              <div className="mt-1 truncate text-xs text-muted-foreground">{note.trim()}</div>
+            )}
+          </div>
+        </div>
+        {splitMode && slices && slices.length > 0 && (
+          <ul className="mt-2 space-y-1 border-t border-dashed border-border/60 pt-2 text-xs">
+            <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{labels.split}</div>
+            {slices.map((s, i) => (
+              <li key={i} className="flex items-center justify-between gap-2">
+                <span className="inline-flex min-w-0 items-center gap-1.5 truncate text-muted-foreground">
+                  {s.category && <EntityVisual entity={s.category} size="xs" />}
+                  <span className="truncate">{s.description.trim() || s.category?.name || "—"}</span>
+                </span>
+                <span className={cn("tabular-nums", tone)}>
+                  {sign}
+                  {fmtMoney(s.amount, symbol).replace("-", "")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
   );
 }
