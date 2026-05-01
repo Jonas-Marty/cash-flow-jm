@@ -178,7 +178,12 @@ A **recurring rule** is a transaction template + schedule. It does not affect ba
 - `posted` — `transaction_id` points at the resulting `transactions` row.
 - `skipped` — user actively skipped this occurrence.
 
-**Processing pipeline**: `process_recurring_rules(p_today)` is called by the dashboard on every load. For each non-archived rule, it walks month by month from the latest existing occurrence (or `starts_on`) forward to `today` (or `today + 7d` for manual rules), computes each `due_on` and `effective_on`, and either inserts the transaction + posted occurrence (auto) or just a pending occurrence (manual). The `UNIQUE(rule_id, due_on)` constraint plus `ON CONFLICT DO NOTHING` makes the whole thing idempotent — running it twice on the same day is a no-op. No cron required: app open drives processing; if the user skips the app for a month, the next visit catches up everything in one batch.
+**Processing pipeline**: `process_recurring_rules(p_today)` is called by the dashboard on every load. It runs in two passes:
+
+1. **Promotion pass** — scans existing `pending` occurrences whose `effective_on <= p_today` for rules that are currently `auto_post = true` and `is_variable_amount = false`, creates the matching `transactions` row, and flips the occurrence to `posted`. This catches occurrences that were materialised as `pending` earlier — either by the 14-month look-ahead window (so they sit as pending until their effective date arrives) or because the rule was switched to auto-post **after** the occurrence already existed. Without this pass, a manual→auto flip would leave old pendings untouched until the user posted them by hand.
+2. **Materialisation pass** — for each non-archived rule, walks month by month from the latest existing occurrence (or `starts_on`) forward to the 14-month horizon, computes each `due_on` / `effective_on`, and either inserts the transaction + `posted` occurrence (when auto-post + fixed-amount + already due) or a `pending` occurrence otherwise.
+
+The `UNIQUE(rule_id, due_on)` constraint plus `ON CONFLICT DO NOTHING` makes both passes idempotent — running them twice on the same day is a no-op. **No cron required**: app open drives processing; if the user skips the app for a month, the next visit catches up everything in one batch. See §10 for an optional cron-based alternative if you want auto-posts to land without an app visit.
 
 **Deletion linkage**: `recurring_occurrences.transaction_id` uses `ON DELETE SET NULL`, plus a `BEFORE DELETE` trigger on `transactions` (`reset_occurrence_on_tx_delete`) that flips the linked occurrence back to `pending` so the user can re-post or skip cleanly.
 
