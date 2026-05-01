@@ -258,8 +258,6 @@ export function TransactionForm({ editId }: { editId: string | null }) {
     if (best) setSourceId(best);
   }, [accounts, recentQ.data, sourceId, isEdit]);
 
-  const tags = extractTags(note);
-
   const amountNum = React.useMemo(() => {
     const n = Number(amount.replace(",", "."));
     return isFinite(n) && n > 0 ? n : null;
@@ -310,6 +308,16 @@ export function TransactionForm({ editId }: { editId: string | null }) {
     if (present.has(tag)) return;
     const sep = note.length === 0 || note.endsWith(" ") ? "" : " ";
     setNote(note + sep + "#" + tag);
+    mark("note");
+  };
+
+  const removeTagFrom = (text: string, tag: string): string => {
+    // Remove `#tag` tokens (case-insensitive on tag name, word-bounded by tag chars).
+    const re = new RegExp(`(^|\\s)#${tag.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}(?![A-Za-z0-9_])`, "gi");
+    return text.replace(re, (_m, lead: string) => lead).replace(/[ \t]{2,}/g, " ").replace(/\s+$/g, "").replace(/^\s+/g, (s) => s);
+  };
+  const removeTag = (tag: string) => {
+    setNote(removeTagFrom(note, tag));
     mark("note");
   };
 
@@ -823,14 +831,12 @@ export function TransactionForm({ editId }: { editId: string | null }) {
                             }),
                           );
                         }}
+                        onRemove={(tag) => {
+                          setSlices((cur) =>
+                            cur.map((x, i) => (i === idx ? { ...x, note: removeTagFrom(x.note, tag) } : x)),
+                          );
+                        }}
                       />
-                      {extractTags(s.note).length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          {extractTags(s.note).map((t) => (
-                            <span key={t} className="inline-flex items-center rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">{`#${t}`}</span>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   </li>
                 ))}
@@ -904,14 +910,8 @@ export function TransactionForm({ editId }: { editId: string | null }) {
             transactions={recentQ.data ?? []}
             currentNote={note}
             onAppend={appendTag}
+            onRemove={removeTag}
           />
-          {tags.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {tags.map((t) => (
-                <span key={t} className="inline-flex items-center rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">#{t}</span>
-              ))}
-            </div>
-          )}
         </div>
 
         <div>
