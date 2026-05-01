@@ -313,6 +313,16 @@ export function TransactionForm({ editId }: { editId: string | null }) {
     mark("note");
   };
 
+  const removeTagFrom = (text: string, tag: string): string => {
+    // Remove `#tag` tokens (case-insensitive on tag name, word-bounded by tag chars).
+    const re = new RegExp(`(^|\\s)#${tag.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}(?![A-Za-z0-9_])`, "gi");
+    return text.replace(re, (_m, lead: string) => lead).replace(/[ \t]{2,}/g, " ").replace(/\s+$/g, "").replace(/^\s+/g, (s) => s);
+  };
+  const removeTag = (tag: string) => {
+    setNote(removeTagFrom(note, tag));
+    mark("note");
+  };
+
   const reset = () => {
     setAmount(""); setDescription(""); setNote(""); setCategoryId("");
     setDate(new Date());
