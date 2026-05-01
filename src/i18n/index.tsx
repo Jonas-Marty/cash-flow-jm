@@ -577,6 +577,7 @@ const de: Dict = {
   "dow.thu": "Do",
   "dow.fri": "Fr",
   "dow.sat": "Sa",
+  "insights.dow.include_recurring": "Daueraufträge einbeziehen",
   "insights.projection.baseline": "Basis",
   "insights.projection.ahead": "Vorschau",
   "insights.projection.actual": "Verlauf",
