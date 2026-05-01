@@ -134,7 +134,7 @@ const de: Dict = {
   "add.savings_badge": "Rückstellung",
   "add.preview.title": "Vorschau",
   "add.duplicate.warning": "Mögliche doppelte Buchung",
-  "add.duplicate.detail": "Es {count, plural, one {existiert bereits eine Buchung} other {existieren bereits {count} Buchungen}} mit demselben Konto ({account}), Betrag ({amount}) und Datum ({date}).",
+  "add.duplicate.detail": "Es existieren bereits {count} Buchung(en) mit demselben Konto ({account}), Betrag ({amount}) und Datum ({date}).",
   "add.income_badge": "Einnahme",
   "add.reimbursement_hint": "Wird als Rückerstattung gebucht und reduziert die Ausgaben dieses Umschlags.",
   "add.reimbursement_hint.savings": "Wird als Rückerstattung gebucht und erhöht das Guthaben dieses Rückstellungs-Umschlags.",
