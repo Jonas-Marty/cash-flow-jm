@@ -1156,6 +1156,7 @@ const en: Dict = {
   "dow.thu": "Thu",
   "dow.fri": "Fri",
   "dow.sat": "Sat",
+  "insights.dow.include_recurring": "Include recurring",
   "insights.projection.baseline": "Baseline",
   "insights.projection.ahead": "Project",
   "insights.projection.actual": "Actual",
