@@ -258,8 +258,6 @@ export function TransactionForm({ editId }: { editId: string | null }) {
     if (best) setSourceId(best);
   }, [accounts, recentQ.data, sourceId, isEdit]);
 
-  const tags = extractTags(note);
-
   const amountNum = React.useMemo(() => {
     const n = Number(amount.replace(",", "."));
     return isFinite(n) && n > 0 ? n : null;
