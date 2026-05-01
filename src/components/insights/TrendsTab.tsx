@@ -16,6 +16,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { useI18n } from "@/i18n";
 import {
   fetchTransactionsRange,
@@ -38,6 +40,7 @@ export function TrendsTab({
   const { t } = useI18n();
   const [series, setSeries] = React.useState<SeriesKind>("income_expense");
   const [shape, setShape] = React.useState<ChartShape>("line");
+  const [dowIncludeRecurring, setDowIncludeRecurring] = React.useState(true);
 
   const txQ = useQuery({
     queryKey: ["insights", "tx_range", from, to],
@@ -67,12 +70,13 @@ export function TrendsTab({
     const counts = [0, 0, 0, 0, 0, 0, 0];
     for (const r of tx) {
       if (r.type !== "expense") continue;
+      if (!dowIncludeRecurring && r.recurring_rule_id) continue;
       const d = new Date(r.occurred_on).getDay(); // 0=Sun
       buckets[d] += Number(r.amount) || 0;
       counts[d] += 1;
     }
     return buckets.map((v, i) => ({ day: i, value: v, count: counts[i] }));
-  }, [tx]);
+  }, [tx, dowIncludeRecurring]);
   const maxDow = dow.reduce((a, b) => Math.max(a, b.value), 0);
 
   if (txQ.isLoading) return <Skeleton className="h-64 w-full" />;
@@ -158,7 +162,19 @@ export function TrendsTab({
       </Card>
 
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm">{t("insights.dow.title")}</CardTitle></CardHeader>
+        <CardHeader className="pb-2 flex-row items-center justify-between gap-2 space-y-0">
+          <CardTitle className="text-sm">{t("insights.dow.title")}</CardTitle>
+          <div className="flex items-center gap-2">
+            <Label htmlFor="dow-include-recurring" className="text-xs text-muted-foreground">
+              {t("insights.dow.include_recurring")}
+            </Label>
+            <Switch
+              id="dow-include-recurring"
+              checked={dowIncludeRecurring}
+              onCheckedChange={setDowIncludeRecurring}
+            />
+          </div>
+        </CardHeader>
         <CardContent>
           <div className="grid grid-cols-7 gap-2">
             {dow.map((d) => {
