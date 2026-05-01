@@ -265,6 +265,25 @@ export function TransactionForm({ editId }: { editId: string | null }) {
     return isFinite(n) && n > 0 ? n : null;
   }, [amount]);
 
+  // Duplicate-warning: same source account + same date + same amount.
+  // For splits, compare against the per-slice amount (skip — too noisy).
+  const duplicates = React.useMemo<Transaction[]>(() => {
+    if (splitMode) return [];
+    if (!sourceId || amountNum == null) return [];
+    const dateStr = format(date, "yyyy-MM-dd");
+    return (recentQ.data ?? []).filter((t) => {
+      if (isEdit && editId && t.id === editId) return false;
+      if (t.source_account_id !== sourceId) return false;
+      if (t.occurred_on !== dateStr) return false;
+      return Math.abs(Number(t.amount) - amountNum) < 0.005;
+    });
+  }, [splitMode, sourceId, amountNum, date, recentQ.data, isEdit, editId]);
+
+  const categoryById = React.useMemo(
+    () => new Map(categories.map((c) => [c.id, c])),
+    [categories],
+  );
+
   const { suggestions } = useSuggestions({
     type,
     amount,
