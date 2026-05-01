@@ -461,11 +461,11 @@ Promtail / Filebeat picks up the container's stdout — no extra log files, no r
 
 The default behaviour is **lazy / app-driven**: `process_recurring_rules(today)` runs every time the dashboard loads. Auto-post rules only materialise into transactions when a user opens the app. For a single-user, regularly-used self-hosted instance this is fine — the next visit catches up everything in one batch.
 
-If you want auto-posts (and pending-occurrence promotions) to land **without** anyone opening the app — e.g. so account balances are always current for an external reporting script — wire up a scheduled job. Three options, in order of simplicity:
+If you want auto-posts (and pending-occurrence promotions) to land **without** anyone opening the app — e.g. so account balances are always current for an external reporting script — wire up a scheduled job. Three options, in order of simplicity. **Option A is implemented**; B and C are documented for completeness.
 
-### Option A — host-level cron on the Coolify server (recommended)
+### Option A — host-level cron on the Coolify server (implemented, recommended)
 
-No extra container, no extensions. Add a cron entry on the host that hits an HTTP endpoint:
+No extra container, no extensions. Add a cron entry on the host that hits the bundled HTTP endpoint:
 
 ```cron
 # /etc/cron.d/cash-flow-recurring  — every hour at :05
@@ -473,11 +473,13 @@ No extra container, no extensions. Add a cron entry on the host that hits an HTT
     https://app.example.com/api/public/process-recurring > /dev/null
 ```
 
-This requires a small TanStack server route at `src/routes/api.public.process-recurring.ts` that:
-1. Verifies the `Authorization: Bearer ${METRICS_TOKEN}` header (same pattern as `api.public.prune-audit.ts`).
-2. Calls `supabaseAdmin.rpc("process_recurring_rules_for_all_users", { p_today: ... })` — a **new** SQL function that loops over every `user_id` in `recurring_rules` and runs the same logic as the existing `process_recurring_rules` (which currently relies on `auth.uid()` and is therefore single-user-per-call).
+Pieces that ship with the app:
+1. **Endpoint** `src/routes/api.public.process-recurring.ts`. Accepts `GET` or `POST`, requires `Authorization: Bearer ${METRICS_TOKEN}`. Optional `?today=YYYY-MM-DD` query param for backfills (defaults to the server's local date). Returns `{ users_processed, today }`. Same auth pattern as `api.public.prune-audit.ts`.
+2. **SQL function** `public.process_recurring_rules_for_all_users(p_today date) RETURNS integer`. `SECURITY DEFINER`, locked down so only `service_role` can `EXECUTE` (the endpoint uses `supabaseAdmin`). Iterates `SELECT DISTINCT user_id FROM recurring_rules WHERE archived = false` and runs the same two-pass logic as the per-user `process_recurring_rules` (Pass 1: promote auto-post pendings whose effective date arrived; Pass 2: extend the schedule forward).
 
-The endpoint is served by the **`app`** container in `docker-compose.yml`. No other container needs to be aware of the schedule. The audit-log pruner already uses this exact pattern (see `src/routes/api.public.prune-audit.ts`).
+The endpoint is served by the **`app`** container in `docker-compose.yml`. No other container needs to be aware of the schedule. The audit-log pruner uses the same pattern (see `src/routes/api.public.prune-audit.ts`).
+
+On Coolify, drop the cron line into `/etc/cron.d/cash-flow-recurring` on the host (not inside any container). `${METRICS_TOKEN}` must match the value in the app's environment. Hourly is generous — once a day shortly after midnight is enough for typical use; hourly only matters if you have rules whose `effective_on` lands mid-day (rare).
 
 ### Option B — Postgres `pg_cron` inside the database container
 
@@ -491,21 +493,21 @@ SELECT cron.schedule(
 );
 ```
 
-Pros: zero network hops, runs even if the `app` container is down. Cons: business logic moves into the DB; harder to observe (no app logs, no `METRICS_TOKEN` audit trail). The job runs inside the **`db`** container.
+Pros: zero network hops, runs even if the `app` container is down. Cons: harder to observe (no app logs, no `METRICS_TOKEN` audit trail) and `pg_cron` runs as `postgres`, so you'd also need to `GRANT EXECUTE` on the bulk function to that role. The job runs inside the **`db`** container.
 
 ### Option C — `pg_net` from `db` calling the app's HTTP endpoint
 
 Same shape as Lovable Cloud's hosted cron pattern: `pg_cron` triggers `net.http_post(...)` against the app's `/api/public/process-recurring`. Effectively a worse Option A — adds a network hop and an extension dependency for no gain on a single-host setup. Listed only for completeness.
-
-### Why a bulk variant of `process_recurring_rules` is needed
-
-The existing function uses `auth.uid()` to scope work to the calling user — perfect for the dashboard, useless for cron. The bulk version (`process_recurring_rules_for_all_users(p_today)`) should be `SECURITY DEFINER`, iterate over `SELECT DISTINCT user_id FROM recurring_rules WHERE archived = false`, and run the same two-pass logic per user with a local `v_uid` variable instead of reading `auth.uid()`. This is **not** implemented yet — add it together with whichever option above you choose. Until then, the lazy app-driven model remains the only path that actually creates transactions.
 
 ### Recommendation
 
 - **Solo user, opens the app most days** → keep the lazy model. No cron.
 - **Auto-posts must drive an external script (export, email, BI)** → Option A. Single secret (`METRICS_TOKEN`), unified logging path, easy to disable.
 - **App container is offline-tolerant or you want zero network surface** → Option B.
+
+### Bugfix (2026-05-01) — promotion pass silently failing
+
+The first cut of the promotion pass declared both loop targets as `RECORD` (`r RECORD; o RECORD;`) and then inside Pass 1 wrote `SELECT occ.id, occ.effective_on, r.* FROM ... JOIN recurring_rules r`. Postgres resolved the `r` in `r.*` to the **PL/pgSQL record variable** (still unassigned at that point in the function) instead of the SQL alias, raising `record "r" is not assigned yet` at runtime. The dashboard call site swallows the error (`processRecurringRules().catch(() => {})`), so pending occurrences kept showing up despite their rules being auto-post. Fix: alias the table as `rr` in Pass 1's SELECT (and rename the inner column alias to `occ_effective_on` for clarity). The same shape is used in `process_recurring_rules_for_all_users`.
 
 ### 2026-04-24 — Smart suggestions on Add
 - New §3.9 documents a provider-based suggestion engine: `src/lib/suggestions/` with `historyProvider` (similar past transactions, scored) and `payeeProvider`. Top 5 ranked suggestions render as tappable chips above the form and prefill fields with sticky-typing + undo.
