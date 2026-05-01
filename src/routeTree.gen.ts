@@ -18,6 +18,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as EditIdRouteImport } from './routes/edit.$id'
 import { Route as ApiPublicTransactionsRouteImport } from './routes/api.public.transactions'
 import { Route as ApiPublicPruneAuditRouteImport } from './routes/api.public.prune-audit'
+import { Route as ApiPublicProcessRecurringRouteImport } from './routes/api.public.process-recurring'
 import { Route as ApiPublicMetricsRouteImport } from './routes/api.public.metrics'
 import { Route as ApiPublicCategoriesRouteImport } from './routes/api.public.categories'
 import { Route as ApiPublicAttachmentsRouteImport } from './routes/api.public.attachments'
@@ -69,6 +70,12 @@ const ApiPublicPruneAuditRoute = ApiPublicPruneAuditRouteImport.update({
   path: '/api/public/prune-audit',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicProcessRecurringRoute =
+  ApiPublicProcessRecurringRouteImport.update({
+    id: '/api/public/process-recurring',
+    path: '/api/public/process-recurring',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicMetricsRoute = ApiPublicMetricsRouteImport.update({
   id: '/api/public/metrics',
   path: '/api/public/metrics',
@@ -108,6 +115,7 @@ export interface FileRoutesByFullPath {
   '/api/public/attachments': typeof ApiPublicAttachmentsRoute
   '/api/public/categories': typeof ApiPublicCategoriesRoute
   '/api/public/metrics': typeof ApiPublicMetricsRoute
+  '/api/public/process-recurring': typeof ApiPublicProcessRecurringRoute
   '/api/public/prune-audit': typeof ApiPublicPruneAuditRoute
   '/api/public/transactions': typeof ApiPublicTransactionsRoute
 }
@@ -124,6 +132,7 @@ export interface FileRoutesByTo {
   '/api/public/attachments': typeof ApiPublicAttachmentsRoute
   '/api/public/categories': typeof ApiPublicCategoriesRoute
   '/api/public/metrics': typeof ApiPublicMetricsRoute
+  '/api/public/process-recurring': typeof ApiPublicProcessRecurringRoute
   '/api/public/prune-audit': typeof ApiPublicPruneAuditRoute
   '/api/public/transactions': typeof ApiPublicTransactionsRoute
 }
@@ -141,6 +150,7 @@ export interface FileRoutesById {
   '/api/public/attachments': typeof ApiPublicAttachmentsRoute
   '/api/public/categories': typeof ApiPublicCategoriesRoute
   '/api/public/metrics': typeof ApiPublicMetricsRoute
+  '/api/public/process-recurring': typeof ApiPublicProcessRecurringRoute
   '/api/public/prune-audit': typeof ApiPublicPruneAuditRoute
   '/api/public/transactions': typeof ApiPublicTransactionsRoute
 }
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/api/public/attachments'
     | '/api/public/categories'
     | '/api/public/metrics'
+    | '/api/public/process-recurring'
     | '/api/public/prune-audit'
     | '/api/public/transactions'
   fileRoutesByTo: FileRoutesByTo
@@ -175,6 +186,7 @@ export interface FileRouteTypes {
     | '/api/public/attachments'
     | '/api/public/categories'
     | '/api/public/metrics'
+    | '/api/public/process-recurring'
     | '/api/public/prune-audit'
     | '/api/public/transactions'
   id:
@@ -191,6 +203,7 @@ export interface FileRouteTypes {
     | '/api/public/attachments'
     | '/api/public/categories'
     | '/api/public/metrics'
+    | '/api/public/process-recurring'
     | '/api/public/prune-audit'
     | '/api/public/transactions'
   fileRoutesById: FileRoutesById
@@ -208,6 +221,7 @@ export interface RootRouteChildren {
   ApiPublicAttachmentsRoute: typeof ApiPublicAttachmentsRoute
   ApiPublicCategoriesRoute: typeof ApiPublicCategoriesRoute
   ApiPublicMetricsRoute: typeof ApiPublicMetricsRoute
+  ApiPublicProcessRecurringRoute: typeof ApiPublicProcessRecurringRoute
   ApiPublicPruneAuditRoute: typeof ApiPublicPruneAuditRoute
   ApiPublicTransactionsRoute: typeof ApiPublicTransactionsRoute
 }
@@ -277,6 +291,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPruneAuditRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/process-recurring': {
+      id: '/api/public/process-recurring'
+      path: '/api/public/process-recurring'
+      fullPath: '/api/public/process-recurring'
+      preLoaderRoute: typeof ApiPublicProcessRecurringRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/metrics': {
       id: '/api/public/metrics'
       path: '/api/public/metrics'
@@ -328,6 +349,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicAttachmentsRoute: ApiPublicAttachmentsRoute,
   ApiPublicCategoriesRoute: ApiPublicCategoriesRoute,
   ApiPublicMetricsRoute: ApiPublicMetricsRoute,
+  ApiPublicProcessRecurringRoute: ApiPublicProcessRecurringRoute,
   ApiPublicPruneAuditRoute: ApiPublicPruneAuditRoute,
   ApiPublicTransactionsRoute: ApiPublicTransactionsRoute,
 }

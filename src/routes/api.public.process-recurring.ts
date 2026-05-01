@@ -39,7 +39,6 @@ async function run(request: Request): Promise<Response> {
     : new Date().toISOString().slice(0, 10);
 
   const { data, error } = await supabaseAdmin.rpc(
-    // @ts-expect-error — function is service-role only; not in the generated public types
     "process_recurring_rules_for_all_users",
     { p_today: today },
   );
