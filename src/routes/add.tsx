@@ -833,14 +833,12 @@ export function TransactionForm({ editId }: { editId: string | null }) {
                             }),
                           );
                         }}
+                        onRemove={(tag) => {
+                          setSlices((cur) =>
+                            cur.map((x, i) => (i === idx ? { ...x, note: removeTagFrom(x.note, tag) } : x)),
+                          );
+                        }}
                       />
-                      {extractTags(s.note).length > 0 && (
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          {extractTags(s.note).map((t) => (
-                            <span key={t} className="inline-flex items-center rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">{`#${t}`}</span>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   </li>
                 ))}
