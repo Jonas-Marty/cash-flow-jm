@@ -3,6 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import type { Locale } from "date-fns";
 import { ArrowDown, ArrowUp, ArrowLeftRight, Plus, X } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
