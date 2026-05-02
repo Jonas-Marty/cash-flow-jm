@@ -33,23 +33,9 @@ import { ShortcutsDialog } from "@/components/ShortcutsDialog";
 import { DescriptionAutocomplete } from "@/components/DescriptionAutocomplete";
 import { AttachmentsSection } from "@/components/AttachmentsSection";
 import { useFxRates, convert } from "@/lib/fx";
-import { Switch } from "@/components/ui/switch";
-import {
-  fetchOpenReimbursables,
-  fetchReimbursementCounterparties,
-  linkReimbursement,
-} from "@/lib/finance";
-import { useSearch } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/add")({
   component: AddTransactionRoute,
-  validateSearch: (s: Record<string, unknown>) => ({
-    reimburse_for: typeof s.reimburse_for === "string" ? s.reimburse_for : undefined,
-    type: typeof s.type === "string" ? s.type : undefined,
-    amount: typeof s.amount === "string" ? s.amount : undefined,
-    source: typeof s.source === "string" ? s.source : undefined,
-    counterparty: typeof s.counterparty === "string" ? s.counterparty : undefined,
-  }),
 });
 
 function AddTransactionRoute() {
