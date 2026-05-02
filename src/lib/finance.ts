@@ -127,6 +127,11 @@ export interface Transaction {
   recurring_rule_id?: string | null;
   split_group_id?: string | null;
   destination_amount?: number | null;
+  is_reimbursable?: boolean;
+  reimbursable_status?: "open" | "settled" | "cancelled" | null;
+  reimbursable_counterparty?: string | null;
+  reimbursable_reason?: string | null;
+  reimbursable_cancel_reason?: string | null;
 }
 export type RecurringFrequency = "monthly" | "quarterly" | "yearly";
 export type RecurringDayRule = "fixed_day" | "end_of_month" | "first_of_month";
