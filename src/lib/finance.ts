@@ -688,3 +688,80 @@ export async function setDefaultSweepTarget(targetId: string | null): Promise<vo
     .eq("id", existing.id);
   if (error) throw error;
 }
+
+// ───────── Reimbursements (transactions you'll get paid back for) ─────────
+
+export interface ReimbursementLink {
+  id: string;
+  user_id: string;
+  original_transaction_id: string;
+  settling_transaction_id: string;
+  amount: number;
+  created_at: string;
+}
+
+export async function fetchOpenReimbursables(): Promise<Transaction[]> {
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("*")
+    .eq("is_reimbursable", true)
+    .eq("reimbursable_status", "open")
+    .order("occurred_on", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as Transaction[];
+}
+
+export async function fetchReimbursementLinks(): Promise<ReimbursementLink[]> {
+  const { data, error } = await supabase
+    .from("transaction_reimbursements")
+    .select("*");
+  if (error) throw error;
+  return (data ?? []) as ReimbursementLink[];
+}
+
+export async function fetchReimbursementCounterparties(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("reimbursable_counterparty")
+    .eq("is_reimbursable", true)
+    .not("reimbursable_counterparty", "is", null)
+    .limit(500);
+  if (error) throw error;
+  const set = new Set<string>();
+  (data ?? []).forEach((r) => {
+    const v = (r as { reimbursable_counterparty: string | null }).reimbursable_counterparty;
+    if (v && v.trim()) set.add(v.trim());
+  });
+  return Array.from(set).sort((a, b) => a.localeCompare(b));
+}
+
+export async function linkReimbursement(
+  originalId: string,
+  settlingId: string,
+  amount: number,
+): Promise<void> {
+  const { error } = await supabase
+    .from("transaction_reimbursements")
+    .insert({ original_transaction_id: originalId, settling_transaction_id: settlingId, amount });
+  if (error) throw error;
+}
+
+export async function unlinkReimbursement(linkId: string): Promise<void> {
+  const { error } = await supabase
+    .from("transaction_reimbursements")
+    .delete()
+    .eq("id", linkId);
+  if (error) throw error;
+}
+
+export async function setReimbursableStatus(
+  txId: string,
+  status: "open" | "settled" | "cancelled",
+  cancelReason?: string | null,
+): Promise<void> {
+  const patch: Record<string, unknown> = { reimbursable_status: status };
+  if (status === "cancelled") patch.reimbursable_cancel_reason = cancelReason ?? null;
+  if (status !== "cancelled") patch.reimbursable_cancel_reason = null;
+  const { error } = await supabase.from("transactions").update(patch).eq("id", txId);
+  if (error) throw error;
+}
