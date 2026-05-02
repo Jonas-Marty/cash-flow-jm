@@ -609,6 +609,33 @@ export type Database = {
           },
         ]
       }
+      transaction_reimbursements: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          original_transaction_id: string
+          settling_transaction_id: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          original_transaction_id: string
+          settling_transaction_id: string
+          user_id?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          original_transaction_id?: string
+          settling_transaction_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       transaction_tags: {
         Row: {
           tag: string
@@ -641,9 +668,14 @@ export type Database = {
           destination_account_id: string | null
           destination_amount: number | null
           id: string
+          is_reimbursable: boolean
           note: string | null
           occurred_on: string
           recurring_rule_id: string | null
+          reimbursable_cancel_reason: string | null
+          reimbursable_counterparty: string | null
+          reimbursable_reason: string | null
+          reimbursable_status: string | null
           source_account_id: string
           split_group_id: string | null
           type: Database["public"]["Enums"]["transaction_type"]
@@ -658,9 +690,14 @@ export type Database = {
           destination_account_id?: string | null
           destination_amount?: number | null
           id?: string
+          is_reimbursable?: boolean
           note?: string | null
           occurred_on?: string
           recurring_rule_id?: string | null
+          reimbursable_cancel_reason?: string | null
+          reimbursable_counterparty?: string | null
+          reimbursable_reason?: string | null
+          reimbursable_status?: string | null
           source_account_id: string
           split_group_id?: string | null
           type: Database["public"]["Enums"]["transaction_type"]
@@ -675,9 +712,14 @@ export type Database = {
           destination_account_id?: string | null
           destination_amount?: number | null
           id?: string
+          is_reimbursable?: boolean
           note?: string | null
           occurred_on?: string
           recurring_rule_id?: string | null
+          reimbursable_cancel_reason?: string | null
+          reimbursable_counterparty?: string | null
+          reimbursable_reason?: string | null
+          reimbursable_status?: string | null
           source_account_id?: string
           split_group_id?: string | null
           type?: Database["public"]["Enums"]["transaction_type"]
@@ -943,6 +985,10 @@ export type Database = {
         Returns: number
       }
       prune_audit_logs: { Args: { p_keep_days: number }; Returns: number }
+      recompute_reimbursable_status: {
+        Args: { p_orig: string }
+        Returns: undefined
+      }
       reconciliation_summary: {
         Args: { p_as_of: string }
         Returns: {
