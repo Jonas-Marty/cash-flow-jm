@@ -164,9 +164,9 @@ export function OpenReimbursementsCard({ symbol }: { symbol: string }) {
                       </div>
                       <div className="flex w-full items-center justify-end gap-1 sm:w-auto">
                         <Button asChild size="sm" variant="default" className="h-7 px-2 text-xs">
-                          <Link to={refundLink(tx)}>
+                          <a href={refundLink(tx)}>
                             <Plus className="mr-1 h-3 w-3" /> {tr("dash.reimb.add_refund")}
-                          </Link>
+                          </a>
                         </Button>
                         <Button
                           size="sm"
