@@ -759,9 +759,12 @@ export async function setReimbursableStatus(
   status: "open" | "settled" | "cancelled",
   cancelReason?: string | null,
 ): Promise<void> {
-  const patch: Record<string, unknown> = { reimbursable_status: status };
-  if (status === "cancelled") patch.reimbursable_cancel_reason = cancelReason ?? null;
-  if (status !== "cancelled") patch.reimbursable_cancel_reason = null;
-  const { error } = await supabase.from("transactions").update(patch).eq("id", txId);
+  const { error } = await supabase
+    .from("transactions")
+    .update({
+      reimbursable_status: status,
+      reimbursable_cancel_reason: status === "cancelled" ? cancelReason ?? null : null,
+    })
+    .eq("id", txId);
   if (error) throw error;
 }
