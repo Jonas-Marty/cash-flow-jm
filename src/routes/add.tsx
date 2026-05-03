@@ -193,13 +193,25 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
   }, [isCrossCurrency]);
 
   // ───────── Split mode (multi-item receipt) ─────────
-  type Slice = { id: string; amount: string; categoryId: string; description: string; note: string };
+  type Slice = {
+    id: string;
+    amount: string;
+    categoryId: string;
+    description: string;
+    note: string;
+    isReimbursable: boolean;
+    reimbCounterparty: string;
+    reimbReason: string;
+  };
   const newSlice = (): Slice => ({
     id: Math.random().toString(36).slice(2),
     amount: "",
     categoryId: "",
     description: "",
     note: "",
+    isReimbursable: false,
+    reimbCounterparty: "",
+    reimbReason: "",
   });
   const [splitMode, setSplitMode] = React.useState(false);
   const [slices, setSlices] = React.useState<Slice[]>([newSlice(), newSlice()]);
@@ -281,6 +293,9 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
           categoryId: g.category_id ?? "",
           description: g.description ?? "",
           note: g.note ?? "",
+          isReimbursable: !!g.is_reimbursable,
+          reimbCounterparty: g.reimbursable_counterparty ?? "",
+          reimbReason: g.reimbursable_reason ?? "",
         })),
       );
     } else {
