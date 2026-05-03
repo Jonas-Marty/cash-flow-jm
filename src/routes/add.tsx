@@ -492,6 +492,9 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
           categoryId: s.categoryId || null,
           description: s.description.trim() || null,
           note: merged || null,
+          isReimbursable: !!s.isReimbursable,
+          reimbCounterparty: s.isReimbursable ? (s.reimbCounterparty.trim() || null) : null,
+          reimbReason: s.isReimbursable ? (s.reimbReason.trim() || null) : null,
         };
       });
       if (parsed.some((p) => !p.amount || p.amount <= 0)) { toast.error(tr("add.split.toast.amounts")); return; }
@@ -513,6 +516,9 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
           destination_account_id: null,
           category_id: p.categoryId,
           split_group_id: groupId,
+          is_reimbursable: p.isReimbursable,
+          reimbursable_counterparty: p.reimbCounterparty,
+          reimbursable_reason: p.reimbReason,
         }));
         const { error } = await supabase.from("transactions").insert(rows);
         setSaving(false);
@@ -533,6 +539,9 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
         destination_account_id: null,
         category_id: p.categoryId,
         split_group_id: groupId,
+        is_reimbursable: p.isReimbursable,
+        reimbursable_counterparty: p.reimbCounterparty,
+        reimbursable_reason: p.reimbReason,
       }));
       const { error } = await supabase.from("transactions").insert(rows);
       setSaving(false);
