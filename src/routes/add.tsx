@@ -1016,6 +1016,47 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
                         }}
                       />
                     </div>
+                    <div className="mt-3 rounded-md border border-dashed border-border/60 p-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <Label className="text-xs font-medium">{tr("add.reimb.section")}</Label>
+                          <p className="mt-0.5 text-[11px] text-muted-foreground">{tr("add.reimb.toggle.hint")}</p>
+                        </div>
+                        <Switch
+                          checked={s.isReimbursable}
+                          onCheckedChange={(v) =>
+                            setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, isReimbursable: !!v } : x)))
+                          }
+                          aria-label={tr("add.reimb.toggle")}
+                        />
+                      </div>
+                      {s.isReimbursable && (
+                        <div className="mt-2 space-y-2">
+                          <div>
+                            <Label className="mb-1 block text-xs">{tr("add.reimb.counterparty")}</Label>
+                            <Input
+                              list="reimb-cp-list"
+                              value={s.reimbCounterparty}
+                              onChange={(e) =>
+                                setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, reimbCounterparty: e.target.value } : x)))
+                              }
+                            />
+                          </div>
+                          <div>
+                            <Label className="mb-1 block text-xs">{tr("add.reimb.reason")}</Label>
+                            <Input
+                              value={s.reimbReason}
+                              onChange={(e) =>
+                                setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, reimbReason: e.target.value } : x)))
+                              }
+                            />
+                          </div>
+                          {type === "expense" && s.categoryId && (
+                            <p className="text-[11px] text-warning">{tr("add.reimb.category_clear_warning")}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>
