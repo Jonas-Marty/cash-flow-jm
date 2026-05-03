@@ -455,6 +455,26 @@ function TransactionsPage() {
             ))}
           </div>
 
+          {/* Reimbursable filter */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">{tr("tx.reimb.filter")}:</span>
+            {(["any", "open", "settled", "cancelled", "all"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setFilterReimb(k)}
+                className={cn(
+                  "rounded-full border px-2.5 py-0.5 text-xs",
+                  filterReimb === k
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
+                )}
+              >
+                {k === "any" ? tr("tx.amount_op.any") : tr(`tx.reimb.filter.${k}` as never)}
+              </button>
+            ))}
+          </div>
+
           {/* Amount filter + sort */}
           <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
             <div>
