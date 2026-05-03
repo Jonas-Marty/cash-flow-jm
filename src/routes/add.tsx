@@ -450,6 +450,10 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     setDate(new Date());
     setTouched({});
     setAppliedFrom(null);
+    setIsReimbursable(false);
+    setReimbCounterparty("");
+    setReimbReason("");
+    setLinkSelections({});
     setTimeout(() => amountRef.current?.focus(), 0);
   };
 
