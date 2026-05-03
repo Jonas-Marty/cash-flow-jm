@@ -100,7 +100,6 @@ export function OpenReimbursementsCard({ symbol }: { symbol: string }) {
       reimburse_for: tx.id,
       type: "income",
       amount: rem.toFixed(2),
-      source: tx.source_account_id,
     });
     if (tx.reimbursable_counterparty) params.set("counterparty", tx.reimbursable_counterparty);
     return `/add?${params.toString()}`;
