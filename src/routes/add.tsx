@@ -44,13 +44,29 @@ import { useFxRates, convert } from "@/lib/fx";
 
 export const Route = createFileRoute("/add")({
   component: AddTransactionRoute,
+  validateSearch: (search: Record<string, unknown>) => ({
+    reimburse_for: typeof search.reimburse_for === "string" ? search.reimburse_for : undefined,
+    type: (search.type === "income" || search.type === "expense" || search.type === "transfer") ? search.type : undefined,
+    amount: typeof search.amount === "string" ? search.amount : undefined,
+    source: typeof search.source === "string" ? search.source : undefined,
+    counterparty: typeof search.counterparty === "string" ? search.counterparty : undefined,
+  }),
 });
 
 function AddTransactionRoute() {
-  return <TransactionForm editId={null} />;
+  const search = Route.useSearch();
+  return <TransactionForm editId={null} prefill={search} />;
 }
 
-export function TransactionForm({ editId }: { editId: string | null }) {
+export interface AddPrefill {
+  reimburse_for?: string;
+  type?: TxType;
+  amount?: string;
+  source?: string;
+  counterparty?: string;
+}
+
+export function TransactionForm({ editId, prefill }: { editId: string | null; prefill?: AddPrefill }) {
   const { t: tr, locale, lang } = useI18n();
   const navigate = useNavigate();
   const qc = useQueryClient();
