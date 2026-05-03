@@ -1113,6 +1113,124 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
           </p>
         </div>
 
+        {/* Reimbursable / lent-out section (not for transfers) */}
+        {type !== "transfer" && (
+          <Card>
+            <CardContent className="space-y-3 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <Label className="text-sm font-medium">{tr("add.reimb.section")}</Label>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{tr("add.reimb.toggle.hint")}</p>
+                </div>
+                <Switch
+                  checked={isReimbursable}
+                  onCheckedChange={(v) => setIsReimbursable(!!v)}
+                  aria-label={tr("add.reimb.toggle")}
+                />
+              </div>
+              {isReimbursable && (
+                <div className="space-y-2">
+                  <div>
+                    <Label htmlFor="reimb-cp" className="mb-1 block text-xs">{tr("add.reimb.counterparty")}</Label>
+                    <Input
+                      id="reimb-cp"
+                      list="reimb-cp-list"
+                      value={reimbCounterparty}
+                      onChange={(e) => setReimbCounterparty(e.target.value)}
+                      placeholder=""
+                    />
+                    <datalist id="reimb-cp-list">
+                      {(reimbCpQ.data ?? []).map((cp) => <option key={cp} value={cp} />)}
+                    </datalist>
+                  </div>
+                  <div>
+                    <Label htmlFor="reimb-reason" className="mb-1 block text-xs">{tr("add.reimb.reason")}</Label>
+                    <Input
+                      id="reimb-reason"
+                      value={reimbReason}
+                      onChange={(e) => setReimbReason(e.target.value)}
+                      placeholder=""
+                    />
+                  </div>
+                  {type === "expense" && categoryId && (
+                    <p className="text-xs text-warning">{tr("add.reimb.category_clear_warning")}</p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Auto-link suggestion: this income could settle open reimbursables */}
+        {!isEdit && type === "income" && autoLinkCandidates.length > 0 && (
+          <Card className="border-primary/40 bg-primary/5">
+            <CardContent className="space-y-2 py-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <LinkIcon className="h-4 w-4" />
+                {tr("add.reimb.autolink.title")}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {tr("add.reimb.autolink.detail", {
+                  count: String(autoLinkCandidates.length),
+                  amount: fmtMoney(
+                    autoLinkCandidates.reduce((s, t) => s + (remainingByOrig.get(t.id) ?? 0), 0),
+                    symbol,
+                  ),
+                })}
+              </p>
+              <ul className="space-y-1">
+                {autoLinkCandidates.map((t) => {
+                  const rem = remainingByOrig.get(t.id) ?? 0;
+                  const checked = linkSelections[t.id] != null;
+                  const acc = accountById.get(t.source_account_id);
+                  const sym = acc?.currency_symbol ?? symbol;
+                  return (
+                    <li key={t.id} className="flex items-start gap-2 rounded-md bg-background/60 px-2 py-1.5">
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(v) => {
+                          setLinkSelections((cur) => {
+                            const next = { ...cur };
+                            if (v) next[t.id] = rem;
+                            else delete next[t.id];
+                            return next;
+                          });
+                        }}
+                        className="mt-0.5"
+                      />
+                      <div className="min-w-0 flex-1 text-xs">
+                        <div className="truncate font-medium">
+                          {t.description || tr("add.expense")}
+                          {t.reimbursable_counterparty && (
+                            <span className="ml-1 text-muted-foreground">{tr("add.reimb.autolink.from", { who: t.reimbursable_counterparty })}</span>
+                          )}
+                        </div>
+                        <div className="text-muted-foreground">
+                          {format(new Date(t.occurred_on + "T00:00:00"), "dd.MM.yyyy", { locale })} · {fmtMoney(rem, sym)}
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+              {Object.keys(linkSelections).length === 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const next: Record<string, number> = {};
+                    autoLinkCandidates.forEach((t) => { next[t.id] = remainingByOrig.get(t.id) ?? 0; });
+                    setLinkSelections(next);
+                  }}
+                >
+                  {tr("add.reimb.autolink.link_all")}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Live summary: how this transaction will look in the list */}
         <TransactionPreview
           type={type}
