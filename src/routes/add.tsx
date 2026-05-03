@@ -44,18 +44,26 @@ import { useFxRates, convert } from "@/lib/fx";
 
 export const Route = createFileRoute("/add")({
   component: AddTransactionRoute,
-  validateSearch: (search: Record<string, unknown>) => ({
-    reimburse_for: typeof search.reimburse_for === "string" ? search.reimburse_for : undefined,
-    type: (search.type === "income" || search.type === "expense" || search.type === "transfer") ? search.type : undefined,
-    amount: typeof search.amount === "string" ? search.amount : undefined,
-    source: typeof search.source === "string" ? search.source : undefined,
-    counterparty: typeof search.counterparty === "string" ? search.counterparty : undefined,
-  }),
 });
 
 function AddTransactionRoute() {
-  const search = Route.useSearch();
-  return <TransactionForm editId={null} prefill={search} />;
+  // Read prefill from URL search params (set by deep links such as the
+  // dashboard "Add refund" button). Kept untyped to avoid forcing every
+  // <Link to="/add"> elsewhere to declare a search shape.
+  const prefill = React.useMemo<AddPrefill>(() => {
+    if (typeof window === "undefined") return {};
+    const sp = new URLSearchParams(window.location.search);
+    const t = sp.get("type");
+    return {
+      reimburse_for: sp.get("reimburse_for") ?? undefined,
+      type: t === "income" || t === "expense" || t === "transfer" ? t : undefined,
+      amount: sp.get("amount") ?? undefined,
+      source: sp.get("source") ?? undefined,
+      counterparty: sp.get("counterparty") ?? undefined,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return <TransactionForm editId={null} prefill={prefill} />;
 }
 
 export interface AddPrefill {
