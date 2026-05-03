@@ -14,9 +14,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings, fetchTransactions, extractTags, fmtMoney, type TxType, type Transaction } from "@/lib/finance";
+import {
+  fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings, fetchTransactions,
+  fetchOpenReimbursables, fetchReimbursementLinks, fetchReimbursementCounterparties,
+  linkReimbursement,
+  extractTags, fmtMoney,
+  type TxType, type Transaction, type ReimbursementLink,
+} from "@/lib/finance";
 import { EntityVisual } from "@/components/EntityVisual";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Link as LinkIcon } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useI18n } from "@/i18n";
 import { useSuggestions } from "@/lib/suggestions/useSuggestions";
 import type { Suggestion } from "@/lib/suggestions/types";
@@ -39,10 +47,34 @@ export const Route = createFileRoute("/add")({
 });
 
 function AddTransactionRoute() {
-  return <TransactionForm editId={null} />;
+  // Read prefill from URL search params (set by deep links such as the
+  // dashboard "Add refund" button). Kept untyped to avoid forcing every
+  // <Link to="/add"> elsewhere to declare a search shape.
+  const prefill = React.useMemo<AddPrefill>(() => {
+    if (typeof window === "undefined") return {};
+    const sp = new URLSearchParams(window.location.search);
+    const t = sp.get("type");
+    return {
+      reimburse_for: sp.get("reimburse_for") ?? undefined,
+      type: t === "income" || t === "expense" || t === "transfer" ? t : undefined,
+      amount: sp.get("amount") ?? undefined,
+      source: sp.get("source") ?? undefined,
+      counterparty: sp.get("counterparty") ?? undefined,
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return <TransactionForm editId={null} prefill={prefill} />;
 }
 
-export function TransactionForm({ editId }: { editId: string | null }) {
+export interface AddPrefill {
+  reimburse_for?: string;
+  type?: TxType;
+  amount?: string;
+  source?: string;
+  counterparty?: string;
+}
+
+export function TransactionForm({ editId, prefill }: { editId: string | null; prefill?: AddPrefill }) {
   const { t: tr, locale, lang } = useI18n();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -51,6 +83,9 @@ export function TransactionForm({ editId }: { editId: string | null }) {
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   const groupsQ = useQuery({ queryKey: ["category_groups"], queryFn: fetchCategoryGroups });
   const recentQ = useQuery({ queryKey: ["transactions", "recent", 200], queryFn: () => fetchTransactions(200) });
+  const openReimbQ = useQuery({ queryKey: ["reimbursables", "open"], queryFn: fetchOpenReimbursables });
+  const reimbLinksQ = useQuery({ queryKey: ["reimbursement_links"], queryFn: fetchReimbursementLinks });
+  const reimbCpQ = useQuery({ queryKey: ["reimbursement_counterparties"], queryFn: fetchReimbursementCounterparties });
   const ruleTxIdsQ = useQuery({
     queryKey: ["recurring_occurrences", "posted_tx_ids"],
     queryFn: async () => {
@@ -101,6 +136,17 @@ export function TransactionForm({ editId }: { editId: string | null }) {
   const [saving, setSaving] = React.useState(false);
   const [helpOpen, setHelpOpen] = React.useState(false);
   const amountRef = React.useRef<HTMLInputElement>(null);
+
+  // ───────── Reimbursable section ─────────
+  const [isReimbursable, setIsReimbursable] = React.useState(false);
+  const [reimbCounterparty, setReimbCounterparty] = React.useState("");
+  const [reimbReason, setReimbReason] = React.useState("");
+  // For income transactions: which open reimbursable expenses the user
+  // wants to link this income to. Map<originalTxId, amountToApply>.
+  const [linkSelections, setLinkSelections] = React.useState<Record<string, number>>({});
+  // Set by the "Add refund" deep link from the dashboard so we can preselect
+  // the original reimbursable expense once data has loaded.
+  const reimburseForId = prefill?.reimburse_for ?? null;
 
   // Cross-currency dual-amount field: when source/dest currencies differ on
   // a transfer, the user enters the amount that actually arrived in the
@@ -216,6 +262,11 @@ export function TransactionForm({ editId }: { editId: string | null }) {
     setSourceId(tx.source_account_id);
     setDestId(tx.destination_account_id ?? "");
     setDate(new Date(tx.occurred_on + "T00:00:00"));
+    if (tx.is_reimbursable) {
+      setIsReimbursable(true);
+      setReimbCounterparty(tx.reimbursable_counterparty ?? "");
+      setReimbReason(tx.reimbursable_reason ?? "");
+    }
     if (group && group.length > 1) {
       // Edit a split group: amount = total, slices = group rows
       const total = group.reduce((s, x) => s + Number(x.amount), 0);
@@ -245,6 +296,20 @@ export function TransactionForm({ editId }: { editId: string | null }) {
     // mark all fields as touched so suggestions never overwrite loaded data
     setTouched({ amount: true, description: true, note: true, sourceId: true, categoryId: true });
   }, [isEdit, editQ.data]);
+
+  // Apply non-edit prefill once (deep link from dashboard "Add refund").
+  const prefillAppliedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (isEdit || prefillAppliedRef.current || !prefill) return;
+    if (!prefill.type && !prefill.amount && !prefill.source && !prefill.counterparty && !prefill.reimburse_for) return;
+    prefillAppliedRef.current = true;
+    if (prefill.type) setType(prefill.type);
+    if (prefill.amount) { setAmount(prefill.amount); mark("amount"); }
+    if (prefill.source) { setSourceId(prefill.source); mark("sourceId"); }
+    if (prefill.counterparty) setReimbCounterparty(prefill.counterparty);
+    // The actual link selection happens when openReimbQ has loaded — see
+    // the auto-link effect below.
+  }, [isEdit, prefill]);
 
   // Default source = most-used account in recent transactions (skip in edit mode)
   React.useEffect(() => {
@@ -284,6 +349,43 @@ export function TransactionForm({ editId }: { editId: string | null }) {
     () => new Map(categories.map((c) => [c.id, c])),
     [categories],
   );
+
+  // Remaining (open) amount per reimbursable original transaction.
+  const remainingByOrig = React.useMemo(() => {
+    const linked = new Map<string, number>();
+    (reimbLinksQ.data ?? []).forEach((l: ReimbursementLink) => {
+      linked.set(l.original_transaction_id, (linked.get(l.original_transaction_id) ?? 0) + Number(l.amount));
+    });
+    const out = new Map<string, number>();
+    (openReimbQ.data ?? []).forEach((t) => {
+      out.set(t.id, Math.max(0, Number(t.amount) - (linked.get(t.id) ?? 0)));
+    });
+    return out;
+  }, [openReimbQ.data, reimbLinksQ.data]);
+
+  // Auto-link candidates: open reimbursables for the current source account
+  // (same currency) that this income could plausibly settle.
+  const autoLinkCandidates = React.useMemo<Transaction[]>(() => {
+    if (type !== "income" || !sourceId) return [];
+    const srcAcc = accountById.get(sourceId);
+    if (!srcAcc) return [];
+    return (openReimbQ.data ?? []).filter((t) => {
+      const tAcc = accountById.get(t.source_account_id);
+      if (!tAcc) return false;
+      return tAcc.currency_code === srcAcc.currency_code && (remainingByOrig.get(t.id) ?? 0) > 0;
+    });
+  }, [type, sourceId, openReimbQ.data, accountById, remainingByOrig]);
+
+  // When deep-linked from "Add refund", preselect the original reimbursable.
+  const reimbForAppliedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (reimbForAppliedRef.current || !reimburseForId) return;
+    const tx = (openReimbQ.data ?? []).find((t) => t.id === reimburseForId);
+    if (!tx) return;
+    reimbForAppliedRef.current = true;
+    const rem = remainingByOrig.get(tx.id) ?? Number(tx.amount);
+    setLinkSelections((cur) => ({ ...cur, [tx.id]: rem }));
+  }, [reimburseForId, openReimbQ.data, remainingByOrig]);
 
   const { suggestions } = useSuggestions({
     type,
@@ -348,6 +450,10 @@ export function TransactionForm({ editId }: { editId: string | null }) {
     setDate(new Date());
     setTouched({});
     setAppliedFrom(null);
+    setIsReimbursable(false);
+    setReimbCounterparty("");
+    setReimbReason("");
+    setLinkSelections({});
     setTimeout(() => amountRef.current?.focus(), 0);
   };
 
@@ -440,12 +546,22 @@ export function TransactionForm({ editId }: { editId: string | null }) {
               return Number.isFinite(dn) && dn > 0 ? dn : null;
             })()
           : null,
+      // Reimbursable flag only meaningful for expenses (or income that you
+      // expect to receive — rare, but allowed). Transfers can't be reimbursable.
+      is_reimbursable: type !== "transfer" ? isReimbursable : false,
+      reimbursable_counterparty:
+        type !== "transfer" && isReimbursable ? (reimbCounterparty.trim() || null) : null,
+      reimbursable_reason:
+        type !== "transfer" && isReimbursable ? (reimbReason.trim() || null) : null,
     };
     if (type === "transfer" && isCrossCurrency && payload.destination_amount == null) {
       setSaving(false);
       toast.error(tr("toast.dest_amount_required"));
       return;
     }
+    const selectedLinks = Object.entries(linkSelections)
+      .map(([id, amt2]) => ({ id, amount: Number(amt2) }))
+      .filter((x) => x.id && Number.isFinite(x.amount) && x.amount > 0);
     if (isEdit && editId) {
       const { error } = await supabase.from("transactions").update(payload).eq("id", editId);
       setSaving(false);
@@ -455,9 +571,25 @@ export function TransactionForm({ editId }: { editId: string | null }) {
       navigate({ to: "/transactions" });
       return;
     }
-    const { error } = await supabase.from("transactions").insert(payload);
+    const { data: inserted, error } = await supabase
+      .from("transactions")
+      .insert(payload)
+      .select("id")
+      .single();
+    if (error) { setSaving(false); toast.error(error.message); return; }
+    const newTxId = inserted?.id as string | undefined;
+    // Insert reimbursement link rows when the user confirmed the auto-link
+    // suggestion for an income transaction.
+    if (newTxId && type === "income" && selectedLinks.length > 0) {
+      for (const sel of selectedLinks) {
+        try {
+          await linkReimbursement(sel.id, newTxId, sel.amount);
+        } catch (e) {
+          toast.error((e as Error).message);
+        }
+      }
+    }
     setSaving(false);
-    if (error) { toast.error(error.message); return; }
     toast.success(tr("toast.saved"));
     qc.invalidateQueries();
     if (andNew) reset(); else navigate({ to: "/" });
@@ -980,6 +1112,124 @@ export function TransactionForm({ editId }: { editId: string | null }) {
             {tr("add.date_input_hint", { fmt: settingsQ.data?.date_format ?? "dd.MM.yyyy" })}
           </p>
         </div>
+
+        {/* Reimbursable / lent-out section (not for transfers) */}
+        {type !== "transfer" && (
+          <Card>
+            <CardContent className="space-y-3 py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <Label className="text-sm font-medium">{tr("add.reimb.section")}</Label>
+                  <p className="mt-0.5 text-xs text-muted-foreground">{tr("add.reimb.toggle.hint")}</p>
+                </div>
+                <Switch
+                  checked={isReimbursable}
+                  onCheckedChange={(v) => setIsReimbursable(!!v)}
+                  aria-label={tr("add.reimb.toggle")}
+                />
+              </div>
+              {isReimbursable && (
+                <div className="space-y-2">
+                  <div>
+                    <Label htmlFor="reimb-cp" className="mb-1 block text-xs">{tr("add.reimb.counterparty")}</Label>
+                    <Input
+                      id="reimb-cp"
+                      list="reimb-cp-list"
+                      value={reimbCounterparty}
+                      onChange={(e) => setReimbCounterparty(e.target.value)}
+                      placeholder=""
+                    />
+                    <datalist id="reimb-cp-list">
+                      {(reimbCpQ.data ?? []).map((cp) => <option key={cp} value={cp} />)}
+                    </datalist>
+                  </div>
+                  <div>
+                    <Label htmlFor="reimb-reason" className="mb-1 block text-xs">{tr("add.reimb.reason")}</Label>
+                    <Input
+                      id="reimb-reason"
+                      value={reimbReason}
+                      onChange={(e) => setReimbReason(e.target.value)}
+                      placeholder=""
+                    />
+                  </div>
+                  {type === "expense" && categoryId && (
+                    <p className="text-xs text-warning">{tr("add.reimb.category_clear_warning")}</p>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Auto-link suggestion: this income could settle open reimbursables */}
+        {!isEdit && type === "income" && autoLinkCandidates.length > 0 && (
+          <Card className="border-primary/40 bg-primary/5">
+            <CardContent className="space-y-2 py-3">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <LinkIcon className="h-4 w-4" />
+                {tr("add.reimb.autolink.title")}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {tr("add.reimb.autolink.detail", {
+                  count: String(autoLinkCandidates.length),
+                  amount: fmtMoney(
+                    autoLinkCandidates.reduce((s, t) => s + (remainingByOrig.get(t.id) ?? 0), 0),
+                    symbol,
+                  ),
+                })}
+              </p>
+              <ul className="space-y-1">
+                {autoLinkCandidates.map((t) => {
+                  const rem = remainingByOrig.get(t.id) ?? 0;
+                  const checked = linkSelections[t.id] != null;
+                  const acc = accountById.get(t.source_account_id);
+                  const sym = acc?.currency_symbol ?? symbol;
+                  return (
+                    <li key={t.id} className="flex items-start gap-2 rounded-md bg-background/60 px-2 py-1.5">
+                      <Checkbox
+                        checked={checked}
+                        onCheckedChange={(v) => {
+                          setLinkSelections((cur) => {
+                            const next = { ...cur };
+                            if (v) next[t.id] = rem;
+                            else delete next[t.id];
+                            return next;
+                          });
+                        }}
+                        className="mt-0.5"
+                      />
+                      <div className="min-w-0 flex-1 text-xs">
+                        <div className="truncate font-medium">
+                          {t.description || tr("add.expense")}
+                          {t.reimbursable_counterparty && (
+                            <span className="ml-1 text-muted-foreground">{tr("add.reimb.autolink.from", { who: t.reimbursable_counterparty })}</span>
+                          )}
+                        </div>
+                        <div className="text-muted-foreground">
+                          {format(new Date(t.occurred_on + "T00:00:00"), "dd.MM.yyyy", { locale })} · {fmtMoney(rem, sym)}
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+              {Object.keys(linkSelections).length === 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const next: Record<string, number> = {};
+                    autoLinkCandidates.forEach((t) => { next[t.id] = remainingByOrig.get(t.id) ?? 0; });
+                    setLinkSelections(next);
+                  }}
+                >
+                  {tr("add.reimb.autolink.link_all")}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Live summary: how this transaction will look in the list */}
         <TransactionPreview

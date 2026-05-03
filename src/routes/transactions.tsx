@@ -130,6 +130,8 @@ function TransactionsPage() {
   const [amountVal, setAmountVal] = React.useState("");
   const [tolerance, setTolerance] = React.useState(0.15);
   const [sort, setSort] = React.useState<SortKey>("date_desc");
+  // Reimbursable filter: 'any' shows all, others narrow to flagged tx with that status.
+  const [filterReimb, setFilterReimb] = React.useState<"any" | "open" | "settled" | "cancelled" | "all">("any");
 
   const searchRef = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => {
@@ -215,6 +217,10 @@ function TransactionsPage() {
         const txTags = tagsByTx.get(t.id) ?? [];
         if (!filterTags.some((tg) => txTags.includes(tg))) return false;
       }
+      if (filterReimb !== "any") {
+        if (!t.is_reimbursable) return false;
+        if (filterReimb !== "all" && t.reimbursable_status !== filterReimb) return false;
+      }
       if (fromStr && t.occurred_on < fromStr) return false;
       if (toStr && t.occurred_on > toStr) return false;
       if (amountOp !== "any" && amountTarget != null) {
@@ -227,7 +233,7 @@ function TransactionsPage() {
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [txQ.data, filterTypes, filterAccounts, filterCategories, filterTags, fromStr, toStr,
+  }, [txQ.data, filterTypes, filterAccounts, filterCategories, filterTags, filterReimb, fromStr, toStr,
       amountOp, amountTarget, tolerance, tokens, accountById, categoryById, tagsByTx, splitGroupTotals]);
 
   const sorted = React.useMemo(() => {
@@ -316,13 +322,13 @@ function TransactionsPage() {
 
   const clearAll = () => {
     setFilterTypes([]); setFilterAccounts([]); setFilterCategories([]); setFilterTags([]);
-    setSearch(""); setFrom(null); setTo(null); setAmountOp("any"); setAmountVal("");
+    setSearch(""); setFrom(null); setTo(null); setAmountOp("any"); setAmountVal(""); setFilterReimb("any");
   };
 
   const activeFilterCount =
     filterTypes.length + filterAccounts.length + filterCategories.length + filterTags.length +
     (fromStr ? 1 : 0) + (toStr ? 1 : 0) + (amountOp !== "any" && amountTarget != null ? 1 : 0) +
-    (search.trim() ? 1 : 0);
+    (search.trim() ? 1 : 0) + (filterReimb !== "any" ? 1 : 0);
 
   // Did-you-mean hint: numeric search with no exact-match results
   const showAroundHint = filtered.length === 0 && tokens.length === 1 && numericTokens.length === 1 &&
@@ -445,6 +451,26 @@ function TransactionsPage() {
                 className="rounded-full border border-border bg-background px-2.5 py-0.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
               >
                 {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Reimbursable filter */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">{tr("tx.reimb.filter")}:</span>
+            {(["any", "open", "settled", "cancelled", "all"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setFilterReimb(k)}
+                className={cn(
+                  "rounded-full border px-2.5 py-0.5 text-xs",
+                  filterReimb === k
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
+                )}
+              >
+                {k === "any" ? tr("tx.amount_op.any") : tr(`tx.reimb.filter.${k}` as never)}
               </button>
             ))}
           </div>
@@ -706,6 +732,19 @@ function TransactionsPage() {
                               tokens,
                             )}
                             {isReimb && <span className="ml-2 rounded bg-success/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-success">{tr("tx.reimbursement")}</span>}
+                            {t.is_reimbursable && t.reimbursable_status && (
+                              <span
+                                className={cn(
+                                  "ml-2 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase",
+                                  t.reimbursable_status === "open" && "bg-warning/15 text-warning",
+                                  t.reimbursable_status === "settled" && "bg-success/15 text-success",
+                                  t.reimbursable_status === "cancelled" && "bg-muted text-muted-foreground",
+                                )}
+                                title={t.reimbursable_counterparty ?? ""}
+                              >
+                                {tr(`tx.reimb.status.${t.reimbursable_status}` as never)}
+                              </span>
+                            )}
                             {t.recurring_rule_id && (
                               <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground" title={ruleById.get(t.recurring_rule_id)?.name ?? ""}>
                                 {tr("tx.from_rule")}{ruleById.get(t.recurring_rule_id) ? `: ${ruleById.get(t.recurring_rule_id)!.name}` : ""}
