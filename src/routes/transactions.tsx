@@ -130,6 +130,8 @@ function TransactionsPage() {
   const [amountVal, setAmountVal] = React.useState("");
   const [tolerance, setTolerance] = React.useState(0.15);
   const [sort, setSort] = React.useState<SortKey>("date_desc");
+  // Reimbursable filter: 'any' shows all, others narrow to flagged tx with that status.
+  const [filterReimb, setFilterReimb] = React.useState<"any" | "open" | "settled" | "cancelled" | "all">("any");
 
   const searchRef = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => {
@@ -215,6 +217,10 @@ function TransactionsPage() {
         const txTags = tagsByTx.get(t.id) ?? [];
         if (!filterTags.some((tg) => txTags.includes(tg))) return false;
       }
+      if (filterReimb !== "any") {
+        if (!t.is_reimbursable) return false;
+        if (filterReimb !== "all" && t.reimbursable_status !== filterReimb) return false;
+      }
       if (fromStr && t.occurred_on < fromStr) return false;
       if (toStr && t.occurred_on > toStr) return false;
       if (amountOp !== "any" && amountTarget != null) {
@@ -227,7 +233,7 @@ function TransactionsPage() {
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [txQ.data, filterTypes, filterAccounts, filterCategories, filterTags, fromStr, toStr,
+  }, [txQ.data, filterTypes, filterAccounts, filterCategories, filterTags, filterReimb, fromStr, toStr,
       amountOp, amountTarget, tolerance, tokens, accountById, categoryById, tagsByTx, splitGroupTotals]);
 
   const sorted = React.useMemo(() => {
@@ -316,13 +322,13 @@ function TransactionsPage() {
 
   const clearAll = () => {
     setFilterTypes([]); setFilterAccounts([]); setFilterCategories([]); setFilterTags([]);
-    setSearch(""); setFrom(null); setTo(null); setAmountOp("any"); setAmountVal("");
+    setSearch(""); setFrom(null); setTo(null); setAmountOp("any"); setAmountVal(""); setFilterReimb("any");
   };
 
   const activeFilterCount =
     filterTypes.length + filterAccounts.length + filterCategories.length + filterTags.length +
     (fromStr ? 1 : 0) + (toStr ? 1 : 0) + (amountOp !== "any" && amountTarget != null ? 1 : 0) +
-    (search.trim() ? 1 : 0);
+    (search.trim() ? 1 : 0) + (filterReimb !== "any" ? 1 : 0);
 
   // Did-you-mean hint: numeric search with no exact-match results
   const showAroundHint = filtered.length === 0 && tokens.length === 1 && numericTokens.length === 1 &&
