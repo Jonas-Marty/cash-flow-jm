@@ -350,6 +350,43 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     [categories],
   );
 
+  // Remaining (open) amount per reimbursable original transaction.
+  const remainingByOrig = React.useMemo(() => {
+    const linked = new Map<string, number>();
+    (reimbLinksQ.data ?? []).forEach((l: ReimbursementLink) => {
+      linked.set(l.original_transaction_id, (linked.get(l.original_transaction_id) ?? 0) + Number(l.amount));
+    });
+    const out = new Map<string, number>();
+    (openReimbQ.data ?? []).forEach((t) => {
+      out.set(t.id, Math.max(0, Number(t.amount) - (linked.get(t.id) ?? 0)));
+    });
+    return out;
+  }, [openReimbQ.data, reimbLinksQ.data]);
+
+  // Auto-link candidates: open reimbursables for the current source account
+  // (same currency) that this income could plausibly settle.
+  const autoLinkCandidates = React.useMemo<Transaction[]>(() => {
+    if (type !== "income" || !sourceId) return [];
+    const srcAcc = accountById.get(sourceId);
+    if (!srcAcc) return [];
+    return (openReimbQ.data ?? []).filter((t) => {
+      const tAcc = accountById.get(t.source_account_id);
+      if (!tAcc) return false;
+      return tAcc.currency_code === srcAcc.currency_code && (remainingByOrig.get(t.id) ?? 0) > 0;
+    });
+  }, [type, sourceId, openReimbQ.data, accountById, remainingByOrig]);
+
+  // When deep-linked from "Add refund", preselect the original reimbursable.
+  const reimbForAppliedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (reimbForAppliedRef.current || !reimburseForId) return;
+    const tx = (openReimbQ.data ?? []).find((t) => t.id === reimburseForId);
+    if (!tx) return;
+    reimbForAppliedRef.current = true;
+    const rem = remainingByOrig.get(tx.id) ?? Number(tx.amount);
+    setLinkSelections((cur) => ({ ...cur, [tx.id]: rem }));
+  }, [reimburseForId, openReimbQ.data, remainingByOrig]);
+
   const { suggestions } = useSuggestions({
     type,
     amount,
