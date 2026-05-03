@@ -262,6 +262,11 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     setSourceId(tx.source_account_id);
     setDestId(tx.destination_account_id ?? "");
     setDate(new Date(tx.occurred_on + "T00:00:00"));
+    if (tx.is_reimbursable) {
+      setIsReimbursable(true);
+      setReimbCounterparty(tx.reimbursable_counterparty ?? "");
+      setReimbReason(tx.reimbursable_reason ?? "");
+    }
     if (group && group.length > 1) {
       // Edit a split group: amount = total, slices = group rows
       const total = group.reduce((s, x) => s + Number(x.amount), 0);
@@ -291,6 +296,20 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     // mark all fields as touched so suggestions never overwrite loaded data
     setTouched({ amount: true, description: true, note: true, sourceId: true, categoryId: true });
   }, [isEdit, editQ.data]);
+
+  // Apply non-edit prefill once (deep link from dashboard "Add refund").
+  const prefillAppliedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (isEdit || prefillAppliedRef.current || !prefill) return;
+    if (!prefill.type && !prefill.amount && !prefill.source && !prefill.counterparty && !prefill.reimburse_for) return;
+    prefillAppliedRef.current = true;
+    if (prefill.type) setType(prefill.type);
+    if (prefill.amount) { setAmount(prefill.amount); mark("amount"); }
+    if (prefill.source) { setSourceId(prefill.source); mark("sourceId"); }
+    if (prefill.counterparty) setReimbCounterparty(prefill.counterparty);
+    // The actual link selection happens when openReimbQ has loaded — see
+    // the auto-link effect below.
+  }, [isEdit, prefill]);
 
   // Default source = most-used account in recent transactions (skip in edit mode)
   React.useEffect(() => {
