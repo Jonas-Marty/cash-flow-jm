@@ -706,6 +706,19 @@ function TransactionsPage() {
                               tokens,
                             )}
                             {isReimb && <span className="ml-2 rounded bg-success/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-success">{tr("tx.reimbursement")}</span>}
+                            {t.is_reimbursable && t.reimbursable_status && (
+                              <span
+                                className={cn(
+                                  "ml-2 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase",
+                                  t.reimbursable_status === "open" && "bg-warning/15 text-warning",
+                                  t.reimbursable_status === "settled" && "bg-success/15 text-success",
+                                  t.reimbursable_status === "cancelled" && "bg-muted text-muted-foreground",
+                                )}
+                                title={t.reimbursable_counterparty ?? ""}
+                              >
+                                {tr(`tx.reimb.status.${t.reimbursable_status}` as never)}
+                              </span>
+                            )}
                             {t.recurring_rule_id && (
                               <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground" title={ruleById.get(t.recurring_rule_id)?.name ?? ""}>
                                 {tr("tx.from_rule")}{ruleById.get(t.recurring_rule_id) ? `: ${ruleById.get(t.recurring_rule_id)!.name}` : ""}
