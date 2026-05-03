@@ -83,6 +83,9 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   const groupsQ = useQuery({ queryKey: ["category_groups"], queryFn: fetchCategoryGroups });
   const recentQ = useQuery({ queryKey: ["transactions", "recent", 200], queryFn: () => fetchTransactions(200) });
+  const openReimbQ = useQuery({ queryKey: ["reimbursables", "open"], queryFn: fetchOpenReimbursables });
+  const reimbLinksQ = useQuery({ queryKey: ["reimbursement_links"], queryFn: fetchReimbursementLinks });
+  const reimbCpQ = useQuery({ queryKey: ["reimbursement_counterparties"], queryFn: fetchReimbursementCounterparties });
   const ruleTxIdsQ = useQuery({
     queryKey: ["recurring_occurrences", "posted_tx_ids"],
     queryFn: async () => {
@@ -133,6 +136,17 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
   const [saving, setSaving] = React.useState(false);
   const [helpOpen, setHelpOpen] = React.useState(false);
   const amountRef = React.useRef<HTMLInputElement>(null);
+
+  // ───────── Reimbursable section ─────────
+  const [isReimbursable, setIsReimbursable] = React.useState(false);
+  const [reimbCounterparty, setReimbCounterparty] = React.useState("");
+  const [reimbReason, setReimbReason] = React.useState("");
+  // For income transactions: which open reimbursable expenses the user
+  // wants to link this income to. Map<originalTxId, amountToApply>.
+  const [linkSelections, setLinkSelections] = React.useState<Record<string, number>>({});
+  // Set by the "Add refund" deep link from the dashboard so we can preselect
+  // the original reimbursable expense once data has loaded.
+  const reimburseForId = prefill?.reimburse_for ?? null;
 
   // Cross-currency dual-amount field: when source/dest currencies differ on
   // a transfer, the user enters the amount that actually arrived in the
