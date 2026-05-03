@@ -193,13 +193,25 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
   }, [isCrossCurrency]);
 
   // ───────── Split mode (multi-item receipt) ─────────
-  type Slice = { id: string; amount: string; categoryId: string; description: string; note: string };
+  type Slice = {
+    id: string;
+    amount: string;
+    categoryId: string;
+    description: string;
+    note: string;
+    isReimbursable: boolean;
+    reimbCounterparty: string;
+    reimbReason: string;
+  };
   const newSlice = (): Slice => ({
     id: Math.random().toString(36).slice(2),
     amount: "",
     categoryId: "",
     description: "",
     note: "",
+    isReimbursable: false,
+    reimbCounterparty: "",
+    reimbReason: "",
   });
   const [splitMode, setSplitMode] = React.useState(false);
   const [slices, setSlices] = React.useState<Slice[]>([newSlice(), newSlice()]);
@@ -281,6 +293,9 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
           categoryId: g.category_id ?? "",
           description: g.description ?? "",
           note: g.note ?? "",
+          isReimbursable: !!g.is_reimbursable,
+          reimbCounterparty: g.reimbursable_counterparty ?? "",
+          reimbReason: g.reimbursable_reason ?? "",
         })),
       );
     } else {
@@ -477,6 +492,9 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
           categoryId: s.categoryId || null,
           description: s.description.trim() || null,
           note: merged || null,
+          isReimbursable: !!s.isReimbursable,
+          reimbCounterparty: s.isReimbursable ? (s.reimbCounterparty.trim() || null) : null,
+          reimbReason: s.isReimbursable ? (s.reimbReason.trim() || null) : null,
         };
       });
       if (parsed.some((p) => !p.amount || p.amount <= 0)) { toast.error(tr("add.split.toast.amounts")); return; }
@@ -498,6 +516,9 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
           destination_account_id: null,
           category_id: p.categoryId,
           split_group_id: groupId,
+          is_reimbursable: p.isReimbursable,
+          reimbursable_counterparty: p.reimbCounterparty,
+          reimbursable_reason: p.reimbReason,
         }));
         const { error } = await supabase.from("transactions").insert(rows);
         setSaving(false);
@@ -518,6 +539,9 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
         destination_account_id: null,
         category_id: p.categoryId,
         split_group_id: groupId,
+        is_reimbursable: p.isReimbursable,
+        reimbursable_counterparty: p.reimbCounterparty,
+        reimbursable_reason: p.reimbReason,
       }));
       const { error } = await supabase.from("transactions").insert(rows);
       setSaving(false);
@@ -992,6 +1016,47 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
                         }}
                       />
                     </div>
+                    <div className="mt-3 rounded-md border border-dashed border-border/60 p-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <Label className="text-xs font-medium">{tr("add.reimb.section")}</Label>
+                          <p className="mt-0.5 text-[11px] text-muted-foreground">{tr("add.reimb.toggle.hint")}</p>
+                        </div>
+                        <Switch
+                          checked={s.isReimbursable}
+                          onCheckedChange={(v) =>
+                            setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, isReimbursable: !!v } : x)))
+                          }
+                          aria-label={tr("add.reimb.toggle")}
+                        />
+                      </div>
+                      {s.isReimbursable && (
+                        <div className="mt-2 space-y-2">
+                          <div>
+                            <Label className="mb-1 block text-xs">{tr("add.reimb.counterparty")}</Label>
+                            <Input
+                              list="reimb-cp-list"
+                              value={s.reimbCounterparty}
+                              onChange={(e) =>
+                                setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, reimbCounterparty: e.target.value } : x)))
+                              }
+                            />
+                          </div>
+                          <div>
+                            <Label className="mb-1 block text-xs">{tr("add.reimb.reason")}</Label>
+                            <Input
+                              value={s.reimbReason}
+                              onChange={(e) =>
+                                setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, reimbReason: e.target.value } : x)))
+                              }
+                            />
+                          </div>
+                          {type === "expense" && s.categoryId && (
+                            <p className="text-[11px] text-warning">{tr("add.reimb.category_clear_warning")}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -1113,8 +1178,8 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
           </p>
         </div>
 
-        {/* Reimbursable / lent-out section (not for transfers) */}
-        {type !== "transfer" && (
+        {/* Reimbursable / lent-out section (not for transfers; per-slice in split mode) */}
+        {type !== "transfer" && !splitMode && (
           <Card>
             <CardContent className="space-y-3 py-4">
               <div className="flex items-start justify-between gap-3">
