@@ -14,9 +14,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
-import { fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings, fetchTransactions, extractTags, fmtMoney, type TxType, type Transaction } from "@/lib/finance";
+import {
+  fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings, fetchTransactions,
+  fetchOpenReimbursables, fetchReimbursementLinks, fetchReimbursementCounterparties,
+  linkReimbursement,
+  extractTags, fmtMoney,
+  type TxType, type Transaction, type ReimbursementLink,
+} from "@/lib/finance";
 import { EntityVisual } from "@/components/EntityVisual";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Link as LinkIcon } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useI18n } from "@/i18n";
 import { useSuggestions } from "@/lib/suggestions/useSuggestions";
 import type { Suggestion } from "@/lib/suggestions/types";
