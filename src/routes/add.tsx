@@ -1137,8 +1137,8 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
           </p>
         </div>
 
-        {/* Reimbursable / lent-out section (not for transfers) */}
-        {type !== "transfer" && (
+        {/* Reimbursable / lent-out section (not for transfers; per-slice in split mode) */}
+        {type !== "transfer" && !splitMode && (
           <Card>
             <CardContent className="space-y-3 py-4">
               <div className="flex items-start justify-between gap-3">
