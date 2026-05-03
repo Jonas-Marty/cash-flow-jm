@@ -542,12 +542,22 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
               return Number.isFinite(dn) && dn > 0 ? dn : null;
             })()
           : null,
+      // Reimbursable flag only meaningful for expenses (or income that you
+      // expect to receive — rare, but allowed). Transfers can't be reimbursable.
+      is_reimbursable: type !== "transfer" ? isReimbursable : false,
+      reimbursable_counterparty:
+        type !== "transfer" && isReimbursable ? (reimbCounterparty.trim() || null) : null,
+      reimbursable_reason:
+        type !== "transfer" && isReimbursable ? (reimbReason.trim() || null) : null,
     };
     if (type === "transfer" && isCrossCurrency && payload.destination_amount == null) {
       setSaving(false);
       toast.error(tr("toast.dest_amount_required"));
       return;
     }
+    const selectedLinks = Object.entries(linkSelections)
+      .map(([id, amt2]) => ({ id, amount: Number(amt2) }))
+      .filter((x) => x.id && Number.isFinite(x.amount) && x.amount > 0);
     if (isEdit && editId) {
       const { error } = await supabase.from("transactions").update(payload).eq("id", editId);
       setSaving(false);
@@ -557,9 +567,25 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
       navigate({ to: "/transactions" });
       return;
     }
-    const { error } = await supabase.from("transactions").insert(payload);
+    const { data: inserted, error } = await supabase
+      .from("transactions")
+      .insert(payload)
+      .select("id")
+      .single();
+    if (error) { setSaving(false); toast.error(error.message); return; }
+    const newTxId = inserted?.id as string | undefined;
+    // Insert reimbursement link rows when the user confirmed the auto-link
+    // suggestion for an income transaction.
+    if (newTxId && type === "income" && selectedLinks.length > 0) {
+      for (const sel of selectedLinks) {
+        try {
+          await linkReimbursement(sel.id, newTxId, sel.amount);
+        } catch (e) {
+          toast.error((e as Error).message);
+        }
+      }
+    }
     setSaving(false);
-    if (error) { toast.error(error.message); return; }
     toast.success(tr("toast.saved"));
     qc.invalidateQueries();
     if (andNew) reset(); else navigate({ to: "/" });
