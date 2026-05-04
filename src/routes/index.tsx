@@ -51,7 +51,7 @@ function Dashboard() {
   const eoyQ = useQuery({ queryKey: ["account_balances_as_of", eoyDate], queryFn: () => fetchAccountBalancesAsOf(eoyDate) });
   const envelopesQ = useQuery({ queryKey: ["category_month_rows", m], queryFn: () => fetchCategoryMonthRows(m) });
   const pendingImpactQ = useQuery({ queryKey: ["pending_impact_month", m], queryFn: () => fetchPendingImpactsForMonth(m) });
-  const recentQ = useQuery({ queryKey: ["transactions", "recent"], queryFn: () => fetchTransactions(5) });
+  const recentQ = useQuery({ queryKey: ["transactions", "recent"], queryFn: () => fetchTransactions(30) });
   // Larger window used by TopMonth (current month) — small enough to be cheap.
   const monthTxQ = useQuery({
     queryKey: ["transactions", "month_window"],
@@ -238,11 +238,15 @@ function Dashboard() {
           </div>
           {recentQ.isLoading ? (
             <Skeleton className="h-32 w-full" />
-          ) : (recentQ.data ?? []).length === 0 ? (
-            <Card><CardContent className="py-6 text-center text-sm text-muted-foreground">{t("dashboard.no_transactions")}</CardContent></Card>
-          ) : (
+          ) : (() => {
+            const todayISO = new Date().toISOString().slice(0, 10);
+            const past = (recentQ.data ?? []).filter((tx) => tx.occurred_on <= todayISO).slice(0, 5);
+            if (past.length === 0) {
+              return <Card><CardContent className="py-6 text-center text-sm text-muted-foreground">{t("dashboard.no_transactions")}</CardContent></Card>;
+            }
+            return (
             <Card><CardContent className="divide-y p-0">
-              {(recentQ.data ?? []).map((tx) => {
+              {past.map((tx) => {
                 const Icon = tx.type === "expense" ? ArrowDown : tx.type === "income" ? ArrowUp : ArrowLeftRight;
                 const tone = tx.type === "expense" ? "text-destructive" : tx.type === "income" ? "text-success" : "text-muted-foreground";
                 const sign = tx.type === "expense" ? "-" : tx.type === "income" ? "+" : "";
@@ -273,7 +277,8 @@ function Dashboard() {
                 );
               })}
             </CardContent></Card>
-          )}
+            );
+          })()}
         </section>
 
         {/* Top transactions this month (non-recurring) */}

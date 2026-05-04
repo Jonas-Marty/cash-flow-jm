@@ -21,6 +21,9 @@ export function TopMonthTransactionsCard({
   );
   const ms = monthStart.getTime();
   const me = monthEnd.getTime();
+  const todayEnd = new Date();
+  todayEnd.setHours(23, 59, 59, 999);
+  const todayMs = todayEnd.getTime();
 
   const inMonth = transactions.filter((tx) => {
     if (tx.recurring_rule_id) return false;
@@ -59,18 +62,24 @@ export function TopMonthTransactionsCard({
         {items.map((tx) => {
           const srcAcc = accountById.get(tx.source_account_id);
           const txSym = srcAcc?.currency_symbol ?? symbol;
+          const isUpcoming = new Date(tx.occurred_on).getTime() > todayMs;
           return (
-            <div key={tx.id} className="flex items-center gap-3 px-4 py-2.5">
-              <div className={cn("flex h-8 w-8 items-center justify-center rounded-full bg-muted", tone)}>
+            <div key={tx.id} className={cn("flex items-center gap-3 px-4 py-2.5", isUpcoming && "bg-warning/10")}>
+              <div className={cn("flex h-8 w-8 items-center justify-center rounded-full bg-muted", isUpcoming ? "text-warning" : tone)}>
                 <Icon className="h-4 w-4" />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="truncate text-sm font-medium">
                   {tx.description || (kind === "income" ? t("add.income") : t("add.expense"))}
+                  {isUpcoming && (
+                    <span className="ml-2 rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-warning">
+                      {t("dashboard.top_month.upcoming")}
+                    </span>
+                  )}
                 </div>
                 <div className="text-xs text-muted-foreground">{format(new Date(tx.occurred_on), "MMM d", { locale })}</div>
               </div>
-              <div className={cn("text-sm font-semibold tabular-nums", tone)}>
+              <div className={cn("text-sm font-semibold tabular-nums", isUpcoming ? "text-warning" : tone)}>
                 {sign}{fmtMoney(Number(tx.amount), txSym).replace("-", "")}
               </div>
             </div>
