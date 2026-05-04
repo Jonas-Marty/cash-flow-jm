@@ -1021,6 +1021,7 @@ const en: Dict = {
   "dashboard.top_month.expenses": "Top expenses",
   "dashboard.top_month.income": "Top income",
   "dashboard.top_month.empty": "No non-recurring transactions this month.",
+  "dashboard.top_month.upcoming": "upcoming",
   "dashboard.trend.title": "Trend",
   "dashboard.trend.this_month": "This month (so far)",
   "dashboard.trend.ytd": "Year to date",
