@@ -22,7 +22,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/i18n";
 import {
   fetchAccounts, fetchCategories, fetchSettings, fetchTransactions, fetchTransactionTags,
-  fetchRecurringRules,
+  fetchRecurringRules, fetchReimbursementLinks,
   fmtMoney, type TxType, type Transaction,
 } from "@/lib/finance";
 import { MultiSelectCombobox, type MSCOption } from "@/components/MultiSelectCombobox";
@@ -85,6 +85,7 @@ function TransactionsPage() {
   const txQ = useQuery({ queryKey: ["transactions", "all"], queryFn: () => fetchTransactions() });
   const tagsQ = useQuery({ queryKey: ["transaction_tags"], queryFn: fetchTransactionTags });
   const rulesQ = useQuery({ queryKey: ["recurring_rules"], queryFn: fetchRecurringRules });
+  const reimbLinksQ = useQuery({ queryKey: ["reimbursement_links"], queryFn: fetchReimbursementLinks });
 
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
   const dateFmt = settingsQ.data?.date_format;
@@ -711,7 +712,9 @@ function TransactionsPage() {
                   const Icon = t.type === "expense" ? ArrowDown : t.type === "income" ? ArrowUp : ArrowLeftRight;
                   const tone = t.type === "expense" ? "text-destructive" : t.type === "income" ? "text-success" : "text-muted-foreground";
                   const sign = t.type === "expense" ? "-" : t.type === "income" ? "+" : "";
-                  const isReimb = t.type === "income" && !!t.category_id;
+                  const isReimb = t.type === "income" && (reimbLinksQ.data ?? []).some(
+                    (l) => l.settling_transaction_id === t.id,
+                  );
                   const src = accountById.get(t.source_account_id) ?? null;
                   const dst = t.destination_account_id ? accountById.get(t.destination_account_id) ?? null : null;
                   const cat = t.category_id ? categoryById.get(t.category_id) ?? null : null;

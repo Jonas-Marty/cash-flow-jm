@@ -934,12 +934,29 @@ export type Database = {
         Returns: string
       }
       ensure_month_budgets: { Args: { p_month: string }; Returns: undefined }
+      format_date_token: {
+        Args: { p_date: string; p_fmt: string; p_locale: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      interpolate_template: {
+        Args: {
+          p_date: string
+          p_due: string
+          p_locale: string
+          p_next: string
+          p_prev: string
+          p_run: number
+          p_template: string
+          p_today: string
+        }
+        Returns: string
       }
       log_audit_event: {
         Args: { p_action: string; p_metadata?: Json }
