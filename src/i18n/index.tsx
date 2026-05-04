@@ -139,7 +139,7 @@ const de: Dict = {
   // Reimbursable / will-be-paid-back transactions
   "add.reimb.section": "Rückerstattung / Auslage",
   "add.reimb.toggle": "Ich bekomme dieses Geld zurück",
-  "add.reimb.toggle.hint": "Markiert die Buchung als offene Auslage. Sie bleibt sichtbar bis sie zurückgezahlt wurde.",
+  "add.reimb.toggle.hint": "Markiert die Buchung als offene Auslage. Sie erscheint im Dashboard unter „Offene Rückerstattungen", bis sie als beglichen markiert oder verlinkt wird – die Buchung selbst bleibt natürlich erhalten.",
   "add.reimb.counterparty": "Von wem (z.B. Arbeitgeber, Anna)",
   "add.reimb.reason": "Grund (optional)",
   "add.reimb.category_clear_warning": "Auslagen werden meist ohne Kategorie gebucht, damit sie nicht in deinem Budget erscheinen.",
@@ -757,7 +757,7 @@ const en: Dict = {
   // Reimbursable / will-be-paid-back transactions
   "add.reimb.section": "Reimbursable / lent out",
   "add.reimb.toggle": "I'll get this money back",
-  "add.reimb.toggle.hint": "Marks the transaction as an open expense. It stays visible until it has been paid back.",
+  "add.reimb.toggle.hint": "Marks the transaction as an open expense. It shows up in the dashboard's \"Open reimbursements\" list until you mark it settled or link a refund to it — the transaction itself always stays in your history.",
   "add.reimb.counterparty": "From whom (e.g. Employer, Anna)",
   "add.reimb.reason": "Reason (optional)",
   "add.reimb.category_clear_warning": "Reimbursables are usually booked without a category so they don't show up in your budget.",
