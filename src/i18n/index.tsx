@@ -408,6 +408,7 @@ const de: Dict = {
   "dashboard.top_month.expenses": "Top Ausgaben",
   "dashboard.top_month.income": "Top Einnahmen",
   "dashboard.top_month.empty": "Keine nicht-wiederkehrenden Buchungen diesen Monat.",
+  "dashboard.top_month.upcoming": "geplant",
   "dashboard.trend.title": "Entwicklung",
   "dashboard.trend.this_month": "Diesen Monat (bis heute)",
   "dashboard.trend.ytd": "Jahr bis heute",
