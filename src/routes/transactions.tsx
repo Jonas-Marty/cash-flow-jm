@@ -750,6 +750,11 @@ function TransactionsPage() {
                                 {tr("tx.from_rule")}{ruleById.get(t.recurring_rule_id) ? `: ${ruleById.get(t.recurring_rule_id)!.name}` : ""}
                               </span>
                             )}
+                            {t.occurred_on > new Date().toISOString().slice(0, 10) && (
+                              <span className="ml-2 rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-warning">
+                                {tr("dashboard.top_month.upcoming")}
+                              </span>
+                            )}
                           </div>
                           <div className={cn("text-sm font-semibold tabular-nums whitespace-nowrap", tone)}>
                             {amtMatch ? (
