@@ -139,7 +139,7 @@ const de: Dict = {
   // Reimbursable / will-be-paid-back transactions
   "add.reimb.section": "Rückerstattung / Auslage",
   "add.reimb.toggle": "Ich bekomme dieses Geld zurück",
-  "add.reimb.toggle.hint": "Markiert die Buchung als offene Auslage. Sie erscheint im Dashboard unter „Offene Rückerstattungen", bis sie als beglichen markiert oder verlinkt wird – die Buchung selbst bleibt natürlich erhalten.",
+  "add.reimb.toggle.hint": "Markiert die Buchung als offene Auslage. Sie erscheint im Dashboard unter „Offene Rückerstattungen“, bis sie als beglichen markiert oder mit einer Rückzahlung verknüpft wird – die Buchung selbst bleibt natürlich erhalten.",
   "add.reimb.counterparty": "Von wem (z.B. Arbeitgeber, Anna)",
   "add.reimb.reason": "Grund (optional)",
   "add.reimb.category_clear_warning": "Auslagen werden meist ohne Kategorie gebucht, damit sie nicht in deinem Budget erscheinen.",
