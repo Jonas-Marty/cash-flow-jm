@@ -32,6 +32,8 @@ import {
   fmtMoney,
   type PendingTransaction,
   type TxType,
+  type Account,
+  type Category,
 } from "@/lib/finance";
 
 export const Route = createFileRoute("/pending")({
@@ -92,8 +94,8 @@ function PendingRow({
   categories,
 }: {
   pending: PendingTransaction;
-  accounts: ReturnType<typeof useQuery<Awaited<ReturnType<typeof fetchAccounts>>>>["data"] extends infer T ? NonNullable<T> : never;
-  categories: ReturnType<typeof useQuery<Awaited<ReturnType<typeof fetchCategories>>>>["data"] extends infer T ? NonNullable<T> : never;
+  accounts: Account[];
+  categories: Category[];
 }) {
   const { t, locale } = useI18n();
   const qc = useQueryClient();
