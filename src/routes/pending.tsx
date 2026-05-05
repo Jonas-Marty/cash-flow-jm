@@ -256,7 +256,7 @@ function PendingRow({
                 </Select>
               </div>
               <div className="space-y-1">
-                <Label>{t("add.amount")}</Label>
+                <Label>{t("add.split.amount")}</Label>
                 <Input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" />
               </div>
               <div className="space-y-1">
@@ -277,7 +277,7 @@ function PendingRow({
               {type === "transfer" && (
                 <>
                   <div className="space-y-1">
-                    <Label>{t("add.dest_account")}</Label>
+                    <Label>{t("add.account")}</Label>
                     <Select value={destId} onValueChange={setDestId}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -288,7 +288,7 @@ function PendingRow({
                     </Select>
                   </div>
                   <div className="space-y-1">
-                    <Label>{t("add.dest_amount")} {t("common.optional")}</Label>
+                    <Label>{t("add.dest_amount.label", { sym: acc?.currency_symbol ?? "" })} {t("common.optional")}</Label>
                     <Input value={destAmount} onChange={(e) => setDestAmount(e.target.value)} inputMode="decimal" />
                   </div>
                 </>
