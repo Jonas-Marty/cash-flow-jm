@@ -133,6 +133,115 @@ export interface Transaction {
   reimbursable_reason?: string | null;
   reimbursable_cancel_reason?: string | null;
 }
+
+export type PendingTransactionStatus = "pending" | "confirmed" | "rejected";
+export interface PendingTransaction {
+  id: string;
+  status: PendingTransactionStatus;
+  source_account_id: string;
+  amount: number;
+  type: TxType;
+  occurred_on: string;
+  destination_account_id: string | null;
+  destination_amount: number | null;
+  category_id: string | null;
+  description: string | null;
+  note: string | null;
+  external_source: string | null;
+  external_ref: string | null;
+  external_info: string | null;
+  confirmed_transaction_id: string | null;
+  confirmed_at: string | null;
+  rejected_at: string | null;
+  reject_reason: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchPendingTransactions(
+  status?: PendingTransactionStatus,
+): Promise<PendingTransaction[]> {
+  let q = supabase
+    .from("pending_transactions")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (status) q = q.eq("status", status);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data || []) as PendingTransaction[];
+}
+
+export async function confirmPendingTransaction(
+  pendingId: string,
+  overrides: {
+    source_account_id: string;
+    amount: number;
+    type: TxType;
+    occurred_on: string;
+    destination_account_id?: string | null;
+    destination_amount?: number | null;
+    category_id?: string | null;
+    description?: string | null;
+    note?: string | null;
+  },
+): Promise<string> {
+  const { data: u } = await supabase.auth.getUser();
+  const userId = u.user?.id;
+  if (!userId) throw new Error("Not authenticated");
+  const insertPayload = {
+    user_id: userId,
+    source_account_id: overrides.source_account_id,
+    amount: overrides.amount,
+    type: overrides.type,
+    occurred_on: overrides.occurred_on,
+    destination_account_id:
+      overrides.type === "transfer" ? overrides.destination_account_id ?? null : null,
+    destination_amount:
+      overrides.type === "transfer" ? overrides.destination_amount ?? null : null,
+    category_id: overrides.type === "transfer" ? null : overrides.category_id ?? null,
+    description: overrides.description ?? null,
+    note: overrides.note ?? null,
+  };
+  const { data: tx, error: txErr } = await supabase
+    .from("transactions")
+    .insert(insertPayload)
+    .select("id")
+    .single();
+  if (txErr) throw txErr;
+  const { error: upErr } = await supabase
+    .from("pending_transactions")
+    .update({
+      status: "confirmed",
+      confirmed_transaction_id: tx.id,
+      confirmed_at: new Date().toISOString(),
+    })
+    .eq("id", pendingId);
+  if (upErr) throw upErr;
+  return tx.id;
+}
+
+export async function rejectPendingTransaction(
+  pendingId: string,
+  reason?: string | null,
+): Promise<void> {
+  const { error } = await supabase
+    .from("pending_transactions")
+    .update({
+      status: "rejected",
+      rejected_at: new Date().toISOString(),
+      reject_reason: (reason ?? "").trim() || null,
+    })
+    .eq("id", pendingId);
+  if (error) throw error;
+}
+
+export async function restorePendingTransaction(pendingId: string): Promise<void> {
+  const { error } = await supabase
+    .from("pending_transactions")
+    .update({ status: "pending", rejected_at: null, reject_reason: null })
+    .eq("id", pendingId);
+  if (error) throw error;
+}
 export type RecurringFrequency = "monthly" | "quarterly" | "yearly";
 export type RecurringDayRule = "fixed_day" | "end_of_month" | "first_of_month";
 export type WeekendAdjust = "none" | "before" | "after";
