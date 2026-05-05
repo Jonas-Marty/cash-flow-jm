@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
 import { UpcomingCard } from "@/components/UpcomingCard";
 import { OpenReimbursementsCard } from "@/components/OpenReimbursementsCard";
+import { PendingConfirmationsCard } from "@/components/PendingConfirmationsCard";
 import { TopMonthTransactionsCard } from "@/components/TopMonthTransactionsCard";
 import { TrendStripCard } from "@/components/TrendStripCard";
 import {
@@ -207,6 +208,7 @@ function Dashboard() {
         {/* Upcoming & due (recurring) */}
         <UpcomingCard symbol={symbol} />
         <OpenReimbursementsCard symbol={symbol} />
+        <PendingConfirmationsCard symbol={symbol} />
 
         {/* This month — budget verdict (summary only) */}
         <section>
