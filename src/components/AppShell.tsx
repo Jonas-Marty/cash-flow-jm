@@ -1,12 +1,14 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { LayoutDashboard, Plus, ListOrdered, Settings as SettingsIcon, Wallet, PiggyBank, LogOut, LineChart } from "lucide-react";
+import { LayoutDashboard, Plus, ListOrdered, Settings as SettingsIcon, Wallet, PiggyBank, LogOut, LineChart, Inbox } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
+import { fetchPendingTransactions } from "@/lib/finance";
 
 type Tab = {
-  to: "/" | "/transactions" | "/add" | "/envelopes" | "/insights" | "/settings";
+  to: "/" | "/transactions" | "/add" | "/envelopes" | "/insights" | "/settings" | "/pending";
   labelKey: string;
   icon: typeof LayoutDashboard;
   exact?: boolean;
@@ -18,6 +20,7 @@ const tabs: Tab[] = [
   { to: "/envelopes", labelKey: "nav.envelopes", icon: PiggyBank },
   { to: "/add", labelKey: "nav.add", icon: Plus, primary: true },
   { to: "/insights", labelKey: "nav.insights", icon: LineChart },
+  { to: "/pending", labelKey: "nav.pending", icon: Inbox },
   { to: "/settings", labelKey: "nav.settings", icon: SettingsIcon },
 ];
 
@@ -25,6 +28,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const loc = useLocation();
   const { t } = useI18n();
   const { user, signOut } = useAuth();
+  const pendingCountQ = useQuery({
+    queryKey: ["pending_transactions", "pending", "count"],
+    queryFn: async () => (await fetchPendingTransactions("pending")).length,
+    enabled: !!user,
+    refetchInterval: 60_000,
+  });
+  const pendingCount = pendingCountQ.data ?? 0;
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="hidden md:block sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
@@ -36,6 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <nav className="flex items-center gap-1">
             {tabs.map((tab) => {
               const active = tab.exact ? loc.pathname === tab.to : loc.pathname.startsWith(tab.to);
+              const showBadge = tab.to === "/pending" && pendingCount > 0;
               return (
                 <Link
                   key={tab.to}
@@ -49,6 +60,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 >
                   <tab.icon className="h-4 w-4" />
                   {t(tab.labelKey)}
+                  {showBadge && (
+                    <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-semibold text-warning-foreground">
+                      {pendingCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -69,10 +85,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-background md:hidden">
-        <ul className="mx-auto grid max-w-3xl grid-cols-6">
+        <ul className="mx-auto grid max-w-3xl grid-cols-7">
           {tabs.map((tab) => {
             const active = tab.exact ? loc.pathname === tab.to : loc.pathname.startsWith(tab.to);
             const Icon = tab.icon;
+            const showBadge = tab.to === "/pending" && pendingCount > 0;
             if (tab.primary) {
               return (
                 <li key={tab.to} className="flex items-center justify-center">
@@ -91,12 +108,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <Link
                   to={tab.to}
                   className={cn(
-                    "flex flex-col items-center gap-0.5 px-2 py-2.5 text-[11px] font-medium",
+                    "relative flex flex-col items-center gap-0.5 px-2 py-2.5 text-[11px] font-medium",
                     active ? "text-primary" : "text-muted-foreground",
                   )}
                 >
                   <Icon className="h-5 w-5" />
                   {t(tab.labelKey)}
+                  {showBadge && (
+                    <span className="absolute right-2 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-semibold text-warning-foreground">
+                      {pendingCount}
+                    </span>
+                  )}
                 </Link>
               </li>
             );
