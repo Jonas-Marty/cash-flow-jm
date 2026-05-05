@@ -391,6 +391,86 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_transactions: {
+        Row: {
+          amount: number
+          category_id: string | null
+          confirmed_at: string | null
+          confirmed_transaction_id: string | null
+          created_at: string
+          description: string | null
+          destination_account_id: string | null
+          destination_amount: number | null
+          external_info: string | null
+          external_ref: string | null
+          external_source: string | null
+          id: string
+          note: string | null
+          occurred_on: string
+          reject_reason: string | null
+          rejected_at: string | null
+          source_account_id: string
+          status: Database["public"]["Enums"]["pending_transaction_status"]
+          type: Database["public"]["Enums"]["transaction_type"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category_id?: string | null
+          confirmed_at?: string | null
+          confirmed_transaction_id?: string | null
+          created_at?: string
+          description?: string | null
+          destination_account_id?: string | null
+          destination_amount?: number | null
+          external_info?: string | null
+          external_ref?: string | null
+          external_source?: string | null
+          id?: string
+          note?: string | null
+          occurred_on?: string
+          reject_reason?: string | null
+          rejected_at?: string | null
+          source_account_id: string
+          status?: Database["public"]["Enums"]["pending_transaction_status"]
+          type?: Database["public"]["Enums"]["transaction_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          amount?: number
+          category_id?: string | null
+          confirmed_at?: string | null
+          confirmed_transaction_id?: string | null
+          created_at?: string
+          description?: string | null
+          destination_account_id?: string | null
+          destination_amount?: number | null
+          external_info?: string | null
+          external_ref?: string | null
+          external_source?: string | null
+          id?: string
+          note?: string | null
+          occurred_on?: string
+          reject_reason?: string | null
+          rejected_at?: string | null
+          source_account_id?: string
+          status?: Database["public"]["Enums"]["pending_transaction_status"]
+          type?: Database["public"]["Enums"]["transaction_type"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_transactions_confirmed_transaction_id_fkey"
+            columns: ["confirmed_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recurring_occurrences: {
         Row: {
           created_at: string
@@ -1025,6 +1105,7 @@ export type Database = {
       app_role: "admin" | "user"
       category_group_kind: "income" | "expense" | "savings"
       occurrence_status: "pending" | "posted" | "skipped"
+      pending_transaction_status: "pending" | "confirmed" | "rejected"
       recurring_day_rule: "fixed_day" | "end_of_month" | "first_of_month"
       recurring_frequency: "monthly" | "quarterly" | "yearly"
       transaction_type: "expense" | "income" | "transfer"
@@ -1160,6 +1241,7 @@ export const Constants = {
       app_role: ["admin", "user"],
       category_group_kind: ["income", "expense", "savings"],
       occurrence_status: ["pending", "posted", "skipped"],
+      pending_transaction_status: ["pending", "confirmed", "rejected"],
       recurring_day_rule: ["fixed_day", "end_of_month", "first_of_month"],
       recurring_frequency: ["monthly", "quarterly", "yearly"],
       transaction_type: ["expense", "income", "transfer"],

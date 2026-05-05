@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TransactionsRouteImport } from './routes/transactions'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as PendingRouteImport } from './routes/pending'
 import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as EnvelopesRouteImport } from './routes/envelopes'
 import { Route as AddRouteImport } from './routes/add'
@@ -19,6 +20,7 @@ import { Route as EditIdRouteImport } from './routes/edit.$id'
 import { Route as ApiPublicTransactionsRouteImport } from './routes/api.public.transactions'
 import { Route as ApiPublicPruneAuditRouteImport } from './routes/api.public.prune-audit'
 import { Route as ApiPublicProcessRecurringRouteImport } from './routes/api.public.process-recurring'
+import { Route as ApiPublicPendingTransactionsRouteImport } from './routes/api.public.pending-transactions'
 import { Route as ApiPublicMetricsRouteImport } from './routes/api.public.metrics'
 import { Route as ApiPublicCategoriesRouteImport } from './routes/api.public.categories'
 import { Route as ApiPublicAttachmentsRouteImport } from './routes/api.public.attachments'
@@ -33,6 +35,11 @@ const TransactionsRoute = TransactionsRouteImport.update({
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PendingRoute = PendingRouteImport.update({
+  id: '/pending',
+  path: '/pending',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InsightsRoute = InsightsRouteImport.update({
@@ -76,6 +83,12 @@ const ApiPublicProcessRecurringRoute =
     path: '/api/public/process-recurring',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicPendingTransactionsRoute =
+  ApiPublicPendingTransactionsRouteImport.update({
+    id: '/api/public/pending-transactions',
+    path: '/api/public/pending-transactions',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicMetricsRoute = ApiPublicMetricsRouteImport.update({
   id: '/api/public/metrics',
   path: '/api/public/metrics',
@@ -107,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/add': typeof AddRoute
   '/envelopes': typeof EnvelopesRoute
   '/insights': typeof InsightsRoute
+  '/pending': typeof PendingRoute
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRoute
   '/edit/$id': typeof EditIdRoute
@@ -115,6 +129,7 @@ export interface FileRoutesByFullPath {
   '/api/public/attachments': typeof ApiPublicAttachmentsRoute
   '/api/public/categories': typeof ApiPublicCategoriesRoute
   '/api/public/metrics': typeof ApiPublicMetricsRoute
+  '/api/public/pending-transactions': typeof ApiPublicPendingTransactionsRoute
   '/api/public/process-recurring': typeof ApiPublicProcessRecurringRoute
   '/api/public/prune-audit': typeof ApiPublicPruneAuditRoute
   '/api/public/transactions': typeof ApiPublicTransactionsRoute
@@ -124,6 +139,7 @@ export interface FileRoutesByTo {
   '/add': typeof AddRoute
   '/envelopes': typeof EnvelopesRoute
   '/insights': typeof InsightsRoute
+  '/pending': typeof PendingRoute
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRoute
   '/edit/$id': typeof EditIdRoute
@@ -132,6 +148,7 @@ export interface FileRoutesByTo {
   '/api/public/attachments': typeof ApiPublicAttachmentsRoute
   '/api/public/categories': typeof ApiPublicCategoriesRoute
   '/api/public/metrics': typeof ApiPublicMetricsRoute
+  '/api/public/pending-transactions': typeof ApiPublicPendingTransactionsRoute
   '/api/public/process-recurring': typeof ApiPublicProcessRecurringRoute
   '/api/public/prune-audit': typeof ApiPublicPruneAuditRoute
   '/api/public/transactions': typeof ApiPublicTransactionsRoute
@@ -142,6 +159,7 @@ export interface FileRoutesById {
   '/add': typeof AddRoute
   '/envelopes': typeof EnvelopesRoute
   '/insights': typeof InsightsRoute
+  '/pending': typeof PendingRoute
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRoute
   '/edit/$id': typeof EditIdRoute
@@ -150,6 +168,7 @@ export interface FileRoutesById {
   '/api/public/attachments': typeof ApiPublicAttachmentsRoute
   '/api/public/categories': typeof ApiPublicCategoriesRoute
   '/api/public/metrics': typeof ApiPublicMetricsRoute
+  '/api/public/pending-transactions': typeof ApiPublicPendingTransactionsRoute
   '/api/public/process-recurring': typeof ApiPublicProcessRecurringRoute
   '/api/public/prune-audit': typeof ApiPublicPruneAuditRoute
   '/api/public/transactions': typeof ApiPublicTransactionsRoute
@@ -161,6 +180,7 @@ export interface FileRouteTypes {
     | '/add'
     | '/envelopes'
     | '/insights'
+    | '/pending'
     | '/settings'
     | '/transactions'
     | '/edit/$id'
@@ -169,6 +189,7 @@ export interface FileRouteTypes {
     | '/api/public/attachments'
     | '/api/public/categories'
     | '/api/public/metrics'
+    | '/api/public/pending-transactions'
     | '/api/public/process-recurring'
     | '/api/public/prune-audit'
     | '/api/public/transactions'
@@ -178,6 +199,7 @@ export interface FileRouteTypes {
     | '/add'
     | '/envelopes'
     | '/insights'
+    | '/pending'
     | '/settings'
     | '/transactions'
     | '/edit/$id'
@@ -186,6 +208,7 @@ export interface FileRouteTypes {
     | '/api/public/attachments'
     | '/api/public/categories'
     | '/api/public/metrics'
+    | '/api/public/pending-transactions'
     | '/api/public/process-recurring'
     | '/api/public/prune-audit'
     | '/api/public/transactions'
@@ -195,6 +218,7 @@ export interface FileRouteTypes {
     | '/add'
     | '/envelopes'
     | '/insights'
+    | '/pending'
     | '/settings'
     | '/transactions'
     | '/edit/$id'
@@ -203,6 +227,7 @@ export interface FileRouteTypes {
     | '/api/public/attachments'
     | '/api/public/categories'
     | '/api/public/metrics'
+    | '/api/public/pending-transactions'
     | '/api/public/process-recurring'
     | '/api/public/prune-audit'
     | '/api/public/transactions'
@@ -213,6 +238,7 @@ export interface RootRouteChildren {
   AddRoute: typeof AddRoute
   EnvelopesRoute: typeof EnvelopesRoute
   InsightsRoute: typeof InsightsRoute
+  PendingRoute: typeof PendingRoute
   SettingsRoute: typeof SettingsRoute
   TransactionsRoute: typeof TransactionsRoute
   EditIdRoute: typeof EditIdRoute
@@ -221,6 +247,7 @@ export interface RootRouteChildren {
   ApiPublicAttachmentsRoute: typeof ApiPublicAttachmentsRoute
   ApiPublicCategoriesRoute: typeof ApiPublicCategoriesRoute
   ApiPublicMetricsRoute: typeof ApiPublicMetricsRoute
+  ApiPublicPendingTransactionsRoute: typeof ApiPublicPendingTransactionsRoute
   ApiPublicProcessRecurringRoute: typeof ApiPublicProcessRecurringRoute
   ApiPublicPruneAuditRoute: typeof ApiPublicPruneAuditRoute
   ApiPublicTransactionsRoute: typeof ApiPublicTransactionsRoute
@@ -240,6 +267,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pending': {
+      id: '/pending'
+      path: '/pending'
+      fullPath: '/pending'
+      preLoaderRoute: typeof PendingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/insights': {
@@ -298,6 +332,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicProcessRecurringRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/pending-transactions': {
+      id: '/api/public/pending-transactions'
+      path: '/api/public/pending-transactions'
+      fullPath: '/api/public/pending-transactions'
+      preLoaderRoute: typeof ApiPublicPendingTransactionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/metrics': {
       id: '/api/public/metrics'
       path: '/api/public/metrics'
@@ -341,6 +382,7 @@ const rootRouteChildren: RootRouteChildren = {
   AddRoute: AddRoute,
   EnvelopesRoute: EnvelopesRoute,
   InsightsRoute: InsightsRoute,
+  PendingRoute: PendingRoute,
   SettingsRoute: SettingsRoute,
   TransactionsRoute: TransactionsRoute,
   EditIdRoute: EditIdRoute,
@@ -349,6 +391,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicAttachmentsRoute: ApiPublicAttachmentsRoute,
   ApiPublicCategoriesRoute: ApiPublicCategoriesRoute,
   ApiPublicMetricsRoute: ApiPublicMetricsRoute,
+  ApiPublicPendingTransactionsRoute: ApiPublicPendingTransactionsRoute,
   ApiPublicProcessRecurringRoute: ApiPublicProcessRecurringRoute,
   ApiPublicPruneAuditRoute: ApiPublicPruneAuditRoute,
   ApiPublicTransactionsRoute: ApiPublicTransactionsRoute,
@@ -356,13 +399,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
