@@ -22,6 +22,7 @@ const de: Dict = {
   "nav.add_transaction": "Buchung hinzufügen",
   "app.name": "Cashflow",
   "nav.pending": "Offen",
+  "nav.more": "Mehr",
   "pending.title": "Offene Buchungen",
   "pending.subtitle": "Vom externen System eingelesen — bitte prüfen und bestätigen.",
   "pending.tab.pending": "Offen",
