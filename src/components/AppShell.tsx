@@ -176,13 +176,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </li>
               );
             }
-            const active = tab.exact ? loc.pathname === tab.to : loc.pathname.startsWith(tab.to);
-            const showBadge = tab.to === "/pending" && pendingCount > 0;
-            if (tab.primary) {
+            const navTab = tab as Tab;
+            const active = navTab.exact ? loc.pathname === navTab.to : loc.pathname.startsWith(navTab.to);
+            const showBadge = navTab.to === "/pending" && pendingCount > 0;
+            if (navTab.primary) {
               return (
-                <li key={tab.to} className="flex items-center justify-center">
+                <li key={navTab.to} className="flex items-center justify-center">
                   <Link
-                    to={tab.to}
+                    to={navTab.to}
                     className="-mt-6 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background"
                     aria-label={t("nav.add_transaction")}
                   >
@@ -192,9 +193,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               );
             }
             return (
-              <li key={tab.to}>
+              <li key={navTab.to}>
                 <Link
-                  to={tab.to}
+                  to={navTab.to}
                   className={cn(
                     "relative flex flex-col items-center gap-0.5 px-2 py-2.5 text-[11px] font-medium",
                     active ? "text-primary" : "text-muted-foreground",
