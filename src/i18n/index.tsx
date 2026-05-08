@@ -665,6 +665,7 @@ const en: Dict = {
   "nav.add_transaction": "Add transaction",
   "app.name": "Cashflow",
   "nav.pending": "Pending",
+  "nav.more": "More",
   "pending.title": "Pending transactions",
   "pending.subtitle": "Imported from an external system — review and confirm.",
   "pending.tab.pending": "Pending",
