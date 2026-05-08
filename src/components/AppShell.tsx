@@ -1,10 +1,12 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { LayoutDashboard, Plus, ListOrdered, Settings as SettingsIcon, Wallet, PiggyBank, LogOut, LineChart, Inbox } from "lucide-react";
+import { LayoutDashboard, Plus, ListOrdered, Settings as SettingsIcon, Wallet, PiggyBank, LogOut, LineChart, Inbox, MoreHorizontal } from "lucide-react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { fetchPendingTransactions } from "@/lib/finance";
 
 type Tab = {
@@ -24,6 +26,24 @@ const tabs: Tab[] = [
   { to: "/settings", labelKey: "nav.settings", icon: SettingsIcon },
 ];
 
+type MobileTab =
+  | Tab
+  | { kind: "more"; labelKey: string; icon: typeof LayoutDashboard };
+
+const mobileMoreItems: Tab[] = [
+  { to: "/insights", labelKey: "nav.insights", icon: LineChart },
+  { to: "/pending", labelKey: "nav.pending", icon: Inbox },
+  { to: "/settings", labelKey: "nav.settings", icon: SettingsIcon },
+];
+
+const mobileTabs: MobileTab[] = [
+  { to: "/", labelKey: "nav.dashboard", icon: LayoutDashboard, exact: true },
+  { to: "/transactions", labelKey: "nav.transactions", icon: ListOrdered },
+  { to: "/add", labelKey: "nav.add", icon: Plus, primary: true },
+  { to: "/envelopes", labelKey: "nav.envelopes", icon: PiggyBank },
+  { kind: "more", labelKey: "nav.more", icon: MoreHorizontal },
+];
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const loc = useLocation();
   const { t } = useI18n();
@@ -35,6 +55,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     refetchInterval: 60_000,
   });
   const pendingCount = pendingCountQ.data ?? 0;
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreActive = mobileMoreItems.some((t) =>
+    t.exact ? loc.pathname === t.to : loc.pathname.startsWith(t.to),
+  );
   return (
     <div className="min-h-screen bg-background text-foreground">
       <header className="hidden md:block sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
@@ -85,16 +109,81 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </main>
 
       <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-background md:hidden">
-        <ul className="mx-auto grid max-w-3xl grid-cols-7">
-          {tabs.map((tab) => {
-            const active = tab.exact ? loc.pathname === tab.to : loc.pathname.startsWith(tab.to);
+        <ul className="mx-auto grid max-w-3xl grid-cols-5">
+          {mobileTabs.map((tab) => {
             const Icon = tab.icon;
-            const showBadge = tab.to === "/pending" && pendingCount > 0;
-            if (tab.primary) {
+            if ("kind" in tab && tab.kind === "more") {
+              const showBadge = pendingCount > 0;
               return (
-                <li key={tab.to} className="flex items-center justify-center">
+                <li key="more">
+                  <Popover open={moreOpen} onOpenChange={setMoreOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className={cn(
+                          "relative flex w-full flex-col items-center gap-0.5 px-2 py-2.5 text-[11px] font-medium",
+                          moreActive ? "text-primary" : "text-muted-foreground",
+                        )}
+                      >
+                        <Icon className="h-5 w-5" />
+                        {t(tab.labelKey)}
+                        {showBadge && (
+                          <span className="absolute right-2 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-semibold text-warning-foreground">
+                            {pendingCount}
+                          </span>
+                        )}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      side="top"
+                      align="end"
+                      sideOffset={8}
+                      className="w-48 p-1"
+                    >
+                      <ul className="flex flex-col">
+                        {mobileMoreItems.map((item) => {
+                          const active = item.exact
+                            ? loc.pathname === item.to
+                            : loc.pathname.startsWith(item.to);
+                          const ItemIcon = item.icon;
+                          const itemBadge = item.to === "/pending" && pendingCount > 0;
+                          return (
+                            <li key={item.to}>
+                              <Link
+                                to={item.to}
+                                onClick={() => setMoreOpen(false)}
+                                className={cn(
+                                  "flex items-center gap-2 rounded-md px-3 py-2 text-sm",
+                                  active
+                                    ? "bg-accent text-accent-foreground"
+                                    : "text-foreground hover:bg-accent hover:text-accent-foreground",
+                                )}
+                              >
+                                <ItemIcon className="h-4 w-4" />
+                                <span className="flex-1">{t(item.labelKey)}</span>
+                                {itemBadge && (
+                                  <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-semibold text-warning-foreground">
+                                    {pendingCount}
+                                  </span>
+                                )}
+                              </Link>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </PopoverContent>
+                  </Popover>
+                </li>
+              );
+            }
+            const navTab = tab as Tab;
+            const active = navTab.exact ? loc.pathname === navTab.to : loc.pathname.startsWith(navTab.to);
+            const showBadge = navTab.to === "/pending" && pendingCount > 0;
+            if (navTab.primary) {
+              return (
+                <li key={navTab.to} className="flex items-center justify-center">
                   <Link
-                    to={tab.to}
+                    to={navTab.to}
                     className="-mt-6 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-4 ring-background"
                     aria-label={t("nav.add_transaction")}
                   >
@@ -104,9 +193,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               );
             }
             return (
-              <li key={tab.to}>
+              <li key={navTab.to}>
                 <Link
-                  to={tab.to}
+                  to={navTab.to}
                   className={cn(
                     "relative flex flex-col items-center gap-0.5 px-2 py-2.5 text-[11px] font-medium",
                     active ? "text-primary" : "text-muted-foreground",
