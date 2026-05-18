@@ -28,13 +28,13 @@ function detectActiveTag(value: string, caret: number): { start: number; end: nu
       const prev = i === 0 ? " " : value[i - 1];
       if (!/\s/.test(prev)) return null;
       const query = value.slice(i + 1, caret);
-      if (!/^[A-Za-z0-9_]*$/.test(query)) return null;
+      if (!/^[\p{L}\p{N}_-]*$/u.test(query)) return null;
       // Only show while caret is at the end of the token (no chars right after that are tag chars).
       const after = value[caret];
-      if (after && /[A-Za-z0-9_]/.test(after)) return null;
+      if (after && /[\p{L}\p{N}_-]/u.test(after)) return null;
       return { start: i, end: caret, query };
     }
-    if (!/[A-Za-z0-9_]/.test(ch)) return null;
+    if (!/[\p{L}\p{N}_-]/u.test(ch)) return null;
     i--;
   }
   return null;
