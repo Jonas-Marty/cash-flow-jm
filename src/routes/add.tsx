@@ -517,6 +517,17 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
       return;
     }
 
+    // Validate dest amount up front, before we start any DB writes.
+    let destAmountNum: number | null = null;
+    if (type === "transfer" && isCrossCurrency) {
+      const dn = Number(destAmount.replace(",", "."));
+      destAmountNum = Number.isFinite(dn) && dn > 0 ? dn : null;
+      if (destAmountNum == null) {
+        toast.error(tr("toast.dest_amount_required"));
+        return;
+      }
+    }
+
     // Split path: insert N rows sharing a split_group_id
     if (splitMode && type !== "transfer") {
       if (slices.length < 2) { toast.error(tr("add.split.toast.min")); return; }
