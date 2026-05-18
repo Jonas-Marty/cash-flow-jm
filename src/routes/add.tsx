@@ -592,8 +592,59 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     }
 
     setSaving(true);
+    const occurredOnStr = format(date, "yyyy-MM-dd");
+    // For transfers with a fee, insert the fee expense FIRST so we can
+    // store its id on the transfer row. Skip on edit when an existing fee
+    // tx is already linked — we update it in place below instead.
+    let feeTxId: string | null = existingFeeTxId;
+    if (type === "transfer" && feeAmtNum > 0 && feeCategoryId) {
+      if (!existingFeeTxId) {
+        const feeDesc =
+          (description.trim() ? `${tr("add.transfer.fee.tx_prefix")}: ${description.trim()}` : tr("add.transfer.fee.tx_default"));
+        const { data: feeIns, error: feeErr } = await supabase
+          .from("transactions")
+          .insert({
+            occurred_on: occurredOnStr,
+            amount: feeAmtNum,
+            type: "expense",
+            source_account_id: sourceId,
+            destination_account_id: null,
+            category_id: feeCategoryId,
+            description: feeDesc,
+            note: null,
+            is_reimbursable: false,
+          })
+          .select("id")
+          .single();
+        if (feeErr) { setSaving(false); toast.error(feeErr.message); return; }
+        feeTxId = feeIns?.id ?? null;
+      } else {
+        // Update the existing linked fee tx amount / category / date.
+        const { error: feeUpdErr } = await supabase
+          .from("transactions")
+          .update({
+            occurred_on: occurredOnStr,
+            amount: feeAmtNum,
+            source_account_id: sourceId,
+            category_id: feeCategoryId,
+          })
+          .eq("id", existingFeeTxId);
+        if (feeUpdErr) { setSaving(false); toast.error(feeUpdErr.message); return; }
+      }
+    } else if (existingFeeTxId) {
+      // Fee was removed by the user (or type changed off transfer). Delete
+      // the linked fee tx; the parent transfer's fee_* fields will be cleared
+      // by the update payload below.
+      const { error: feeDelErr } = await supabase
+        .from("transactions")
+        .delete()
+        .eq("id", existingFeeTxId);
+      if (feeDelErr) { setSaving(false); toast.error(feeDelErr.message); return; }
+      feeTxId = null;
+    }
+
     const payload = {
-      occurred_on: format(date, "yyyy-MM-dd"),
+      occurred_on: occurredOnStr,
       amount: amt,
       description: description.trim() || null,
       note: note.trim() || null,
@@ -615,6 +666,9 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
         type !== "transfer" && isReimbursable ? (reimbCounterparty.trim() || null) : null,
       reimbursable_reason:
         type !== "transfer" && isReimbursable ? (reimbReason.trim() || null) : null,
+      fee_amount: type === "transfer" && feeAmtNum > 0 ? feeAmtNum : null,
+      fee_category_id: type === "transfer" && feeAmtNum > 0 ? feeCategoryId : null,
+      fee_transaction_id: type === "transfer" && feeAmtNum > 0 ? feeTxId : null,
     };
     if (type === "transfer" && isCrossCurrency && payload.destination_amount == null) {
       setSaving(false);
