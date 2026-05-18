@@ -494,6 +494,10 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     setReimbCounterparty("");
     setReimbReason("");
     setLinkSelections({});
+    setFeeOpen(false);
+    setFeeAmount("");
+    setFeeCategoryId("");
+    setExistingFeeTxId(null);
     setTimeout(() => amountRef.current?.focus(), 0);
   };
 
