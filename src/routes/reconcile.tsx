@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { DateInput } from "@/components/DateInput";
 import { useI18n } from "@/i18n";
+import { AttachmentsSection } from "@/components/AttachmentsSection";
 import {
   fetchAccounts,
   fetchAccountStatements,
@@ -230,6 +231,9 @@ function StatementRow({
           />
         </div>
         {s.note && <p className="text-xs text-muted-foreground">{s.note}</p>}
+        <div className="pt-2">
+          <AttachmentsSection statementId={s.id} />
+        </div>
       </div>
       <div className="flex flex-wrap items-center gap-1">
         <Button
