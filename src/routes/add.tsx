@@ -201,6 +201,16 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     }
   }, [isCrossCurrency]);
 
+  // Clear fee state when leaving transfer mode (DB trigger does the same on
+  // the row, but we also reset the UI).
+  React.useEffect(() => {
+    if (type !== "transfer") {
+      setFeeOpen(false);
+      setFeeAmount("");
+      setFeeCategoryId("");
+    }
+  }, [type]);
+
   // ───────── Split mode (multi-item receipt) ─────────
   type Slice = {
     id: string;
