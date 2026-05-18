@@ -132,6 +132,8 @@ export interface Transaction {
   reimbursable_counterparty?: string | null;
   reimbursable_reason?: string | null;
   reimbursable_cancel_reason?: string | null;
+  reimbursable_writeoff_category_id?: string | null;
+  reimbursable_writeoff_transaction_id?: string | null;
 }
 
 export type PendingTransactionStatus = "pending" | "confirmed" | "rejected";
