@@ -715,6 +715,19 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
         }
       }
     }
+    // Persist any attachments the user added before save.
+    if (newTxId && draftAttachments.length > 0) {
+      const rows = draftAttachments.map((a) => ({
+        transaction_id: newTxId,
+        statement_id: null,
+        source: a.source,
+        display_name: a.display_name,
+        link_url: a.link_url,
+      }));
+      const { error: aErr } = await supabase.from("transaction_attachments").insert(rows);
+      if (aErr) toast.error(aErr.message);
+      else setDraftAttachments([]);
+    }
     setSaving(false);
     toast.success(tr("toast.saved"));
     qc.invalidateQueries();
