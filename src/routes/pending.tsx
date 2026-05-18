@@ -6,6 +6,7 @@ import { format, parseISO } from "date-fns";
 import { Check, Ban, RotateCcw, ChevronDown, ChevronRight } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
+import { OpenIOUsCard } from "@/components/OpenIOUsCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,13 +43,15 @@ export const Route = createFileRoute("/pending")({
 
 function PendingRoute() {
   const { t } = useI18n();
-  const [tab, setTab] = React.useState<"pending" | "rejected" | "confirmed">("pending");
+  const [tab, setTab] = React.useState<"pending" | "rejected" | "confirmed" | "ious">("pending");
   const pendingQ = useQuery({
     queryKey: ["pending_transactions", tab],
-    queryFn: () => fetchPendingTransactions(tab),
+    queryFn: () => fetchPendingTransactions(tab === "ious" ? "pending" : tab),
+    enabled: tab !== "ious",
   });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
+  const sym = accountsQ.data?.[0]?.currency_symbol ?? "CHF";
 
   const items = pendingQ.data ?? [];
 
@@ -63,11 +66,14 @@ function PendingRoute() {
         <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
           <TabsList>
             <TabsTrigger value="pending">{t("pending.tab.pending")}</TabsTrigger>
+            <TabsTrigger value="ious">{t("iou.title")}</TabsTrigger>
             <TabsTrigger value="rejected">{t("pending.tab.rejected")}</TabsTrigger>
             <TabsTrigger value="confirmed">{t("pending.tab.confirmed")}</TabsTrigger>
           </TabsList>
           <TabsContent value={tab} className="mt-4 space-y-3">
-            {pendingQ.isLoading ? (
+            {tab === "ious" ? (
+              <OpenIOUsCard symbol={sym} headless />
+            ) : pendingQ.isLoading ? (
               <Card><CardContent className="py-6 text-center text-sm text-muted-foreground">{t("common.loading")}</CardContent></Card>
             ) : items.length === 0 ? (
               <Card><CardContent className="py-6 text-center text-sm text-muted-foreground">{t("pending.empty")}</CardContent></Card>
