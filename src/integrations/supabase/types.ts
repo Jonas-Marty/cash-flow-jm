@@ -747,6 +747,9 @@ export type Database = {
           description: string | null
           destination_account_id: string | null
           destination_amount: number | null
+          fee_amount: number | null
+          fee_category_id: string | null
+          fee_transaction_id: string | null
           id: string
           is_reimbursable: boolean
           note: string | null
@@ -771,6 +774,9 @@ export type Database = {
           description?: string | null
           destination_account_id?: string | null
           destination_amount?: number | null
+          fee_amount?: number | null
+          fee_category_id?: string | null
+          fee_transaction_id?: string | null
           id?: string
           is_reimbursable?: boolean
           note?: string | null
@@ -795,6 +801,9 @@ export type Database = {
           description?: string | null
           destination_account_id?: string | null
           destination_amount?: number | null
+          fee_amount?: number | null
+          fee_category_id?: string | null
+          fee_transaction_id?: string | null
           id?: string
           is_reimbursable?: boolean
           note?: string | null
@@ -839,6 +848,27 @@ export type Database = {
             columns: ["destination_account_id"]
             isOneToOne: false
             referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_fee_category_id_fkey"
+            columns: ["fee_category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_fee_category_id_fkey"
+            columns: ["fee_category_id"]
+            isOneToOne: false
+            referencedRelation: "category_savings_balance"
+            referencedColumns: ["category_id"]
+          },
+          {
+            foreignKeyName: "transactions_fee_transaction_id_fkey"
+            columns: ["fee_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
             referencedColumns: ["id"]
           },
           {

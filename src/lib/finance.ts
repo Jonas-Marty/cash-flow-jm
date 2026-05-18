@@ -134,6 +134,9 @@ export interface Transaction {
   reimbursable_cancel_reason?: string | null;
   reimbursable_writeoff_category_id?: string | null;
   reimbursable_writeoff_transaction_id?: string | null;
+  fee_amount?: number | null;
+  fee_transaction_id?: string | null;
+  fee_category_id?: string | null;
 }
 
 export type PendingTransactionStatus = "pending" | "confirmed" | "rejected";

@@ -154,6 +154,15 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
   const [destAmount, setDestAmount] = React.useState("");
   const [destAmountTouched, setDestAmountTouched] = React.useState(false);
 
+  // Optional fee charged on a transfer (e.g. ATM withdrawal fee). When set,
+  // we create an auto-linked expense transaction on the source account in the
+  // chosen category. Charged in the source account's currency.
+  const [feeOpen, setFeeOpen] = React.useState(false);
+  const [feeAmount, setFeeAmount] = React.useState("");
+  const [feeCategoryId, setFeeCategoryId] = React.useState<string>("");
+  // Tracks an already-linked fee transaction id when editing.
+  const [existingFeeTxId, setExistingFeeTxId] = React.useState<string | null>(null);
+
   const sourceAccount = sourceId ? accountById.get(sourceId) : undefined;
   const destAccount = destId ? accountById.get(destId) : undefined;
   // For income/expense, the source field IS the account holding the money,
@@ -191,6 +200,16 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
       setDestAmountTouched(false);
     }
   }, [isCrossCurrency]);
+
+  // Clear fee state when leaving transfer mode (DB trigger does the same on
+  // the row, but we also reset the UI).
+  React.useEffect(() => {
+    if (type !== "transfer") {
+      setFeeOpen(false);
+      setFeeAmount("");
+      setFeeCategoryId("");
+    }
+  }, [type]);
 
   // ───────── Split mode (multi-item receipt) ─────────
   type Slice = {
@@ -306,6 +325,12 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
       if (tx.destination_amount != null) {
         setDestAmount(Number(tx.destination_amount).toFixed(2));
         setDestAmountTouched(true);
+      }
+      if (tx.fee_amount != null && Number(tx.fee_amount) > 0) {
+        setFeeOpen(true);
+        setFeeAmount(Number(tx.fee_amount).toFixed(2));
+        setFeeCategoryId(tx.fee_category_id ?? "");
+        setExistingFeeTxId(tx.fee_transaction_id ?? null);
       }
     }
     // mark all fields as touched so suggestions never overwrite loaded data
@@ -469,6 +494,10 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     setReimbCounterparty("");
     setReimbReason("");
     setLinkSelections({});
+    setFeeOpen(false);
+    setFeeAmount("");
+    setFeeCategoryId("");
+    setExistingFeeTxId(null);
     setTimeout(() => amountRef.current?.focus(), 0);
   };
 
@@ -478,6 +507,30 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     if (!sourceId) { toast.error(tr("toast.account_required")); return; }
     if (type === "transfer" && !destId) { toast.error(tr("toast.dest_required")); return; }
     if (type === "transfer" && destId === sourceId) { toast.error(tr("toast.dest_must_differ")); return; }
+
+    // Validate optional transfer fee
+    const feeAmtNum =
+      type === "transfer" && feeOpen
+        ? (() => {
+            const n = Number(feeAmount.replace(",", "."));
+            return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
+          })()
+        : 0;
+    if (type === "transfer" && feeOpen && feeAmtNum > 0 && !feeCategoryId) {
+      toast.error(tr("toast.fee_category_required"));
+      return;
+    }
+
+    // Validate dest amount up front, before we start any DB writes.
+    let destAmountNum: number | null = null;
+    if (type === "transfer" && isCrossCurrency) {
+      const dn = Number(destAmount.replace(",", "."));
+      destAmountNum = Number.isFinite(dn) && dn > 0 ? dn : null;
+      if (destAmountNum == null) {
+        toast.error(tr("toast.dest_amount_required"));
+        return;
+      }
+    }
 
     // Split path: insert N rows sharing a split_group_id
     if (splitMode && type !== "transfer") {
@@ -554,8 +607,59 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     }
 
     setSaving(true);
+    const occurredOnStr = format(date, "yyyy-MM-dd");
+    // For transfers with a fee, insert the fee expense FIRST so we can
+    // store its id on the transfer row. Skip on edit when an existing fee
+    // tx is already linked — we update it in place below instead.
+    let feeTxId: string | null = existingFeeTxId;
+    if (type === "transfer" && feeAmtNum > 0 && feeCategoryId) {
+      if (!existingFeeTxId) {
+        const feeDesc =
+          (description.trim() ? `${tr("add.transfer.fee.tx_prefix")}: ${description.trim()}` : tr("add.transfer.fee.tx_default"));
+        const { data: feeIns, error: feeErr } = await supabase
+          .from("transactions")
+          .insert({
+            occurred_on: occurredOnStr,
+            amount: feeAmtNum,
+            type: "expense",
+            source_account_id: sourceId,
+            destination_account_id: null,
+            category_id: feeCategoryId,
+            description: feeDesc,
+            note: null,
+            is_reimbursable: false,
+          })
+          .select("id")
+          .single();
+        if (feeErr) { setSaving(false); toast.error(feeErr.message); return; }
+        feeTxId = feeIns?.id ?? null;
+      } else {
+        // Update the existing linked fee tx amount / category / date.
+        const { error: feeUpdErr } = await supabase
+          .from("transactions")
+          .update({
+            occurred_on: occurredOnStr,
+            amount: feeAmtNum,
+            source_account_id: sourceId,
+            category_id: feeCategoryId,
+          })
+          .eq("id", existingFeeTxId);
+        if (feeUpdErr) { setSaving(false); toast.error(feeUpdErr.message); return; }
+      }
+    } else if (existingFeeTxId) {
+      // Fee was removed by the user (or type changed off transfer). Delete
+      // the linked fee tx; the parent transfer's fee_* fields will be cleared
+      // by the update payload below.
+      const { error: feeDelErr } = await supabase
+        .from("transactions")
+        .delete()
+        .eq("id", existingFeeTxId);
+      if (feeDelErr) { setSaving(false); toast.error(feeDelErr.message); return; }
+      feeTxId = null;
+    }
+
     const payload = {
-      occurred_on: format(date, "yyyy-MM-dd"),
+      occurred_on: occurredOnStr,
       amount: amt,
       description: description.trim() || null,
       note: note.trim() || null,
@@ -564,12 +668,7 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
       destination_account_id: type === "transfer" ? destId : null,
       category_id: type === "transfer" ? null : (categoryId || null),
       destination_amount:
-        type === "transfer" && isCrossCurrency
-          ? (() => {
-              const dn = Number(destAmount.replace(",", "."));
-              return Number.isFinite(dn) && dn > 0 ? dn : null;
-            })()
-          : null,
+        type === "transfer" && isCrossCurrency ? destAmountNum : null,
       // Reimbursable flag only meaningful for expenses (or income that you
       // expect to receive — rare, but allowed). Transfers can't be reimbursable.
       is_reimbursable: type !== "transfer" ? isReimbursable : false,
@@ -577,12 +676,10 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
         type !== "transfer" && isReimbursable ? (reimbCounterparty.trim() || null) : null,
       reimbursable_reason:
         type !== "transfer" && isReimbursable ? (reimbReason.trim() || null) : null,
+      fee_amount: type === "transfer" && feeAmtNum > 0 ? feeAmtNum : null,
+      fee_category_id: type === "transfer" && feeAmtNum > 0 ? feeCategoryId : null,
+      fee_transaction_id: type === "transfer" && feeAmtNum > 0 ? feeTxId : null,
     };
-    if (type === "transfer" && isCrossCurrency && payload.destination_amount == null) {
-      setSaving(false);
-      toast.error(tr("toast.dest_amount_required"));
-      return;
-    }
     const selectedLinks = Object.entries(linkSelections)
       .map(([id, amt2]) => ({ id, amount: Number(amt2) }))
       .filter((x) => x.id && Number.isFinite(x.amount) && x.amount > 0);
@@ -864,6 +961,70 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
                         : tr("add.dest_amount.hint_offline")}
                   </p>
                 </div>
+              )}
+              {/* Optional fee on the transfer (e.g. ATM withdrawal fee) */}
+              {sourceAccount && destAccount && (
+                feeOpen ? (
+                  <div className="mt-3 rounded-md border border-dashed border-border/60 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <Label className="text-xs">
+                        {tr("add.transfer.fee.label", { sym: symbol })}
+                      </Label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => {
+                          setFeeOpen(false);
+                          setFeeAmount("");
+                          setFeeCategoryId("");
+                        }}
+                      >
+                        {tr("add.transfer.fee.remove")}
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                        {symbol}
+                      </span>
+                      <Input
+                        inputMode="decimal"
+                        placeholder="0.00"
+                        value={feeAmount}
+                        onChange={(e) =>
+                          setFeeAmount(e.target.value.replace(/[^0-9.,]/g, ""))
+                        }
+                        className="tabular-nums"
+                      />
+                    </div>
+                    <div className="mt-2">
+                      <Label className="mb-1 block text-xs">
+                        {tr("add.transfer.fee.category")}
+                      </Label>
+                      <ChipPicker
+                        items={categoryChips}
+                        value={feeCategoryId || null}
+                        onChange={(v) => setFeeCategoryId(v ?? "")}
+                        placeholder={tr("add.select_category")}
+                        moreLabel={tr("picker.more")}
+                        searchPlaceholder={tr("picker.search")}
+                        emptyLabel={tr("picker.no_match")}
+                      />
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {tr("add.transfer.fee.help")}
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setFeeOpen(true)}
+                    className="mt-2 text-xs text-primary underline-offset-2 hover:underline"
+                  >
+                    + {tr("add.transfer.fee.add")}
+                  </button>
+                )
               )}
             </div>
           )}

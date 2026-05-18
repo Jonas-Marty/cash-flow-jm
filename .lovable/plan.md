@@ -1,82 +1,71 @@
-# Open IOUs: incoming debts + Write-off
+## What you already have
 
-## Scope
-1. Allow `is_reimbursable` on **income** transactions (money I owe back).
-2. Add **Write off** action that creates an offsetting transaction in a chosen category and settles the original.
-3. Keep existing **Cancel** (status flag, no money moves) unchanged.
-4. Rename dashboard card → **Open IOUs** with two grouped sections.
-5. Add **Open IOUs** tab to `/pending` (mirrors the dashboard card).
+Cross-currency transfers are already a first-class concept:
+- `transactions.type='transfer'` with `source_account_id` (CHF bank), `destination_account_id` (EUR cash), `amount` (CHF leaving), and `destination_amount` (EUR arriving).
+- Implicit FX rate = `destination_amount / amount`. One row, no link bookkeeping needed.
 
-## Data model
+So your **"Example no fee"** (100 € for 93.39 CHF) and **"Example fee hidden in source"** (98.39 CHF → 100 €) work today with zero new code — just one transfer transaction.
 
-Migration:
-- Add nullable columns to `transactions`:
-  - `reimbursable_writeoff_category_id uuid` (FK→categories)
-  - `reimbursable_writeoff_transaction_id uuid` (FK→transactions, ON DELETE SET NULL)
-- Update `default_reimbursable_status()` trigger to also clear these two when `is_reimbursable=false`.
-- No enum change. `reimbursable_status` stays text with values `open | settled | cancelled` — a write-off ends up `settled` (linked offsetting tx covers the amount), with the two new columns identifying it as a write-off rather than a real refund.
+The only thing actually missing is a clean way to record the **separately‑charged fee** without making the user add and manually link a second transaction.
 
-**Direction is derived**, not stored:
-- `type='expense' + is_reimbursable` → "Owed to me"
-- `type='income'  + is_reimbursable` → "I owe"
+## How professional systems handle this
 
-## Library (`src/lib/finance.ts`)
+- **GnuCash**: one multi‑split transaction — source leg, destination leg, fee leg to a "Bank Fees" expense account. Balanced books, one entry.
+- **YNAB**: transfer + a second manual fee transaction. No link. Simple but messy.
+- **Firefly III**: transfer form has an optional "Foreign amount" (= our `destination_amount`) **and** an optional fee field that auto‑creates a linked withdrawal in a chosen expense category.
+- **Lunch Money / Copilot**: just a transfer; fee is a separate transaction, no linkage.
 
-- `fetchOpenReimbursables()` already returns both directions once UI allows the flag on income; no query change needed beyond confirming it doesn't filter by `type`.
-- Extend `Transaction` type with the two new fields.
-- New `writeOffReimbursable(originalTxId, { categoryId, note? })`:
-  1. Load original tx (amount, account, type, counterparty).
-  2. Insert offsetting tx: opposite `type` (`expense`↔`income`), same `amount`, same `source_account_id`, `occurred_on=today`, `category_id=categoryId`, `description="Write-off: <original desc>"`, `note` carries `#writeoff` tag + optional user note, `is_reimbursable=false`.
-  3. Insert `transaction_reimbursements` row linking original ↔ offsetting for full amount (triggers recompute status to `settled`).
-  4. Update original: set `reimbursable_writeoff_category_id`, `reimbursable_writeoff_transaction_id`.
-- Existing `setReimbursableStatus('cancelled', reason)` unchanged.
+Firefly's model maps cleanest onto your existing schema and your "easy entry" goal.
 
-## UI
+## Recommendation
 
-### `src/routes/add.tsx` + `src/routes/edit.$id.tsx`
-- Show "Mark as reimbursable" toggle for **both** expense and income.
-- Helper text is direction-aware:
-  - expense → "Someone will pay you back"
-  - income → "You'll need to pay this back"
-- `reimburse_for` URL param flow (existing refund shortcut) keeps working; for an "I owe" original it prefills `type=expense` (the repayment).
+Treat ATM withdrawal as a **transfer with an optional fee add‑on**, not as a new transaction type. The fee becomes an auto‑created, auto‑linked expense — the user fills one form.
 
-### Dashboard card → rename file/component to `OpenIOUsCard`
-- Two stacked sections inside the same card:
-  - **Owed to me** — expense + reimbursable + open (existing data)
-  - **I owe**     — income + reimbursable + open (new)
-- Each row keeps current actions plus a new **Write off** button.
-- Section headings only render when that section has items; card hides entirely when both empty.
-- "Add refund" link adapts: for I-owe rows it prefills `type=expense` instead of income.
+### Data model
+- Add to `transactions`:
+  - `fee_amount numeric NULL` — fee charged in the source account's currency
+  - `fee_transaction_id uuid NULL` (FK→transactions, ON DELETE SET NULL) — the auto‑created fee expense
+  - `fee_category_id uuid NULL` (FK→categories) — remembered for edit/undo
+- Trigger clears all three on transfers that no longer have a fee, and cascades delete: deleting the transfer also deletes the linked fee expense (or vice versa — pick one direction; I'd cascade transfer → fee).
 
-### Write-off dialog
-- Triggered from row action in card and `/pending` tab.
-- Fields:
-  - **Category** (required) — searchable select over user's categories (no filter; user picks where the loss/gift lands, e.g. "Gifts given", "Bad debt").
-  - **Note** (optional) — appended to offsetting tx note.
-- Submit calls `writeOffReimbursable`, invalidates queries, toasts.
+This mirrors the existing `reimbursable_writeoff_*` pattern you already use, so it's a familiar shape in the codebase.
 
-### `/pending` route
-- Add **Open IOUs** tab alongside existing **Pending** / **Rejected**.
-- Tab content: re-uses `OpenIOUsCard` body (extract list rendering into a shared component if needed) so dashboard + page stay in sync.
-- Nav badge logic unchanged (still only counts unconfirmed pending).
+### Library (`src/lib/finance.ts`)
+- Extend transfer create/update path: if `fee_amount > 0` and `fee_category_id` provided, insert a sibling expense (`type='expense'`, same `source_account_id`, same date, `amount=fee_amount`, `category_id=fee_category_id`, description e.g. "ATM fee: <transfer description>") and store its id on the transfer.
+- On transfer edit: if fee fields change, update or delete the linked expense.
+- On transfer delete: also delete the linked fee expense.
 
-### i18n (`src/i18n/index.tsx`)
-- New keys: `iou.title`, `iou.owed_to_me`, `iou.i_owe`, `iou.writeoff.action`, `iou.writeoff.dialog.title`, `iou.writeoff.dialog.body`, `iou.writeoff.category`, `iou.writeoff.note`, `iou.writeoff.help`, `iou.status.written_off`, `add.reimbursable.help.expense`, `add.reimbursable.help.income`.
-- Old `dash.reimb.*` keys remain (still referenced inside the card body until renamed); alias unchanged ones.
+### UI (`src/routes/add.tsx` / `edit.$id.tsx`)
+When `type='transfer'` and source/destination currencies differ (already detected via `isCrossCurrency`), show two additional optional fields below `destination_amount`:
+- **Fee** (number, source currency)
+- **Fee category** (searchable select, defaults to last‑used; remembered per user in settings)
+
+Both empty → behaves exactly like today (no fee row created). One transfer entry, one optional fee — no manual linking, no second navigation.
+
+### Optional: "Cash withdrawal" shortcut
+Add a tile/button on the dashboard (or `/add` quick actions) that opens `/add` with:
+- `type=transfer` preselected
+- `source_account_id` = last bank used
+- `destination_account_id` = last cash account used (or only cash account if one exists)
+- Cursor in the destination‑amount field (you usually know the EUR you want)
+
+Pure UI shortcut, no schema impact.
+
+## Why not the alternatives
+
+- **"Make it 3 separate transactions with a link group"**: more rows, more screens, no benefit over GnuCash‑style single entry. Your existing `split_group_id` is for splits of one expense across categories, not for grouping heterogeneous tx types.
+- **"New `atm_withdrawal` type"**: adds a type just to carry one extra number. The transfer + fee model covers it and stays orthogonal.
+- **"Just tell users to bake the fee into the source amount"**: works (your last example), but the fee disappears from category reporting — you can't ever ask "how much did I pay in ATM/FX fees this year?".
 
 ## Out of scope
-- Reporting/analytics on written-off totals.
-- Bulk write-off.
-- Currency conversion when offsetting in a different currency (offsetting always lands on the same account as the original).
-- Undo write-off button (user can manually delete the offsetting tx, which cascades to remove the link and reopens the original — already works via existing triggers).
+- Multi‑fee transfers (e.g. acquirer fee + network fee). Rare; users can add a second manual expense.
+- Per‑account default fee category (could be added later in account settings).
+- Reporting widget for total fees paid.
 
-## Files touched
-- `supabase/migrations/<ts>_reimbursable_writeoff.sql` (new)
-- `src/lib/finance.ts`
-- `src/routes/add.tsx`, `src/routes/edit.$id.tsx`
-- `src/components/OpenReimbursementsCard.tsx` → renamed to `OpenIOUsCard.tsx`
-- `src/components/IOUWriteOffDialog.tsx` (new)
-- `src/components/IOUList.tsx` (new, extracted shared list for card + tab)
-- `src/routes/pending.tsx` (add tab)
-- `src/routes/index.tsx` (use renamed card)
-- `src/i18n/index.tsx`
+## Files that would change
+- `supabase/migrations/<ts>_transfer_fee.sql` (new) — 3 columns + trigger update
+- `src/lib/finance.ts` — extend transfer insert/update/delete; extend `Transaction` type
+- `src/routes/add.tsx`, `src/routes/edit.$id.tsx` — fee + fee category fields under cross‑currency transfer
+- `src/lib/transactionSchema.ts` — allow `fee_amount`, `fee_category_id` on transfers
+- `src/i18n/index.tsx` — `add.transfer.fee`, `add.transfer.fee_category`, `add.transfer.fee_help`
+- (optional) dashboard quick‑action tile
