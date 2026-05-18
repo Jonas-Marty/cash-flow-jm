@@ -154,6 +154,15 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
   const [destAmount, setDestAmount] = React.useState("");
   const [destAmountTouched, setDestAmountTouched] = React.useState(false);
 
+  // Optional fee charged on a transfer (e.g. ATM withdrawal fee). When set,
+  // we create an auto-linked expense transaction on the source account in the
+  // chosen category. Charged in the source account's currency.
+  const [feeOpen, setFeeOpen] = React.useState(false);
+  const [feeAmount, setFeeAmount] = React.useState("");
+  const [feeCategoryId, setFeeCategoryId] = React.useState<string>("");
+  // Tracks an already-linked fee transaction id when editing.
+  const [existingFeeTxId, setExistingFeeTxId] = React.useState<string | null>(null);
+
   const sourceAccount = sourceId ? accountById.get(sourceId) : undefined;
   const destAccount = destId ? accountById.get(destId) : undefined;
   // For income/expense, the source field IS the account holding the money,
