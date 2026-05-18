@@ -16,13 +16,21 @@ interface AttachmentRow {
   added_at: string;
 }
 
+export interface DraftAttachment {
+  source: string;
+  display_name: string;
+  link_url: string;
+}
+
 type Props =
-  | { transactionId: string; statementId?: never }
-  | { statementId: string; transactionId?: never };
+  | { transactionId: string; statementId?: never; draft?: never; items?: never; onItemsChange?: never }
+  | { statementId: string; transactionId?: never; draft?: never; items?: never; onItemsChange?: never }
+  | { draft: true; items: DraftAttachment[]; onItemsChange: (items: DraftAttachment[]) => void; transactionId?: never; statementId?: never };
 
 export function AttachmentsSection(props: Props) {
-  const transactionId = "transactionId" in props ? props.transactionId : undefined;
-  const statementId = "statementId" in props ? props.statementId : undefined;
+  const isDraft = "draft" in props && props.draft === true;
+  const transactionId = !isDraft && "transactionId" in props ? props.transactionId : undefined;
+  const statementId = !isDraft && "statementId" in props ? props.statementId : undefined;
   const parentKey = transactionId ?? statementId ?? "";
   const parentCol = transactionId ? "transaction_id" : "statement_id";
   const { t } = useI18n();
@@ -31,6 +39,7 @@ export function AttachmentsSection(props: Props) {
 
   const q = useQuery({
     queryKey: ["attachments", parentCol, parentKey],
+    enabled: !isDraft && !!parentKey,
     queryFn: async (): Promise<AttachmentRow[]> => {
       const { data, error } = await supabase
         .from("transaction_attachments")
@@ -43,6 +52,15 @@ export function AttachmentsSection(props: Props) {
   });
 
   const onPick = async (f: PickedFile) => {
+    if (isDraft) {
+      const draftProps = props as Extract<Props, { draft: true }>;
+      draftProps.onItemsChange([
+        { source: "nextcloud", display_name: f.name, link_url: f.link_url },
+        ...draftProps.items,
+      ]);
+      toast.success(t("attachments.added"));
+      return;
+    }
     const { error } = await supabase.from("transaction_attachments").insert({
       transaction_id: transactionId ?? null,
       statement_id: statementId ?? null,
@@ -62,7 +80,23 @@ export function AttachmentsSection(props: Props) {
     qc.invalidateQueries({ queryKey: ["attachments", parentCol, parentKey] });
   };
 
-  const items = q.data ?? [];
+  const onDeleteDraft = (idx: number) => {
+    if (!confirm(t("attachments.confirm_delete"))) return;
+    const draftProps = props as Extract<Props, { draft: true }>;
+    draftProps.onItemsChange(draftProps.items.filter((_, i) => i !== idx));
+  };
+
+  const items = isDraft
+    ? (props as Extract<Props, { draft: true }>).items.map((it, i) => ({
+        id: `draft-${i}`,
+        transaction_id: "",
+        source: it.source,
+        display_name: it.display_name,
+        link_url: it.link_url,
+        added_at: "",
+        _draftIdx: i,
+      }))
+    : (q.data ?? []).map((a) => ({ ...a, _draftIdx: -1 }));
 
   return (
     <div className="space-y-2">
@@ -95,7 +129,11 @@ export function AttachmentsSection(props: Props) {
               <a href={a.link_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
                 <ExternalLink className="h-3.5 w-3.5" />
               </a>
-              <button type="button" onClick={() => onDelete(a.id)} className="text-muted-foreground hover:text-destructive">
+              <button
+                type="button"
+                onClick={() => (isDraft ? onDeleteDraft(a._draftIdx) : onDelete(a.id))}
+                className="text-muted-foreground hover:text-destructive"
+              >
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
             </li>

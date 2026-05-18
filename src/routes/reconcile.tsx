@@ -25,6 +25,8 @@ import {
 import { DateInput } from "@/components/DateInput";
 import { useI18n } from "@/i18n";
 import { AttachmentsSection } from "@/components/AttachmentsSection";
+import { type DraftAttachment } from "@/components/AttachmentsSection";
+import { supabase } from "@/integrations/supabase/client";
 import {
   fetchAccounts,
   fetchAccountStatements,
@@ -350,6 +352,7 @@ function AddStatementDialog({
   const [amount, setAmount] = React.useState<string>("");
   const [note, setNote] = React.useState<string>("");
   const [saving, setSaving] = React.useState(false);
+  const [draftAttachments, setDraftAttachments] = React.useState<DraftAttachment[]>([]);
 
   React.useEffect(() => {
     if (open && !accountId && accounts[0]) setAccountId(accounts[0].id);
@@ -364,15 +367,27 @@ function AddStatementDialog({
     }
     setSaving(true);
     try {
-      await upsertAccountStatement({
+      const stmt = await upsertAccountStatement({
         account_id: accountId,
         as_of: asOf,
         statement_balance: Math.round(n * 100) / 100,
         note: note.trim() || null,
       });
+      if (draftAttachments.length > 0) {
+        const rows = draftAttachments.map((a) => ({
+          transaction_id: null,
+          statement_id: stmt.id,
+          source: a.source,
+          display_name: a.display_name,
+          link_url: a.link_url,
+        }));
+        const { error: aErr } = await supabase.from("transaction_attachments").insert(rows);
+        if (aErr) toast.error(aErr.message);
+      }
       toast.success(t("reconcile.toast.saved"));
       setAmount("");
       setNote("");
+      setDraftAttachments([]);
       onCreated();
     } catch (e) {
       toast.error((e as Error).message);
@@ -424,6 +439,13 @@ function AddStatementDialog({
           <div className="space-y-1">
             <Label>{t("reconcile.add.note")}</Label>
             <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+          </div>
+          <div className="pt-1">
+            <AttachmentsSection
+              draft
+              items={draftAttachments}
+              onItemsChange={setDraftAttachments}
+            />
           </div>
         </div>
         <DialogFooter>

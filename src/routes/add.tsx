@@ -39,7 +39,7 @@ import { DayHeatmapCalendar } from "@/components/DayHeatmapCalendar";
 import { DateInput } from "@/components/DateInput";
 import { ShortcutsDialog } from "@/components/ShortcutsDialog";
 import { DescriptionAutocomplete } from "@/components/DescriptionAutocomplete";
-import { AttachmentsSection } from "@/components/AttachmentsSection";
+import { AttachmentsSection, type DraftAttachment } from "@/components/AttachmentsSection";
 import { useFxRates, convert } from "@/lib/fx";
 
 export const Route = createFileRoute("/add")({
@@ -256,6 +256,9 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
   }>(null);
 
   const isEdit = !!editId;
+
+  // Draft attachments collected before the transaction is created.
+  const [draftAttachments, setDraftAttachments] = React.useState<DraftAttachment[]>([]);
 
   // ───────── Edit mode: load the transaction (and split-group siblings) ─────────
   const editQ = useQuery({
@@ -711,6 +714,19 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
           toast.error((e as Error).message);
         }
       }
+    }
+    // Persist any attachments the user added before save.
+    if (newTxId && draftAttachments.length > 0) {
+      const rows = draftAttachments.map((a) => ({
+        transaction_id: newTxId,
+        statement_id: null,
+        source: a.source,
+        display_name: a.display_name,
+        link_url: a.link_url,
+      }));
+      const { error: aErr } = await supabase.from("transaction_attachments").insert(rows);
+      if (aErr) toast.error(aErr.message);
+      else setDraftAttachments([]);
     }
     setSaving(false);
     toast.success(tr("toast.saved"));
@@ -1527,11 +1543,17 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
           )}
         </div>
 
-        {isEdit && editId && (
-          <div className="pt-2">
+        <div className="pt-2">
+          {isEdit && editId ? (
             <AttachmentsSection transactionId={editId} />
-          </div>
-        )}
+          ) : (
+            <AttachmentsSection
+              draft
+              items={draftAttachments}
+              onItemsChange={setDraftAttachments}
+            />
+          )}
+        </div>
 
         <ShortcutsDialog
           open={helpOpen}
