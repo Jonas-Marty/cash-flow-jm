@@ -664,12 +664,7 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
       destination_account_id: type === "transfer" ? destId : null,
       category_id: type === "transfer" ? null : (categoryId || null),
       destination_amount:
-        type === "transfer" && isCrossCurrency
-          ? (() => {
-              const dn = Number(destAmount.replace(",", "."));
-              return Number.isFinite(dn) && dn > 0 ? dn : null;
-            })()
-          : null,
+        type === "transfer" && isCrossCurrency ? destAmountNum : null,
       // Reimbursable flag only meaningful for expenses (or income that you
       // expect to receive — rare, but allowed). Transfers can't be reimbursable.
       is_reimbursable: type !== "transfer" ? isReimbursable : false,
@@ -681,11 +676,6 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
       fee_category_id: type === "transfer" && feeAmtNum > 0 ? feeCategoryId : null,
       fee_transaction_id: type === "transfer" && feeAmtNum > 0 ? feeTxId : null,
     };
-    if (type === "transfer" && isCrossCurrency && payload.destination_amount == null) {
-      setSaving(false);
-      toast.error(tr("toast.dest_amount_required"));
-      return;
-    }
     const selectedLinks = Object.entries(linkSelections)
       .map(([id, amt2]) => ({ id, amount: Number(amt2) }))
       .filter((x) => x.id && Number.isFinite(x.amount) && x.amount > 0);
