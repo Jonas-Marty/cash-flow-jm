@@ -43,7 +43,7 @@ type SortKey = "date_desc" | "date_asc" | "amount_desc" | "amount_asc";
  * search token matches the tag body.
  */
 function renderNoteWithTags(note: string, tokens: string[]): React.ReactNode {
-  const re = /#([A-Za-z0-9_]+)/g;
+  const re = /#([\p{L}\p{N}_][\p{L}\p{N}_-]*)/gu;
   const out: React.ReactNode[] = [];
   let last = 0;
   let m: RegExpExecArray | null;
