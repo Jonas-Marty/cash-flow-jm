@@ -56,8 +56,6 @@ export const transactionInputSchema = z
     description: trimmedNullable(500),
     note: trimmedNullable(2000),
     destination_amount: amountSchema.optional().nullable(),
-    fee_amount: amountSchema.optional().nullable(),
-    fee_category_id: z.string().uuid().nullable().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.type === "transfer") {
@@ -80,20 +78,6 @@ export const transactionInputSchema = z
         code: z.ZodIssueCode.custom,
         path: ["destination_amount"],
         message: "destination_amount is only allowed on transfers",
-      });
-    }
-    if (data.fee_amount != null && data.type !== "transfer") {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["fee_amount"],
-        message: "fee_amount is only allowed on transfers",
-      });
-    }
-    if (data.fee_amount != null && !data.fee_category_id) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["fee_category_id"],
-        message: "fee_category_id is required when fee_amount is set",
       });
     }
   });
@@ -126,8 +110,5 @@ export function normalizeTransactionInput(input: TransactionInput) {
     note: input.note,
     destination_amount:
       input.type === "transfer" ? input.destination_amount ?? null : null,
-    fee_amount: input.type === "transfer" ? input.fee_amount ?? null : null,
-    fee_category_id:
-      input.type === "transfer" ? input.fee_category_id ?? null : null,
   };
 }
