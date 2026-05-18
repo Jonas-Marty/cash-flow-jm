@@ -1,119 +1,82 @@
-# Pending (Unconfirmed) Transactions
+# Open IOUs: incoming debts + Write-off
 
-A new entity to receive transactions from third-party systems (e.g. an email-parser that extracts credit card charges). Items sit in a "pending" state, are surfaced for the user to review, edit freely, then either **confirm** (creates a real `transactions` row) or **reject** (kept in history).
+## Scope
+1. Allow `is_reimbursable` on **income** transactions (money I owe back).
+2. Add **Write off** action that creates an offsetting transaction in a chosen category and settles the original.
+3. Keep existing **Cancel** (status flag, no money moves) unchanged.
+4. Rename dashboard card → **Open IOUs** with two grouped sections.
+5. Add **Open IOUs** tab to `/pending` (mirrors the dashboard card).
 
 ## Data model
 
-New table `pending_transactions` — fully separate from `transactions`, so balances, budgets, insights, recurring, reimbursements and splits are unaffected until the user confirms.
+Migration:
+- Add nullable columns to `transactions`:
+  - `reimbursable_writeoff_category_id uuid` (FK→categories)
+  - `reimbursable_writeoff_transaction_id uuid` (FK→transactions, ON DELETE SET NULL)
+- Update `default_reimbursable_status()` trigger to also clear these two when `is_reimbursable=false`.
+- No enum change. `reimbursable_status` stays text with values `open | settled | cancelled` — a write-off ends up `settled` (linked offsetting tx covers the amount), with the two new columns identifying it as a write-off rather than a real refund.
 
-```sql
-CREATE TYPE pending_transaction_status AS ENUM ('pending', 'confirmed', 'rejected');
+**Direction is derived**, not stored:
+- `type='expense' + is_reimbursable` → "Owed to me"
+- `type='income'  + is_reimbursable` → "I owe"
 
-CREATE TABLE public.pending_transactions (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid NOT NULL DEFAULT auth.uid(),
-  status pending_transaction_status NOT NULL DEFAULT 'pending',
+## Library (`src/lib/finance.ts`)
 
-  -- Mandatory at creation
-  source_account_id uuid NOT NULL,
-  amount numeric NOT NULL CHECK (amount > 0),
+- `fetchOpenReimbursables()` already returns both directions once UI allows the flag on income; no query change needed beyond confirming it doesn't filter by `type`.
+- Extend `Transaction` type with the two new fields.
+- New `writeOffReimbursable(originalTxId, { categoryId, note? })`:
+  1. Load original tx (amount, account, type, counterparty).
+  2. Insert offsetting tx: opposite `type` (`expense`↔`income`), same `amount`, same `source_account_id`, `occurred_on=today`, `category_id=categoryId`, `description="Write-off: <original desc>"`, `note` carries `#writeoff` tag + optional user note, `is_reimbursable=false`.
+  3. Insert `transaction_reimbursements` row linking original ↔ offsetting for full amount (triggers recompute status to `settled`).
+  4. Update original: set `reimbursable_writeoff_category_id`, `reimbursable_writeoff_transaction_id`.
+- Existing `setReimbursableStatus('cancelled', reason)` unchanged.
 
-  -- Optional, user fills/edits during confirmation
-  type transaction_type NOT NULL DEFAULT 'expense',
-  occurred_on date NOT NULL DEFAULT CURRENT_DATE,
-  destination_account_id uuid,
-  category_id uuid,
-  description text,
-  note text,
-  destination_amount numeric,
+## UI
 
-  -- Provenance / context shown during confirmation
-  external_source text,        -- e.g. "email-parser", "bank-x"
-  external_ref text,            -- optional dedupe key from caller
-  external_info text,           -- free-text comment shown to user
+### `src/routes/add.tsx` + `src/routes/edit.$id.tsx`
+- Show "Mark as reimbursable" toggle for **both** expense and income.
+- Helper text is direction-aware:
+  - expense → "Someone will pay you back"
+  - income → "You'll need to pay this back"
+- `reimburse_for` URL param flow (existing refund shortcut) keeps working; for an "I owe" original it prefills `type=expense` (the repayment).
 
-  -- Lifecycle
-  confirmed_transaction_id uuid REFERENCES public.transactions(id) ON DELETE SET NULL,
-  confirmed_at timestamptz,
-  rejected_at timestamptz,
-  reject_reason text,
+### Dashboard card → rename file/component to `OpenIOUsCard`
+- Two stacked sections inside the same card:
+  - **Owed to me** — expense + reimbursable + open (existing data)
+  - **I owe**     — income + reimbursable + open (new)
+- Each row keeps current actions plus a new **Write off** button.
+- Section headings only render when that section has items; card hides entirely when both empty.
+- "Add refund" link adapts: for I-owe rows it prefills `type=expense` instead of income.
 
-  created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now(),
+### Write-off dialog
+- Triggered from row action in card and `/pending` tab.
+- Fields:
+  - **Category** (required) — searchable select over user's categories (no filter; user picks where the loss/gift lands, e.g. "Gifts given", "Bad debt").
+  - **Note** (optional) — appended to offsetting tx note.
+- Submit calls `writeOffReimbursable`, invalidates queries, toasts.
 
-  UNIQUE (user_id, external_source, external_ref)  -- nullable cols allow many NULLs
-);
-```
+### `/pending` route
+- Add **Open IOUs** tab alongside existing **Pending** / **Rejected**.
+- Tab content: re-uses `OpenIOUsCard` body (extract list rendering into a shared component if needed) so dashboard + page stay in sync.
+- Nav badge logic unchanged (still only counts unconfirmed pending).
 
-- RLS: `user_id = auth.uid()` ALL policy (mirrors `transactions`).
-- Trigger: `updated_at`, plus the existing audit trigger.
-- Trigger: validates that `source_account_id` / `destination_account_id` / `category_id` belong to the same user.
+### i18n (`src/i18n/index.tsx`)
+- New keys: `iou.title`, `iou.owed_to_me`, `iou.i_owe`, `iou.writeoff.action`, `iou.writeoff.dialog.title`, `iou.writeoff.dialog.body`, `iou.writeoff.category`, `iou.writeoff.note`, `iou.writeoff.help`, `iou.status.written_off`, `add.reimbursable.help.expense`, `add.reimbursable.help.income`.
+- Old `dash.reimb.*` keys remain (still referenced inside the card body until renamed); alias unchanged ones.
 
-## Public API
-
-New route `src/routes/api.public.pending-transactions.ts`, modelled on the existing `api.public.transactions.ts` (Bearer token auth via `api_tokens`):
-
-- `POST /api/public/pending-transactions`
-  - Required: `source_account_id`, `amount`
-  - Optional: `type` (default `expense`), `occurred_on` (default today), `destination_account_id`, `category_id`, `description`, `note`, `destination_amount`, `external_source`, `external_ref`, `external_info`
-  - Validates account/category ownership (same as the existing endpoint).
-  - Returns `201` with the created pending row.
-  - Idempotent on `(external_source, external_ref)` when both provided — returns existing row instead of duplicating.
-- `GET /api/public/pending-transactions?status=pending` — for the calling system to inspect what's still open.
-
-A new shared schema `src/lib/pendingTransactionSchema.ts` (parallel to `transactionSchema.ts`) — `source_account_id` and `amount` required, everything else optional.
-
-## App UI
-
-### Dashboard (`src/routes/index.tsx`)
-
-- New `PendingConfirmationsCard` placed near `OpenReimbursementsCard`. Shown only when count > 0. Lists pending items grouped by `external_source`, each row: amount, account, date, `external_info` snippet, and "Review" button.
-
-### Nav badge (`src/components/AppShell.tsx`)
-
-- Numeric badge next to the new "Pending" nav item showing count of `status='pending'` rows. Live-updates via Supabase realtime channel on `pending_transactions`.
-
-### Dedicated route `src/routes/pending.tsx`
-
-- Tabs: **Pending** / **Rejected** / (optional) **Confirmed history**.
-- Each pending row expands inline into an editor reusing the existing `add.tsx` form fields (extracted into a small `<TransactionFormFields>` component if it isn't already a clean unit — otherwise wrap in a dialog and reuse `add.tsx` logic). User can edit ANY field including amount/account.
-- Always-visible "External info" panel showing `external_source`, `external_ref`, `external_info`.
-- Three actions:
-  - **Confirm** → server fn `confirmPendingTransaction({id, overrides})`: inserts a real `transactions` row with the (possibly edited) values, sets `pending.status='confirmed'`, `confirmed_transaction_id`, `confirmed_at`.
-  - **Reject** → opens small dialog asking optional reason; sets `status='rejected'`, `rejected_at`, `reject_reason`. Stays in "Rejected" tab.
-  - **Restore** (on rejected rows) → back to `status='pending'`.
-
-### i18n
-
-- Add EN + DE strings for "Pending confirmation", "Confirm", "Reject", "Reject reason", "External info", nav label, etc.
-
-## Server functions
-
-`src/server/pendingTransactions.functions.ts` (new):
-
-- `listPendingTransactions(status)`
-- `confirmPendingTransaction({id, overrides})` — RLS via `requireSupabaseAuth`
-- `rejectPendingTransaction({id, reason})`
-- `restorePendingTransaction({id})`
-
-All operate as the signed-in user (RLS).
+## Out of scope
+- Reporting/analytics on written-off totals.
+- Bulk write-off.
+- Currency conversion when offsetting in a different currency (offsetting always lands on the same account as the original).
+- Undo write-off button (user can manually delete the offsetting tx, which cascades to remove the link and reopens the original — already works via existing triggers).
 
 ## Files touched
-
-- `supabase/migrations/<ts>_pending_transactions.sql` — enum, table, RLS, triggers.
-- `src/lib/pendingTransactionSchema.ts` — Zod schemas.
-- `src/routes/api.public.pending-transactions.ts` — POST + GET.
-- `src/server/pendingTransactions.functions.ts` — confirm/reject/restore/list.
-- `src/lib/finance.ts` — types + `fetchPendingTransactions` helper.
-- `src/components/PendingConfirmationsCard.tsx` (new).
-- `src/routes/pending.tsx` (new).
-- `src/routes/index.tsx` — mount the card.
-- `src/components/AppShell.tsx` — nav entry + badge.
-- `src/i18n/index.tsx` — strings.
-
-## Behavioural notes
-
-- Pending rows do **not** affect any account balance, envelope spend, recurring schedule, or reimbursement totals. They only become "real" on confirm.
-- On confirm, if the user filled in reimbursement-related fields, those are written into the new `transactions` row in the same insert (no separate step).
-- Splits during confirmation are possible they same way as when creating new transactions. 
-- Audit log captures create/confirm/reject/restore via the existing audit trigger on the new table.
+- `supabase/migrations/<ts>_reimbursable_writeoff.sql` (new)
+- `src/lib/finance.ts`
+- `src/routes/add.tsx`, `src/routes/edit.$id.tsx`
+- `src/components/OpenReimbursementsCard.tsx` → renamed to `OpenIOUsCard.tsx`
+- `src/components/IOUWriteOffDialog.tsx` (new)
+- `src/components/IOUList.tsx` (new, extracted shared list for card + tab)
+- `src/routes/pending.tsx` (add tab)
+- `src/routes/index.tsx` (use renamed card)
+- `src/i18n/index.tsx`

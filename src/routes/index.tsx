@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
 import { UpcomingCard } from "@/components/UpcomingCard";
-import { OpenReimbursementsCard } from "@/components/OpenReimbursementsCard";
+import { OpenIOUsCard } from "@/components/OpenIOUsCard";
 import { PendingConfirmationsCard } from "@/components/PendingConfirmationsCard";
 import { TopMonthTransactionsCard } from "@/components/TopMonthTransactionsCard";
 import { TrendStripCard } from "@/components/TrendStripCard";
@@ -207,7 +207,7 @@ function Dashboard() {
 
         {/* Upcoming & due (recurring) */}
         <UpcomingCard symbol={symbol} />
-        <OpenReimbursementsCard symbol={symbol} />
+        <OpenIOUsCard symbol={symbol} />
         <PendingConfirmationsCard symbol={symbol} />
 
         {/* This month — budget verdict (summary only) */}

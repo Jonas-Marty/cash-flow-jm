@@ -603,8 +603,10 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     if (error) { setSaving(false); toast.error(error.message); return; }
     const newTxId = inserted?.id as string | undefined;
     // Insert reimbursement link rows when the user confirmed the auto-link
-    // suggestion for an income transaction.
-    if (newTxId && type === "income" && selectedLinks.length > 0) {
+    // suggestion (income settling an outgoing reimbursable) or when this
+    // transaction was opened via reimburse_for (e.g. expense repayment of
+    // an "I owe" income reimbursable).
+    if (newTxId && type !== "transfer" && selectedLinks.length > 0) {
       for (const sel of selectedLinks) {
         try {
           await linkReimbursement(sel.id, newTxId, sel.amount);

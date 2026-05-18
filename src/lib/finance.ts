@@ -132,6 +132,8 @@ export interface Transaction {
   reimbursable_counterparty?: string | null;
   reimbursable_reason?: string | null;
   reimbursable_cancel_reason?: string | null;
+  reimbursable_writeoff_category_id?: string | null;
+  reimbursable_writeoff_transaction_id?: string | null;
 }
 
 export type PendingTransactionStatus = "pending" | "confirmed" | "rejected";
@@ -876,4 +878,83 @@ export async function setReimbursableStatus(
     })
     .eq("id", txId);
   if (error) throw error;
+}
+
+// Write off an open reimbursable: creates an offsetting transaction in a chosen
+// category and links it to settle the original. No real money moves — the
+// offsetting entry is for budgeting/reporting only.
+export async function writeOffReimbursable(
+  originalTxId: string,
+  opts: { categoryId: string; note?: string | null },
+): Promise<void> {
+  // Load the original
+  const { data: orig, error: loadErr } = await supabase
+    .from("transactions")
+    .select("*")
+    .eq("id", originalTxId)
+    .single();
+  if (loadErr) throw loadErr;
+  if (!orig) throw new Error("Original transaction not found");
+  const o = orig as Transaction;
+  if (!o.is_reimbursable) throw new Error("Transaction is not reimbursable");
+  if (o.type === "transfer") throw new Error("Transfers cannot be written off");
+
+  // Determine remaining amount
+  const { data: linksData, error: linksErr } = await supabase
+    .from("transaction_reimbursements")
+    .select("amount")
+    .eq("original_transaction_id", originalTxId);
+  if (linksErr) throw linksErr;
+  const linked = (linksData ?? []).reduce(
+    (s, r) => s + Number((r as { amount: number }).amount),
+    0,
+  );
+  const remaining = Math.max(0, Number(o.amount) - linked);
+  if (remaining <= 0) throw new Error("Nothing left to write off");
+
+  // Build offsetting transaction
+  const today = new Date().toISOString().slice(0, 10);
+  const offsetType: TxType = o.type === "expense" ? "income" : "expense";
+  const descPrefix = o.type === "expense" ? "Write-off" : "Forgiven";
+  const baseNote = (opts.note ?? "").trim();
+  const noteParts = ["#writeoff"];
+  if (baseNote) noteParts.push(baseNote);
+
+  const { data: inserted, error: insErr } = await supabase
+    .from("transactions")
+    .insert({
+      occurred_on: today,
+      amount: remaining,
+      type: offsetType,
+      source_account_id: o.source_account_id,
+      destination_account_id: null,
+      category_id: opts.categoryId,
+      description: `${descPrefix}: ${o.description ?? ""}`.trim().replace(/:\s*$/, ""),
+      note: noteParts.join(" "),
+      is_reimbursable: false,
+    })
+    .select("id")
+    .single();
+  if (insErr) throw insErr;
+  const offsetId = (inserted as { id: string }).id;
+
+  // Link as reimbursement (trigger flips status to settled)
+  const { error: linkErr } = await supabase
+    .from("transaction_reimbursements")
+    .insert({
+      original_transaction_id: originalTxId,
+      settling_transaction_id: offsetId,
+      amount: remaining,
+    });
+  if (linkErr) throw linkErr;
+
+  // Tag the original with write-off metadata
+  const { error: updErr } = await supabase
+    .from("transactions")
+    .update({
+      reimbursable_writeoff_category_id: opts.categoryId,
+      reimbursable_writeoff_transaction_id: offsetId,
+    })
+    .eq("id", originalTxId);
+  if (updErr) throw updErr;
 }
