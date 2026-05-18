@@ -890,6 +890,70 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
                   </p>
                 </div>
               )}
+              {/* Optional fee on the transfer (e.g. ATM withdrawal fee) */}
+              {sourceAccount && destAccount && (
+                feeOpen ? (
+                  <div className="mt-3 rounded-md border border-dashed border-border/60 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <Label className="text-xs">
+                        {tr("add.transfer.fee.label", { sym: symbol })}
+                      </Label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => {
+                          setFeeOpen(false);
+                          setFeeAmount("");
+                          setFeeCategoryId("");
+                        }}
+                      >
+                        {tr("add.transfer.fee.remove")}
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                        {symbol}
+                      </span>
+                      <Input
+                        inputMode="decimal"
+                        placeholder="0.00"
+                        value={feeAmount}
+                        onChange={(e) =>
+                          setFeeAmount(e.target.value.replace(/[^0-9.,]/g, ""))
+                        }
+                        className="tabular-nums"
+                      />
+                    </div>
+                    <div className="mt-2">
+                      <Label className="mb-1 block text-xs">
+                        {tr("add.transfer.fee.category")}
+                      </Label>
+                      <ChipPicker
+                        items={categoryChips}
+                        value={feeCategoryId || null}
+                        onChange={(v) => setFeeCategoryId(v ?? "")}
+                        placeholder={tr("add.select_category")}
+                        moreLabel={tr("picker.more")}
+                        searchPlaceholder={tr("picker.search")}
+                        emptyLabel={tr("picker.no_match")}
+                      />
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {tr("add.transfer.fee.help")}
+                    </p>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setFeeOpen(true)}
+                    className="mt-2 text-xs text-primary underline-offset-2 hover:underline"
+                  >
+                    + {tr("add.transfer.fee.add")}
+                  </button>
+                )
+              )}
             </div>
           )}
 
