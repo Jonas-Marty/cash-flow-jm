@@ -1,71 +1,104 @@
-## What you already have
+## Goal
 
-Cross-currency transfers are already a first-class concept:
-- `transactions.type='transfer'` with `source_account_id` (CHF bank), `destination_account_id` (EUR cash), `amount` (CHF leaving), and `destination_amount` (EUR arriving).
-- Implicit FX rate = `destination_amount / amount`. One row, no link bookkeeping needed.
+Let you record what the bank/statement says an account was at a given date (any date, not just month-end), compare it against what the app computed from transactions, and — when you can't reconstruct the missing/wrong entries — post a single **compensation transaction** that snaps the computed balance to the statement.
 
-So your **"Example no fee"** (100 € for 93.39 CHF) and **"Example fee hidden in source"** (98.39 CHF → 100 €) work today with zero new code — just one transfer transaction.
+Same flow must be available via REST so an external AI agent can submit statement balances.
 
-The only thing actually missing is a clean way to record the **separately‑charged fee** without making the user add and manually link a second transaction.
+## Mental model
 
-## How professional systems handle this
+Treat reconciliation as a first-class object, separate from transactions:
 
-- **GnuCash**: one multi‑split transaction — source leg, destination leg, fee leg to a "Bank Fees" expense account. Balanced books, one entry.
-- **YNAB**: transfer + a second manual fee transaction. No link. Simple but messy.
-- **Firefly III**: transfer form has an optional "Foreign amount" (= our `destination_amount`) **and** an optional fee field that auto‑creates a linked withdrawal in a chosen expense category.
-- **Lunch Money / Copilot**: just a transfer; fee is a separate transaction, no linkage.
+- A **statement balance** is a claim: "Account X had balance B on date D, according to source S" (bank PDF, manual entry, AI agent).
+- The app already knows the **computed balance** at D via `account_balances_as_of(D)`.
+- **Difference = statement − computed**. Three outcomes:
+  1. Zero → mark as **matched**, done.
+  2. Non-zero, you find the missing transactions → enter them, recompute, re-check, then match.
+  3. Non-zero, you give up → click **"Post compensation"**. App creates a single income/expense transaction on date D in a dedicated `Reconciliation adjustment` category that makes the diff zero, and links it to the statement record.
 
-Firefly's model maps cleanest onto your existing schema and your "easy entry" goal.
+Statements are independent of any monthly cycle; each account can have its own cadence (cash: weekly; credit card: 17th; bank: month-end). The app just stores `(account, date, amount)` tuples.
 
-## Recommendation
+## Data model
 
-Treat ATM withdrawal as a **transfer with an optional fee add‑on**, not as a new transaction type. The fee becomes an auto‑created, auto‑linked expense — the user fills one form.
+New table `account_statements`:
 
-### Data model
-- Add to `transactions`:
-  - `fee_amount numeric NULL` — fee charged in the source account's currency
-  - `fee_transaction_id uuid NULL` (FK→transactions, ON DELETE SET NULL) — the auto‑created fee expense
-  - `fee_category_id uuid NULL` (FK→categories) — remembered for edit/undo
-- Trigger clears all three on transfers that no longer have a fee, and cascades delete: deleting the transfer also deletes the linked fee expense (or vice versa — pick one direction; I'd cascade transfer → fee).
+| column | type | notes |
+|---|---|---|
+| id | uuid pk | |
+| user_id | uuid | RLS by `auth.uid()` |
+| account_id | uuid → accounts | |
+| as_of | date | statement date, any day |
+| statement_balance | numeric | what the bank says, in account currency |
+| source | text | `manual` \| `api` \| `import` (free-form, default `manual`) |
+| external_ref | text null | e.g. bank statement id, AI agent run id |
+| note | text null | |
+| status | text | `open` \| `matched` \| `compensated` |
+| compensation_transaction_id | uuid null → transactions(id) ON DELETE SET NULL | |
+| created_at / updated_at | timestamptz | |
 
-This mirrors the existing `reimbursable_writeoff_*` pattern you already use, so it's a familiar shape in the codebase.
+Unique: `(account_id, as_of, source)` — re-submitting the same statement is an upsert, not a duplicate. Index on `(user_id, account_id, as_of desc)`.
 
-### Library (`src/lib/finance.ts`)
-- Extend transfer create/update path: if `fee_amount > 0` and `fee_category_id` provided, insert a sibling expense (`type='expense'`, same `source_account_id`, same date, `amount=fee_amount`, `category_id=fee_category_id`, description e.g. "ATM fee: <transfer description>") and store its id on the transfer.
-- On transfer edit: if fee fields change, update or delete the linked expense.
-- On transfer delete: also delete the linked fee expense.
+No schema change to `transactions`. The compensation transaction is a regular `expense` or `income` on `source_account_id = account_id`, dated `as_of`, with `category_id` pointing to a per-user **"Reconciliation adjustment"** category (auto-created on first use). The link lives only on the statement row, so deleting either side is safe (cascade clears the FK, statement flips back to `open`).
 
-### UI (`src/routes/add.tsx` / `edit.$id.tsx`)
-When `type='transfer'` and source/destination currencies differ (already detected via `isCrossCurrency`), show two additional optional fields below `destination_amount`:
-- **Fee** (number, source currency)
-- **Fee category** (searchable select, defaults to last‑used; remembered per user in settings)
+Trigger: when a statement's linked compensation transaction is deleted, reset `status='open'`, `compensation_transaction_id=null`.
 
-Both empty → behaves exactly like today (no fee row created). One transfer entry, one optional fee — no manual linking, no second navigation.
+## Library (`src/lib/finance.ts`)
 
-### Optional: "Cash withdrawal" shortcut
-Add a tile/button on the dashboard (or `/add` quick actions) that opens `/add` with:
-- `type=transfer` preselected
-- `source_account_id` = last bank used
-- `destination_account_id` = last cash account used (or only cash account if one exists)
-- Cursor in the destination‑amount field (you usually know the EUR you want)
+Add:
 
-Pure UI shortcut, no schema impact.
+- `fetchAccountBalanceAsOf(accountId, date)` — single-account helper (reuse existing RPC, filter).
+- `fetchAccountStatements(accountId?)` — list, newest first.
+- `upsertAccountStatement({ account_id, as_of, statement_balance, source?, external_ref?, note? })` — insert or update on conflict.
+- `matchStatement(id)` — sets `status='matched'` only if diff is zero (server-side guard via check in code; trigger optional).
+- `postCompensation(id)` — computes diff, inserts the adjustment transaction in the user's "Reconciliation adjustment" category (auto-create if missing), stores its id, sets `status='compensated'`.
+- `deleteStatement(id)` — deletes statement; optionally cascades the compensation transaction (configurable param, default no — keep the audit trail).
 
-## Why not the alternatives
+All four respect existing patterns (RLS, invalidate `["account_balances*"]` queries).
 
-- **"Make it 3 separate transactions with a link group"**: more rows, more screens, no benefit over GnuCash‑style single entry. Your existing `split_group_id` is for splits of one expense across categories, not for grouping heterogeneous tx types.
-- **"New `atm_withdrawal` type"**: adds a type just to carry one extra number. The transfer + fee model covers it and stays orthogonal.
-- **"Just tell users to bake the fee into the source amount"**: works (your last example), but the fee disappears from category reporting — you can't ever ask "how much did I pay in ATM/FX fees this year?".
+## UI
+
+**New route `src/routes/reconcile.tsx`** (linked from account detail and from settings/sidebar):
+
+- Header: account picker + "Add statement" button.
+- Table per account:
+  - Date · Statement · Computed · Diff · Status · Actions
+  - Row actions: **Recompute**, **Match** (enabled iff diff=0), **Post compensation**, **Edit**, **Delete**.
+- "Add statement" dialog: account, date (DateInput with shortcuts), amount, optional note. Sets `source='manual'`.
+- Compensation confirm dialog shows: "Will create an `expense` of 12.34 CHF on 2026-05-17 in category *Reconciliation adjustment*. Continue?"
+
+**Account list (`src/routes/index.tsx` OpenIOUsCard area or accounts settings)**: small badge "last reconciled · 12 days ago" or "never" per account; click → reconcile page filtered to that account.
+
+i18n keys under `reconcile.*` (EN + DE).
+
+## REST API
+
+**New `src/routes/api.public.account-statements.ts`** following the existing `api.public.*` pattern (token auth, Zod validation):
+
+- `POST /api/public/account-statements` — body `{ account_id, as_of (YYYY-MM-DD), statement_balance, source?, external_ref?, note?, auto_compensate?: boolean }`. Upserts; if `auto_compensate=true` and diff≠0 after insert, immediately posts the compensation transaction in one round-trip. Returns `{ id, computed_balance, diff, status, compensation_transaction_id }`.
+- `GET /api/public/account-statements?account_id=…&from=…&to=…` — list.
+- `DELETE /api/public/account-statements/:id` — delete.
+
+This is what the AI agent calls. `auto_compensate=true` is the "fire and forget from a bank PDF" path.
+
+## Why this shape
+
+- **Separate table, not a transaction flag**: statements aren't money movements; mixing them into `transactions` muddies reports and reuses fields awkwardly. Keeping them apart mirrors how YNAB, Lunch Money, and GnuCash all model reconciliation.
+- **Compensation = real transaction in a dedicated category**: keeps the ledger self-consistent (`sum(transactions) == statement` after compensation) and lets you ask "how much drift have I compensated this year?" by filtering that one category. No special-case math in balance calculations.
+- **Any date, not month-end**: schedule is per-account and per-statement, not global.
+- **Upsert by `(account, date, source)`**: idempotent for the AI agent — re-running the import doesn't create duplicates.
 
 ## Out of scope
-- Multi‑fee transfers (e.g. acquirer fee + network fee). Rare; users can add a second manual expense.
-- Per‑account default fee category (could be added later in account settings).
-- Reporting widget for total fees paid.
 
-## Files that would change
-- `supabase/migrations/<ts>_transfer_fee.sql` (new) — 3 columns + trigger update
-- `src/lib/finance.ts` — extend transfer insert/update/delete; extend `Transaction` type
-- `src/routes/add.tsx`, `src/routes/edit.$id.tsx` — fee + fee category fields under cross‑currency transfer
-- `src/lib/transactionSchema.ts` — allow `fee_amount`, `fee_category_id` on transfers
-- `src/i18n/index.tsx` — `add.transfer.fee`, `add.transfer.fee_category`, `add.transfer.fee_help`
-- (optional) dashboard quick‑action tile
+- Auto-detecting which past transactions are missing/duplicated (would need transaction-level statement import; you said the AI extraction is separate).
+- Multi-currency statements differing from account currency.
+- Splitting one compensation across multiple categories.
+- Charts of historical drift (easy follow-up once data exists).
+
+## Files
+
+- `supabase/migrations/<ts>_account_statements.sql` — table, RLS, trigger, index.
+- `src/lib/finance.ts` — types + 6 helpers above.
+- `src/routes/reconcile.tsx` — new page.
+- `src/routes/api.public.account-statements.ts` — REST endpoint.
+- `src/components/AppShell.tsx` (or wherever nav lives) — add link.
+- `src/i18n/index.tsx` — `reconcile.*` keys EN/DE.
+- (optional) small "last reconciled" badge in account row.

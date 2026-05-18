@@ -963,3 +963,210 @@ export async function writeOffReimbursable(
     .eq("id", originalTxId);
   if (updErr) throw updErr;
 }
+
+// =====================================================================
+// Account reconciliation: statement balances + optional compensation tx
+// =====================================================================
+
+export type StatementStatus = "open" | "matched" | "compensated";
+
+export interface AccountStatement {
+  id: string;
+  account_id: string;
+  as_of: string; // YYYY-MM-DD
+  statement_balance: number;
+  source: string;
+  external_ref: string | null;
+  note: string | null;
+  status: StatementStatus;
+  compensation_transaction_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AccountStatementWithDiff extends AccountStatement {
+  computed_balance: number;
+  diff: number; // statement - computed
+}
+
+const RECONCILE_CATEGORY_NAME = "Reconciliation adjustment";
+
+export async function fetchAccountStatements(
+  accountId?: string,
+): Promise<AccountStatement[]> {
+  let q = supabase
+    .from("account_statements")
+    .select("*")
+    .order("as_of", { ascending: false })
+    .order("created_at", { ascending: false });
+  if (accountId) q = q.eq("account_id", accountId);
+  const { data, error } = await q;
+  if (error) throw error;
+  return (data || []) as AccountStatement[];
+}
+
+export async function fetchAccountBalanceAsOf(
+  accountId: string,
+  date: string,
+): Promise<number> {
+  const balances = await fetchAccountBalancesAsOf(date);
+  const row = balances.find((b) => b.id === accountId);
+  return row ? Number(row.balance) : 0;
+}
+
+export async function upsertAccountStatement(input: {
+  account_id: string;
+  as_of: string;
+  statement_balance: number;
+  source?: string;
+  external_ref?: string | null;
+  note?: string | null;
+}): Promise<AccountStatement> {
+  const row = {
+    account_id: input.account_id,
+    as_of: input.as_of,
+    statement_balance: input.statement_balance,
+    source: input.source ?? "manual",
+    external_ref: input.external_ref ?? null,
+    note: input.note ?? null,
+  };
+  const { data, error } = await supabase
+    .from("account_statements")
+    .upsert(row, { onConflict: "account_id,as_of,source" })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as AccountStatement;
+}
+
+export async function updateAccountStatement(
+  id: string,
+  patch: Partial<Pick<AccountStatement, "as_of" | "statement_balance" | "note" | "external_ref">>,
+): Promise<void> {
+  const { error } = await supabase
+    .from("account_statements")
+    .update(patch)
+    .eq("id", id);
+  if (error) throw error;
+}
+
+export async function matchStatement(id: string): Promise<void> {
+  const { data: s, error } = await supabase
+    .from("account_statements")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (error) throw error;
+  const stmt = s as AccountStatement;
+  const computed = await fetchAccountBalanceAsOf(stmt.account_id, stmt.as_of);
+  const diff = Number(stmt.statement_balance) - computed;
+  if (Math.abs(diff) > 0.005) {
+    throw new Error("Cannot mark as matched: balance still differs");
+  }
+  const { error: uErr } = await supabase
+    .from("account_statements")
+    .update({ status: "matched", compensation_transaction_id: null })
+    .eq("id", id);
+  if (uErr) throw uErr;
+}
+
+async function ensureReconcileCategory(userId: string): Promise<string> {
+  const { data: existing, error: selErr } = await supabase
+    .from("categories")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("name", RECONCILE_CATEGORY_NAME)
+    .maybeSingle();
+  if (selErr) throw selErr;
+  if (existing?.id) return existing.id;
+  const { data: ins, error: insErr } = await supabase
+    .from("categories")
+    .insert({ name: RECONCILE_CATEGORY_NAME, user_id: userId })
+    .select("id")
+    .single();
+  if (insErr) throw insErr;
+  return ins.id as string;
+}
+
+export async function postCompensationForStatement(id: string): Promise<{
+  transaction_id: string;
+  diff: number;
+}> {
+  const { data: s, error } = await supabase
+    .from("account_statements")
+    .select("*")
+    .eq("id", id)
+    .single();
+  if (error) throw error;
+  const stmt = s as AccountStatement;
+
+  const { data: userRes } = await supabase.auth.getUser();
+  const userId = userRes.user?.id;
+  if (!userId) throw new Error("Not authenticated");
+
+  const computed = await fetchAccountBalanceAsOf(stmt.account_id, stmt.as_of);
+  const diff = Math.round((Number(stmt.statement_balance) - computed) * 100) / 100;
+  if (Math.abs(diff) < 0.005) {
+    // Nothing to compensate — mark matched instead.
+    await supabase
+      .from("account_statements")
+      .update({ status: "matched", compensation_transaction_id: null })
+      .eq("id", id);
+    throw new Error("Balance already matches; marked as matched.");
+  }
+
+  // If there's an existing comp tx, delete it first (trigger will reopen, but
+  // we're about to overwrite the row anyway).
+  if (stmt.compensation_transaction_id) {
+    await supabase.from("transactions").delete().eq("id", stmt.compensation_transaction_id);
+  }
+
+  const categoryId = await ensureReconcileCategory(userId);
+  const type: TxType = diff > 0 ? "income" : "expense";
+  const amount = Math.abs(diff);
+
+  const { data: tx, error: txErr } = await supabase
+    .from("transactions")
+    .insert({
+      occurred_on: stmt.as_of,
+      amount,
+      type,
+      source_account_id: stmt.account_id,
+      category_id: categoryId,
+      description: "Reconciliation adjustment",
+      user_id: userId,
+    })
+    .select("id")
+    .single();
+  if (txErr) throw txErr;
+
+  const { error: uErr } = await supabase
+    .from("account_statements")
+    .update({
+      status: "compensated",
+      compensation_transaction_id: tx.id,
+    })
+    .eq("id", id);
+  if (uErr) throw uErr;
+
+  return { transaction_id: tx.id as string, diff };
+}
+
+export async function deleteAccountStatement(
+  id: string,
+  opts: { deleteCompensation?: boolean } = {},
+): Promise<void> {
+  if (opts.deleteCompensation) {
+    const { data: s } = await supabase
+      .from("account_statements")
+      .select("compensation_transaction_id")
+      .eq("id", id)
+      .maybeSingle();
+    const compId = (s as { compensation_transaction_id: string | null } | null)?.compensation_transaction_id;
+    if (compId) {
+      await supabase.from("transactions").delete().eq("id", compId);
+    }
+  }
+  const { error } = await supabase.from("account_statements").delete().eq("id", id);
+  if (error) throw error;
+}

@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { LayoutDashboard, Plus, ListOrdered, Settings as SettingsIcon, Wallet, PiggyBank, LogOut, LineChart, Inbox, MoreHorizontal } from "lucide-react";
+import { LayoutDashboard, Plus, ListOrdered, Settings as SettingsIcon, Wallet, PiggyBank, LogOut, LineChart, Inbox, MoreHorizontal, Scale } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -10,7 +10,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { fetchPendingTransactions } from "@/lib/finance";
 
 type Tab = {
-  to: "/" | "/transactions" | "/add" | "/envelopes" | "/insights" | "/settings" | "/pending";
+  to: "/" | "/transactions" | "/add" | "/envelopes" | "/insights" | "/settings" | "/pending" | "/reconcile";
   labelKey: string;
   icon: typeof LayoutDashboard;
   exact?: boolean;
@@ -23,6 +23,7 @@ const tabs: Tab[] = [
   { to: "/add", labelKey: "nav.add", icon: Plus, primary: true },
   { to: "/insights", labelKey: "nav.insights", icon: LineChart },
   { to: "/pending", labelKey: "nav.pending", icon: Inbox },
+  { to: "/reconcile", labelKey: "nav.reconcile", icon: Scale },
   { to: "/settings", labelKey: "nav.settings", icon: SettingsIcon },
 ];
 
@@ -33,6 +34,7 @@ type MobileTab =
 const mobileMoreItems: Tab[] = [
   { to: "/insights", labelKey: "nav.insights", icon: LineChart },
   { to: "/pending", labelKey: "nav.pending", icon: Inbox },
+  { to: "/reconcile", labelKey: "nav.reconcile", icon: Scale },
   { to: "/settings", labelKey: "nav.settings", icon: SettingsIcon },
 ];
 
