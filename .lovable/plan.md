@@ -1,104 +1,98 @@
 ## Goal
 
-Let you record what the bank/statement says an account was at a given date (any date, not just month-end), compare it against what the app computed from transactions, and — when you can't reconstruct the missing/wrong entries — post a single **compensation transaction** that snaps the computed balance to the statement.
+Build a foundation for automated unit / integration tests that verify the financial calculations powering the app — especially **net worth, projected net worths**, **account balances**, and **budget summaries** — so regressions in sums and filters get caught before they reach the UI.
 
-Same flow must be available via REST so an external AI agent can submit statement balances.
+## Where the math actually lives
 
-## Mental model
+Two distinct layers compute numbers, and they need different test strategies:
 
-Treat reconciliation as a first-class object, separate from transactions:
+1. **Pure TypeScript helpers** (no I/O — easy to unit-test):
+  - `src/lib/budgetSummary.ts` → `computeMonthTotals`, `planBalanceVerdict`, `monthVerdict`
+  - `src/lib/finance.ts` → `groupSumByCurrency`, `formatPerCurrency`, `buildPendingMap`, `pendingDeltaForRow`, `fmtMoney`, `extractTags`, `monthKey`, `endOfMonthISO`, `endOfYearISO`, `todayISO`
+  - `src/lib/amountFilter.ts` → `matchesAmount`
+  - `src/lib/insights.ts` → `cv`, `stddev`, `linearRegression`, `topNWithOther`, `aggregateMonthly`, `buildProjection`, `monthRange`, `detectRecurringCandidates`, `normalizeMerchant`
+  - `src/lib/transactionSchema.ts` / `pendingTransactionSchema.ts` → Zod normalization
+  - `src/lib/fx.ts` → conversion helpers
+  - `src/lib/usageScoring.ts`
+2. **Database views & RPCs** (where net worth and budget actuals really come from):
+  - Views like `account_balances`, `account_balances_as_of`, `category_month_rows`, `category_savings_balances_v2`, `reconciliation_summary`, `pending_impacts_for_month`
+  - Compensation/match logic in `postCompensationForStatement`, `matchStatement`
+  - These can only be verified by running real SQL against a Postgres instance with seeded data.
 
-- A **statement balance** is a claim: "Account X had balance B on date D, according to source S" (bank PDF, manual entry, AI agent).
-- The app already knows the **computed balance** at D via `account_balances_as_of(D)`.
-- **Difference = statement − computed**. Three outcomes:
-  1. Zero → mark as **matched**, done.
-  2. Non-zero, you find the missing transactions → enter them, recompute, re-check, then match.
-  3. Non-zero, you give up → click **"Post compensation"**. App creates a single income/expense transaction on date D in a dedicated `Reconciliation adjustment` category that makes the diff zero, and links it to the statement record.
+## Plan
 
-Statements are independent of any monthly cycle; each account can have its own cadence (cash: weekly; credit card: 17th; bank: month-end). The app just stores `(account, date, amount)` tuples.
+### Phase 1 — Test runner setup (Vitest)
 
-## Data model
+- Add dev deps: `vitest`, `@vitest/coverage-v8`.
+- Add `vitest.config.ts` with the existing `@/*` path alias, `environment: "node"` (jsdom only for the few tests that need DOM), and `globals: true`.
+- Add scripts to `package.json`:
+  - `"test": "vitest run"`
+  - `"test:watch": "vitest"`
+  - `"test:coverage": "vitest run --coverage"`
+- Create `src/__tests__/` and colocated `*.test.ts` files. Convention: pure-function tests sit next to the module (`src/lib/budgetSummary.test.ts`), integration tests live under `src/__tests__/integration/`.
 
-New table `account_statements`:
+### Phase 2 — Pure-function unit tests (the high-value, low-friction win)
 
-| column | type | notes |
-|---|---|---|
-| id | uuid pk | |
-| user_id | uuid | RLS by `auth.uid()` |
-| account_id | uuid → accounts | |
-| as_of | date | statement date, any day |
-| statement_balance | numeric | what the bank says, in account currency |
-| source | text | `manual` \| `api` \| `import` (free-form, default `manual`) |
-| external_ref | text null | e.g. bank statement id, AI agent run id |
-| note | text null | |
-| status | text | `open` \| `matched` \| `compensated` |
-| compensation_transaction_id | uuid null → transactions(id) ON DELETE SET NULL | |
-| created_at / updated_at | timestamptz | |
+Create the following test files. Each covers happy path + edge cases (empty inputs, zero/negative values, mixed currencies, missing pending entries):
 
-Unique: `(account_id, as_of, source)` — re-submitting the same statement is an upsert, not a duplicate. Index on `(user_id, account_id, as_of desc)`.
+- `src/lib/budgetSummary.test.ts`
+  - `computeMonthTotals`: income/expense/savings categorization, pending deltas, projected vs allocated, savings rows always counted via `kind: "savings"`.
+  - `planBalanceVerdict` / `monthVerdict`: each verdict bucket (`over`, `tight`, `ok`, `balanced`, `buffer`) at exact thresholds (±0.5, ±1, ±5%).
+- `src/lib/finance.test.ts`
+  - `groupSumByCurrency` with multiple currencies + missing accounts.
+  - `formatPerCurrency` formatting per locale.
+  - `buildPendingMap` aggregating signed deltas.
+  - `pendingDeltaForRow` per kind (income/expense/savings).
+  - `fmtMoney` rounding & negative formatting.
+  - `extractTags` (hashtag parsing including dedupe).
+  - Date helpers (`monthKey`, `endOfMonthISO`, `endOfYearISO`) including DST and month-end edge cases — pass an injected `Date` rather than relying on system clock.
+- `src/lib/amountFilter.test.ts` — every op (`lt/lte/eq/gte/gt/around/any`), tolerance edges, zero target.
+- `src/lib/insights.test.ts` — statistical helpers with known fixtures: `cv`, `stddev`, `linearRegression` (known slope/intercept), `aggregateMonthly`, `monthRange` (DST safe), `topNWithOther`, `detectRecurringCandidates` against a synthetic 12-month series.
+- `src/lib/fx.test.ts` and `src/lib/usageScoring.test.ts`.
+- `src/lib/transactionSchema.test.ts` / `pendingTransactionSchema.test.ts` — accept/reject matrix incl. transfer rules and `destination_amount`.
 
-No schema change to `transactions`. The compensation transaction is a regular `expense` or `income` on `source_account_id = account_id`, dated `as_of`, with `category_id` pointing to a per-user **"Reconciliation adjustment"** category (auto-created on first use). The link lives only on the statement row, so deleting either side is safe (cascade clears the FK, statement flips back to `open`).
+Target ≥ 90 % branch coverage for these files; they have no external deps.
 
-Trigger: when a statement's linked compensation transaction is deleted, reset `status='open'`, `compensation_transaction_id=null`.
+### Phase 3 — Database integration tests (net worth & budget actuals)
 
-## Library (`src/lib/finance.ts`)
+This is the part the user really cares about: "does the sum match reality?". The sums come from SQL views, so we test SQL.
 
-Add:
+- Add `pg` (node-postgres) as a dev dep.
+- Add a `src/__tests__/integration/db.ts` helper that:
+  - Connects to a local Postgres using `TEST_DATABASE_URL` (the same one `docker-compose.yml` already starts).
+  - Wraps every test in `BEGIN … ROLLBACK` for isolation.
+  - Provides a `seed({ accounts, transactions, categories, statements, … })` factory that inserts minimal rows and returns their ids.
+  - Provides a `setUserContext(userId)` helper that sets `request.jwt.claims` so RLS-bound views resolve `auth.uid()` correctly (or runs as `service_role` and filters manually).
+- Add `vitest.integration.config.ts` with `testMatch: ["src/__tests__/integration/**/*.test.ts"]` and `npm run test:db`. Skip the suite automatically when `TEST_DATABASE_URL` is unset so contributors without Docker still get green pure-unit runs.
 
-- `fetchAccountBalanceAsOf(accountId, date)` — single-account helper (reuse existing RPC, filter).
-- `fetchAccountStatements(accountId?)` — list, newest first.
-- `upsertAccountStatement({ account_id, as_of, statement_balance, source?, external_ref?, note? })` — insert or update on conflict.
-- `matchStatement(id)` — sets `status='matched'` only if diff is zero (server-side guard via check in code; trigger optional).
-- `postCompensation(id)` — computes diff, inserts the adjustment transaction in the user's "Reconciliation adjustment" category (auto-create if missing), stores its id, sets `status='compensated'`.
-- `deleteStatement(id)` — deletes statement; optionally cascades the compensation transaction (configurable param, default no — keep the audit trail).
+Write these integration tests:
 
-All four respect existing patterns (RLS, invalidate `["account_balances*"]` queries).
+1. **Net worth**
+  - `account_balances.test.ts`: opening balance + N transactions (expense, income, transfer in/out, transfer with `destination_amount`) → assert `account_balances.balance` per account and the cross-account total.
+  - `account_balances_as_of.test.ts`: same, but assert balance at three different `as_of` dates (before any tx, mid-period, after all).
+  - Multi-currency: two accounts in different currencies → assert per-currency totals (no implicit conversion).
+2. **Budgets**
+  - `category_month_rows.test.ts`: categories with allocated budget + month override in `category_budgets` + actual transactions + a reallocation row → assert `allocated` and `spent_or_received` per category for the month.
+  - `pending_impacts.test.ts`: seed a `pending_transactions` row → assert `fetchPendingImpactsForMonth` returns it on the correct month and only on that month, and that `buildPendingMap` + `computeMonthTotals` yields the expected projection.
+  - Savings categories: ensure `kind = "savings"` rows feed `savingsTarget` and not `expenseAllocated`.
+3. **Reconciliation / compensation**
+  - Seed a statement with a known delta vs. computed balance → run `postCompensationForStatement` → assert the inserted compensation transaction's amount and sign, and that `account_balances` after equals `statement_balance`.
 
-## UI
+### Phase 4 — Make it part of the loop
 
-**New route `src/routes/reconcile.tsx`** (linked from account detail and from settings/sidebar):
-
-- Header: account picker + "Add statement" button.
-- Table per account:
-  - Date · Statement · Computed · Diff · Status · Actions
-  - Row actions: **Recompute**, **Match** (enabled iff diff=0), **Post compensation**, **Edit**, **Delete**.
-- "Add statement" dialog: account, date (DateInput with shortcuts), amount, optional note. Sets `source='manual'`.
-- Compensation confirm dialog shows: "Will create an `expense` of 12.34 CHF on 2026-05-17 in category *Reconciliation adjustment*. Continue?"
-
-**Account list (`src/routes/index.tsx` OpenIOUsCard area or accounts settings)**: small badge "last reconciled · 12 days ago" or "never" per account; click → reconcile page filtered to that account.
-
-i18n keys under `reconcile.*` (EN + DE).
-
-## REST API
-
-**New `src/routes/api.public.account-statements.ts`** following the existing `api.public.*` pattern (token auth, Zod validation):
-
-- `POST /api/public/account-statements` — body `{ account_id, as_of (YYYY-MM-DD), statement_balance, source?, external_ref?, note?, auto_compensate?: boolean }`. Upserts; if `auto_compensate=true` and diff≠0 after insert, immediately posts the compensation transaction in one round-trip. Returns `{ id, computed_balance, diff, status, compensation_transaction_id }`.
-- `GET /api/public/account-statements?account_id=…&from=…&to=…` — list.
-- `DELETE /api/public/account-statements/:id` — delete.
-
-This is what the AI agent calls. `auto_compensate=true` is the "fire and forget from a bank PDF" path.
-
-## Why this shape
-
-- **Separate table, not a transaction flag**: statements aren't money movements; mixing them into `transactions` muddies reports and reuses fields awkwardly. Keeping them apart mirrors how YNAB, Lunch Money, and GnuCash all model reconciliation.
-- **Compensation = real transaction in a dedicated category**: keeps the ledger self-consistent (`sum(transactions) == statement` after compensation) and lets you ask "how much drift have I compensated this year?" by filtering that one category. No special-case math in balance calculations.
-- **Any date, not month-end**: schedule is per-account and per-statement, not global.
-- **Upsert by `(account, date, source)`**: idempotent for the AI agent — re-running the import doesn't create duplicates.
+- GitHub Actions / Lovable build: run `npm test` on every push (pure-unit only — no DB needed; fast).
+- A separate optional job runs `npm run test:db` against `docker-compose up -d db` for the integration suite.
+- README / `architecture.md` section: "How to add a test" with one pure example and one integration example.
 
 ## Out of scope
 
-- Auto-detecting which past transactions are missing/duplicated (would need transaction-level statement import; you said the AI extraction is separate).
-- Multi-currency statements differing from account currency.
-- Splitting one compensation across multiple categories.
-- Charts of historical drift (easy follow-up once data exists).
+- React component / route tests (the user explicitly said no UI).
+- E2E browser tests.
+- Mocking the Supabase JS client to test the `fetch*` wrappers — real DB tests in Phase 3 give us higher confidence than a mock would.
 
-## Files
+## Deliverable order
 
-- `supabase/migrations/<ts>_account_statements.sql` — table, RLS, trigger, index.
-- `src/lib/finance.ts` — types + 6 helpers above.
-- `src/routes/reconcile.tsx` — new page.
-- `src/routes/api.public.account-statements.ts` — REST endpoint.
-- `src/components/AppShell.tsx` (or wherever nav lives) — add link.
-- `src/i18n/index.tsx` — `reconcile.*` keys EN/DE.
-- (optional) small "last reconciled" badge in account row.
+1. Phase 1 (setup) + Phase 2 (`budgetSummary.test.ts`, `amountFilter.test.ts`, `finance.test.ts` core helpers) — one PR, immediate value.
+2. Phase 2 remainder (`insights`, schemas, fx).
+3. Phase 3 (DB harness + net worth tests, then budget tests, then reconciliation).
+4. Phase 4 (CI wiring + docs).
