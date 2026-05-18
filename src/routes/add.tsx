@@ -1477,6 +1477,18 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
           </Card>
         )}
 
+        <div className="pt-2">
+          {isEdit && editId ? (
+            <AttachmentsSection transactionId={editId} />
+          ) : (
+            <AttachmentsSection
+              draft
+              items={draftAttachments}
+              onItemsChange={setDraftAttachments}
+            />
+          )}
+        </div>
+
         {/* Live summary: how this transaction will look in the list */}
         <TransactionPreview
           type={type}
@@ -1542,18 +1554,6 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
               <Button variant="outline" className="flex-1" disabled={saving} onClick={() => save(true)}>{tr("add.save_new")}</Button>
               <Button className="flex-1" disabled={saving} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("common.save")}</Button>
             </>
-          )}
-        </div>
-
-        <div className="pt-2">
-          {isEdit && editId ? (
-            <AttachmentsSection transactionId={editId} />
-          ) : (
-            <AttachmentsSection
-              draft
-              items={draftAttachments}
-              onItemsChange={setDraftAttachments}
-            />
           )}
         </div>
 
