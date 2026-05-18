@@ -16,18 +16,26 @@ interface AttachmentRow {
   added_at: string;
 }
 
-export function AttachmentsSection({ transactionId }: { transactionId: string }) {
+type Props =
+  | { transactionId: string; statementId?: never }
+  | { statementId: string; transactionId?: never };
+
+export function AttachmentsSection(props: Props) {
+  const transactionId = "transactionId" in props ? props.transactionId : undefined;
+  const statementId = "statementId" in props ? props.statementId : undefined;
+  const parentKey = transactionId ?? statementId ?? "";
+  const parentCol = transactionId ? "transaction_id" : "statement_id";
   const { t } = useI18n();
   const qc = useQueryClient();
   const [pickerOpen, setPickerOpen] = React.useState(false);
 
   const q = useQuery({
-    queryKey: ["attachments", transactionId],
+    queryKey: ["attachments", parentCol, parentKey],
     queryFn: async (): Promise<AttachmentRow[]> => {
       const { data, error } = await supabase
         .from("transaction_attachments")
         .select("id, transaction_id, source, display_name, link_url, added_at")
-        .eq("transaction_id", transactionId)
+        .eq(parentCol, parentKey)
         .order("added_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as AttachmentRow[];
@@ -36,21 +44,22 @@ export function AttachmentsSection({ transactionId }: { transactionId: string })
 
   const onPick = async (f: PickedFile) => {
     const { error } = await supabase.from("transaction_attachments").insert({
-      transaction_id: transactionId,
+      transaction_id: transactionId ?? null,
+      statement_id: statementId ?? null,
       source: "nextcloud",
       display_name: f.name,
       link_url: f.link_url,
     });
     if (error) { toast.error(error.message); return; }
     toast.success(t("attachments.added"));
-    qc.invalidateQueries({ queryKey: ["attachments", transactionId] });
+    qc.invalidateQueries({ queryKey: ["attachments", parentCol, parentKey] });
   };
 
   const onDelete = async (id: string) => {
     if (!confirm(t("attachments.confirm_delete"))) return;
     const { error } = await supabase.from("transaction_attachments").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
-    qc.invalidateQueries({ queryKey: ["attachments", transactionId] });
+    qc.invalidateQueries({ queryKey: ["attachments", parentCol, parentKey] });
   };
 
   const items = q.data ?? [];
