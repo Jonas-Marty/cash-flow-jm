@@ -504,6 +504,19 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     if (type === "transfer" && !destId) { toast.error(tr("toast.dest_required")); return; }
     if (type === "transfer" && destId === sourceId) { toast.error(tr("toast.dest_must_differ")); return; }
 
+    // Validate optional transfer fee
+    const feeAmtNum =
+      type === "transfer" && feeOpen
+        ? (() => {
+            const n = Number(feeAmount.replace(",", "."));
+            return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
+          })()
+        : 0;
+    if (type === "transfer" && feeOpen && feeAmtNum > 0 && !feeCategoryId) {
+      toast.error(tr("toast.fee_category_required"));
+      return;
+    }
+
     // Split path: insert N rows sharing a split_group_id
     if (splitMode && type !== "transfer") {
       if (slices.length < 2) { toast.error(tr("add.split.toast.min")); return; }
