@@ -1543,11 +1543,17 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
           )}
         </div>
 
-        {isEdit && editId && (
-          <div className="pt-2">
+        <div className="pt-2">
+          {isEdit && editId ? (
             <AttachmentsSection transactionId={editId} />
-          </div>
-        )}
+          ) : (
+            <AttachmentsSection
+              draft
+              items={draftAttachments}
+              onItemsChange={setDraftAttachments}
+            />
+          )}
+        </div>
 
         <ShortcutsDialog
           open={helpOpen}
