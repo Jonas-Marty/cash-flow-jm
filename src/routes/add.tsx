@@ -257,6 +257,9 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
 
   const isEdit = !!editId;
 
+  // Draft attachments collected before the transaction is created.
+  const [draftAttachments, setDraftAttachments] = React.useState<DraftAttachment[]>([]);
+
   // ───────── Edit mode: load the transaction (and split-group siblings) ─────────
   const editQ = useQuery({
     queryKey: ["transaction", "edit", editId],
