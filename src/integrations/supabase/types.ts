@@ -14,6 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_statements: {
+        Row: {
+          account_id: string
+          as_of: string
+          compensation_transaction_id: string | null
+          created_at: string
+          external_ref: string | null
+          id: string
+          note: string | null
+          source: string
+          statement_balance: number
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          as_of: string
+          compensation_transaction_id?: string | null
+          created_at?: string
+          external_ref?: string | null
+          id?: string
+          note?: string | null
+          source?: string
+          statement_balance: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          account_id?: string
+          as_of?: string
+          compensation_transaction_id?: string | null
+          created_at?: string
+          external_ref?: string | null
+          id?: string
+          note?: string | null
+          source?: string
+          statement_balance?: number
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_statements_compensation_transaction_id_fkey"
+            columns: ["compensation_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       accounts: {
         Row: {
           archived: boolean
