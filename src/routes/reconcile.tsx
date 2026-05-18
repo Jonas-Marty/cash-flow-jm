@@ -398,7 +398,14 @@ function AddStatementDialog({
           </div>
           <div className="space-y-1">
             <Label>{t("reconcile.add.date")}</Label>
-            <DateInput value={asOf} onChange={setAsOf} />
+            <DateInput
+              value={new Date(asOf)}
+              onChange={(d) =>
+                setAsOf(
+                  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+                )
+              }
+            />
           </div>
           <div className="space-y-1">
             <Label>{t("reconcile.add.amount")}</Label>
