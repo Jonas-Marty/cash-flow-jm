@@ -347,7 +347,9 @@ export function formatPerCurrency(
 
 export const extractTags = (note: string | null | undefined): string[] => {
   if (!note) return [];
-  const matches = note.match(/#([A-Za-z0-9_]+)/g) || [];
+  // Allow unicode letters (umlauts, accents, etc.), digits, underscore and hyphen.
+  // First char must be a letter/digit/underscore so `#-foo` isn't treated as a tag.
+  const matches = note.match(/#([\p{L}\p{N}_][\p{L}\p{N}_-]*)/gu) || [];
   return Array.from(new Set(matches.map((m) => m.slice(1).toLowerCase())));
 };
 
