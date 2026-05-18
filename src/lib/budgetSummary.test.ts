@@ -10,15 +10,17 @@ import type { CategoryMonthRow, PendingCategorySigned } from "./finance";
 function row(p: Partial<CategoryMonthRow> & { category_id: string; kind: CategoryMonthRow["kind"] }): CategoryMonthRow {
   return {
     category_id: p.category_id,
-    category_name: p.category_name ?? p.category_id,
+    name: p.name ?? p.category_id,
     kind: p.kind,
     allocated: p.allocated ?? 0,
     spent_or_received: p.spent_or_received ?? 0,
+    variance: p.variance ?? (p.allocated ?? 0) - (p.spent_or_received ?? 0),
     group_id: p.group_id ?? null,
     group_name: p.group_name ?? null,
     is_savings: p.is_savings ?? (p.kind === "savings"),
     sort_order: p.sort_order ?? 0,
-  } as unknown as CategoryMonthRow;
+    group_sort_order: p.group_sort_order ?? 0,
+  };
 }
 
 const noPending: Map<string, PendingCategorySigned> = new Map();
