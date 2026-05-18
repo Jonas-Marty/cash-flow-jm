@@ -1677,7 +1677,9 @@ function TransactionPreview({
               <span>{format(date, "dd.MM.yyyy", { locale })}</span>
             </div>
             {note.trim() && (
-              <div className="mt-1 truncate text-xs text-muted-foreground">{note.trim()}</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                <Markdown>{note.trim()}</Markdown>
+              </div>
             )}
           </div>
         </div>
