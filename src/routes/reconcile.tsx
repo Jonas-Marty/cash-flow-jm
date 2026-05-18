@@ -26,6 +26,7 @@ import { DateInput } from "@/components/DateInput";
 import { useI18n } from "@/i18n";
 import { AttachmentsSection } from "@/components/AttachmentsSection";
 import { type DraftAttachment } from "@/components/AttachmentsSection";
+import { Markdown } from "@/components/Markdown";
 import { supabase } from "@/integrations/supabase/client";
 import {
   fetchAccounts,
@@ -232,7 +233,11 @@ function StatementRow({
             tone={isZero ? "ok" : diff > 0 ? "pos" : "neg"}
           />
         </div>
-        {s.note && <p className="text-xs text-muted-foreground">{s.note}</p>}
+        {s.note && (
+          <div className="text-xs text-muted-foreground">
+            <Markdown>{s.note}</Markdown>
+          </div>
+        )}
         <div className="pt-2">
           <AttachmentsSection statementId={s.id} />
         </div>
@@ -439,6 +444,12 @@ function AddStatementDialog({
           <div className="space-y-1">
             <Label>{t("reconcile.add.note")}</Label>
             <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+            <p className="text-[10px] text-muted-foreground">{t("common.markdown_hint")}</p>
+            {note.trim() && (
+              <div className="rounded-md border border-dashed border-border bg-muted/30 p-2 text-xs text-muted-foreground">
+                <Markdown>{note.trim()}</Markdown>
+              </div>
+            )}
           </div>
           <div className="pt-1">
             <AttachmentsSection

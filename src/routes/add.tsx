@@ -40,6 +40,7 @@ import { DateInput } from "@/components/DateInput";
 import { ShortcutsDialog } from "@/components/ShortcutsDialog";
 import { DescriptionAutocomplete } from "@/components/DescriptionAutocomplete";
 import { AttachmentsSection, type DraftAttachment } from "@/components/AttachmentsSection";
+import { Markdown } from "@/components/Markdown";
 import { useFxRates, convert } from "@/lib/fx";
 
 export const Route = createFileRoute("/add")({
@@ -1303,6 +1304,7 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
             transactions={recentQ.data ?? []}
             placeholder={tr("add.note_placeholder")}
           />
+          <p className="mt-1 text-[10px] text-muted-foreground">{tr("common.markdown_hint")}</p>
           <TagChips
             className="mt-2"
             transactions={recentQ.data ?? []}
@@ -1475,6 +1477,18 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
           </Card>
         )}
 
+        <div className="pt-2">
+          {isEdit && editId ? (
+            <AttachmentsSection transactionId={editId} />
+          ) : (
+            <AttachmentsSection
+              draft
+              items={draftAttachments}
+              onItemsChange={setDraftAttachments}
+            />
+          )}
+        </div>
+
         {/* Live summary: how this transaction will look in the list */}
         <TransactionPreview
           type={type}
@@ -1540,18 +1554,6 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
               <Button variant="outline" className="flex-1" disabled={saving} onClick={() => save(true)}>{tr("add.save_new")}</Button>
               <Button className="flex-1" disabled={saving} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("common.save")}</Button>
             </>
-          )}
-        </div>
-
-        <div className="pt-2">
-          {isEdit && editId ? (
-            <AttachmentsSection transactionId={editId} />
-          ) : (
-            <AttachmentsSection
-              draft
-              items={draftAttachments}
-              onItemsChange={setDraftAttachments}
-            />
           )}
         </div>
 
@@ -1675,7 +1677,9 @@ function TransactionPreview({
               <span>{format(date, "dd.MM.yyyy", { locale })}</span>
             </div>
             {note.trim() && (
-              <div className="mt-1 truncate text-xs text-muted-foreground">{note.trim()}</div>
+              <div className="mt-1 text-xs text-muted-foreground">
+                <Markdown>{note.trim()}</Markdown>
+              </div>
             )}
           </div>
         </div>
