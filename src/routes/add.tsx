@@ -316,6 +316,12 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
         setDestAmount(Number(tx.destination_amount).toFixed(2));
         setDestAmountTouched(true);
       }
+      if (tx.fee_amount != null && Number(tx.fee_amount) > 0) {
+        setFeeOpen(true);
+        setFeeAmount(Number(tx.fee_amount).toFixed(2));
+        setFeeCategoryId(tx.fee_category_id ?? "");
+        setExistingFeeTxId(tx.fee_transaction_id ?? null);
+      }
     }
     // mark all fields as touched so suggestions never overwrite loaded data
     setTouched({ amount: true, description: true, note: true, sourceId: true, categoryId: true });
