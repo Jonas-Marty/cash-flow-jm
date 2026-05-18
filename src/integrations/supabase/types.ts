@@ -756,6 +756,8 @@ export type Database = {
           reimbursable_counterparty: string | null
           reimbursable_reason: string | null
           reimbursable_status: string | null
+          reimbursable_writeoff_category_id: string | null
+          reimbursable_writeoff_transaction_id: string | null
           source_account_id: string
           split_group_id: string | null
           type: Database["public"]["Enums"]["transaction_type"]
@@ -778,6 +780,8 @@ export type Database = {
           reimbursable_counterparty?: string | null
           reimbursable_reason?: string | null
           reimbursable_status?: string | null
+          reimbursable_writeoff_category_id?: string | null
+          reimbursable_writeoff_transaction_id?: string | null
           source_account_id: string
           split_group_id?: string | null
           type: Database["public"]["Enums"]["transaction_type"]
@@ -800,6 +804,8 @@ export type Database = {
           reimbursable_counterparty?: string | null
           reimbursable_reason?: string | null
           reimbursable_status?: string | null
+          reimbursable_writeoff_category_id?: string | null
+          reimbursable_writeoff_transaction_id?: string | null
           source_account_id?: string
           split_group_id?: string | null
           type?: Database["public"]["Enums"]["transaction_type"]
