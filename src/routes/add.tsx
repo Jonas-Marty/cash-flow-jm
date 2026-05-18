@@ -452,7 +452,7 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
 
   const removeTagFrom = (text: string, tag: string): string => {
     // Remove `#tag` tokens (case-insensitive on tag name, word-bounded by tag chars).
-    const re = new RegExp(`(^|\\s)#${tag.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}(?![A-Za-z0-9_])`, "gi");
+    const re = new RegExp(`(^|\\s)#${tag.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}(?![\\p{L}\\p{N}_-])`, "giu");
     return text.replace(re, (_m, lead: string) => lead).replace(/[ \t]{2,}/g, " ").replace(/\s+$/g, "").replace(/^\s+/g, (s) => s);
   };
   const removeTag = (tag: string) => {
