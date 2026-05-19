@@ -182,8 +182,7 @@ export function DayHeatmapCalendar({
             if (orientation === "right") {
               return <ChevronRightIcon className={cn("size-4", className)} {...props} />;
             }
-            return null;
-          },
+            return <ChevronDownIcon className={cn("size-4", className)} {...props} />;
         }}
       />
     </div>
