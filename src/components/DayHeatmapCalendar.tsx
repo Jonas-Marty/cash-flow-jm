@@ -161,7 +161,7 @@ export function DayHeatmapCalendar({
         selected={selected}
         onSelect={(d) => d && onSelect(d)}
         month={month}
-        onMonthChange={handleMonthChange}
+        onMonthChange={setMonth}
         onPrevClick={handlePrevClick}
         onNextClick={handleNextClick}
         locale={locale}
