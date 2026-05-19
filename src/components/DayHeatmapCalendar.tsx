@@ -2,6 +2,7 @@ import * as React from "react";
 import { DayPicker, type DayButtonProps } from "react-day-picker";
 import type { Locale } from "date-fns";
 import { format } from "date-fns";
+import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
