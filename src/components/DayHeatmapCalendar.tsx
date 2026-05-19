@@ -160,20 +160,31 @@ export function DayHeatmapCalendar({
         weekStartsOn={1}
         className="pointer-events-auto"
         classNames={{
-          months: "flex flex-col",
+          months: "relative flex flex-col",
           month: "space-y-2",
-          month_caption: "flex h-8 items-center justify-center text-sm font-medium",
+          month_caption: "flex h-8 items-center justify-center px-8 text-sm font-medium",
           caption_label: "select-none",
-          nav: "absolute right-2 top-2 flex gap-1",
-          button_previous: "h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-accent",
-          button_next: "h-7 w-7 inline-flex items-center justify-center rounded-md hover:bg-accent",
+          nav: "absolute inset-x-0 top-0 flex w-full items-center justify-between gap-1 px-2",
+          button_previous: "h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground",
+          button_next: "h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground",
           month_grid: "w-full border-collapse",
           weekdays: "flex",
           weekday: "flex-1 text-center text-[10px] font-medium uppercase text-muted-foreground py-1",
           week: "flex gap-0.5 mt-0.5",
           day: "flex-1 p-0",
         }}
-        components={{ DayButton }}
+        components={{
+          DayButton,
+          Chevron: ({ className, orientation, ...props }) => {
+            if (orientation === "left") {
+              return <ChevronLeftIcon className={cn("size-4", className)} {...props} />;
+            }
+            if (orientation === "right") {
+              return <ChevronRightIcon className={cn("size-4", className)} {...props} />;
+            }
+            return null;
+          },
+        }}
       />
     </div>
   );
