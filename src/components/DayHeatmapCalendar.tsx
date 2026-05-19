@@ -57,6 +57,19 @@ export function DayHeatmapCalendar({
     );
   }, [selected]);
 
+  const handleMonthChange = React.useCallback((m: Date) => {
+    console.log("onMonthChange", m);
+    setMonth(m);
+  }, []);
+  const handlePrevClick = React.useCallback(() => {
+    console.log("prev click");
+    setMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));
+  }, []);
+  const handleNextClick = React.useCallback(() => {
+    console.log("next click");
+    setMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
+  }, []);
+
   const byDay = React.useMemo(() => {
     const m = new Map<string, { net: number; count: number; txs: Transaction[] }>();
     for (const t of transactions) {
