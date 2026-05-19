@@ -167,7 +167,9 @@ export function DayHeatmapCalendar({
         selected={selected}
         onSelect={(d) => d && onSelect(d)}
         month={month}
-        onMonthChange={setMonth}
+        onMonthChange={handleMonthChange}
+        onPrevClick={handlePrevClick}
+        onNextClick={handleNextClick}
         locale={locale}
         showOutsideDays
         weekStartsOn={1}
