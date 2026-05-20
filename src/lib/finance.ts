@@ -272,6 +272,23 @@ export interface RecurringRule {
   ends_on: string | null;
   auto_post: boolean;
   archived: boolean;
+  is_split?: boolean;
+  is_variable_date?: boolean;
+  slices?: RecurringRuleSlice[];
+}
+
+export interface RecurringRuleSlice {
+  id: string;
+  rule_id: string;
+  sort_order: number;
+  amount: number | null;
+  amount_ratio: number | null;
+  category_id: string | null;
+  description: string | null;
+  note: string | null;
+  is_reimbursable: boolean;
+  reimbursable_counterparty: string | null;
+  reimbursable_reason: string | null;
 }
 export interface RecurringOccurrence {
   id: string;
@@ -584,21 +601,29 @@ export async function processRecurringRules(today?: string): Promise<void> {
 export async function fetchRecurringRules(): Promise<RecurringRule[]> {
   const { data, error } = await supabase
     .from("recurring_rules")
-    .select("*")
+    .select("*, slices:recurring_rule_slices(*)")
     .order("archived")
     .order("name");
   if (error) throw error;
-  return (data || []) as RecurringRule[];
+  const rules = (data || []) as RecurringRule[];
+  for (const r of rules) {
+    if (r.slices) r.slices.sort((a, b) => a.sort_order - b.sort_order);
+  }
+  return rules;
 }
 
 export async function fetchPendingOccurrences(): Promise<(RecurringOccurrence & { rule: RecurringRule })[]> {
   const { data, error } = await supabase
     .from("recurring_occurrences")
-    .select("*, rule:recurring_rules(*)")
+    .select("*, rule:recurring_rules(*, slices:recurring_rule_slices(*))")
     .eq("status", "pending")
     .order("effective_on", { ascending: true });
   if (error) throw error;
-  return (data || []) as (RecurringOccurrence & { rule: RecurringRule })[];
+  const rows = (data || []) as (RecurringOccurrence & { rule: RecurringRule })[];
+  for (const o of rows) {
+    if (o.rule?.slices) o.rule.slices.sort((a, b) => a.sort_order - b.sort_order);
+  }
+  return rows;
 }
 
 export async function postOccurrence(occ: RecurringOccurrence & { rule: RecurringRule }, overrides?: { amount?: number; description?: string | null; note?: string | null; occurred_on?: string }): Promise<void> {
