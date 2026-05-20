@@ -204,6 +204,33 @@ export function RecurringRulesCard() {
     if (draft.is_variable_amount && estParsed != null && (!Number.isFinite(estParsed) || estParsed < 0)) {
       toast.error(t("toast.amount_required")); return;
     }
+    // Split rules cannot be transfers and need slice validation.
+    if (draft.is_split && draft.type === "transfer") {
+      toast.error(t("recurring.split.no_transfer")); return;
+    }
+    let slicePayload: Array<{
+      sort_order: number; amount: number | null; amount_ratio: number | null;
+      category_id: string | null; description: string | null; note: string | null;
+      is_reimbursable: boolean; reimbursable_counterparty: string | null; reimbursable_reason: string | null;
+    }> = [];
+    if (draft.is_split) {
+      slicePayload = draft.slices.map((s, idx) => ({
+        sort_order: idx,
+        amount: draft.is_variable_amount ? null : (Number(s.amount.replace(",", ".")) || 0),
+        amount_ratio: draft.is_variable_amount ? (Number(s.amount_ratio.replace(",", ".")) || 0) : null,
+        category_id: s.category_id || null,
+        description: s.description.trim() || null,
+        note: s.note.trim() || null,
+        is_reimbursable: s.is_reimbursable,
+        reimbursable_counterparty: s.is_reimbursable ? (s.reimbursable_counterparty.trim() || null) : null,
+        reimbursable_reason: s.is_reimbursable ? (s.reimbursable_reason.trim() || null) : null,
+      }));
+      const validationErr = validateSliceTemplate(
+        slicePayload.map((p) => ({ amount: p.amount, amount_ratio: p.amount_ratio })),
+        draft.is_variable_amount ? null : (Number(draft.amount) || 0),
+      );
+      if (validationErr) { toast.error(validationErr); return; }
+    }
     const payload = {
       name: draft.name.trim(),
       type: draft.type,
@@ -212,7 +239,7 @@ export function RecurringRulesCard() {
       estimated_amount: draft.is_variable_amount ? estParsed : null,
       source_account_id: draft.source_account_id,
       destination_account_id: draft.type === "transfer" ? draft.destination_account_id : null,
-      category_id: draft.type !== "transfer" && draft.category_id ? draft.category_id : null,
+      category_id: draft.type !== "transfer" && !draft.is_split && draft.category_id ? draft.category_id : null,
       description: draft.description.trim() || null,
       note: draft.note.trim() || null,
       day_rule: draft.day_rule,
@@ -221,7 +248,9 @@ export function RecurringRulesCard() {
       frequency: draft.frequency,
       starts_on: draft.starts_on,
       ends_on: draft.ends_on || null,
-      auto_post: draft.is_variable_amount ? false : draft.auto_post,
+      auto_post: (draft.is_variable_amount || draft.is_variable_date || draft.is_split) ? false : draft.auto_post,
+      is_variable_date: draft.is_variable_date,
+      is_split: draft.is_split,
     };
     let savedId: string | undefined = draft.id;
     const isNew = !draft.id;
@@ -241,6 +270,15 @@ export function RecurringRulesCard() {
         .eq("rule_id", draft.id!)
         .eq("status", "pending");
       if (delErr) { toast.error(delErr.message); return; }
+    }
+    // Replace slices wholesale (simpler than diffing).
+    if (savedId) {
+      await supabase.from("recurring_rule_slices").delete().eq("rule_id", savedId);
+      if (draft.is_split && slicePayload.length >= 2) {
+        const rows = slicePayload.map((p) => ({ ...p, rule_id: savedId! }));
+        const { error: insErr } = await supabase.from("recurring_rule_slices").insert(rows);
+        if (insErr) { toast.error(insErr.message); return; }
+      }
     }
     // If new rule and starts in the past, apply backfill choice
     if (isNew && savedId && draft.starts_on < todayStr()) {
