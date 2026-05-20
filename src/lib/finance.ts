@@ -640,10 +640,55 @@ export async function postOccurrence(occ: RecurringOccurrence & { rule: Recurrin
   if (!Number.isFinite(finalAmount) || finalAmount <= 0) {
     throw new Error("Amount must be greater than zero");
   }
+  const occurredOn = overrides?.occurred_on ?? occ.effective_on;
+
+  // ───── Split path: fan out into N transactions sharing a split_group_id ─────
+  if (r.is_split && r.slices && r.slices.length >= 2 && r.type !== "transfer") {
+    const { computeSliceAmounts } = await import("./recurringSlices");
+    const slices = [...r.slices].sort((a, b) => a.sort_order - b.sort_order);
+    const sliceAmounts = computeSliceAmounts(
+      slices.map((s) => ({ amount: s.amount, amount_ratio: s.amount_ratio })),
+      finalAmount,
+    );
+    const { data: u } = await supabase.auth.getUser();
+    const userId = u.user?.id;
+    if (!userId) throw new Error("Not authenticated");
+    const groupId = crypto.randomUUID();
+    const rows = slices.map((s, i) => ({
+      user_id: userId,
+      occurred_on: occurredOn,
+      amount: sliceAmounts[i],
+      type: r.type,
+      source_account_id: r.source_account_id,
+      destination_account_id: null,
+      category_id: s.category_id ?? null,
+      description: s.description ?? (i === 0 ? (overrides?.description ?? r.description) : null),
+      note: s.note ?? null,
+      recurring_rule_id: r.id,
+      split_group_id: groupId,
+      is_reimbursable: !!s.is_reimbursable,
+      reimbursable_status: s.is_reimbursable ? "open" : null,
+      reimbursable_counterparty: s.is_reimbursable ? (s.reimbursable_counterparty ?? null) : null,
+      reimbursable_reason: s.is_reimbursable ? (s.reimbursable_reason ?? null) : null,
+    }));
+    const { data: inserted, error: insErr } = await supabase
+      .from("transactions")
+      .insert(rows)
+      .select("id");
+    if (insErr) throw insErr;
+    const firstId = inserted?.[0]?.id;
+    const { error } = await supabase
+      .from("recurring_occurrences")
+      .update({ status: "posted", transaction_id: firstId ?? null, posted_at: new Date().toISOString() })
+      .eq("id", occ.id);
+    if (error) throw error;
+    return;
+  }
+
   const { data: tx, error: txErr } = await supabase
     .from("transactions")
     .insert({
-      occurred_on: overrides?.occurred_on ?? occ.effective_on,
+      occurred_on: occurredOn,
       amount: finalAmount,
       type: r.type,
       source_account_id: r.source_account_id,
