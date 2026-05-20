@@ -575,6 +575,62 @@ export type Database = {
           },
         ]
       }
+      recurring_rule_slices: {
+        Row: {
+          amount: number | null
+          amount_ratio: number | null
+          category_id: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_reimbursable: boolean
+          note: string | null
+          reimbursable_counterparty: string | null
+          reimbursable_reason: string | null
+          rule_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          amount_ratio?: number | null
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_reimbursable?: boolean
+          note?: string | null
+          reimbursable_counterparty?: string | null
+          reimbursable_reason?: string | null
+          rule_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          amount_ratio?: number | null
+          category_id?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_reimbursable?: boolean
+          note?: string | null
+          reimbursable_counterparty?: string | null
+          reimbursable_reason?: string | null
+          rule_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "recurring_rule_slices_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "recurring_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       recurring_rules: {
         Row: {
           amount: number | null
@@ -590,7 +646,9 @@ export type Database = {
           estimated_amount: number | null
           frequency: Database["public"]["Enums"]["recurring_frequency"]
           id: string
+          is_split: boolean
           is_variable_amount: boolean
+          is_variable_date: boolean
           name: string
           note: string | null
           source_account_id: string
@@ -614,7 +672,9 @@ export type Database = {
           estimated_amount?: number | null
           frequency?: Database["public"]["Enums"]["recurring_frequency"]
           id?: string
+          is_split?: boolean
           is_variable_amount?: boolean
+          is_variable_date?: boolean
           name: string
           note?: string | null
           source_account_id: string
@@ -638,7 +698,9 @@ export type Database = {
           estimated_amount?: number | null
           frequency?: Database["public"]["Enums"]["recurring_frequency"]
           id?: string
+          is_split?: boolean
           is_variable_amount?: boolean
+          is_variable_date?: boolean
           name?: string
           note?: string | null
           source_account_id?: string

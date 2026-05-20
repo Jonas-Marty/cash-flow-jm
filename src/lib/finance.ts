@@ -272,6 +272,23 @@ export interface RecurringRule {
   ends_on: string | null;
   auto_post: boolean;
   archived: boolean;
+  is_split?: boolean;
+  is_variable_date?: boolean;
+  slices?: RecurringRuleSlice[];
+}
+
+export interface RecurringRuleSlice {
+  id: string;
+  rule_id: string;
+  sort_order: number;
+  amount: number | null;
+  amount_ratio: number | null;
+  category_id: string | null;
+  description: string | null;
+  note: string | null;
+  is_reimbursable: boolean;
+  reimbursable_counterparty: string | null;
+  reimbursable_reason: string | null;
 }
 export interface RecurringOccurrence {
   id: string;
@@ -584,21 +601,29 @@ export async function processRecurringRules(today?: string): Promise<void> {
 export async function fetchRecurringRules(): Promise<RecurringRule[]> {
   const { data, error } = await supabase
     .from("recurring_rules")
-    .select("*")
+    .select("*, slices:recurring_rule_slices(*)")
     .order("archived")
     .order("name");
   if (error) throw error;
-  return (data || []) as RecurringRule[];
+  const rules = (data || []) as RecurringRule[];
+  for (const r of rules) {
+    if (r.slices) r.slices.sort((a, b) => a.sort_order - b.sort_order);
+  }
+  return rules;
 }
 
 export async function fetchPendingOccurrences(): Promise<(RecurringOccurrence & { rule: RecurringRule })[]> {
   const { data, error } = await supabase
     .from("recurring_occurrences")
-    .select("*, rule:recurring_rules(*)")
+    .select("*, rule:recurring_rules(*, slices:recurring_rule_slices(*))")
     .eq("status", "pending")
     .order("effective_on", { ascending: true });
   if (error) throw error;
-  return (data || []) as (RecurringOccurrence & { rule: RecurringRule })[];
+  const rows = (data || []) as (RecurringOccurrence & { rule: RecurringRule })[];
+  for (const o of rows) {
+    if (o.rule?.slices) o.rule.slices.sort((a, b) => a.sort_order - b.sort_order);
+  }
+  return rows;
 }
 
 export async function postOccurrence(occ: RecurringOccurrence & { rule: RecurringRule }, overrides?: { amount?: number; description?: string | null; note?: string | null; occurred_on?: string }): Promise<void> {
@@ -615,10 +640,55 @@ export async function postOccurrence(occ: RecurringOccurrence & { rule: Recurrin
   if (!Number.isFinite(finalAmount) || finalAmount <= 0) {
     throw new Error("Amount must be greater than zero");
   }
+  const occurredOn = overrides?.occurred_on ?? occ.effective_on;
+
+  // ───── Split path: fan out into N transactions sharing a split_group_id ─────
+  if (r.is_split && r.slices && r.slices.length >= 2 && r.type !== "transfer") {
+    const { computeSliceAmounts } = await import("./recurringSlices");
+    const slices = [...r.slices].sort((a, b) => a.sort_order - b.sort_order);
+    const sliceAmounts = computeSliceAmounts(
+      slices.map((s) => ({ amount: s.amount, amount_ratio: s.amount_ratio })),
+      finalAmount,
+    );
+    const { data: u } = await supabase.auth.getUser();
+    const userId = u.user?.id;
+    if (!userId) throw new Error("Not authenticated");
+    const groupId = crypto.randomUUID();
+    const rows = slices.map((s, i) => ({
+      user_id: userId,
+      occurred_on: occurredOn,
+      amount: sliceAmounts[i],
+      type: r.type,
+      source_account_id: r.source_account_id,
+      destination_account_id: null,
+      category_id: s.category_id ?? null,
+      description: s.description ?? (i === 0 ? (overrides?.description ?? r.description) : null),
+      note: s.note ?? null,
+      recurring_rule_id: r.id,
+      split_group_id: groupId,
+      is_reimbursable: !!s.is_reimbursable,
+      reimbursable_status: s.is_reimbursable ? "open" : null,
+      reimbursable_counterparty: s.is_reimbursable ? (s.reimbursable_counterparty ?? null) : null,
+      reimbursable_reason: s.is_reimbursable ? (s.reimbursable_reason ?? null) : null,
+    }));
+    const { data: inserted, error: insErr } = await supabase
+      .from("transactions")
+      .insert(rows)
+      .select("id");
+    if (insErr) throw insErr;
+    const firstId = inserted?.[0]?.id;
+    const { error } = await supabase
+      .from("recurring_occurrences")
+      .update({ status: "posted", transaction_id: firstId ?? null, posted_at: new Date().toISOString() })
+      .eq("id", occ.id);
+    if (error) throw error;
+    return;
+  }
+
   const { data: tx, error: txErr } = await supabase
     .from("transactions")
     .insert({
-      occurred_on: overrides?.occurred_on ?? occ.effective_on,
+      occurred_on: occurredOn,
       amount: finalAmount,
       type: r.type,
       source_account_id: r.source_account_id,

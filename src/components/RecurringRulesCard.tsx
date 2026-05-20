@@ -24,6 +24,8 @@ import { DateInput } from "@/components/DateInput";
 import { useQuery as useRQuery } from "@tanstack/react-query";
 import { interpolate, resolveFormatLocale, describeTokens, type TokenInfo } from "@/lib/placeholders";
 import { TagAutocompleteTextarea } from "@/components/TagAutocompleteTextarea";
+import { validateSliceTemplate } from "@/lib/recurringSlices";
+import { Trash2 as TrashIcon } from "lucide-react";
 
 type Draft = {
   id?: string;
@@ -45,7 +47,35 @@ type Draft = {
   ends_on: string;
   auto_post: boolean;
   backfill: "none" | "post" | "pending";
+  is_variable_date: boolean;
+  is_split: boolean;
+  slices: SliceDraft[];
 };
+
+type SliceDraft = {
+  id?: string;
+  amount: string;        // used when !is_variable_amount
+  amount_ratio: string;  // used when is_variable_amount (decimal, e.g. "0.5")
+  category_id: string;
+  description: string;
+  note: string;
+  is_reimbursable: boolean;
+  reimbursable_counterparty: string;
+  reimbursable_reason: string;
+};
+
+function emptySlice(): SliceDraft {
+  return {
+    amount: "",
+    amount_ratio: "",
+    category_id: "",
+    description: "",
+    note: "",
+    is_reimbursable: false,
+    reimbursable_counterparty: "",
+    reimbursable_reason: "",
+  };
+}
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
@@ -60,6 +90,9 @@ function emptyDraft(): Draft {
     starts_on: todayStr(), ends_on: "",
     auto_post: true,
     backfill: "none",
+    is_variable_date: false,
+    is_split: false,
+    slices: [emptySlice(), emptySlice()],
   };
 }
 
@@ -79,6 +112,21 @@ function ruleToDraft(r: RecurringRule): Draft {
     starts_on: r.starts_on, ends_on: r.ends_on ?? "",
     auto_post: r.auto_post,
     backfill: "none",
+    is_variable_date: !!r.is_variable_date,
+    is_split: !!r.is_split,
+    slices: r.slices && r.slices.length >= 2
+      ? r.slices.map((s) => ({
+          id: s.id,
+          amount: s.amount != null ? String(s.amount) : "",
+          amount_ratio: s.amount_ratio != null ? String(s.amount_ratio) : "",
+          category_id: s.category_id ?? "",
+          description: s.description ?? "",
+          note: s.note ?? "",
+          is_reimbursable: !!s.is_reimbursable,
+          reimbursable_counterparty: s.reimbursable_counterparty ?? "",
+          reimbursable_reason: s.reimbursable_reason ?? "",
+        }))
+      : [emptySlice(), emptySlice()],
   };
 }
 
@@ -156,6 +204,33 @@ export function RecurringRulesCard() {
     if (draft.is_variable_amount && estParsed != null && (!Number.isFinite(estParsed) || estParsed < 0)) {
       toast.error(t("toast.amount_required")); return;
     }
+    // Split rules cannot be transfers and need slice validation.
+    if (draft.is_split && draft.type === "transfer") {
+      toast.error(t("recurring.split.no_transfer")); return;
+    }
+    let slicePayload: Array<{
+      sort_order: number; amount: number | null; amount_ratio: number | null;
+      category_id: string | null; description: string | null; note: string | null;
+      is_reimbursable: boolean; reimbursable_counterparty: string | null; reimbursable_reason: string | null;
+    }> = [];
+    if (draft.is_split) {
+      slicePayload = draft.slices.map((s, idx) => ({
+        sort_order: idx,
+        amount: draft.is_variable_amount ? null : (Number(s.amount.replace(",", ".")) || 0),
+        amount_ratio: draft.is_variable_amount ? (Number(s.amount_ratio.replace(",", ".")) || 0) : null,
+        category_id: s.category_id || null,
+        description: s.description.trim() || null,
+        note: s.note.trim() || null,
+        is_reimbursable: s.is_reimbursable,
+        reimbursable_counterparty: s.is_reimbursable ? (s.reimbursable_counterparty.trim() || null) : null,
+        reimbursable_reason: s.is_reimbursable ? (s.reimbursable_reason.trim() || null) : null,
+      }));
+      const validationErr = validateSliceTemplate(
+        slicePayload.map((p) => ({ amount: p.amount, amount_ratio: p.amount_ratio })),
+        draft.is_variable_amount ? null : (Number(draft.amount) || 0),
+      );
+      if (validationErr) { toast.error(validationErr); return; }
+    }
     const payload = {
       name: draft.name.trim(),
       type: draft.type,
@@ -164,7 +239,7 @@ export function RecurringRulesCard() {
       estimated_amount: draft.is_variable_amount ? estParsed : null,
       source_account_id: draft.source_account_id,
       destination_account_id: draft.type === "transfer" ? draft.destination_account_id : null,
-      category_id: draft.type !== "transfer" && draft.category_id ? draft.category_id : null,
+      category_id: draft.type !== "transfer" && !draft.is_split && draft.category_id ? draft.category_id : null,
       description: draft.description.trim() || null,
       note: draft.note.trim() || null,
       day_rule: draft.day_rule,
@@ -173,7 +248,9 @@ export function RecurringRulesCard() {
       frequency: draft.frequency,
       starts_on: draft.starts_on,
       ends_on: draft.ends_on || null,
-      auto_post: draft.is_variable_amount ? false : draft.auto_post,
+      auto_post: (draft.is_variable_amount || draft.is_variable_date || draft.is_split) ? false : draft.auto_post,
+      is_variable_date: draft.is_variable_date,
+      is_split: draft.is_split,
     };
     let savedId: string | undefined = draft.id;
     const isNew = !draft.id;
@@ -193,6 +270,15 @@ export function RecurringRulesCard() {
         .eq("rule_id", draft.id!)
         .eq("status", "pending");
       if (delErr) { toast.error(delErr.message); return; }
+    }
+    // Replace slices wholesale (simpler than diffing).
+    if (savedId) {
+      await supabase.from("recurring_rule_slices").delete().eq("rule_id", savedId);
+      if (draft.is_split && slicePayload.length >= 2) {
+        const rows = slicePayload.map((p) => ({ ...p, rule_id: savedId! }));
+        const { error: insErr } = await supabase.from("recurring_rule_slices").insert(rows);
+        if (insErr) { toast.error(insErr.message); return; }
+      }
     }
     // If new rule and starts in the past, apply backfill choice
     if (isNew && savedId && draft.starts_on < todayStr()) {
@@ -502,17 +588,139 @@ export function RecurringRulesCard() {
             <div className="flex items-center justify-between rounded-md border p-3">
               <div className="min-w-0 pr-3">
                 <Label htmlFor="auto-post" className="text-sm">{t("recurring.auto_post")}</Label>
-                {draft.is_variable_amount && (
+                {(draft.is_variable_amount || draft.is_variable_date || draft.is_split) && (
                   <div className="text-xs text-muted-foreground">{t("recurring.variable_no_autopost")}</div>
                 )}
               </div>
               <Switch
                 id="auto-post"
-                checked={draft.auto_post && !draft.is_variable_amount}
-                disabled={draft.is_variable_amount}
+                checked={draft.auto_post && !draft.is_variable_amount && !draft.is_variable_date && !draft.is_split}
+                disabled={draft.is_variable_amount || draft.is_variable_date || draft.is_split}
                 onCheckedChange={(v) => setDraft({ ...draft, auto_post: v })}
               />
             </div>
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div className="min-w-0 pr-3">
+                <Label htmlFor="variable-date" className="text-sm">{t("recurring.variable_date")}</Label>
+                <div className="text-xs text-muted-foreground">{t("recurring.variable_date.help")}</div>
+              </div>
+              <Switch
+                id="variable-date"
+                checked={draft.is_variable_date}
+                onCheckedChange={(v) => setDraft({ ...draft, is_variable_date: v, auto_post: v ? false : draft.auto_post })}
+              />
+            </div>
+            {draft.type !== "transfer" && (
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div className="min-w-0 pr-3">
+                  <Label htmlFor="split-rule" className="text-sm">{t("recurring.split.toggle")}</Label>
+                  <div className="text-xs text-muted-foreground">{t("recurring.split.help")}</div>
+                </div>
+                <Switch
+                  id="split-rule"
+                  checked={draft.is_split}
+                  onCheckedChange={(v) => setDraft({ ...draft, is_split: v, auto_post: v ? false : draft.auto_post })}
+                />
+              </div>
+            )}
+            {draft.is_split && draft.type !== "transfer" && (
+              <div className="rounded-md border p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-medium">{t("recurring.split.slices")}</div>
+                  <Button type="button" variant="outline" size="sm"
+                    onClick={() => setDraft({ ...draft, slices: [...draft.slices, emptySlice()] })}>
+                    <Plus className="mr-1 h-4 w-4" /> {t("recurring.split.add_slice")}
+                  </Button>
+                </div>
+                {draft.slices.map((s, idx) => (
+                  <div key={idx} className="rounded-md border bg-muted/30 p-2 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-semibold text-muted-foreground">
+                        {t("recurring.split.slice", { n: idx + 1 })}
+                      </div>
+                      {draft.slices.length > 2 && (
+                        <Button type="button" variant="ghost" size="icon"
+                          onClick={() => setDraft({ ...draft, slices: draft.slices.filter((_, i) => i !== idx) })}
+                          aria-label={t("recurring.split.remove_slice")}>
+                          <TrashIcon className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">
+                          {draft.is_variable_amount ? t("recurring.split.ratio") : t("recurring.split.amount")}
+                        </Label>
+                        <Input
+                          inputMode="decimal"
+                          placeholder={draft.is_variable_amount ? "0.5" : ""}
+                          value={draft.is_variable_amount ? s.amount_ratio : s.amount}
+                          onChange={(e) => {
+                            const next = [...draft.slices];
+                            next[idx] = draft.is_variable_amount
+                              ? { ...s, amount_ratio: e.target.value }
+                              : { ...s, amount: e.target.value };
+                            setDraft({ ...draft, slices: next });
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">{t("add.category")}</Label>
+                        <Select value={s.category_id || "__none"} onValueChange={(v) => {
+                          const next = [...draft.slices];
+                          next[idx] = { ...s, category_id: v === "__none" ? "" : v };
+                          setDraft({ ...draft, slices: next });
+                        }}>
+                          <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none">{t("common.none")}</SelectItem>
+                            {categories.filter((c) => !c.archived).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs">{t("add.description")}</Label>
+                      <Input value={s.description} onChange={(e) => {
+                        const next = [...draft.slices]; next[idx] = { ...s, description: e.target.value };
+                        setDraft({ ...draft, slices: next });
+                      }} />
+                    </div>
+                    <div className="flex items-center justify-between rounded-md border bg-background p-2">
+                      <Label htmlFor={`slice-reimb-${idx}`} className="text-xs">
+                        {t("recurring.split.reimbursable")}
+                      </Label>
+                      <Switch
+                        id={`slice-reimb-${idx}`}
+                        checked={s.is_reimbursable}
+                        onCheckedChange={(v) => {
+                          const next = [...draft.slices]; next[idx] = { ...s, is_reimbursable: v };
+                          setDraft({ ...draft, slices: next });
+                        }}
+                      />
+                    </div>
+                    {s.is_reimbursable && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs">{t("recurring.split.counterparty")}</Label>
+                          <Input value={s.reimbursable_counterparty} onChange={(e) => {
+                            const next = [...draft.slices]; next[idx] = { ...s, reimbursable_counterparty: e.target.value };
+                            setDraft({ ...draft, slices: next });
+                          }} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">{t("recurring.split.reason")}</Label>
+                          <Input value={s.reimbursable_reason} onChange={(e) => {
+                            const next = [...draft.slices]; next[idx] = { ...s, reimbursable_reason: e.target.value };
+                            setDraft({ ...draft, slices: next });
+                          }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
             {!draft.id && draft.starts_on < todayStr() && (
               <div className="rounded-md border p-3 space-y-2">
                 <div className="text-sm font-medium">{t("recurring.backfill.title")}</div>
