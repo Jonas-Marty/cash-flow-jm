@@ -588,17 +588,139 @@ export function RecurringRulesCard() {
             <div className="flex items-center justify-between rounded-md border p-3">
               <div className="min-w-0 pr-3">
                 <Label htmlFor="auto-post" className="text-sm">{t("recurring.auto_post")}</Label>
-                {draft.is_variable_amount && (
+                {(draft.is_variable_amount || draft.is_variable_date || draft.is_split) && (
                   <div className="text-xs text-muted-foreground">{t("recurring.variable_no_autopost")}</div>
                 )}
               </div>
               <Switch
                 id="auto-post"
-                checked={draft.auto_post && !draft.is_variable_amount}
-                disabled={draft.is_variable_amount}
+                checked={draft.auto_post && !draft.is_variable_amount && !draft.is_variable_date && !draft.is_split}
+                disabled={draft.is_variable_amount || draft.is_variable_date || draft.is_split}
                 onCheckedChange={(v) => setDraft({ ...draft, auto_post: v })}
               />
             </div>
+            <div className="flex items-center justify-between rounded-md border p-3">
+              <div className="min-w-0 pr-3">
+                <Label htmlFor="variable-date" className="text-sm">{t("recurring.variable_date")}</Label>
+                <div className="text-xs text-muted-foreground">{t("recurring.variable_date.help")}</div>
+              </div>
+              <Switch
+                id="variable-date"
+                checked={draft.is_variable_date}
+                onCheckedChange={(v) => setDraft({ ...draft, is_variable_date: v, auto_post: v ? false : draft.auto_post })}
+              />
+            </div>
+            {draft.type !== "transfer" && (
+              <div className="flex items-center justify-between rounded-md border p-3">
+                <div className="min-w-0 pr-3">
+                  <Label htmlFor="split-rule" className="text-sm">{t("recurring.split.toggle")}</Label>
+                  <div className="text-xs text-muted-foreground">{t("recurring.split.help")}</div>
+                </div>
+                <Switch
+                  id="split-rule"
+                  checked={draft.is_split}
+                  onCheckedChange={(v) => setDraft({ ...draft, is_split: v, auto_post: v ? false : draft.auto_post })}
+                />
+              </div>
+            )}
+            {draft.is_split && draft.type !== "transfer" && (
+              <div className="rounded-md border p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-medium">{t("recurring.split.slices")}</div>
+                  <Button type="button" variant="outline" size="sm"
+                    onClick={() => setDraft({ ...draft, slices: [...draft.slices, emptySlice()] })}>
+                    <Plus className="mr-1 h-4 w-4" /> {t("recurring.split.add_slice")}
+                  </Button>
+                </div>
+                {draft.slices.map((s, idx) => (
+                  <div key={idx} className="rounded-md border bg-muted/30 p-2 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="text-xs font-semibold text-muted-foreground">
+                        {t("recurring.split.slice", { n: idx + 1 })}
+                      </div>
+                      {draft.slices.length > 2 && (
+                        <Button type="button" variant="ghost" size="icon"
+                          onClick={() => setDraft({ ...draft, slices: draft.slices.filter((_, i) => i !== idx) })}
+                          aria-label={t("recurring.split.remove_slice")}>
+                          <TrashIcon className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">
+                          {draft.is_variable_amount ? t("recurring.split.ratio") : t("recurring.split.amount")}
+                        </Label>
+                        <Input
+                          inputMode="decimal"
+                          placeholder={draft.is_variable_amount ? "0.5" : ""}
+                          value={draft.is_variable_amount ? s.amount_ratio : s.amount}
+                          onChange={(e) => {
+                            const next = [...draft.slices];
+                            next[idx] = draft.is_variable_amount
+                              ? { ...s, amount_ratio: e.target.value }
+                              : { ...s, amount: e.target.value };
+                            setDraft({ ...draft, slices: next });
+                          }}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">{t("add.category")}</Label>
+                        <Select value={s.category_id || "__none"} onValueChange={(v) => {
+                          const next = [...draft.slices];
+                          next[idx] = { ...s, category_id: v === "__none" ? "" : v };
+                          setDraft({ ...draft, slices: next });
+                        }}>
+                          <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__none">{t("common.none")}</SelectItem>
+                            {categories.filter((c) => !c.archived).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs">{t("add.description")}</Label>
+                      <Input value={s.description} onChange={(e) => {
+                        const next = [...draft.slices]; next[idx] = { ...s, description: e.target.value };
+                        setDraft({ ...draft, slices: next });
+                      }} />
+                    </div>
+                    <div className="flex items-center justify-between rounded-md border bg-background p-2">
+                      <Label htmlFor={`slice-reimb-${idx}`} className="text-xs">
+                        {t("recurring.split.reimbursable")}
+                      </Label>
+                      <Switch
+                        id={`slice-reimb-${idx}`}
+                        checked={s.is_reimbursable}
+                        onCheckedChange={(v) => {
+                          const next = [...draft.slices]; next[idx] = { ...s, is_reimbursable: v };
+                          setDraft({ ...draft, slices: next });
+                        }}
+                      />
+                    </div>
+                    {s.is_reimbursable && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-xs">{t("recurring.split.counterparty")}</Label>
+                          <Input value={s.reimbursable_counterparty} onChange={(e) => {
+                            const next = [...draft.slices]; next[idx] = { ...s, reimbursable_counterparty: e.target.value };
+                            setDraft({ ...draft, slices: next });
+                          }} />
+                        </div>
+                        <div>
+                          <Label className="text-xs">{t("recurring.split.reason")}</Label>
+                          <Input value={s.reimbursable_reason} onChange={(e) => {
+                            const next = [...draft.slices]; next[idx] = { ...s, reimbursable_reason: e.target.value };
+                            setDraft({ ...draft, slices: next });
+                          }} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
             {!draft.id && draft.starts_on < todayStr() && (
               <div className="rounded-md border p-3 space-y-2">
                 <div className="text-sm font-medium">{t("recurring.backfill.title")}</div>
