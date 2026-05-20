@@ -24,6 +24,8 @@ import { DateInput } from "@/components/DateInput";
 import { useQuery as useRQuery } from "@tanstack/react-query";
 import { interpolate, resolveFormatLocale, describeTokens, type TokenInfo } from "@/lib/placeholders";
 import { TagAutocompleteTextarea } from "@/components/TagAutocompleteTextarea";
+import { validateSliceTemplate } from "@/lib/recurringSlices";
+import { Trash2 as TrashIcon } from "lucide-react";
 
 type Draft = {
   id?: string;
@@ -45,7 +47,35 @@ type Draft = {
   ends_on: string;
   auto_post: boolean;
   backfill: "none" | "post" | "pending";
+  is_variable_date: boolean;
+  is_split: boolean;
+  slices: SliceDraft[];
 };
+
+type SliceDraft = {
+  id?: string;
+  amount: string;        // used when !is_variable_amount
+  amount_ratio: string;  // used when is_variable_amount (decimal, e.g. "0.5")
+  category_id: string;
+  description: string;
+  note: string;
+  is_reimbursable: boolean;
+  reimbursable_counterparty: string;
+  reimbursable_reason: string;
+};
+
+function emptySlice(): SliceDraft {
+  return {
+    amount: "",
+    amount_ratio: "",
+    category_id: "",
+    description: "",
+    note: "",
+    is_reimbursable: false,
+    reimbursable_counterparty: "",
+    reimbursable_reason: "",
+  };
+}
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
@@ -60,6 +90,9 @@ function emptyDraft(): Draft {
     starts_on: todayStr(), ends_on: "",
     auto_post: true,
     backfill: "none",
+    is_variable_date: false,
+    is_split: false,
+    slices: [emptySlice(), emptySlice()],
   };
 }
 
@@ -79,6 +112,21 @@ function ruleToDraft(r: RecurringRule): Draft {
     starts_on: r.starts_on, ends_on: r.ends_on ?? "",
     auto_post: r.auto_post,
     backfill: "none",
+    is_variable_date: !!r.is_variable_date,
+    is_split: !!r.is_split,
+    slices: r.slices && r.slices.length >= 2
+      ? r.slices.map((s) => ({
+          id: s.id,
+          amount: s.amount != null ? String(s.amount) : "",
+          amount_ratio: s.amount_ratio != null ? String(s.amount_ratio) : "",
+          category_id: s.category_id ?? "",
+          description: s.description ?? "",
+          note: s.note ?? "",
+          is_reimbursable: !!s.is_reimbursable,
+          reimbursable_counterparty: s.reimbursable_counterparty ?? "",
+          reimbursable_reason: s.reimbursable_reason ?? "",
+        }))
+      : [emptySlice(), emptySlice()],
   };
 }
 
