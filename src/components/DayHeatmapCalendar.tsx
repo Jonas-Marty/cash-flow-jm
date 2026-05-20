@@ -57,13 +57,6 @@ export function DayHeatmapCalendar({
     );
   }, [selected]);
 
-  const handlePrevClick = React.useCallback(() => {
-    setMonth((m) => new Date(m.getFullYear(), m.getMonth() - 1, 1));
-  }, []);
-  const handleNextClick = React.useCallback(() => {
-    setMonth((m) => new Date(m.getFullYear(), m.getMonth() + 1, 1));
-  }, []);
-
   const byDay = React.useMemo(() => {
     const m = new Map<string, { net: number; count: number; txs: Transaction[] }>();
     for (const t of transactions) {
@@ -162,8 +155,6 @@ export function DayHeatmapCalendar({
         onSelect={(d) => d && onSelect(d)}
         month={month}
         onMonthChange={setMonth}
-        onPrevClick={handlePrevClick}
-        onNextClick={handleNextClick}
         locale={locale}
         showOutsideDays
         weekStartsOn={1}
