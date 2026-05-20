@@ -1,98 +1,118 @@
+
 ## Goal
 
-Build a foundation for automated unit / integration tests that verify the financial calculations powering the app — especially **net worth, projected net worths**, **account balances**, and **budget summaries** — so regressions in sums and filters get caught before they reach the UI.
+Support a recurring rule like "pay internet subscription, half is reimbursable from girlfriend" as **one rule** that produces a split transaction on post, plus allow the effective date to vary per occurrence (mirror of the existing `is_variable_amount` pattern).
 
-## Where the math actually lives
+## Current model recap
 
-Two distinct layers compute numbers, and they need different test strategies:
+- `recurring_rules`: single-row template (type, amount or `is_variable_amount` + `estimated_amount`, one `category_id`, one `description/note`, scheduling, `auto_post`).
+- `recurring_occurrences`: schedule rows with `due_on` / `effective_on`. `postOccurrence` inserts **one** `transactions` row and links it.
+- `transactions`: already supports `split_group_id` (N sibling rows) and per-row `is_reimbursable` + `reimbursable_counterparty/reason`. The add form already builds splits this way.
 
-1. **Pure TypeScript helpers** (no I/O — easy to unit-test):
-  - `src/lib/budgetSummary.ts` → `computeMonthTotals`, `planBalanceVerdict`, `monthVerdict`
-  - `src/lib/finance.ts` → `groupSumByCurrency`, `formatPerCurrency`, `buildPendingMap`, `pendingDeltaForRow`, `fmtMoney`, `extractTags`, `monthKey`, `endOfMonthISO`, `endOfYearISO`, `todayISO`
-  - `src/lib/amountFilter.ts` → `matchesAmount`
-  - `src/lib/insights.ts` → `cv`, `stddev`, `linearRegression`, `topNWithOther`, `aggregateMonthly`, `buildProjection`, `monthRange`, `detectRecurringCandidates`, `normalizeMerchant`
-  - `src/lib/transactionSchema.ts` / `pendingTransactionSchema.ts` → Zod normalization
-  - `src/lib/fx.ts` → conversion helpers
-  - `src/lib/usageScoring.ts`
-2. **Database views & RPCs** (where net worth and budget actuals really come from):
-  - Views like `account_balances`, `account_balances_as_of`, `category_month_rows`, `category_savings_balances_v2`, `reconciliation_summary`, `pending_impacts_for_month`
-  - Compensation/match logic in `postCompensationForStatement`, `matchStatement`
-  - These can only be verified by running real SQL against a Postgres instance with seeded data.
+So the storage shape for splits already exists on the transaction side — what's missing is a **template** for slices on the rule side, and a **per-occurrence variable date** flag.
 
-## Plan
+## Recommendation: extend the single rule (Option A), not two rules
 
-### Phase 1 — Test runner setup (Vitest)
+Two separate rules (Option B) is simpler but:
+- loses the conceptual link ("this slice exists because of that subscription"),
+- duplicates schedule/account/description maintenance,
+- can't auto-mark one slice reimbursable with the right counterparty,
+- and the reimbursement settlement model already links the repayment back to the original transaction — but only if that transaction exists as a single reimbursable slice. Two rules can't express "half of this specific posting is owed back".
 
-- Add dev deps: `vitest`, `@vitest/coverage-v8`.
-- Add `vitest.config.ts` with the existing `@/*` path alias, `environment: "node"` (jsdom only for the few tests that need DOM), and `globals: true`.
-- Add scripts to `package.json`:
-  - `"test": "vitest run"`
-  - `"test:watch": "vitest"`
-  - `"test:coverage": "vitest run --coverage"`
-- Create `src/__tests__/` and colocated `*.test.ts` files. Convention: pure-function tests sit next to the module (`src/lib/budgetSummary.test.ts`), integration tests live under `src/__tests__/integration/`.
+Go with Option A. Keep Option B available implicitly (user can still create two rules manually if they prefer).
 
-### Phase 2 — Pure-function unit tests (the high-value, low-friction win)
+## Changes
 
-Create the following test files. Each covers happy path + edge cases (empty inputs, zero/negative values, mixed currencies, missing pending entries):
+### 1. Schema (migration)
 
-- `src/lib/budgetSummary.test.ts`
-  - `computeMonthTotals`: income/expense/savings categorization, pending deltas, projected vs allocated, savings rows always counted via `kind: "savings"`.
-  - `planBalanceVerdict` / `monthVerdict`: each verdict bucket (`over`, `tight`, `ok`, `balanced`, `buffer`) at exact thresholds (±0.5, ±1, ±5%).
-- `src/lib/finance.test.ts`
-  - `groupSumByCurrency` with multiple currencies + missing accounts.
-  - `formatPerCurrency` formatting per locale.
-  - `buildPendingMap` aggregating signed deltas.
-  - `pendingDeltaForRow` per kind (income/expense/savings).
-  - `fmtMoney` rounding & negative formatting.
-  - `extractTags` (hashtag parsing including dedupe).
-  - Date helpers (`monthKey`, `endOfMonthISO`, `endOfYearISO`) including DST and month-end edge cases — pass an injected `Date` rather than relying on system clock.
-- `src/lib/amountFilter.test.ts` — every op (`lt/lte/eq/gte/gt/around/any`), tolerance edges, zero target.
-- `src/lib/insights.test.ts` — statistical helpers with known fixtures: `cv`, `stddev`, `linearRegression` (known slope/intercept), `aggregateMonthly`, `monthRange` (DST safe), `topNWithOther`, `detectRecurringCandidates` against a synthetic 12-month series.
-- `src/lib/fx.test.ts` and `src/lib/usageScoring.test.ts`.
-- `src/lib/transactionSchema.test.ts` / `pendingTransactionSchema.test.ts` — accept/reject matrix incl. transfer rules and `destination_amount`.
+New table `recurring_rule_slices` — one row per slice on a split-capable rule:
 
-Target ≥ 90 % branch coverage for these files; they have no external deps.
+```text
+recurring_rule_slices
+  id                       uuid pk
+  rule_id                  uuid fk → recurring_rules(id) on delete cascade
+  sort_order               int  not null default 0
+  amount                   numeric        -- null when rule.is_variable_amount
+  amount_ratio             numeric        -- optional: e.g. 0.5 to derive from total on variable rules
+  category_id              uuid null
+  description              text null
+  note                     text null
+  is_reimbursable          boolean not null default false
+  reimbursable_counterparty text null
+  reimbursable_reason       text null
+  created_at / updated_at  timestamptz
+```
 
-### Phase 3 — Database integration tests (net worth & budget actuals)
+RLS: same `user_id = auth.uid()` shape via parent `recurring_rules`.
 
-This is the part the user really cares about: "does the sum match reality?". The sums come from SQL views, so we test SQL.
+New columns on `recurring_rules`:
+- `is_split` boolean not null default false — when true, slices table drives posting and top-level `category_id` / `description` / `note` become the "fallback" / header only.
+- `is_variable_date` boolean not null default false — when true, force `auto_post = false` (mirrors how `is_variable_amount` already forces it).
 
-- Add `pg` (node-postgres) as a dev dep.
-- Add a `src/__tests__/integration/db.ts` helper that:
-  - Connects to a local Postgres using `TEST_DATABASE_URL` (the same one `docker-compose.yml` already starts).
-  - Wraps every test in `BEGIN … ROLLBACK` for isolation.
-  - Provides a `seed({ accounts, transactions, categories, statements, … })` factory that inserts minimal rows and returns their ids.
-  - Provides a `setUserContext(userId)` helper that sets `request.jwt.claims` so RLS-bound views resolve `auth.uid()` correctly (or runs as `service_role` and filters manually).
-- Add `vitest.integration.config.ts` with `testMatch: ["src/__tests__/integration/**/*.test.ts"]` and `npm run test:db`. Skip the suite automatically when `TEST_DATABASE_URL` is unset so contributors without Docker still get green pure-unit runs.
+Constraints / validation trigger:
+- if `is_split` then ≥2 slice rows must exist;
+- if not `is_variable_amount`, sum(slice.amount) must equal `rule.amount`;
+- if `is_variable_amount`, slices must use `amount_ratio` (sum = 1.0) **or** fixed `amount` values that are reconciled at post time.
 
-Write these integration tests:
+### 2. Posting logic (`postOccurrence` + RPC `process_recurring_rules`)
 
-1. **Net worth**
-  - `account_balances.test.ts`: opening balance + N transactions (expense, income, transfer in/out, transfer with `destination_amount`) → assert `account_balances.balance` per account and the cross-account total.
-  - `account_balances_as_of.test.ts`: same, but assert balance at three different `as_of` dates (before any tx, mid-period, after all).
-  - Multi-currency: two accounts in different currencies → assert per-currency totals (no implicit conversion).
-2. **Budgets**
-  - `category_month_rows.test.ts`: categories with allocated budget + month override in `category_budgets` + actual transactions + a reallocation row → assert `allocated` and `spent_or_received` per category for the month.
-  - `pending_impacts.test.ts`: seed a `pending_transactions` row → assert `fetchPendingImpactsForMonth` returns it on the correct month and only on that month, and that `buildPendingMap` + `computeMonthTotals` yields the expected projection.
-  - Savings categories: ensure `kind = "savings"` rows feed `savingsTarget` and not `expenseAllocated`.
-3. **Reconciliation / compensation**
-  - Seed a statement with a known delta vs. computed balance → run `postCompensationForStatement` → assert the inserted compensation transaction's amount and sign, and that `account_balances` after equals `statement_balance`.
+Today `postOccurrence` inserts a single transaction. Update it so:
 
-### Phase 4 — Make it part of the loop
+- If `rule.is_split = false`: unchanged.
+- If `rule.is_split = true`:
+  - Generate a `split_group_id` (uuid).
+  - For each slice, compute slice amount:
+    - fixed-amount rule → `slice.amount`,
+    - variable-amount rule with `amount_ratio` → `round(total * ratio, 2)` (last slice absorbs rounding diff),
+    - variable-amount rule with fixed slice amounts → use them; validate sum == entered total.
+  - Insert N transaction rows with shared `split_group_id`, `recurring_rule_id = rule.id`, per-slice `category_id`, `description`, `note`, `is_reimbursable`, `reimbursable_counterparty`, `reimbursable_reason`, `reimbursable_status = 'open'` when reimbursable.
+  - Update the occurrence with `transaction_id = <first slice id>` (or extend `recurring_occurrences` with `split_group_id uuid` — cleaner; add the column in the same migration).
 
-- GitHub Actions / Lovable build: run `npm test` on every push (pure-unit only — no DB needed; fast).
-- A separate optional job runs `npm run test:db` against `docker-compose up -d db` for the integration suite.
-- README / `architecture.md` section: "How to add a test" with one pure example and one integration example.
+Auto-post path in the SQL function `process_recurring_rules` must do the same branching. Variable-amount **or** variable-date rules stay non-auto-postable (skipped by auto-post, surfaced in Upcoming).
+
+### 3. Post dialog (`PostOccurrenceDialog`)
+
+- Date input is already editable — only needs to become **required to confirm** when `rule.is_variable_date` (small hint text).
+- When `rule.is_split`:
+  - Render a slices table (read-only categories/descriptions, editable amount column only when `is_variable_amount`).
+  - Show running total vs entered amount with a delta indicator (reuse logic from `add.tsx` split section).
+  - Show reimbursable badge per slice.
+
+### 4. Rule editor (`RecurringRulesCard`)
+
+- Add "Split into multiple transactions" toggle (`is_split`). When on:
+  - Show a slices editor (amount, category, description, reimbursable toggle + counterparty/reason) — visually reuse the existing split UI from `add.tsx` (extract into a shared `<SplitSlicesEditor>` component in `src/components/`).
+  - Hide the rule-level category/description (or label them as "fallback").
+- Add "Variable effective date" toggle (`is_variable_date`). When on, disable `auto_post`.
+
+### 5. Types & helpers
+
+- Extend `RecurringRule` interface with `is_split`, `is_variable_date`, `slices?: RecurringRuleSlice[]`.
+- Add `RecurringRuleSlice` interface mirroring the table.
+- Update `fetchRecurringRules` / `fetchPendingOccurrences` selects to include `slices:recurring_rule_slices(*)`.
+
+### 6. Tests (Vitest, pure functions only)
+
+Add `src/lib/recurringSlices.test.ts` covering:
+- ratio-based slice amount derivation with rounding remainder absorbed by last slice,
+- fixed-slice validation (sum mismatch rejected),
+- reimbursable flag carried per slice,
+- variable-date rule forces `auto_post = false`.
+
+Extract the math into `src/lib/recurringSlices.ts` so it's testable without DB.
 
 ## Out of scope
 
-- React component / route tests (the user explicitly said no UI).
-- E2E browser tests.
-- Mocking the Supabase JS client to test the `fetch*` wrappers — real DB tests in Phase 3 give us higher confidence than a mock would.
+- Linking the **girlfriend's Twint repayment** back to the reimbursable slice is already handled by the existing reimbursable settlement flow — no changes needed there.
+- No UI for "convert two existing rules into one split rule" migration; users do that manually.
 
-## Deliverable order
+## Rollout order
 
-1. Phase 1 (setup) + Phase 2 (`budgetSummary.test.ts`, `amountFilter.test.ts`, `finance.test.ts` core helpers) — one PR, immediate value.
-2. Phase 2 remainder (`insights`, schemas, fx).
-3. Phase 3 (DB harness + net worth tests, then budget tests, then reconciliation).
-4. Phase 4 (CI wiring + docs).
+1. Migration (table + columns + validation trigger + update to `process_recurring_rules` SQL).
+2. `src/lib/recurringSlices.ts` + tests.
+3. `RecurringRule` types + fetchers.
+4. `postOccurrence` split branch.
+5. Extract `SplitSlicesEditor` from `add.tsx`.
+6. Update `RecurringRulesCard` (toggles + editor).
+7. Update `PostOccurrenceDialog` (slice table + variable-date confirmation hint).
+8. i18n strings (de/en) for new labels.
