@@ -1749,3 +1749,267 @@ function TransactionPreview({
     </Card>
   );
 }
+
+// ───────── Impact preview (compact) ─────────
+// Shows how saving this transaction will change:
+//   - source account balance
+//   - destination account balance (transfers only)
+//   - net worth (income/expense, or cross-currency transfer residual)
+//   - affected category envelope(s) for the chosen month
+// Pure presentation — reads from already-loaded queries.
+type ImpactAccount = { id: string; name: string; currency_code?: string; currency_symbol?: string };
+type ImpactCategory = { id: string; name: string; allocated_budget: number } | null;
+function ImpactPreview({
+  type, amountNum, destAmountNum, feeAmountNum, feeCategoryId,
+  source, destination, category, date,
+  splitMode, slices, categoryById,
+  balances, categoryRows, mainCode, mainSymbol, fxRates,
+  editOriginal, tr,
+}: {
+  type: TxType;
+  amountNum: number | null;
+  destAmountNum: number | null;
+  feeAmountNum: number | null;
+  feeCategoryId: string | null;
+  source: ImpactAccount | null;
+  destination: ImpactAccount | null;
+  category: ImpactCategory;
+  date: Date;
+  splitMode: boolean;
+  slices: Array<{ amount: number; categoryId: string | null }> | null;
+  categoryById: Map<string, { id: string; name: string; allocated_budget: number }>;
+  balances: AccountBalance[] | null;
+  categoryRows: CategoryMonthRow[] | null;
+  mainCode: string;
+  mainSymbol: string;
+  fxRates: Record<string, number> | undefined;
+  editOriginal: { tx: Transaction; group: Transaction[] | null } | null;
+  tr: (k: string, p?: Record<string, string>) => string;
+}) {
+  if (!source || amountNum == null || amountNum <= 0) return null;
+
+  const balById = new Map((balances ?? []).map((b) => [b.id, b]));
+  const rowByCat = new Map((categoryRows ?? []).map((r) => [r.category_id, r]));
+
+  // Per-account signed delta in account's native currency.
+  const accDelta = new Map<string, number>();
+  const add = (id: string | null | undefined, v: number) => {
+    if (!id) return;
+    accDelta.set(id, (accDelta.get(id) ?? 0) + v);
+  };
+  if (type === "expense") add(source.id, -amountNum);
+  else if (type === "income") add(source.id, +amountNum);
+  else if (type === "transfer") {
+    add(source.id, -amountNum);
+    add(destination?.id ?? null, destAmountNum != null && destAmountNum > 0 ? destAmountNum : amountNum);
+  }
+  if (feeAmountNum != null) add(source.id, -feeAmountNum);
+
+  // Back-out original effect on edit so "before" represents balance w/o this tx.
+  const original = editOriginal?.tx;
+  const originalGroup = editOriginal?.group;
+  const originalEffects = new Map<string, number>();
+  const ogAdd = (id: string | null | undefined, v: number) => {
+    if (!id) return;
+    originalEffects.set(id, (originalEffects.get(id) ?? 0) + v);
+  };
+  if (original) {
+    if (originalGroup && originalGroup.length > 1) {
+      // Split — sum siblings on source account (all same source/type).
+      const total = originalGroup.reduce((s, x) => s + Number(x.amount), 0);
+      if (original.type === "expense") ogAdd(original.source_account_id, -total);
+      else if (original.type === "income") ogAdd(original.source_account_id, +total);
+    } else {
+      const a = Number(original.amount);
+      if (original.type === "expense") ogAdd(original.source_account_id, -a);
+      else if (original.type === "income") ogAdd(original.source_account_id, +a);
+      else if (original.type === "transfer") {
+        ogAdd(original.source_account_id, -a);
+        ogAdd(original.destination_account_id, original.destination_amount != null ? Number(original.destination_amount) : a);
+      }
+      if (original.fee_amount != null && Number(original.fee_amount) > 0) {
+        ogAdd(original.source_account_id, -Number(original.fee_amount));
+      }
+    }
+  }
+
+  // Account rows
+  const accountIds = Array.from(new Set([source.id, ...(destination ? [destination.id] : [])]));
+  const accountRows = accountIds.map((id) => {
+    const b = balById.get(id);
+    const acc = id === source.id ? source : destination!;
+    const sym = b?.currency_symbol ?? acc.currency_symbol ?? mainSymbol;
+    const current = Number(b?.balance ?? 0);
+    const before = current - (originalEffects.get(id) ?? 0);
+    const after = before + (accDelta.get(id) ?? 0);
+    return { id, name: acc.name, sym, before, after };
+  });
+
+  // Net worth delta in main currency. Sum per-account delta converted; for
+  // accounts excluded from net worth we'd skip — but assume all accounts count.
+  const toMain = (v: number, code: string | undefined): number | null => {
+    const c = code ?? mainCode;
+    if (c === mainCode) return v;
+    const r = convert(v, c, mainCode, fxRates);
+    return r == null ? null : r;
+  };
+  let netDelta = 0;
+  let netDeltaUnknown = false;
+  let netBefore = 0;
+  for (const b of balances ?? []) {
+    if (b.archived) continue;
+    const conv = toMain(Number(b.balance), b.currency_code);
+    if (conv == null) { netDeltaUnknown = true; } else { netBefore += conv; }
+  }
+  // Back out original net effect from netBefore
+  for (const [id, eff] of originalEffects) {
+    const b = balById.get(id);
+    const conv = toMain(eff, b?.currency_code);
+    if (conv == null) netDeltaUnknown = true; else netBefore -= conv;
+  }
+  for (const [id, d] of accDelta) {
+    const b = balById.get(id);
+    const conv = toMain(d, b?.currency_code);
+    if (conv == null) netDeltaUnknown = true; else netDelta += conv;
+  }
+  const netAfter = netBefore + netDelta;
+
+  // Category rows. For splits, one per slice category; else single category.
+  // For income, spent_or_received still grows by amount (received).
+  // Drift category in source currency assumed = main currency for the budget
+  // view (budgets are in main currency in this app).
+  type CatItem = { id: string; name: string; allocated: number; before: number; after: number };
+  const catImpacts = new Map<string, number>();
+  if (type !== "transfer") {
+    if (splitMode && slices) {
+      for (const s of slices) {
+        if (!s.categoryId || s.amount <= 0) continue;
+        catImpacts.set(s.categoryId, (catImpacts.get(s.categoryId) ?? 0) + s.amount);
+      }
+    } else if (category) {
+      catImpacts.set(category.id, amountNum);
+    }
+  }
+  // Fee creates an extra expense in feeCategory on transfers.
+  if (feeAmountNum != null && feeCategoryId) {
+    catImpacts.set(feeCategoryId, (catImpacts.get(feeCategoryId) ?? 0) + feeAmountNum);
+  }
+  // Back out original category spent for same month
+  const sameMonth = (iso: string) => {
+    const d = new Date(iso + "T00:00:00");
+    return d.getFullYear() === date.getFullYear() && d.getMonth() === date.getMonth();
+  };
+  const ogCatImpacts = new Map<string, number>();
+  if (original) {
+    const rows = originalGroup && originalGroup.length > 1 ? originalGroup : [original];
+    for (const r of rows) {
+      if (r.type === "transfer") continue;
+      if (!r.category_id) continue;
+      if (!sameMonth(r.occurred_on)) continue;
+      ogCatImpacts.set(r.category_id, (ogCatImpacts.get(r.category_id) ?? 0) + Number(r.amount));
+    }
+    if (original.fee_amount != null && Number(original.fee_amount) > 0 && original.fee_category_id && sameMonth(original.occurred_on)) {
+      ogCatImpacts.set(original.fee_category_id, (ogCatImpacts.get(original.fee_category_id) ?? 0) + Number(original.fee_amount));
+    }
+  }
+  const catRows: CatItem[] = [];
+  const allCatIds = new Set<string>([...catImpacts.keys(), ...ogCatImpacts.keys()]);
+  for (const id of allCatIds) {
+    const meta = categoryById.get(id);
+    if (!meta) continue;
+    const row = rowByCat.get(id);
+    const currentSpent = Number(row?.spent_or_received ?? 0);
+    const before = currentSpent - (ogCatImpacts.get(id) ?? 0);
+    const after = before + (catImpacts.get(id) ?? 0);
+    catRows.push({ id, name: meta.name, allocated: Number(row?.allocated ?? meta.allocated_budget ?? 0), before, after });
+  }
+
+  // Date hint
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const cmpDate = new Date(date); cmpDate.setHours(0, 0, 0, 0);
+  const hint = cmpDate < today ? tr("add.impact.hint_past")
+    : cmpDate > today ? tr("add.impact.hint_future")
+    : null;
+
+  // Cross-currency hint
+  const xCur = type === "transfer" && source && destination &&
+    (source.currency_code ?? mainCode) !== (destination.currency_code ?? mainCode);
+
+  const fmt = (v: number, sym: string) => fmtMoney(v, sym);
+  const deltaStr = (v: number, sym: string) => {
+    const s = v >= 0 ? "+" : "−";
+    return `${s}${fmtMoney(Math.abs(v), sym)}`;
+  };
+
+  const showNetWorth = type !== "transfer" || xCur;
+
+  return (
+    <Card className="border-dashed">
+      <CardContent className="px-3 py-2 text-xs">
+        <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          {tr("add.impact.title")}
+        </div>
+        <ul className="space-y-1">
+          {accountRows.map((r) => {
+            const delta = r.after - r.before;
+            return (
+              <li key={r.id} className="flex items-baseline justify-between gap-3">
+                <span className="truncate text-muted-foreground">
+                  {tr("add.impact.account")} · {r.name}
+                </span>
+                <span className="tabular-nums">
+                  {fmt(r.before, r.sym)} → <span className="font-medium text-foreground">{fmt(r.after, r.sym)}</span>{" "}
+                  <span className={cn(delta >= 0 ? "text-success" : "text-destructive")}>({deltaStr(delta, r.sym)})</span>
+                </span>
+              </li>
+            );
+          })}
+          {showNetWorth && !netDeltaUnknown && (
+            <li className="flex items-baseline justify-between gap-3">
+              <span className="truncate text-muted-foreground">{tr("add.impact.networth")}</span>
+              <span className="tabular-nums">
+                {fmt(netBefore, mainSymbol)} → <span className="font-medium text-foreground">{fmt(netAfter, mainSymbol)}</span>{" "}
+                <span className={cn(netDelta >= 0 ? "text-success" : "text-destructive")}>({deltaStr(netDelta, mainSymbol)})</span>
+              </span>
+            </li>
+          )}
+          {catRows.map((r) => {
+            const hasBudget = r.allocated > 0;
+            const remBefore = r.allocated - r.before;
+            const remAfter = r.allocated - r.after;
+            return (
+              <li key={"cat-" + r.id} className="flex items-baseline justify-between gap-3">
+                <span className="truncate text-muted-foreground">
+                  {tr("add.impact.category")} · {r.name}
+                </span>
+                <span className="tabular-nums">
+                  {hasBudget ? (
+                    <>
+                      {tr("add.impact.remaining")}: {fmt(remBefore, mainSymbol)} →{" "}
+                      <span className={cn("font-medium", remAfter < 0 ? "text-destructive" : "text-foreground")}>
+                        {fmt(remAfter, mainSymbol)}
+                      </span>{" "}
+                      <span className="text-muted-foreground">{tr("add.impact.of", { x: fmtMoney(r.allocated, mainSymbol) })}</span>
+                    </>
+                  ) : (
+                    <>
+                      {tr("add.impact.spent")}: {fmt(r.before, mainSymbol)} →{" "}
+                      <span className="font-medium text-foreground">{fmt(r.after, mainSymbol)}</span>
+                    </>
+                  )}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+        {(hint || xCur) && (
+          <div className="mt-1 text-[11px] text-muted-foreground">
+            {hint}
+            {hint && xCur ? " · " : ""}
+            {xCur ? tr("add.impact.hint_fx") : ""}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
