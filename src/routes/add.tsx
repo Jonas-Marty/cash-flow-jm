@@ -1535,6 +1535,38 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
           }}
         />
 
+        <ImpactPreview
+          type={type}
+          amountNum={amountNum}
+          destAmountNum={(() => {
+            const n = Number(destAmount.replace(",", "."));
+            return Number.isFinite(n) && n > 0 ? n : null;
+          })()}
+          feeAmountNum={(() => {
+            if (type !== "transfer" || !feeOpen) return null;
+            const n = Number(feeAmount.replace(",", "."));
+            return Number.isFinite(n) && n > 0 ? n : null;
+          })()}
+          feeCategoryId={type === "transfer" && feeOpen ? feeCategoryId || null : null}
+          source={sourceAccount ?? null}
+          destination={destAccount ?? null}
+          category={categoryId ? categoryById.get(categoryId) ?? null : null}
+          date={date}
+          splitMode={splitMode}
+          slices={splitMode ? slices.map((s) => ({
+            amount: Number(s.amount.replace(",", ".")) || 0,
+            categoryId: s.categoryId || null,
+          })) : null}
+          categoryById={categoryById}
+          balances={balancesQ.data ?? null}
+          categoryRows={categoryMonthQ.data ?? null}
+          mainCode={settingsQ.data?.currency_code ?? "CHF"}
+          mainSymbol={mainSymbol}
+          fxRates={fxQ.data}
+          editOriginal={isEdit ? editQ.data ?? null : null}
+          tr={tr}
+        />
+
         {duplicates.length > 0 && (
           <div
             role="alert"
