@@ -46,6 +46,7 @@ import { DescriptionAutocomplete } from "@/components/DescriptionAutocomplete";
 import { AttachmentsSection, type DraftAttachment } from "@/components/AttachmentsSection";
 import { Markdown } from "@/components/Markdown";
 import { useFxRates, convert } from "@/lib/fx";
+import type { FxRates } from "@/lib/fx";
 
 export const Route = createFileRoute("/add")({
   component: AddTransactionRoute,
