@@ -1783,7 +1783,7 @@ function ImpactPreview({
   categoryRows: CategoryMonthRow[] | null;
   mainCode: string;
   mainSymbol: string;
-  fxRates: Record<string, number> | undefined;
+  fxRates: FxRates | undefined;
   editOriginal: { tx: Transaction; group: Transaction[] | null } | null;
   tr: (k: string, p?: Record<string, string>) => string;
 }) {
