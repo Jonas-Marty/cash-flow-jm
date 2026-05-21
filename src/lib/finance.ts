@@ -645,6 +645,7 @@ export async function postOccurrence(occ: RecurringOccurrence & { rule: Recurrin
   // ───── Split path: fan out into N transactions sharing a split_group_id ─────
   if (r.is_split && r.slices && r.slices.length >= 2 && r.type !== "transfer") {
     const { computeSliceAmounts } = await import("./recurringSlices");
+    const { interpolate, resolveFormatLocale } = await import("./placeholders");
     const slices = [...r.slices].sort((a, b) => a.sort_order - b.sort_order);
     const sliceAmounts = computeSliceAmounts(
       slices.map((s) => ({ amount: s.amount, amount_ratio: s.amount_ratio })),
@@ -654,6 +655,28 @@ export async function postOccurrence(occ: RecurringOccurrence & { rule: Recurrin
     const userId = u.user?.id;
     if (!userId) throw new Error("Not authenticated");
     const groupId = crypto.randomUUID();
+    // Build interpolation context for slice description/note using sibling
+    // occurrences of this rule (mirrors the SQL auto-post path).
+    const { data: sib } = await supabase
+      .from("recurring_occurrences")
+      .select("effective_on")
+      .eq("rule_id", r.id)
+      .order("effective_on", { ascending: true });
+    const siblings = (sib ?? []).map((x) => x.effective_on as string);
+    const prevStr = siblings.filter((d) => d < occ.effective_on).pop() ?? r.starts_on;
+    const nextStr = siblings.find((d) => d > occ.effective_on) ?? null;
+    const runNumber = siblings.filter((d) => d <= occ.effective_on).length || 1;
+    const settingsRow = await supabase.from("settings").select("format_locale").maybeSingle();
+    const fmtLocale = resolveFormatLocale(settingsRow.data?.format_locale);
+    const ctx = {
+      date: new Date(occurredOn),
+      dueDate: new Date(occ.due_on),
+      prevDate: new Date(prevStr),
+      nextDate: nextStr ? new Date(nextStr) : null,
+      today: new Date(),
+      runNumber,
+      locale: fmtLocale,
+    };
     const rows = slices.map((s, i) => ({
       user_id: userId,
       occurred_on: occurredOn,
@@ -662,8 +685,8 @@ export async function postOccurrence(occ: RecurringOccurrence & { rule: Recurrin
       source_account_id: r.source_account_id,
       destination_account_id: null,
       category_id: s.category_id ?? null,
-      description: s.description ?? (i === 0 ? (overrides?.description ?? r.description) : null),
-      note: s.note ?? null,
+      description: s.description ? interpolate(s.description, ctx) : null,
+      note: s.note ? interpolate(s.note, ctx) : null,
       recurring_rule_id: r.id,
       split_group_id: groupId,
       is_reimbursable: !!s.is_reimbursable,

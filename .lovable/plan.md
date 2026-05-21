@@ -1,118 +1,68 @@
-
 ## Goal
 
-Support a recurring rule like "pay internet subscription, half is reimbursable from girlfriend" as **one rule** that produces a split transaction on post, plus allow the effective date to vary per occurrence (mirror of the existing `is_variable_amount` pattern).
+Polish the recurring-rule split feature: show splits in places it's still missing, simplify the editor when a rule is split, support placeholders and tag-completion on slices, and allow auto-post for deterministic splits.
 
-## Current model recap
+## 1. Rule editor: hide top-level fields when split is active
 
-- `recurring_rules`: single-row template (type, amount or `is_variable_amount` + `estimated_amount`, one `category_id`, one `description/note`, scheduling, `auto_post`).
-- `recurring_occurrences`: schedule rows with `due_on` / `effective_on`. `postOccurrence` inserts **one** `transactions` row and links it.
-- `transactions`: already supports `split_group_id` (N sibling rows) and per-row `is_reimbursable` + `reimbursable_counterparty/reason`. The add form already builds splits this way.
+When `is_split = true` and `type !== "transfer"`:
 
-So the storage shape for splits already exists on the transaction side — what's missing is a **template** for slices on the rule side, and a **per-occurrence variable date** flag.
+- Hide rule-level **Category**, **Description**, **Note** and their PlaceholderPalette.
+- Keep **Name**, **Amount/Estimated**, **Account**, schedule, dates, toggles.
+- On save, force `category_id`, `description`, `note` to `null` for split rules (no leftovers from before the toggle).
 
-## Recommendation: extend the single rule (Option A), not two rules
+## 2. Slice editor: add Note + placeholder + tag-completion
 
-Two separate rules (Option B) is simpler but:
-- loses the conceptual link ("this slice exists because of that subscription"),
-- duplicates schedule/account/description maintenance,
-- can't auto-mark one slice reimbursable with the right counterparty,
-- and the reimbursement settlement model already links the repayment back to the original transaction — but only if that transaction exists as a single reimbursable slice. Two rules can't express "half of this specific posting is owed back".
+Each slice currently has Amount/Ratio, Category, Description, Reimbursable fields. Extend with:
 
-Go with Option A. Keep Option B available implicitly (user can still create two rules manually if they prefer).
+- **Note** field using `TagAutocompleteTextarea` (same component the Add Transaction screen uses), so `#tag` completion works against past transactions.
+- A single **PlaceholderPalette** rendered above the slice list. Insert into the most recently focused slice field (description or note). Track active slice via `{ sliceIdx, field }` state (mirrors the existing `activeField` pattern for the top-level fields).
+- Description input stays a plain `Input` but participates in caret-insert too.
 
-## Changes
+Posting path (`postOccurrence` in `src/lib/finance.ts`) currently writes `s.description` / `s.note` verbatim. Change it to run `interpolate(...)` on both, using the same context PostOccurrenceDialog already builds (date, dueDate, prevDate, nextDate, runNumber, locale). Compute `prevDate`/`nextDate`/`runNumber` by reading sibling occurrences for the rule (one extra query). Apply identical interpolation for both the manual-post and (future) auto-post path.
 
-### 1. Schema (migration)
+## 3. Settings rules list: show slices
 
-New table `recurring_rule_slices` — one row per slice on a split-capable rule:
+In `renderRule` (settings list), when `r.is_split`:
 
-```text
-recurring_rule_slices
-  id                       uuid pk
-  rule_id                  uuid fk → recurring_rules(id) on delete cascade
-  sort_order               int  not null default 0
-  amount                   numeric        -- null when rule.is_variable_amount
-  amount_ratio             numeric        -- optional: e.g. 0.5 to derive from total on variable rules
-  category_id              uuid null
-  description              text null
-  note                     text null
-  is_reimbursable          boolean not null default false
-  reimbursable_counterparty text null
-  reimbursable_reason       text null
-  created_at / updated_at  timestamptz
-```
+- Add a small `<ul>` below the existing meta line listing each slice as
+`{amount or ratio} · {category name} · {description}` plus a 🔁 badge when `is_reimbursable`.
+- Add a `Split` badge next to the existing Auto/Variable badges. Add `Variable date` badge when `is_variable_date`.
 
-RLS: same `user_id = auth.uid()` shape via parent `recurring_rules`.
+`fetchRecurringRules` already returns `slices`, no fetcher change needed.
 
-New columns on `recurring_rules`:
-- `is_split` boolean not null default false — when true, slices table drives posting and top-level `category_id` / `description` / `note` become the "fallback" / header only.
-- `is_variable_date` boolean not null default false — when true, force `auto_post = false` (mirrors how `is_variable_amount` already forces it).
+## 4. PreviewPanel: reflect splits and render note as Markdown
 
-Constraints / validation trigger:
-- if `is_split` then ≥2 slice rows must exist;
-- if not `is_variable_amount`, sum(slice.amount) must equal `rule.amount`;
-- if `is_variable_amount`, slices must use `amount_ratio` (sum = 1.0) **or** fixed `amount` values that are reconciled at post time.
+`PreviewPanel` currently shows date + resolved description per occurrence. Extend it:
 
-### 2. Posting logic (`postOccurrence` + RPC `process_recurring_rules`)
+- When `draft.is_split`, render the slices under each occurrence row: amount (computed via `computeSliceAmounts` from `recurringSlices.ts`) + interpolated slice description + reimbursable chip. For variable-amount split rules, use `estimated_amount` (or `amount` fallback) as the total so the preview can compute slice amounts; show "—" per row when no total is available.
+- When `draft.note` is set, render it via `<Markdown>` (component already exists at `src/components/Markdown.tsx`) below the description, mirroring the Add Transaction preview card.
+- When split, render each slice's note via `<Markdown>` as well.
 
-Today `postOccurrence` inserts a single transaction. Update it so:
+## 5. Allow auto-post for deterministic splits
 
-- If `rule.is_split = false`: unchanged.
-- If `rule.is_split = true`:
-  - Generate a `split_group_id` (uuid).
-  - For each slice, compute slice amount:
-    - fixed-amount rule → `slice.amount`,
-    - variable-amount rule with `amount_ratio` → `round(total * ratio, 2)` (last slice absorbs rounding diff),
-    - variable-amount rule with fixed slice amounts → use them; validate sum == entered total.
-  - Insert N transaction rows with shared `split_group_id`, `recurring_rule_id = rule.id`, per-slice `category_id`, `description`, `note`, `is_reimbursable`, `reimbursable_counterparty`, `reimbursable_reason`, `reimbursable_status = 'open'` when reimbursable.
-  - Update the occurrence with `transaction_id = <first slice id>` (or extend `recurring_occurrences` with `split_group_id uuid` — cleaner; add the column in the same migration).
+Today both the JS (`postOccurrence` works fine) and SQL (`process_recurring_rules`) treat `is_split = true` as non-auto-postable. There's no technical reason: when amount + date are fixed and slices are fixed-amount or fixed-ratio, the result is fully deterministic.
 
-Auto-post path in the SQL function `process_recurring_rules` must do the same branching. Variable-amount **or** variable-date rules stay non-auto-postable (skipped by auto-post, surfaced in Upcoming).
+Changes:
 
-### 3. Post dialog (`PostOccurrenceDialog`)
+- **Editor**: drop `is_split` from the "cannot auto-post" condition. Keep `is_variable_amount` and `is_variable_date` as auto-post blockers. Update the helper text under the Auto-post switch.
+- **Save payload**: `auto_post` only forced to `false` when `is_variable_amount || is_variable_date`.
+- **SQL migration** (`process_recurring_rules` and `process_recurring_rules_for_all_users`): remove `is_split = false` from Pass 1 and Pass 2 guards. Instead, when `r.is_split = true`, fan out into N transaction inserts by looping `recurring_rule_slices` ordered by `sort_order`, sharing a generated `split_group_id` (`gen_random_uuid()`), running `interpolate_template` on each slice's `description` and `note`, applying `is_reimbursable` / `reimbursable_*` from the slice row, and computing slice amounts:
+  - Ratio mode: `round(rule.amount * slice.amount_ratio, 2)`, with last slice absorbing remainder so the sum matches `rule.amount` to the cent.
+  - Fixed mode: use `slice.amount` as-is.
+  Attach `recurring_rule_id = r.id` to every row and store the first inserted tx id on the occurrence (matches the JS path).
+- New migration only — the existing `_efbee535_` migration stays read-only.
 
-- Date input is already editable — only needs to become **required to confirm** when `rule.is_variable_date` (small hint text).
-- When `rule.is_split`:
-  - Render a slices table (read-only categories/descriptions, editable amount column only when `is_variable_amount`).
-  - Show running total vs entered amount with a delta indicator (reuse logic from `add.tsx` split section).
-  - Show reimbursable badge per slice.
+## 6. Tests
 
-### 4. Rule editor (`RecurringRulesCard`)
+Extend `src/lib/recurringSlices.test.ts` with a small case asserting `computeSliceAmounts` returns the same shape used by the SQL fan-out (already covered) — no new test file needed.
 
-- Add "Split into multiple transactions" toggle (`is_split`). When on:
-  - Show a slices editor (amount, category, description, reimbursable toggle + counterparty/reason) — visually reuse the existing split UI from `add.tsx` (extract into a shared `<SplitSlicesEditor>` component in `src/components/`).
-  - Hide the rule-level category/description (or label them as "fallback").
-- Add "Variable effective date" toggle (`is_variable_date`). When on, disable `auto_post`.
+## Technical notes
 
-### 5. Types & helpers
+- Files touched (code): `src/components/RecurringRulesCard.tsx`, `src/lib/finance.ts`, `src/i18n/index.tsx` (a handful of new labels: split note, variable-date badge, "auto-post for splits" help text). Slice type already carries `note`.
+- New migration: `process_recurring_rules` + `_for_all_users` rewritten to handle split fan-out and to drop the `is_split = false` guard.
+- No schema changes (slice `note` column already exists).
+- No new components; reuse `TagAutocompleteTextarea`, `Markdown`, `PlaceholderPalette`, `computeSliceAmounts`.
 
-- Extend `RecurringRule` interface with `is_split`, `is_variable_date`, `slices?: RecurringRuleSlice[]`.
-- Add `RecurringRuleSlice` interface mirroring the table.
-- Update `fetchRecurringRules` / `fetchPendingOccurrences` selects to include `slices:recurring_rule_slices(*)`.
+## Open question (please confirm before I implement step 1)
 
-### 6. Tests (Vitest, pure functions only)
-
-Add `src/lib/recurringSlices.test.ts` covering:
-- ratio-based slice amount derivation with rounding remainder absorbed by last slice,
-- fixed-slice validation (sum mismatch rejected),
-- reimbursable flag carried per slice,
-- variable-date rule forces `auto_post = false`.
-
-Extract the math into `src/lib/recurringSlices.ts` so it's testable without DB.
-
-## Out of scope
-
-- Linking the **girlfriend's Twint repayment** back to the reimbursable slice is already handled by the existing reimbursable settlement flow — no changes needed there.
-- No UI for "convert two existing rules into one split rule" migration; users do that manually.
-
-## Rollout order
-
-1. Migration (table + columns + validation trigger + update to `process_recurring_rules` SQL).
-2. `src/lib/recurringSlices.ts` + tests.
-3. `RecurringRule` types + fetchers.
-4. `postOccurrence` split branch.
-5. Extract `SplitSlicesEditor` from `add.tsx`.
-6. Update `RecurringRulesCard` (toggles + editor).
-7. Update `PostOccurrenceDialog` (slice table + variable-date confirmation hint).
-8. i18n strings (de/en) for new labels.
+Currently the rule's top-level Description still has a legitimate use even when split (e.g. as a parent label, though we no longer write it to any transaction). My plan is to **hide and null it out** when `is_split` is on. Confirm — or say "keep description visible as a label only" and I'll keep it but mark it as unused for posting. --> plan to hide and null it out is the way to go - but only do that when saving the rule. It would frutrate me as a user if i togle the is_split and back just to try it out and lose the content of the description field at this moment.

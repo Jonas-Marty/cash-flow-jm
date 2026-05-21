@@ -25,6 +25,8 @@ import { useQuery as useRQuery } from "@tanstack/react-query";
 import { interpolate, resolveFormatLocale, describeTokens, type TokenInfo } from "@/lib/placeholders";
 import { TagAutocompleteTextarea } from "@/components/TagAutocompleteTextarea";
 import { validateSliceTemplate } from "@/lib/recurringSlices";
+import { computeSliceAmounts } from "@/lib/recurringSlices";
+import { Markdown } from "@/components/Markdown";
 import { Trash2 as TrashIcon } from "lucide-react";
 
 type Draft = {
@@ -189,6 +191,12 @@ export function RecurringRulesCard() {
   const noteRef = React.useRef<HTMLTextAreaElement | null>(null);
   const [activeField, setActiveField] = React.useState<"description" | "note">("description");
 
+  // For slice fields, remember which slice + which field (description/note) is
+  // currently focused so the shared PlaceholderPalette inserts at the right caret.
+  const sliceDescRefs = React.useRef<Array<HTMLInputElement | null>>([]);
+  const sliceNoteRefs = React.useRef<Array<HTMLTextAreaElement | null>>([]);
+  const [activeSlice, setActiveSlice] = React.useState<{ idx: number; field: "description" | "note" } | null>(null);
+
   const openAdd = () => { setDraft(emptyDraft()); setOpen(true); };
   const openEdit = (r: RecurringRule) => { setDraft(ruleToDraft(r)); setOpen(true); };
 
@@ -240,15 +248,15 @@ export function RecurringRulesCard() {
       source_account_id: draft.source_account_id,
       destination_account_id: draft.type === "transfer" ? draft.destination_account_id : null,
       category_id: draft.type !== "transfer" && !draft.is_split && draft.category_id ? draft.category_id : null,
-      description: draft.description.trim() || null,
-      note: draft.note.trim() || null,
+      description: draft.is_split ? null : (draft.description.trim() || null),
+      note: draft.is_split ? null : (draft.note.trim() || null),
       day_rule: draft.day_rule,
       day_of_month: draft.day_rule === "fixed_day" ? Number(draft.day_of_month) || 1 : null,
       weekend_adjust: draft.weekend_adjust,
       frequency: draft.frequency,
       starts_on: draft.starts_on,
       ends_on: draft.ends_on || null,
-      auto_post: (draft.is_variable_amount || draft.is_variable_date || draft.is_split) ? false : draft.auto_post,
+      auto_post: (draft.is_variable_amount || draft.is_variable_date) ? false : draft.auto_post,
       is_variable_date: draft.is_variable_date,
       is_split: draft.is_split,
     };
@@ -337,6 +345,12 @@ export function RecurringRulesCard() {
             {r.is_variable_amount && (
               <Badge variant="outline" className="text-[10px]">{t("recurring.variable_badge")}</Badge>
             )}
+            {r.is_variable_date && (
+              <Badge variant="outline" className="text-[10px]">{t("recurring.variable_date_badge")}</Badge>
+            )}
+            {r.is_split && (
+              <Badge variant="outline" className="text-[10px]">{t("recurring.split_badge")}</Badge>
+            )}
           </div>
           <div className="text-xs text-muted-foreground">
             {r.is_variable_amount
@@ -346,6 +360,25 @@ export function RecurringRulesCard() {
           <div className="text-xs text-muted-foreground">
             {next ? t("recurring.next_due", { x: format(next, "PP", { locale }) }) : t("recurring.no_more")}
           </div>
+          {r.is_split && r.slices && r.slices.length > 0 && (
+            <ul className="mt-1 space-y-0.5 border-l border-dashed border-border/60 pl-2 text-xs text-muted-foreground">
+              {r.slices.map((s) => {
+                const cat = categories.find((c) => c.id === s.category_id);
+                const amt = s.amount_ratio != null
+                  ? `${Math.round(Number(s.amount_ratio) * 100)}%`
+                  : (s.amount != null ? Number(s.amount).toFixed(2) : "—");
+                return (
+                  <li key={s.id} className="flex items-center gap-1.5">
+                    <span className="tabular-nums">{amt}</span>
+                    <span>·</span>
+                    <span className="truncate">{cat?.name ?? t("common.none")}</span>
+                    {s.description && <><span>·</span><span className="truncate">{s.description}</span></>}
+                    {s.is_reimbursable && <Badge variant="outline" className="ml-1 text-[10px]">🔁</Badge>}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
         <div className="flex gap-1">
           <Button variant="ghost" size="icon" onClick={() => openEdit(r)} aria-label={t("recurring.edit")}>
@@ -467,7 +500,7 @@ export function RecurringRulesCard() {
                 </Select>
               </div>
             )}
-            {draft.type !== "transfer" && (
+            {draft.type !== "transfer" && !draft.is_split && (
               <div>
                 <Label className="text-xs">{t("add.category")}</Label>
                 <Select value={draft.category_id || "__none"} onValueChange={(v) => setDraft({ ...draft, category_id: v === "__none" ? "" : v })}>
@@ -479,6 +512,8 @@ export function RecurringRulesCard() {
                 </Select>
               </div>
             )}
+            {!draft.is_split && (
+            <>
             <div>
               <Label className="text-xs" htmlFor="rec-description">{t("add.description")}</Label>
               <Input
@@ -510,6 +545,8 @@ export function RecurringRulesCard() {
                 rows={3}
               />
             </div>
+            </>
+            )}
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <Label className="text-xs">{t("recurring.field.frequency")}</Label>
@@ -588,14 +625,14 @@ export function RecurringRulesCard() {
             <div className="flex items-center justify-between rounded-md border p-3">
               <div className="min-w-0 pr-3">
                 <Label htmlFor="auto-post" className="text-sm">{t("recurring.auto_post")}</Label>
-                {(draft.is_variable_amount || draft.is_variable_date || draft.is_split) && (
+                {(draft.is_variable_amount || draft.is_variable_date) && (
                   <div className="text-xs text-muted-foreground">{t("recurring.variable_no_autopost")}</div>
                 )}
               </div>
               <Switch
                 id="auto-post"
-                checked={draft.auto_post && !draft.is_variable_amount && !draft.is_variable_date && !draft.is_split}
-                disabled={draft.is_variable_amount || draft.is_variable_date || draft.is_split}
+                checked={draft.auto_post && !draft.is_variable_amount && !draft.is_variable_date}
+                disabled={draft.is_variable_amount || draft.is_variable_date}
                 onCheckedChange={(v) => setDraft({ ...draft, auto_post: v })}
               />
             </div>
@@ -619,7 +656,7 @@ export function RecurringRulesCard() {
                 <Switch
                   id="split-rule"
                   checked={draft.is_split}
-                  onCheckedChange={(v) => setDraft({ ...draft, is_split: v, auto_post: v ? false : draft.auto_post })}
+                  onCheckedChange={(v) => setDraft({ ...draft, is_split: v })}
                 />
               </div>
             )}
@@ -632,6 +669,15 @@ export function RecurringRulesCard() {
                     <Plus className="mr-1 h-4 w-4" /> {t("recurring.split.add_slice")}
                   </Button>
                 </div>
+                <PlaceholderPalette
+                  formatLocaleCode={settingsQ.data?.format_locale}
+                  onInsert={(snippet) => insertSlicePlaceholder({
+                    snippet,
+                    active: activeSlice,
+                    draft, setDraft,
+                    sliceDescRefs, sliceNoteRefs,
+                  })}
+                />
                 {draft.slices.map((s, idx) => (
                   <div key={idx} className="rounded-md border bg-muted/30 p-2 space-y-2">
                     <div className="flex items-center justify-between">
@@ -680,11 +726,30 @@ export function RecurringRulesCard() {
                       </div>
                     </div>
                     <div>
-                      <Label className="text-xs">{t("add.description")}</Label>
-                      <Input value={s.description} onChange={(e) => {
-                        const next = [...draft.slices]; next[idx] = { ...s, description: e.target.value };
-                        setDraft({ ...draft, slices: next });
-                      }} />
+                      <Label className="text-xs">{t("recurring.split.description")}</Label>
+                      <Input
+                        ref={(el) => { sliceDescRefs.current[idx] = el; }}
+                        value={s.description}
+                        onFocus={() => setActiveSlice({ idx, field: "description" })}
+                        onChange={(e) => {
+                          const next = [...draft.slices]; next[idx] = { ...s, description: e.target.value };
+                          setDraft({ ...draft, slices: next });
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">{t("recurring.split.note")}</Label>
+                      <TagAutocompleteTextarea
+                        ref={((el: HTMLTextAreaElement | null) => { sliceNoteRefs.current[idx] = el; }) as never}
+                        value={s.note}
+                        onChange={(v) => {
+                          const next = [...draft.slices]; next[idx] = { ...s, note: v };
+                          setDraft({ ...draft, slices: next });
+                        }}
+                        onFocus={() => setActiveSlice({ idx, field: "note" })}
+                        transactions={txQ.data ?? []}
+                        rows={2}
+                      />
                     </div>
                     <div className="flex items-center justify-between rounded-md border bg-background p-2">
                       <Label htmlFor={`slice-reimb-${idx}`} className="text-xs">
@@ -801,6 +866,43 @@ function insertPlaceholder({
   if (isDesc) setDraft({ ...draft, description: next });
   else setDraft({ ...draft, note: next });
   // Restore focus + caret position after React re-render.
+  const newCaret = start + snippet.length;
+  requestAnimationFrame(() => {
+    if (!el) return;
+    el.focus();
+    try { el.setSelectionRange(newCaret, newCaret); } catch { /* unsupported */ }
+  });
+}
+
+function insertSlicePlaceholder({
+  snippet,
+  active,
+  draft,
+  setDraft,
+  sliceDescRefs,
+  sliceNoteRefs,
+}: {
+  snippet: string;
+  active: { idx: number; field: "description" | "note" } | null;
+  draft: Draft;
+  setDraft: (d: Draft) => void;
+  sliceDescRefs: React.MutableRefObject<Array<HTMLInputElement | null>>;
+  sliceNoteRefs: React.MutableRefObject<Array<HTMLTextAreaElement | null>>;
+}): void {
+  // Fall back to appending to the first slice's description if nothing focused.
+  const a = active ?? { idx: 0, field: "description" as const };
+  const slice = draft.slices[a.idx];
+  if (!slice) return;
+  const isDesc = a.field === "description";
+  const el: HTMLInputElement | HTMLTextAreaElement | null =
+    isDesc ? sliceDescRefs.current[a.idx] : sliceNoteRefs.current[a.idx];
+  const current = isDesc ? slice.description : slice.note;
+  const start = el && typeof el.selectionStart === "number" ? el.selectionStart : current.length;
+  const end = el && typeof el.selectionEnd === "number" ? el.selectionEnd : current.length;
+  const text = current.slice(0, start) + snippet + current.slice(end);
+  const next = [...draft.slices];
+  next[a.idx] = isDesc ? { ...slice, description: text } : { ...slice, note: text };
+  setDraft({ ...draft, slices: next });
   const newCaret = start + snippet.length;
   requestAnimationFrame(() => {
     if (!el) return;
@@ -938,6 +1040,22 @@ function PreviewPanel({ draft, formatLocaleCode }: { draft: Draft; formatLocaleC
   const rows = previewQ.data ?? [];
   const fmtLocale = resolveFormatLocale(formatLocaleCode);
   const startsOnDate = draft.starts_on ? parseISO(draft.starts_on) : new Date();
+  // For split preview, compute slice amounts from the rule total.
+  const splitTotal = draft.is_variable_amount
+    ? Number(draft.estimated_amount || draft.amount) || 0
+    : Number(draft.amount) || 0;
+  let sliceAmounts: number[] | null = null;
+  if (draft.is_split && splitTotal > 0 && draft.slices.length >= 2) {
+    try {
+      sliceAmounts = computeSliceAmounts(
+        draft.slices.map((s) => ({
+          amount: draft.is_variable_amount ? null : (Number(s.amount.replace(",", ".")) || 0),
+          amount_ratio: draft.is_variable_amount ? (Number(s.amount_ratio.replace(",", ".")) || 0) : null,
+        })),
+        splitTotal,
+      );
+    } catch { sliceAmounts = null; }
+  }
   return (
     <div className="rounded-md border p-3">
       <div className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{t("recurring.preview.title")}</div>
@@ -951,10 +1069,12 @@ function PreviewPanel({ draft, formatLocaleCode }: { draft: Draft; formatLocaleC
               const due = parseISO(r.due_on);
               const prev = i === 0 ? startsOnDate : parseISO(rows[i - 1].effective_on);
               const next = i < rows.length - 1 ? parseISO(rows[i + 1].effective_on) : null;
-              const resolved = interpolate(draft.description, {
+              const ctx = {
                 date: eff, dueDate: due, prevDate: prev, nextDate: next,
                 today: new Date(), runNumber: i + 1, locale: fmtLocale,
-              });
+              };
+              const resolved = interpolate(draft.description, ctx);
+              const resolvedNote = interpolate(draft.note, ctx);
               return (
                 <li key={i} className="text-xs">
                   <div className="flex items-center justify-between gap-2">
@@ -965,10 +1085,35 @@ function PreviewPanel({ draft, formatLocaleCode }: { draft: Draft; formatLocaleC
                       {r.in_past ? t("recurring.preview.past") : t("recurring.preview.future")}
                     </Badge>
                   </div>
-                  {resolved && draft.description && (
+                  {!draft.is_split && resolved && draft.description && (
                     <div className="truncate font-mono text-[11px] text-muted-foreground" title={resolved}>
                       {resolved}
                     </div>
+                  )}
+                  {!draft.is_split && draft.note.trim() && (
+                    <div className="text-[11px] text-muted-foreground">
+                      <Markdown>{resolvedNote.trim()}</Markdown>
+                    </div>
+                  )}
+                  {draft.is_split && draft.slices.length > 0 && (
+                    <ul className="mt-1 space-y-0.5 border-l border-dashed border-border/60 pl-2">
+                      {draft.slices.map((s, si) => {
+                        const sResolvedDesc = interpolate(s.description, ctx);
+                        const sResolvedNote = interpolate(s.note, ctx);
+                        const amt = sliceAmounts ? sliceAmounts[si]?.toFixed(2) : "—";
+                        return (
+                          <li key={si} className="text-[11px] text-muted-foreground">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="truncate">{sResolvedDesc || `${t("recurring.split.slice", { n: si + 1 })}`}</span>
+                              <span className="tabular-nums">{amt}</span>
+                            </div>
+                            {s.note.trim() && (
+                              <div className="text-[11px]"><Markdown>{sResolvedNote.trim()}</Markdown></div>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
                   )}
                 </li>
               );
