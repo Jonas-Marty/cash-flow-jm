@@ -849,6 +849,43 @@ function insertPlaceholder({
   });
 }
 
+function insertSlicePlaceholder({
+  snippet,
+  active,
+  draft,
+  setDraft,
+  sliceDescRefs,
+  sliceNoteRefs,
+}: {
+  snippet: string;
+  active: { idx: number; field: "description" | "note" } | null;
+  draft: Draft;
+  setDraft: (d: Draft) => void;
+  sliceDescRefs: React.MutableRefObject<Array<HTMLInputElement | null>>;
+  sliceNoteRefs: React.MutableRefObject<Array<HTMLTextAreaElement | null>>;
+}): void {
+  // Fall back to appending to the first slice's description if nothing focused.
+  const a = active ?? { idx: 0, field: "description" as const };
+  const slice = draft.slices[a.idx];
+  if (!slice) return;
+  const isDesc = a.field === "description";
+  const el: HTMLInputElement | HTMLTextAreaElement | null =
+    isDesc ? sliceDescRefs.current[a.idx] : sliceNoteRefs.current[a.idx];
+  const current = isDesc ? slice.description : slice.note;
+  const start = el && typeof el.selectionStart === "number" ? el.selectionStart : current.length;
+  const end = el && typeof el.selectionEnd === "number" ? el.selectionEnd : current.length;
+  const text = current.slice(0, start) + snippet + current.slice(end);
+  const next = [...draft.slices];
+  next[a.idx] = isDesc ? { ...slice, description: text } : { ...slice, note: text };
+  setDraft({ ...draft, slices: next });
+  const newCaret = start + snippet.length;
+  requestAnimationFrame(() => {
+    if (!el) return;
+    el.focus();
+    try { el.setSelectionRange(newCaret, newCaret); } catch { /* unsupported */ }
+  });
+}
+
 function PlaceholderPalette({
   onInsert,
   formatLocaleCode,
