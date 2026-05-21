@@ -191,6 +191,12 @@ export function RecurringRulesCard() {
   const noteRef = React.useRef<HTMLTextAreaElement | null>(null);
   const [activeField, setActiveField] = React.useState<"description" | "note">("description");
 
+  // For slice fields, remember which slice + which field (description/note) is
+  // currently focused so the shared PlaceholderPalette inserts at the right caret.
+  const sliceDescRefs = React.useRef<Array<HTMLInputElement | null>>([]);
+  const sliceNoteRefs = React.useRef<Array<HTMLTextAreaElement | null>>([]);
+  const [activeSlice, setActiveSlice] = React.useState<{ idx: number; field: "description" | "note" } | null>(null);
+
   const openAdd = () => { setDraft(emptyDraft()); setOpen(true); };
   const openEdit = (r: RecurringRule) => { setDraft(ruleToDraft(r)); setOpen(true); };
 
