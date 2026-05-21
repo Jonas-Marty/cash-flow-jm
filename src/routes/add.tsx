@@ -21,6 +21,10 @@ import {
   extractTags, fmtMoney,
   type TxType, type Transaction, type ReimbursementLink,
 } from "@/lib/finance";
+import {
+  fetchAccountBalances, fetchCategoryMonthRows, monthKey,
+  type AccountBalance, type CategoryMonthRow,
+} from "@/lib/finance";
 import { EntityVisual } from "@/components/EntityVisual";
 import { AlertTriangle, Link as LinkIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
