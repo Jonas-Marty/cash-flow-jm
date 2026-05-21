@@ -1040,6 +1040,22 @@ function PreviewPanel({ draft, formatLocaleCode }: { draft: Draft; formatLocaleC
   const rows = previewQ.data ?? [];
   const fmtLocale = resolveFormatLocale(formatLocaleCode);
   const startsOnDate = draft.starts_on ? parseISO(draft.starts_on) : new Date();
+  // For split preview, compute slice amounts from the rule total.
+  const splitTotal = draft.is_variable_amount
+    ? Number(draft.estimated_amount || draft.amount) || 0
+    : Number(draft.amount) || 0;
+  let sliceAmounts: number[] | null = null;
+  if (draft.is_split && splitTotal > 0 && draft.slices.length >= 2) {
+    try {
+      sliceAmounts = computeSliceAmounts(
+        draft.slices.map((s) => ({
+          amount: draft.is_variable_amount ? null : (Number(s.amount.replace(",", ".")) || 0),
+          amount_ratio: draft.is_variable_amount ? (Number(s.amount_ratio.replace(",", ".")) || 0) : null,
+        })),
+        splitTotal,
+      );
+    } catch { sliceAmounts = null; }
+  }
   return (
     <div className="rounded-md border p-3">
       <div className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{t("recurring.preview.title")}</div>
@@ -1053,10 +1069,12 @@ function PreviewPanel({ draft, formatLocaleCode }: { draft: Draft; formatLocaleC
               const due = parseISO(r.due_on);
               const prev = i === 0 ? startsOnDate : parseISO(rows[i - 1].effective_on);
               const next = i < rows.length - 1 ? parseISO(rows[i + 1].effective_on) : null;
-              const resolved = interpolate(draft.description, {
+              const ctx = {
                 date: eff, dueDate: due, prevDate: prev, nextDate: next,
                 today: new Date(), runNumber: i + 1, locale: fmtLocale,
-              });
+              };
+              const resolved = interpolate(draft.description, ctx);
+              const resolvedNote = interpolate(draft.note, ctx);
               return (
                 <li key={i} className="text-xs">
                   <div className="flex items-center justify-between gap-2">
@@ -1067,10 +1085,35 @@ function PreviewPanel({ draft, formatLocaleCode }: { draft: Draft; formatLocaleC
                       {r.in_past ? t("recurring.preview.past") : t("recurring.preview.future")}
                     </Badge>
                   </div>
-                  {resolved && draft.description && (
+                  {!draft.is_split && resolved && draft.description && (
                     <div className="truncate font-mono text-[11px] text-muted-foreground" title={resolved}>
                       {resolved}
                     </div>
+                  )}
+                  {!draft.is_split && draft.note.trim() && (
+                    <div className="text-[11px] text-muted-foreground">
+                      <Markdown>{resolvedNote.trim()}</Markdown>
+                    </div>
+                  )}
+                  {draft.is_split && draft.slices.length > 0 && (
+                    <ul className="mt-1 space-y-0.5 border-l border-dashed border-border/60 pl-2">
+                      {draft.slices.map((s, si) => {
+                        const sResolvedDesc = interpolate(s.description, ctx);
+                        const sResolvedNote = interpolate(s.note, ctx);
+                        const amt = sliceAmounts ? sliceAmounts[si]?.toFixed(2) : "—";
+                        return (
+                          <li key={si} className="text-[11px] text-muted-foreground">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="truncate">{sResolvedDesc || `${t("recurring.split.slice", { n: si + 1 })}`}</span>
+                              <span className="tabular-nums">{amt}</span>
+                            </div>
+                            {s.note.trim() && (
+                              <div className="text-[11px]"><Markdown>{sResolvedNote.trim()}</Markdown></div>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
                   )}
                 </li>
               );
