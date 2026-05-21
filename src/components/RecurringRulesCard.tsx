@@ -625,7 +625,7 @@ export function RecurringRulesCard() {
                 <Switch
                   id="split-rule"
                   checked={draft.is_split}
-                  onCheckedChange={(v) => setDraft({ ...draft, is_split: v, auto_post: v ? false : draft.auto_post })}
+                  onCheckedChange={(v) => setDraft({ ...draft, is_split: v })}
                 />
               </div>
             )}
