@@ -469,7 +469,7 @@ export function RecurringRulesCard() {
                 </Select>
               </div>
             )}
-            {draft.type !== "transfer" && (
+            {draft.type !== "transfer" && !draft.is_split && (
               <div>
                 <Label className="text-xs">{t("add.category")}</Label>
                 <Select value={draft.category_id || "__none"} onValueChange={(v) => setDraft({ ...draft, category_id: v === "__none" ? "" : v })}>
@@ -481,6 +481,8 @@ export function RecurringRulesCard() {
                 </Select>
               </div>
             )}
+            {!draft.is_split && (
+            <>
             <div>
               <Label className="text-xs" htmlFor="rec-description">{t("add.description")}</Label>
               <Input
@@ -512,6 +514,8 @@ export function RecurringRulesCard() {
                 rows={3}
               />
             </div>
+            </>
+            )}
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <Label className="text-xs">{t("recurring.field.frequency")}</Label>
