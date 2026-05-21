@@ -184,6 +184,66 @@ export function RecurringRulesCard() {
   const [open, setOpen] = React.useState(false);
   const [draft, setDraft] = React.useState<Draft>(emptyDraft());
 
+  // When editing, fetch the rule's existing occurrences so we can show what is
+  // already posted vs. pending and decide whether to expose the "fill past
+  // dates" backfill block or the smaller "fill the gap" variant.
+  const occStatsQ = useQuery({
+    queryKey: ["recurring_occurrences_for_rule", draft.id],
+    enabled: !!draft.id && open,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("recurring_occurrences")
+        .select("status, effective_on")
+        .eq("rule_id", draft.id!);
+      if (error) throw error;
+      return (data ?? []) as Array<{ status: string; effective_on: string }>;
+    },
+  });
+  const occStats = React.useMemo(() => {
+    const all = occStatsQ.data ?? [];
+    const posted = all.filter((o) => o.status === "posted");
+    const pending = all.filter((o) => o.status === "pending");
+    const lastPostedEffOn = posted.length
+      ? posted.reduce((a, b) => (a.effective_on > b.effective_on ? a : b)).effective_on
+      : null;
+    return { postedCount: posted.length, pendingCount: pending.length, lastPostedEffOn };
+  }, [occStatsQ.data]);
+
+  const isNew = !draft.id;
+  const startsPast = !!draft.starts_on && draft.starts_on < todayStr();
+  // "Fresh" past start: new rule, or editing a rule that has nothing posted yet.
+  // User picks from 3 backfill modes (none / post / pending).
+  const freshPastMode = startsPast && (isNew || occStats.postedCount === 0);
+  // "Gap" mode: editing a rule that already has posted history, but starts_on
+  // is in the past (gap between last posted and today, or simply the user just
+  // changed starts_on backwards). Only 2 choices to avoid silent auto-post.
+  const gapPastMode = !isNew && occStats.postedCount > 0 && startsPast && !freshPastMode;
+  const showBackfill = freshPastMode || gapPastMode;
+
+  // Will the save trigger any past auto-post?
+  // - Fresh mode + backfill="post" → applyRecurringRuleBackfill creates posted txs.
+  // - Edit with auto_post on + past pending occurrences that will remain (or be
+  //   re-created): Pass 1 of process_recurring_rules will auto-post them.
+  const deterministicAuto =
+    draft.auto_post && !draft.is_variable_amount && !draft.is_variable_date;
+
+  // Reset backfill choice when the mode changes so a stale "post" choice from a
+  // previous draft doesn't silently apply in gap mode (where it's hidden).
+  React.useEffect(() => {
+    if (!showBackfill && draft.backfill !== "none") {
+      setDraft((d) => ({ ...d, backfill: "none" }));
+    } else if (gapPastMode && draft.backfill === "post") {
+      setDraft((d) => ({ ...d, backfill: "none" }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showBackfill, gapPastMode]);
+
+  // Pre-save confirm gate state.
+  const [pendingConfirm, setPendingConfirm] = React.useState<{
+    count: number;
+    sum: number;
+  } | null>(null);
+
   // Track which text field is focused so a placeholder click inserts at the
   // caret of that field (description Input or note Textarea). Defaults to
   // description when the dialog opens.
