@@ -594,14 +594,14 @@ export function RecurringRulesCard() {
             <div className="flex items-center justify-between rounded-md border p-3">
               <div className="min-w-0 pr-3">
                 <Label htmlFor="auto-post" className="text-sm">{t("recurring.auto_post")}</Label>
-                {(draft.is_variable_amount || draft.is_variable_date || draft.is_split) && (
+                {(draft.is_variable_amount || draft.is_variable_date) && (
                   <div className="text-xs text-muted-foreground">{t("recurring.variable_no_autopost")}</div>
                 )}
               </div>
               <Switch
                 id="auto-post"
-                checked={draft.auto_post && !draft.is_variable_amount && !draft.is_variable_date && !draft.is_split}
-                disabled={draft.is_variable_amount || draft.is_variable_date || draft.is_split}
+                checked={draft.auto_post && !draft.is_variable_amount && !draft.is_variable_date}
+                disabled={draft.is_variable_amount || draft.is_variable_date}
                 onCheckedChange={(v) => setDraft({ ...draft, auto_post: v })}
               />
             </div>
