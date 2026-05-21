@@ -1876,24 +1876,33 @@ function ImpactPreview({
   const netAfter = netBefore + netDelta;
 
   // Category rows. For splits, one per slice category; else single category.
-  // For income, spent_or_received still grows by amount (received).
+  // Sign follows `category_month_spending.spent_or_received` convention:
+  //  - income kind:   income → +amount, expense → -amount
+  //  - expense/savings kind: expense → +amount, income (refund) → -amount
+  // So an income posted to an expense category reduces "spent" and
+  // increases "remaining" (reimbursement / refund case).
   // Drift category in source currency assumed = main currency for the budget
   // view (budgets are in main currency in this app).
   type CatItem = { id: string; name: string; allocated: number; before: number; after: number };
   const catImpacts = new Map<string, number>();
+  const catSign = (catId: string, txType: TxType): number => {
+    const kind = rowByCat.get(catId)?.kind ?? "expense";
+    if (kind === "income") return txType === "income" ? 1 : -1;
+    return txType === "income" ? -1 : 1;
+  };
   if (type !== "transfer") {
     if (splitMode && slices) {
       for (const s of slices) {
         if (!s.categoryId || s.amount <= 0) continue;
-        catImpacts.set(s.categoryId, (catImpacts.get(s.categoryId) ?? 0) + s.amount);
+        catImpacts.set(s.categoryId, (catImpacts.get(s.categoryId) ?? 0) + s.amount * catSign(s.categoryId, type));
       }
     } else if (category) {
-      catImpacts.set(category.id, amountNum);
+      catImpacts.set(category.id, amountNum * catSign(category.id, type));
     }
   }
   // Fee creates an extra expense in feeCategory on transfers.
   if (feeAmountNum != null && feeCategoryId) {
-    catImpacts.set(feeCategoryId, (catImpacts.get(feeCategoryId) ?? 0) + feeAmountNum);
+    catImpacts.set(feeCategoryId, (catImpacts.get(feeCategoryId) ?? 0) + feeAmountNum * catSign(feeCategoryId, "expense"));
   }
   // Back out original category spent for same month
   const sameMonth = (iso: string) => {
@@ -1907,10 +1916,10 @@ function ImpactPreview({
       if (r.type === "transfer") continue;
       if (!r.category_id) continue;
       if (!sameMonth(r.occurred_on)) continue;
-      ogCatImpacts.set(r.category_id, (ogCatImpacts.get(r.category_id) ?? 0) + Number(r.amount));
+      ogCatImpacts.set(r.category_id, (ogCatImpacts.get(r.category_id) ?? 0) + Number(r.amount) * catSign(r.category_id, r.type));
     }
     if (original.fee_amount != null && Number(original.fee_amount) > 0 && original.fee_category_id && sameMonth(original.occurred_on)) {
-      ogCatImpacts.set(original.fee_category_id, (ogCatImpacts.get(original.fee_category_id) ?? 0) + Number(original.fee_amount));
+      ogCatImpacts.set(original.fee_category_id, (ogCatImpacts.get(original.fee_category_id) ?? 0) + Number(original.fee_amount) * catSign(original.fee_category_id, "expense"));
     }
   }
   const catRows: CatItem[] = [];
