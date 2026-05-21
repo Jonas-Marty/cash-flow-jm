@@ -1137,7 +1137,20 @@ function PlaceholderChip({
   );
 }
 
-function PreviewPanel({ draft, formatLocaleCode }: { draft: Draft; formatLocaleCode?: string }) {
+function PreviewPanel({
+  draft, formatLocaleCode,
+  isNew, postedCount, pendingCount, lastPostedEffOn,
+  showBackfillBlock, deterministicAuto,
+}: {
+  draft: Draft;
+  formatLocaleCode?: string;
+  isNew: boolean;
+  postedCount: number;
+  pendingCount: number;
+  lastPostedEffOn: string | null;
+  showBackfillBlock: boolean;
+  deterministicAuto: boolean;
+}) {
   const { t, locale } = useI18n();
   const today = todayStr();
   // Window: 12 months ahead, and far enough back to always cover starts_on.
