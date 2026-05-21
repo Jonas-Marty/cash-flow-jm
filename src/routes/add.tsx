@@ -380,6 +380,14 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     return isFinite(n) && n > 0 ? n : null;
   }, [amount]);
 
+  // Month bucket for the chosen transaction date — used by the impact preview
+  // to read the affected category's monthly envelope (spent vs allocated).
+  const impactMonth = React.useMemo(() => monthKey(date), [date]);
+  const categoryMonthQ = useQuery({
+    queryKey: ["category_month_spending", impactMonth],
+    queryFn: () => fetchCategoryMonthRows(impactMonth),
+  });
+
   // Duplicate-warning: same source account + same date + same amount.
   // For splits, compare against the per-slice amount (skip — too noisy).
   const duplicates = React.useMemo<Transaction[]>(() => {
