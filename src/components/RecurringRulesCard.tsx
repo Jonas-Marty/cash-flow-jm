@@ -644,6 +644,15 @@ export function RecurringRulesCard() {
                     <Plus className="mr-1 h-4 w-4" /> {t("recurring.split.add_slice")}
                   </Button>
                 </div>
+                <PlaceholderPalette
+                  formatLocaleCode={settingsQ.data?.format_locale}
+                  onInsert={(snippet) => insertSlicePlaceholder({
+                    snippet,
+                    active: activeSlice,
+                    draft, setDraft,
+                    sliceDescRefs, sliceNoteRefs,
+                  })}
+                />
                 {draft.slices.map((s, idx) => (
                   <div key={idx} className="rounded-md border bg-muted/30 p-2 space-y-2">
                     <div className="flex items-center justify-between">
@@ -692,11 +701,30 @@ export function RecurringRulesCard() {
                       </div>
                     </div>
                     <div>
-                      <Label className="text-xs">{t("add.description")}</Label>
-                      <Input value={s.description} onChange={(e) => {
-                        const next = [...draft.slices]; next[idx] = { ...s, description: e.target.value };
-                        setDraft({ ...draft, slices: next });
-                      }} />
+                      <Label className="text-xs">{t("recurring.split.description")}</Label>
+                      <Input
+                        ref={(el) => { sliceDescRefs.current[idx] = el; }}
+                        value={s.description}
+                        onFocus={() => setActiveSlice({ idx, field: "description" })}
+                        onChange={(e) => {
+                          const next = [...draft.slices]; next[idx] = { ...s, description: e.target.value };
+                          setDraft({ ...draft, slices: next });
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">{t("recurring.split.note")}</Label>
+                      <TagAutocompleteTextarea
+                        ref={((el: HTMLTextAreaElement | null) => { sliceNoteRefs.current[idx] = el; }) as never}
+                        value={s.note}
+                        onChange={(v) => {
+                          const next = [...draft.slices]; next[idx] = { ...s, note: v };
+                          setDraft({ ...draft, slices: next });
+                        }}
+                        onFocus={() => setActiveSlice({ idx, field: "note" })}
+                        transactions={txQ.data ?? []}
+                        rows={2}
+                      />
                     </div>
                     <div className="flex items-center justify-between rounded-md border bg-background p-2">
                       <Label htmlFor={`slice-reimb-${idx}`} className="text-xs">
