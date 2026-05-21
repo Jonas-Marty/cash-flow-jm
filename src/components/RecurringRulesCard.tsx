@@ -869,7 +869,7 @@ export function RecurringRulesCard() {
                 ))}
               </div>
             )}
-            {!draft.id && draft.starts_on < todayStr() && (
+            {freshPastMode && (
               <div className="rounded-md border p-3 space-y-2">
                 <div className="text-sm font-medium">{t("recurring.backfill.title")}</div>
                 <div className="grid gap-2">
@@ -908,11 +908,66 @@ export function RecurringRulesCard() {
                 </div>
               </div>
             )}
-            <PreviewPanel draft={draft} formatLocaleCode={settingsQ.data?.format_locale} />
+            {gapPastMode && (
+              <div className="rounded-md border p-3 space-y-2">
+                <div className="text-sm font-medium">{t("recurring.backfill.gap_title")}</div>
+                <div className="grid gap-2">
+                  <label className="flex items-start gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="backfill"
+                      className="mt-1"
+                      checked={draft.backfill === "none"}
+                      onChange={() => setDraft({ ...draft, backfill: "none" })}
+                    />
+                    <span>{t("recurring.backfill.gap_none")}</span>
+                  </label>
+                  <label className="flex items-start gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="backfill"
+                      className="mt-1"
+                      checked={draft.backfill === "pending"}
+                      onChange={() => setDraft({ ...draft, backfill: "pending" })}
+                    />
+                    <span>{t("recurring.backfill.gap_pending")}</span>
+                  </label>
+                </div>
+              </div>
+            )}
+            <PreviewPanel
+              draft={draft}
+              formatLocaleCode={settingsQ.data?.format_locale}
+              isNew={isNew}
+              postedCount={occStats.postedCount}
+              pendingCount={occStats.pendingCount}
+              lastPostedEffOn={occStats.lastPostedEffOn}
+              showBackfillBlock={showBackfill}
+              deterministicAuto={deterministicAuto}
+            />
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
-            <Button onClick={save}>{t("common.save")}</Button>
+            <Button onClick={() => save()}>{t("common.save")}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={!!pendingConfirm} onOpenChange={(o) => { if (!o) setPendingConfirm(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("recurring.confirm_post_past.title")}</DialogTitle>
+          </DialogHeader>
+          <div className="text-sm text-muted-foreground">
+            {t("recurring.confirm_post_past.body", {
+              n: pendingConfirm?.count ?? 0,
+              sum: (pendingConfirm?.sum ?? 0).toFixed(2),
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setPendingConfirm(null)}>{t("common.cancel")}</Button>
+            <Button onClick={() => { setPendingConfirm(null); save({ confirmedPastPost: true }); }}>
+              {t("recurring.confirm_post_past.confirm")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
