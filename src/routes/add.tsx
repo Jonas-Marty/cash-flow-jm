@@ -102,6 +102,7 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
       return new Set((data ?? []).map((r) => r.transaction_id as string));
     },
   });
+  const balancesQ = useQuery({ queryKey: ["account_balances"], queryFn: fetchAccountBalances });
 
   const accounts = (accountsQ.data ?? []).filter((a) => !a.archived);
   const categories = (categoriesQ.data ?? []).filter((c) => !c.archived);
