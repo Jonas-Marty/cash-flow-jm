@@ -345,6 +345,12 @@ export function RecurringRulesCard() {
             {r.is_variable_amount && (
               <Badge variant="outline" className="text-[10px]">{t("recurring.variable_badge")}</Badge>
             )}
+            {r.is_variable_date && (
+              <Badge variant="outline" className="text-[10px]">{t("recurring.variable_date_badge")}</Badge>
+            )}
+            {r.is_split && (
+              <Badge variant="outline" className="text-[10px]">{t("recurring.split_badge")}</Badge>
+            )}
           </div>
           <div className="text-xs text-muted-foreground">
             {r.is_variable_amount
@@ -354,6 +360,25 @@ export function RecurringRulesCard() {
           <div className="text-xs text-muted-foreground">
             {next ? t("recurring.next_due", { x: format(next, "PP", { locale }) }) : t("recurring.no_more")}
           </div>
+          {r.is_split && r.slices && r.slices.length > 0 && (
+            <ul className="mt-1 space-y-0.5 border-l border-dashed border-border/60 pl-2 text-xs text-muted-foreground">
+              {r.slices.map((s) => {
+                const cat = categories.find((c) => c.id === s.category_id);
+                const amt = s.amount_ratio != null
+                  ? `${Math.round(Number(s.amount_ratio) * 100)}%`
+                  : (s.amount != null ? Number(s.amount).toFixed(2) : "—");
+                return (
+                  <li key={s.id} className="flex items-center gap-1.5">
+                    <span className="tabular-nums">{amt}</span>
+                    <span>·</span>
+                    <span className="truncate">{cat?.name ?? t("common.none")}</span>
+                    {s.description && <><span>·</span><span className="truncate">{s.description}</span></>}
+                    {s.is_reimbursable && <Badge variant="outline" className="ml-1 text-[10px]">🔁</Badge>}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </div>
         <div className="flex gap-1">
           <Button variant="ghost" size="icon" onClick={() => openEdit(r)} aria-label={t("recurring.edit")}>
