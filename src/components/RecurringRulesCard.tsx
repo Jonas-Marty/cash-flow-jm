@@ -25,6 +25,8 @@ import { useQuery as useRQuery } from "@tanstack/react-query";
 import { interpolate, resolveFormatLocale, describeTokens, type TokenInfo } from "@/lib/placeholders";
 import { TagAutocompleteTextarea } from "@/components/TagAutocompleteTextarea";
 import { validateSliceTemplate } from "@/lib/recurringSlices";
+import { computeSliceAmounts } from "@/lib/recurringSlices";
+import { Markdown } from "@/components/Markdown";
 import { Trash2 as TrashIcon } from "lucide-react";
 
 type Draft = {
