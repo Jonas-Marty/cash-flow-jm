@@ -1,98 +1,70 @@
-## Current state (answering your questions first)
+## Goal
 
-**1. The "Choose below…" hint with no button.**
-The backfill choice (3 radio options: Don't create / Post now / Pending) **does exist** in `RecurringRulesCard.tsx` (lines 789–827), but it is gated on `!draft.id` — i.e. only shown when creating a **new** rule. When you edit an existing rule, the hint text in the preview panel ("Start date is in the past. Choose below…") still renders, but the radio group above it is hidden. That's the bug you saw.
+Add a compact, informational "Impact" block under the existing `TransactionPreview` on `/add` (and edit mode) that shows how saving the transaction will change:
 
-**2. How edited rules currently behave.**
-On save of an existing rule (lines 269–280):
+- Source account balance
+- Destination account balance (transfers only)
+- Net worth (income/expense only — transfers between own accounts don't change it)
+- The affected category's monthly envelope (one row per category; multiple rows when split)
 
-- All `pending` occurrences for the rule are deleted.
-- `process_recurring_rules` is called → it regenerates pending occurrences from `starts_on` forward, and auto-posts any whose `effective_on <= today` if `auto_post = true`.
-- `posted` occurrences (those linked to real transactions) are **kept** untouched.
+Format per row: `Label · before XX.XX → after YY.YY (±delta)`, two columns on desktop, stacked on mobile. Subdued styling (muted text, small badges), no card chrome — just a tight section under the preview.
 
-So today, editing a rule whose `starts_on` is in the past and that has `auto_post = true` can silently re-create missing past transactions — without telling the user. Editing a non-split rule into a split rule doesn't touch already-posted occurrences (good), but the next `process_recurring_rules` run will fan out any *pending* occurrence into multiple split transactions — including past ones if `auto_post` is on.
+## Behavior
 
-**3. Variable amount / variable date / auto-post effects on save.**
+**Computation**
 
-- `is_variable_amount` or `is_variable_date` → forces `auto_post = false` on save (line 259). Pending occurrences are created but never auto-posted; user must confirm them via the Upcoming card.
-- `auto_post = true` (and neither variable flag) → `process_recurring_rules` will post past-due pending occurrences immediately.
+- Read balances via existing `fetchAccountBalances` (query key `["account_balances"]` — or add it; check what's already cached on Dashboard).
+- Read this month's category rows via `fetchCategoryMonthRows(monthKey(date))`; the affected month follows the picked transaction date.
+- Signed delta per account:
+  - expense: `source -= amount`
+  - income:  `source += amount`
+  - transfer: `source -= amount`, `destination += destAmount ?? amount`
+- Net worth delta: sum of per-account deltas (transfer between two of the user's accounts nets to ~0, except a cross-currency transfer where source/dest differ → show the FX-converted residual as the net-worth delta, reusing `useFxRates` + `convert`, same as Dashboard). Transfer feed are also cosidred.
+- Category delta uses `spent_or_received` semantics already in `CategoryMonthRow`; show `remaining = allocated - spent` going from before → after. For splits, one row per slice category (collapse duplicates by summing).
 
-There is currently no UI surface that tells the user "saving this will create N past transactions and M pending ones."
+**Edit mode**
 
----
+- When `editId` is set, subtract the existing transaction's effect from the "before" so the displayed before is "balance without this transaction" and the after is "balance with the edited values". Reuse the loaded `editQ` data for the original amounts/category/accounts/date.
 
-## Plan
+**Past / future date hint**
 
-### Step 1 — Show backfill choice when editing too (when relevant)
+- If `date < today`: small muted note "Preview assumes this is already posted. The amount will land on its actual date in historical views."
+- If `date > today`: "Future-dated. Account and budget impact shown as if posted now."
+- No hint when date == today.
 
-Change the gating from `!draft.id` to "starts_on is in the past **and** there is no posted history for this rule yet". Reason: once a rule already has posted occurrences, full backfill UX gets confusing — the user is really asking "fill the gap since last posted". For the gap case we surface a tighter set of options:
+**Cross-currency note**
 
-- **New rule, past start** → existing 3 options (None / Post now / Pending) — unchanged.
-- **Edited rule with no posted occurrences yet, past start** → same 3 options.
-- **Edited rule with posted occurrences, gap between last posted and today** → 2 options: *Don't fill the gap* (default) / *Create gap entries as pending*. No silent auto-post. Auto-posting requires `auto_post = true` and the rule's normal mechanism on the next run; the gap UI explicitly opts in.
-- **Edited rule, no past gap** → no backfill block, no past hint.
+- When source and destination currencies differ, add a one-line hint that the net-worth delta uses today's FX rate.
 
-Fix the misleading "Choose below…" preview hint: only render it when the radio block above is actually visible.
+**Empty / loading states**
 
-### Step 2 — Pre-save impact summary
+- If amount is empty/invalid or no source account selected → hide the block (same trigger the existing preview uses for amount).
+- If balances/category rows are still loading → render skeleton rows (1 line each) so layout doesn't jump.
 
-Add a small "What will happen on save" block above the Save button, recomputed live from the draft. It enumerates:
+## UI sketch
 
-- **N past transactions auto-posted now** (only if `auto_post && !is_variable_amount && !is_variable_date` and there are past pending dates that would result).
-- **N past entries created as pending** (if backfill = pending, or auto-post is off).
-- **N future pending occurrences scheduled** through the 14-month horizon.
-- **For edits**: "X existing pending occurrences will be regenerated; Y posted transactions stay untouched."
-- **For split**: "Each occurrence will be split into K transactions sharing a split group."
-- **Variable amount / variable date** → "Each occurrence requires manual confirmation before posting" (so the user understands why `auto_post` was forced off).
+```text
+Impact
+  Account · UBS CHF        1'240.50 → 1'180.50   (−60.00)
+  Net worth                12'430.10 → 12'370.10 (−60.00)
+  Category · Internet      remaining 40.00 → −20.00 of 80.00
+  ⓘ Future-dated. Shown as if posted now.
+```
 
-Numbers come from the same `previewRecurringRule` query the panel already runs, plus a cheap count query for existing pending/posted occurrences on edit. No new RPC needed.
+## Files to touch
 
-### Step 3 — Confirmation gate for destructive/surprising saves
+- `src/routes/add.tsx`
+  - Add two queries: `accountBalancesQ` and `categoryMonthQ` (keyed on `monthKey(date)`).
+  - New `<ImpactPreview …/>` component rendered directly under `<TransactionPreview …/>` (around line 1523).
+  - Pass `editOriginal` (from `editQ.data`) so edit mode can back out the old effect.
+- `src/i18n/index.tsx`
+  - New keys under `add.impact.*` (DE/EN): `title`, `account`, `networth`, `category_remaining`, `hint_past`, `hint_future`, `hint_fx`.
 
-When the impact summary says "N past transactions will be auto-posted now" with N ≥ 1, the Save button opens a small confirm dialog listing the dates and total amount, with Cancel / Confirm. This prevents the silent-creation footgun for both new and edited rules. Triggered identically when toggling `auto_post` from off → on on an existing rule whose `starts_on` is in the past.
+No backend, schema, or business-logic changes. Pure presentation, all data already exposed by existing helpers (`fetchAccountBalances`, `fetchCategoryMonthRows`, `useFxRates`/`convert`).
 
-### Step 4 — Split-conversion safety (edits only)
+## Open questions
 
-When the user flips `is_split` on for an existing rule, the impact summary explicitly calls out: "Splits will only apply to upcoming occurrences. Existing posted transactions are not retroactively split." Already true in code (posted occurrences aren't touched). No behavior change needed beyond the user-facing message.
-
-### Step 5 — Reflect live changes for date/interval/variable/auto-post
-
-PreviewPanel already re-queries on `frequency / day_rule / day_of_month / weekend_adjust / starts_on / ends_on` changes. Extend the impact summary's dependency list to also include `is_variable_amount`, `is_variable_date`, `auto_post`, `is_split`, and (on edit) the rule id, so the user sees the consequence the moment they toggle any of these.
-
-### Step 6 — i18n
-
-Add new labels (DE + EN):
-
-- `recurring.impact.title`
-- `recurring.impact.auto_post_past` ({n}, {sum})
-- `recurring.impact.pending_past` ({n})
-- `recurring.impact.future` ({n})
-- `recurring.impact.regenerated` ({pending}, {posted})
-- `recurring.impact.split_note` ({k})
-- `recurring.impact.variable_note`
-- `recurring.backfill.gap_title`, `recurring.backfill.gap_none`, `recurring.backfill.gap_pending`
-- `recurring.confirm_post_past.title` / `.body` / `.confirm`
-
-Drop / re-scope `recurring.preview.note_past` so it only shows when the radio block is hidden but the start is still in the past (defensive).
-
----
-
-## Technical notes
-
-- Files: `src/components/RecurringRulesCard.tsx` (gating + impact summary + confirm dialog), `src/i18n/index.tsx` (new labels). No SQL changes.
-- New cheap query on edit only: count of `recurring_occurrences` where `rule_id = draft.id` grouped by `status` — used for the "regenerated / kept" line and for the gap-only branch.
-- Confirm dialog reuses existing `Dialog` primitives — no new components.
-- No change to `process_recurring_rules` behavior; the existing semantics (delete pending → regenerate → auto-post past-due if `auto_post`) is fine as long as the user has explicitly confirmed it.
-
----
-
-## Open question
-
-For the "edited rule with no posted occurrences yet" case, two options:
-
-A. **Same 3 backfill options as new rule** (None / Post now / Pending) — symmetric, simplest mental model.
-B. **Only allow Pending or None** for edits — assumes that auto-creating past real transactions on an edit (rather than a fresh creation) is almost always a mistake.
-
-I'd default to **A** because nothing has been posted yet, so semantically it's identical to "new". Confirm A, or pick B.
-
-I confirm A
+1. For the category row, prefer **(a) remaining** (`allocated − spent`, what most budgeting users watch) or **(b) spent** (`spent_or_received`)? Default in this plan: remaining, with `of <allocated>` suffix.
+2. For non-budget categories (allocated = 0, e.g. income or savings), should the category row be hidden or shown as just `spent: before → after`? Default: show as spent-only without "remaining" framing.  
+  
+Go with the defaults in this plan.
