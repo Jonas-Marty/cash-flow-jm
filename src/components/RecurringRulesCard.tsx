@@ -342,7 +342,6 @@ export function RecurringRulesCard() {
       is_split: draft.is_split,
     };
     let savedId: string | undefined = draft.id;
-    const isNew = !draft.id;
     if (isNew) {
       const { data, error } = await supabase.from("recurring_rules").insert(payload).select("id").single();
       if (error) { toast.error(error.message); return; }
