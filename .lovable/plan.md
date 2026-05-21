@@ -1,68 +1,98 @@
-## Goal
+## Current state (answering your questions first)
 
-Polish the recurring-rule split feature: show splits in places it's still missing, simplify the editor when a rule is split, support placeholders and tag-completion on slices, and allow auto-post for deterministic splits.
+**1. The "Choose below…" hint with no button.**
+The backfill choice (3 radio options: Don't create / Post now / Pending) **does exist** in `RecurringRulesCard.tsx` (lines 789–827), but it is gated on `!draft.id` — i.e. only shown when creating a **new** rule. When you edit an existing rule, the hint text in the preview panel ("Start date is in the past. Choose below…") still renders, but the radio group above it is hidden. That's the bug you saw.
 
-## 1. Rule editor: hide top-level fields when split is active
+**2. How edited rules currently behave.**
+On save of an existing rule (lines 269–280):
 
-When `is_split = true` and `type !== "transfer"`:
+- All `pending` occurrences for the rule are deleted.
+- `process_recurring_rules` is called → it regenerates pending occurrences from `starts_on` forward, and auto-posts any whose `effective_on <= today` if `auto_post = true`.
+- `posted` occurrences (those linked to real transactions) are **kept** untouched.
 
-- Hide rule-level **Category**, **Description**, **Note** and their PlaceholderPalette.
-- Keep **Name**, **Amount/Estimated**, **Account**, schedule, dates, toggles.
-- On save, force `category_id`, `description`, `note` to `null` for split rules (no leftovers from before the toggle).
+So today, editing a rule whose `starts_on` is in the past and that has `auto_post = true` can silently re-create missing past transactions — without telling the user. Editing a non-split rule into a split rule doesn't touch already-posted occurrences (good), but the next `process_recurring_rules` run will fan out any *pending* occurrence into multiple split transactions — including past ones if `auto_post` is on.
 
-## 2. Slice editor: add Note + placeholder + tag-completion
+**3. Variable amount / variable date / auto-post effects on save.**
 
-Each slice currently has Amount/Ratio, Category, Description, Reimbursable fields. Extend with:
+- `is_variable_amount` or `is_variable_date` → forces `auto_post = false` on save (line 259). Pending occurrences are created but never auto-posted; user must confirm them via the Upcoming card.
+- `auto_post = true` (and neither variable flag) → `process_recurring_rules` will post past-due pending occurrences immediately.
 
-- **Note** field using `TagAutocompleteTextarea` (same component the Add Transaction screen uses), so `#tag` completion works against past transactions.
-- A single **PlaceholderPalette** rendered above the slice list. Insert into the most recently focused slice field (description or note). Track active slice via `{ sliceIdx, field }` state (mirrors the existing `activeField` pattern for the top-level fields).
-- Description input stays a plain `Input` but participates in caret-insert too.
+There is currently no UI surface that tells the user "saving this will create N past transactions and M pending ones."
 
-Posting path (`postOccurrence` in `src/lib/finance.ts`) currently writes `s.description` / `s.note` verbatim. Change it to run `interpolate(...)` on both, using the same context PostOccurrenceDialog already builds (date, dueDate, prevDate, nextDate, runNumber, locale). Compute `prevDate`/`nextDate`/`runNumber` by reading sibling occurrences for the rule (one extra query). Apply identical interpolation for both the manual-post and (future) auto-post path.
+---
 
-## 3. Settings rules list: show slices
+## Plan
 
-In `renderRule` (settings list), when `r.is_split`:
+### Step 1 — Show backfill choice when editing too (when relevant)
 
-- Add a small `<ul>` below the existing meta line listing each slice as
-`{amount or ratio} · {category name} · {description}` plus a 🔁 badge when `is_reimbursable`.
-- Add a `Split` badge next to the existing Auto/Variable badges. Add `Variable date` badge when `is_variable_date`.
+Change the gating from `!draft.id` to "starts_on is in the past **and** there is no posted history for this rule yet". Reason: once a rule already has posted occurrences, full backfill UX gets confusing — the user is really asking "fill the gap since last posted". For the gap case we surface a tighter set of options:
 
-`fetchRecurringRules` already returns `slices`, no fetcher change needed.
+- **New rule, past start** → existing 3 options (None / Post now / Pending) — unchanged.
+- **Edited rule with no posted occurrences yet, past start** → same 3 options.
+- **Edited rule with posted occurrences, gap between last posted and today** → 2 options: *Don't fill the gap* (default) / *Create gap entries as pending*. No silent auto-post. Auto-posting requires `auto_post = true` and the rule's normal mechanism on the next run; the gap UI explicitly opts in.
+- **Edited rule, no past gap** → no backfill block, no past hint.
 
-## 4. PreviewPanel: reflect splits and render note as Markdown
+Fix the misleading "Choose below…" preview hint: only render it when the radio block above is actually visible.
 
-`PreviewPanel` currently shows date + resolved description per occurrence. Extend it:
+### Step 2 — Pre-save impact summary
 
-- When `draft.is_split`, render the slices under each occurrence row: amount (computed via `computeSliceAmounts` from `recurringSlices.ts`) + interpolated slice description + reimbursable chip. For variable-amount split rules, use `estimated_amount` (or `amount` fallback) as the total so the preview can compute slice amounts; show "—" per row when no total is available.
-- When `draft.note` is set, render it via `<Markdown>` (component already exists at `src/components/Markdown.tsx`) below the description, mirroring the Add Transaction preview card.
-- When split, render each slice's note via `<Markdown>` as well.
+Add a small "What will happen on save" block above the Save button, recomputed live from the draft. It enumerates:
 
-## 5. Allow auto-post for deterministic splits
+- **N past transactions auto-posted now** (only if `auto_post && !is_variable_amount && !is_variable_date` and there are past pending dates that would result).
+- **N past entries created as pending** (if backfill = pending, or auto-post is off).
+- **N future pending occurrences scheduled** through the 14-month horizon.
+- **For edits**: "X existing pending occurrences will be regenerated; Y posted transactions stay untouched."
+- **For split**: "Each occurrence will be split into K transactions sharing a split group."
+- **Variable amount / variable date** → "Each occurrence requires manual confirmation before posting" (so the user understands why `auto_post` was forced off).
 
-Today both the JS (`postOccurrence` works fine) and SQL (`process_recurring_rules`) treat `is_split = true` as non-auto-postable. There's no technical reason: when amount + date are fixed and slices are fixed-amount or fixed-ratio, the result is fully deterministic.
+Numbers come from the same `previewRecurringRule` query the panel already runs, plus a cheap count query for existing pending/posted occurrences on edit. No new RPC needed.
 
-Changes:
+### Step 3 — Confirmation gate for destructive/surprising saves
 
-- **Editor**: drop `is_split` from the "cannot auto-post" condition. Keep `is_variable_amount` and `is_variable_date` as auto-post blockers. Update the helper text under the Auto-post switch.
-- **Save payload**: `auto_post` only forced to `false` when `is_variable_amount || is_variable_date`.
-- **SQL migration** (`process_recurring_rules` and `process_recurring_rules_for_all_users`): remove `is_split = false` from Pass 1 and Pass 2 guards. Instead, when `r.is_split = true`, fan out into N transaction inserts by looping `recurring_rule_slices` ordered by `sort_order`, sharing a generated `split_group_id` (`gen_random_uuid()`), running `interpolate_template` on each slice's `description` and `note`, applying `is_reimbursable` / `reimbursable_*` from the slice row, and computing slice amounts:
-  - Ratio mode: `round(rule.amount * slice.amount_ratio, 2)`, with last slice absorbing remainder so the sum matches `rule.amount` to the cent.
-  - Fixed mode: use `slice.amount` as-is.
-  Attach `recurring_rule_id = r.id` to every row and store the first inserted tx id on the occurrence (matches the JS path).
-- New migration only — the existing `_efbee535_` migration stays read-only.
+When the impact summary says "N past transactions will be auto-posted now" with N ≥ 1, the Save button opens a small confirm dialog listing the dates and total amount, with Cancel / Confirm. This prevents the silent-creation footgun for both new and edited rules. Triggered identically when toggling `auto_post` from off → on on an existing rule whose `starts_on` is in the past.
 
-## 6. Tests
+### Step 4 — Split-conversion safety (edits only)
 
-Extend `src/lib/recurringSlices.test.ts` with a small case asserting `computeSliceAmounts` returns the same shape used by the SQL fan-out (already covered) — no new test file needed.
+When the user flips `is_split` on for an existing rule, the impact summary explicitly calls out: "Splits will only apply to upcoming occurrences. Existing posted transactions are not retroactively split." Already true in code (posted occurrences aren't touched). No behavior change needed beyond the user-facing message.
+
+### Step 5 — Reflect live changes for date/interval/variable/auto-post
+
+PreviewPanel already re-queries on `frequency / day_rule / day_of_month / weekend_adjust / starts_on / ends_on` changes. Extend the impact summary's dependency list to also include `is_variable_amount`, `is_variable_date`, `auto_post`, `is_split`, and (on edit) the rule id, so the user sees the consequence the moment they toggle any of these.
+
+### Step 6 — i18n
+
+Add new labels (DE + EN):
+
+- `recurring.impact.title`
+- `recurring.impact.auto_post_past` ({n}, {sum})
+- `recurring.impact.pending_past` ({n})
+- `recurring.impact.future` ({n})
+- `recurring.impact.regenerated` ({pending}, {posted})
+- `recurring.impact.split_note` ({k})
+- `recurring.impact.variable_note`
+- `recurring.backfill.gap_title`, `recurring.backfill.gap_none`, `recurring.backfill.gap_pending`
+- `recurring.confirm_post_past.title` / `.body` / `.confirm`
+
+Drop / re-scope `recurring.preview.note_past` so it only shows when the radio block is hidden but the start is still in the past (defensive).
+
+---
 
 ## Technical notes
 
-- Files touched (code): `src/components/RecurringRulesCard.tsx`, `src/lib/finance.ts`, `src/i18n/index.tsx` (a handful of new labels: split note, variable-date badge, "auto-post for splits" help text). Slice type already carries `note`.
-- New migration: `process_recurring_rules` + `_for_all_users` rewritten to handle split fan-out and to drop the `is_split = false` guard.
-- No schema changes (slice `note` column already exists).
-- No new components; reuse `TagAutocompleteTextarea`, `Markdown`, `PlaceholderPalette`, `computeSliceAmounts`.
+- Files: `src/components/RecurringRulesCard.tsx` (gating + impact summary + confirm dialog), `src/i18n/index.tsx` (new labels). No SQL changes.
+- New cheap query on edit only: count of `recurring_occurrences` where `rule_id = draft.id` grouped by `status` — used for the "regenerated / kept" line and for the gap-only branch.
+- Confirm dialog reuses existing `Dialog` primitives — no new components.
+- No change to `process_recurring_rules` behavior; the existing semantics (delete pending → regenerate → auto-post past-due if `auto_post`) is fine as long as the user has explicitly confirmed it.
 
-## Open question (please confirm before I implement step 1)
+---
 
-Currently the rule's top-level Description still has a legitimate use even when split (e.g. as a parent label, though we no longer write it to any transaction). My plan is to **hide and null it out** when `is_split` is on. Confirm — or say "keep description visible as a label only" and I'll keep it but mark it as unused for posting. --> plan to hide and null it out is the way to go - but only do that when saving the rule. It would frutrate me as a user if i togle the is_split and back just to try it out and lose the content of the description field at this moment.
+## Open question
+
+For the "edited rule with no posted occurrences yet" case, two options:
+
+A. **Same 3 backfill options as new rule** (None / Post now / Pending) — symmetric, simplest mental model.
+B. **Only allow Pending or None** for edits — assumes that auto-creating past real transactions on an edit (rather than a fresh creation) is almost always a mistake.
+
+I'd default to **A** because nothing has been posted yet, so semantically it's identical to "new". Confirm A, or pick B.
+
+I confirm A
