@@ -1191,6 +1191,32 @@ function PreviewPanel({
   const rows = previewQ.data ?? [];
   const fmtLocale = resolveFormatLocale(formatLocaleCode);
   const startsOnDate = draft.starts_on ? parseISO(draft.starts_on) : new Date();
+  // Past rows = preview rows scheduled before today. For edits with existing
+  // posted history, only count those beyond the last posted occurrence (the
+  // "gap"); for fresh/new, count all past rows.
+  const pastRows = React.useMemo(() => {
+    return rows.filter((r) => {
+      if (!r.in_past) return false;
+      if (lastPostedEffOn && r.effective_on <= lastPostedEffOn) return false;
+      return true;
+    });
+  }, [rows, lastPostedEffOn]);
+  const futureCount = rows.filter((r) => !r.in_past).length;
+  const totalAmt = draft.is_variable_amount
+    ? Number(draft.estimated_amount) || 0
+    : Number(draft.amount) || 0;
+  // Will the save trigger actual past auto-posting?
+  const willAutoPostPast =
+    deterministicAuto && pastRows.length > 0 && (
+      (showBackfillBlock && draft.backfill === "post") ||
+      // Edit case: past dates not yet covered by posted rows will become
+      // pending occurrences and get auto-posted by process_recurring_rules.
+      (!isNew && draft.backfill !== "none")
+    );
+  // Stash count on window so save() confirm dialog can pick it up.
+  React.useEffect(() => {
+    (window as unknown as { __recImpactPastCount?: number }).__recImpactPastCount = pastRows.length;
+  }, [pastRows.length]);
   // For split preview, compute slice amounts from the rule total.
   const splitTotal = draft.is_variable_amount
     ? Number(draft.estimated_amount || draft.amount) || 0
@@ -1272,11 +1298,53 @@ function PreviewPanel({
           </ul>
         </div>
       )}
-      {draft.starts_on < today && (
+      {draft.starts_on < today && showBackfillBlock && (
         <div className="mt-2 text-[11px] text-muted-foreground">
           {t("recurring.preview.note_past")}
         </div>
       )}
+      <div className="mt-3 rounded-md border bg-muted/30 p-2 text-[11px]">
+        <div className="mb-1 font-semibold uppercase text-muted-foreground">
+          {t("recurring.impact.title")}
+        </div>
+        <ul className="space-y-0.5">
+          {willAutoPostPast && (
+            <li className="text-destructive">
+              {t("recurring.impact.auto_post_past", {
+                n: pastRows.length,
+                sum: (totalAmt * pastRows.length).toFixed(2),
+              })}
+            </li>
+          )}
+          {!willAutoPostPast && pastRows.length > 0 && draft.backfill === "pending" && (
+            <li>{t("recurring.impact.pending_past", { n: pastRows.length })}</li>
+          )}
+          {!willAutoPostPast && pastRows.length > 0 && draft.backfill === "none" && showBackfillBlock && (
+            <li className="text-muted-foreground">{t("recurring.impact.skipped_past", { n: pastRows.length })}</li>
+          )}
+          <li className="text-muted-foreground">
+            {t("recurring.impact.future", { n: futureCount })}
+          </li>
+          {!isNew && (
+            <li className="text-muted-foreground">
+              {t("recurring.impact.regenerated", { pending: pendingCount, posted: postedCount })}
+            </li>
+          )}
+          {draft.is_split && draft.slices.length >= 2 && (
+            <li className="text-muted-foreground">
+              {t("recurring.impact.split_note", { k: draft.slices.length })}
+            </li>
+          )}
+          {(draft.is_variable_amount || draft.is_variable_date) && (
+            <li className="text-muted-foreground">
+              {t("recurring.impact.variable_note")}
+            </li>
+          )}
+          {pastRows.length === 0 && isNew && (
+            <li className="text-muted-foreground">{t("recurring.impact.no_change")}</li>
+          )}
+        </ul>
+      </div>
     </div>
   );
 }
