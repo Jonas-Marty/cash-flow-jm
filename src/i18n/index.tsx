@@ -798,6 +798,8 @@ const en: Dict = {
   "common.none": "— None —",
   "common.cancel": "Cancel",
   "common.save": "Save",
+  "common.on": "On",
+  "common.off": "Off",
   "common.saving": "Saving…",
   "common.delete": "Delete",
   "common.add": "Add",
