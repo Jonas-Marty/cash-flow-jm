@@ -29,6 +29,7 @@ import { EntityVisual } from "@/components/EntityVisual";
 import { AlertTriangle, Link as LinkIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Toggle } from "@/components/ui/toggle";
 import { useI18n } from "@/i18n";
 import { useSuggestions } from "@/lib/suggestions/useSuggestions";
 import type { Suggestion } from "@/lib/suggestions/types";
@@ -1060,6 +1061,25 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
             </div>
           )}
 
+          {/* Split toggle (only for expense/income, not transfer; hidden in edit mode) — placed before category so users see it first */}
+          {type !== "transfer" && !isEdit && (
+            <div className="flex items-center justify-between rounded-md border border-dashed border-border/60 px-3 py-2">
+              <Label htmlFor="split-toggle" className="cursor-pointer text-sm font-normal">
+                {tr("add.split.toggle")}
+              </Label>
+              <Toggle
+                id="split-toggle"
+                variant="outline"
+                size="sm"
+                pressed={splitMode}
+                onPressedChange={(v: boolean) => setSplitMode(v)}
+                aria-label={tr("add.split.toggle")}
+              >
+                {splitMode ? tr("common.on") : tr("common.off")}
+              </Toggle>
+            </div>
+          )}
+
           {type !== "transfer" && !splitMode && (
             <div>
               <Label className="mb-1.5 block">
@@ -1091,22 +1111,6 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
             </div>
           )}
         </div>
-
-        {/* Split toggle (only for expense/income, not transfer; hidden in edit mode) */}
-        {type !== "transfer" && !isEdit && (
-          <div className="flex items-center justify-between rounded-md border border-dashed border-border/60 px-3 py-2">
-            <Label htmlFor="split-toggle" className="cursor-pointer text-sm font-normal">
-              {tr("add.split.toggle")}
-            </Label>
-            <input
-              id="split-toggle"
-              type="checkbox"
-              className="h-4 w-4 cursor-pointer"
-              checked={splitMode}
-              onChange={(e) => setSplitMode(e.target.checked)}
-            />
-          </div>
-        )}
 
         {/* Split panel */}
         {splitMode && type !== "transfer" && (
@@ -1597,8 +1601,8 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
             </>
           ) : (
             <>
-              <Button variant="outline" className="flex-1" disabled={saving} onClick={() => save(true)}>{tr("add.save_new")}</Button>
-              <Button className="flex-1" disabled={saving} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("common.save")}</Button>
+              <Button variant="outline" className="flex-1" disabled={saving} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("common.save")}</Button>
+              <Button className="flex-1" disabled={saving} onClick={() => save(true)}>{tr("add.save_new")}</Button>
             </>
           )}
         </div>
