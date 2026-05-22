@@ -1060,6 +1060,25 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
             </div>
           )}
 
+          {/* Split toggle (only for expense/income, not transfer; hidden in edit mode) — placed before category so users see it first */}
+          {type !== "transfer" && !isEdit && (
+            <div className="flex items-center justify-between rounded-md border border-dashed border-border/60 px-3 py-2">
+              <Label htmlFor="split-toggle" className="cursor-pointer text-sm font-normal">
+                {tr("add.split.toggle")}
+              </Label>
+              <Toggle
+                id="split-toggle"
+                variant="outline"
+                size="sm"
+                pressed={splitMode}
+                onPressedChange={(v) => setSplitMode(v)}
+                aria-label={tr("add.split.toggle")}
+              >
+                {splitMode ? tr("common.on") ?? "On" : tr("common.off") ?? "Off"}
+              </Toggle>
+            </div>
+          )}
+
           {type !== "transfer" && !splitMode && (
             <div>
               <Label className="mb-1.5 block">
@@ -1091,22 +1110,6 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
             </div>
           )}
         </div>
-
-        {/* Split toggle (only for expense/income, not transfer; hidden in edit mode) */}
-        {type !== "transfer" && !isEdit && (
-          <div className="flex items-center justify-between rounded-md border border-dashed border-border/60 px-3 py-2">
-            <Label htmlFor="split-toggle" className="cursor-pointer text-sm font-normal">
-              {tr("add.split.toggle")}
-            </Label>
-            <input
-              id="split-toggle"
-              type="checkbox"
-              className="h-4 w-4 cursor-pointer"
-              checked={splitMode}
-              onChange={(e) => setSplitMode(e.target.checked)}
-            />
-          </div>
-        )}
 
         {/* Split panel */}
         {splitMode && type !== "transfer" && (
