@@ -48,6 +48,8 @@ const de: Dict = {
   "common.none": "— Keine —",
   "common.cancel": "Abbrechen",
   "common.save": "Speichern",
+  "common.on": "An",
+  "common.off": "Aus",
   "common.saving": "Speichere…",
   "common.delete": "Löschen",
   "common.add": "Hinzufügen",
