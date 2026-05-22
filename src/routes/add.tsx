@@ -1601,8 +1601,8 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
             </>
           ) : (
             <>
-              <Button variant="outline" className="flex-1" disabled={saving} onClick={() => save(true)}>{tr("add.save_new")}</Button>
-              <Button className="flex-1" disabled={saving} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("common.save")}</Button>
+              <Button variant="outline" className="flex-1" disabled={saving} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("common.save")}</Button>
+              <Button className="flex-1" disabled={saving} onClick={() => save(true)}>{tr("add.save_new")}</Button>
             </>
           )}
         </div>
