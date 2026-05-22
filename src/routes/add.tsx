@@ -1072,10 +1072,10 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
                 variant="outline"
                 size="sm"
                 pressed={splitMode}
-                onPressedChange={(v) => setSplitMode(v)}
+                onPressedChange={(v: boolean) => setSplitMode(v)}
                 aria-label={tr("add.split.toggle")}
               >
-                {splitMode ? tr("common.on") ?? "On" : tr("common.off") ?? "Off"}
+                {splitMode ? tr("common.on") : tr("common.off")}
               </Toggle>
             </div>
           )}
