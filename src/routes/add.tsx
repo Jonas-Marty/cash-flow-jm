@@ -1153,6 +1153,11 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
                 searchPlaceholder={tr("picker.search")}
                 emptyLabel={tr("picker.no_match")}
               />
+              {activeScope && !scopeSkipped && categoryId === activeScope.id && (
+                <p className="mt-1 flex items-center gap-1 text-xs text-primary">
+                  <Target className="h-3 w-3" /> {tr("add.scope.field_hint", { name: activeScope.name })}
+                </p>
+              )}
               {type === "income" && categoryId && (() => {
                 const c = categories.find((x) => x.id === categoryId);
                 if (!c) return null;
