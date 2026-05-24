@@ -110,7 +110,8 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
   const balancesQ = useQuery({ queryKey: ["account_balances"], queryFn: fetchAccountBalances });
 
   const accounts = (accountsQ.data ?? []).filter((a) => !a.archived);
-  const categories = (categoriesQ.data ?? []).filter((c) => !c.archived);
+  // Hide closed scopes from category pickers. Active (open) scopes stay in the list.
+  const categories = (categoriesQ.data ?? []).filter((c) => !c.archived && !c.closed_at);
   const groupKindById = new Map((groupsQ.data ?? []).map((g) => [g.id, g.kind]));
   const mainSymbol = settingsQ.data?.currency_symbol ?? "CHF";
   const accountById = React.useMemo(
