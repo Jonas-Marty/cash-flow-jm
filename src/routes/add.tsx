@@ -272,6 +272,22 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
   // Draft attachments collected before the transaction is created.
   const [draftAttachments, setDraftAttachments] = React.useState<DraftAttachment[]>([]);
 
+  // ───────── Active scope ─────────
+  const [activeScopeId] = useActiveScopeId();
+  const scopesQ = useQuery({ queryKey: ["scopes"], queryFn: fetchScopes, enabled: !isEdit });
+  const activeScope = React.useMemo(() => {
+    if (isEdit || !activeScopeId) return null;
+    const s = (scopesQ.data ?? []).find((x) => x.id === activeScopeId);
+    return s && !s.closed_at ? s : null;
+  }, [isEdit, activeScopeId, scopesQ.data]);
+  const [scopeSkipped, setScopeSkipped] = React.useState(false);
+  React.useEffect(() => {
+    if (!activeScope || scopeSkipped || isEdit) return;
+    if (type === "transfer") return;
+    if (!categoryId) setCategoryId(activeScope.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeScope?.id, scopeSkipped, isEdit, type]);
+
   // ───────── Edit mode: load the transaction (and split-group siblings) ─────────
   const editQ = useQuery({
     queryKey: ["transaction", "edit", editId],
