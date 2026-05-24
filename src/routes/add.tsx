@@ -864,6 +864,42 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     <AppShell>
       <div className="space-y-5">
         <h1 className="text-2xl font-semibold tracking-tight">{isEdit ? tr("edit.title") : tr("add.title")}</h1>
+        {activeScope && type !== "transfer" && (
+          <div className={cn(
+            "flex items-start gap-3 rounded-lg border px-3 py-2 text-sm",
+            scopeSkipped
+              ? "border-muted bg-muted/30 text-muted-foreground"
+              : "border-primary/40 bg-primary/5 text-foreground",
+          )}>
+            <Target className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            <div className="flex-1">
+              <div className="font-medium">
+                {scopeSkipped
+                  ? tr("add.scope.banner_skipped", { name: activeScope.name })
+                  : tr("add.scope.banner_active", { name: activeScope.name })}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {scopeSkipped ? tr("add.scope.banner_skipped_hint") : tr("add.scope.banner_active_hint")}
+              </div>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                if (scopeSkipped) {
+                  setScopeSkipped(false);
+                  if (!categoryId) setCategoryId(activeScope.id);
+                } else {
+                  setScopeSkipped(true);
+                  if (categoryId === activeScope.id) setCategoryId("");
+                }
+              }}
+            >
+              {scopeSkipped ? tr("add.scope.use") : tr("add.scope.skip")}
+            </Button>
+          </div>
+        )}
         {isEdit && editQ.isLoading && (
           <p className="text-sm text-muted-foreground">{tr("common.loading")}</p>
         )}
