@@ -227,14 +227,17 @@ export type Database = {
         Row: {
           allocated_budget: number
           archived: boolean
+          closed_at: string | null
           color: string | null
           created_at: string
           emoji: string | null
+          funding_category_id: string | null
           group_id: string | null
           icon: string | null
           id: string
           image_url: string | null
           is_savings: boolean
+          is_scope: boolean
           name: string
           pin_order: number | null
           pinned: boolean
@@ -246,14 +249,17 @@ export type Database = {
         Insert: {
           allocated_budget?: number
           archived?: boolean
+          closed_at?: string | null
           color?: string | null
           created_at?: string
           emoji?: string | null
+          funding_category_id?: string | null
           group_id?: string | null
           icon?: string | null
           id?: string
           image_url?: string | null
           is_savings?: boolean
+          is_scope?: boolean
           name: string
           pin_order?: number | null
           pinned?: boolean
@@ -265,14 +271,17 @@ export type Database = {
         Update: {
           allocated_budget?: number
           archived?: boolean
+          closed_at?: string | null
           color?: string | null
           created_at?: string
           emoji?: string | null
+          funding_category_id?: string | null
           group_id?: string | null
           icon?: string | null
           id?: string
           image_url?: string | null
           is_savings?: boolean
+          is_scope?: boolean
           name?: string
           pin_order?: number | null
           pinned?: boolean
@@ -282,6 +291,20 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "categories_funding_category_id_fkey"
+            columns: ["funding_category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "categories_funding_category_id_fkey"
+            columns: ["funding_category_id"]
+            isOneToOne: false
+            referencedRelation: "category_savings_balance"
+            referencedColumns: ["category_id"]
+          },
           {
             foreignKeyName: "categories_group_id_fkey"
             columns: ["group_id"]
