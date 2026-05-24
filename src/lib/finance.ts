@@ -44,6 +44,9 @@ export interface Category {
   pinned?: boolean;
   pin_order?: number | null;
   sweep_target_category_id?: string | null;
+  is_scope?: boolean;
+  funding_category_id?: string | null;
+  closed_at?: string | null;
 }
 export interface CategoryGroup {
   id: string;
