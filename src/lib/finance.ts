@@ -1266,3 +1266,126 @@ export async function deleteAccountStatement(
   const { error } = await supabase.from("account_statements").delete().eq("id", id);
   if (error) throw error;
 }
+
+// ───────── Scopes ─────────
+// A "scope" is a normal category row with `is_scope = true`. While active
+// (per-device, see useActiveScope) it auto-fills the category in /add.
+// On close, the total of all transactions on this scope category is
+// reallocated from the chosen funding category in one entry.
+
+export interface Scope extends Category {
+  is_scope: true;
+}
+
+export async function fetchScopes(): Promise<Category[]> {
+  const { data, error } = await supabase
+    .from("categories")
+    .select("*")
+    .eq("is_scope", true)
+    .order("closed_at", { ascending: true, nullsFirst: true })
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data || []) as Category[];
+}
+
+export async function fetchScopeTotal(scopeId: string): Promise<{ spent: number; count: number }> {
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("amount,type")
+    .eq("category_id", scopeId);
+  if (error) throw error;
+  const rows = (data || []) as { amount: number; type: TxType }[];
+  let spent = 0;
+  for (const r of rows) {
+    const a = Number(r.amount);
+    spent += r.type === "income" ? -a : a;
+  }
+  return { spent: Math.round(spent * 100) / 100, count: rows.length };
+}
+
+export async function createScope(input: {
+  name: string;
+  funding_category_id: string | null;
+  allocated_budget?: number;
+  emoji?: string | null;
+  color?: string | null;
+}): Promise<Category> {
+  const { data, error } = await supabase
+    .from("categories")
+    .insert({
+      name: input.name,
+      is_scope: true,
+      funding_category_id: input.funding_category_id,
+      allocated_budget: input.allocated_budget ?? 0,
+      emoji: input.emoji ?? "🎯",
+      color: input.color ?? null,
+      sort_order: 9000,
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return data as Category;
+}
+
+export async function updateScope(id: string, patch: Partial<{
+  name: string;
+  funding_category_id: string | null;
+  allocated_budget: number;
+  emoji: string | null;
+  color: string | null;
+}>): Promise<void> {
+  const { error } = await supabase.from("categories").update(patch).eq("id", id);
+  if (error) throw error;
+}
+
+/**
+ * Close a scope: insert one reallocation from funding -> scope for the total
+ * spent, then mark closed_at. Returns the reallocation id (for undo) and total.
+ * If funding_category_id is null, only marks closed_at.
+ */
+export async function closeScope(scopeId: string): Promise<{ reallocationId: string | null; total: number }> {
+  const { data: scope, error: sErr } = await supabase
+    .from("categories")
+    .select("id,funding_category_id,closed_at")
+    .eq("id", scopeId)
+    .single();
+  if (sErr) throw sErr;
+  const s = scope as { id: string; funding_category_id: string | null; closed_at: string | null };
+  if (s.closed_at) throw new Error("Scope already closed");
+  const { spent } = await fetchScopeTotal(scopeId);
+  let reallocationId: string | null = null;
+  if (s.funding_category_id && spent > 0) {
+    const { data: ins, error: rErr } = await supabase
+      .from("category_reallocations")
+      .insert({
+        from_category_id: s.funding_category_id,
+        to_category_id: scopeId,
+        amount: spent,
+        occurred_on: new Date().toISOString().slice(0, 10),
+        note: "Scope close",
+      })
+      .select("id")
+      .single();
+    if (rErr) throw rErr;
+    reallocationId = (ins as { id: string }).id;
+  }
+  const { error: uErr } = await supabase
+    .from("categories")
+    .update({ closed_at: new Date().toISOString() })
+    .eq("id", scopeId);
+  if (uErr) throw uErr;
+  return { reallocationId, total: spent };
+}
+
+export async function reopenScope(scopeId: string, reallocationId: string | null): Promise<void> {
+  if (reallocationId) {
+    await supabase.from("category_reallocations").delete().eq("id", reallocationId);
+  }
+  const { error } = await supabase.from("categories").update({ closed_at: null }).eq("id", scopeId);
+  if (error) throw error;
+}
+
+export async function deleteScope(scopeId: string): Promise<void> {
+  const { error } = await supabase.from("categories").delete().eq("id", scopeId);
+  if (error) throw error;
+}
