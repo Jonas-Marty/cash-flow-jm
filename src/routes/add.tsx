@@ -48,6 +48,9 @@ import { AttachmentsSection, type DraftAttachment } from "@/components/Attachmen
 import { Markdown } from "@/components/Markdown";
 import { useFxRates, convert } from "@/lib/fx";
 import type { FxRates } from "@/lib/fx";
+import { fetchScopes } from "@/lib/finance";
+import { useActiveScopeId } from "@/lib/activeScope";
+import { Target } from "lucide-react";
 
 export const Route = createFileRoute("/add")({
   component: AddTransactionRoute,
@@ -107,7 +110,8 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
   const balancesQ = useQuery({ queryKey: ["account_balances"], queryFn: fetchAccountBalances });
 
   const accounts = (accountsQ.data ?? []).filter((a) => !a.archived);
-  const categories = (categoriesQ.data ?? []).filter((c) => !c.archived);
+  // Hide closed scopes from category pickers. Active (open) scopes stay in the list.
+  const categories = (categoriesQ.data ?? []).filter((c) => !c.archived && !c.closed_at);
   const groupKindById = new Map((groupsQ.data ?? []).map((g) => [g.id, g.kind]));
   const mainSymbol = settingsQ.data?.currency_symbol ?? "CHF";
   const accountById = React.useMemo(
@@ -267,6 +271,22 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
 
   // Draft attachments collected before the transaction is created.
   const [draftAttachments, setDraftAttachments] = React.useState<DraftAttachment[]>([]);
+
+  // ───────── Active scope ─────────
+  const [activeScopeId] = useActiveScopeId();
+  const scopesQ = useQuery({ queryKey: ["scopes"], queryFn: fetchScopes, enabled: !isEdit });
+  const activeScope = React.useMemo(() => {
+    if (isEdit || !activeScopeId) return null;
+    const s = (scopesQ.data ?? []).find((x) => x.id === activeScopeId);
+    return s && !s.closed_at ? s : null;
+  }, [isEdit, activeScopeId, scopesQ.data]);
+  const [scopeSkipped, setScopeSkipped] = React.useState(false);
+  React.useEffect(() => {
+    if (!activeScope || scopeSkipped || isEdit) return;
+    if (type === "transfer") return;
+    if (!categoryId) setCategoryId(activeScope.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeScope?.id, scopeSkipped, isEdit, type]);
 
   // ───────── Edit mode: load the transaction (and split-group siblings) ─────────
   const editQ = useQuery({
@@ -517,6 +537,7 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     setFeeAmount("");
     setFeeCategoryId("");
     setExistingFeeTxId(null);
+    setScopeSkipped(false);
     setTimeout(() => amountRef.current?.focus(), 0);
   };
 
@@ -843,6 +864,42 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     <AppShell>
       <div className="space-y-5">
         <h1 className="text-2xl font-semibold tracking-tight">{isEdit ? tr("edit.title") : tr("add.title")}</h1>
+        {activeScope && type !== "transfer" && (
+          <div className={cn(
+            "flex items-start gap-3 rounded-lg border px-3 py-2 text-sm",
+            scopeSkipped
+              ? "border-muted bg-muted/30 text-muted-foreground"
+              : "border-primary/40 bg-primary/5 text-foreground",
+          )}>
+            <Target className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            <div className="flex-1">
+              <div className="font-medium">
+                {scopeSkipped
+                  ? tr("add.scope.banner_skipped", { name: activeScope.name })
+                  : tr("add.scope.banner_active", { name: activeScope.name })}
+              </div>
+              <div className="text-xs text-muted-foreground">
+                {scopeSkipped ? tr("add.scope.banner_skipped_hint") : tr("add.scope.banner_active_hint")}
+              </div>
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                if (scopeSkipped) {
+                  setScopeSkipped(false);
+                  if (!categoryId) setCategoryId(activeScope.id);
+                } else {
+                  setScopeSkipped(true);
+                  if (categoryId === activeScope.id) setCategoryId("");
+                }
+              }}
+            >
+              {scopeSkipped ? tr("add.scope.use") : tr("add.scope.skip")}
+            </Button>
+          </div>
+        )}
         {isEdit && editQ.isLoading && (
           <p className="text-sm text-muted-foreground">{tr("common.loading")}</p>
         )}
@@ -1096,6 +1153,11 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
                 searchPlaceholder={tr("picker.search")}
                 emptyLabel={tr("picker.no_match")}
               />
+              {activeScope && !scopeSkipped && categoryId === activeScope.id && (
+                <p className="mt-1 flex items-center gap-1 text-xs text-primary">
+                  <Target className="h-3 w-3" /> {tr("add.scope.field_hint", { name: activeScope.name })}
+                </p>
+              )}
               {type === "income" && categoryId && (() => {
                 const c = categories.find((x) => x.id === categoryId);
                 if (!c) return null;

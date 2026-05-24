@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { fetchPendingTransactions } from "@/lib/finance";
+import { ActiveScopeChip } from "@/components/ActiveScopeChip";
 
 type Tab = {
   to: "/" | "/transactions" | "/add" | "/envelopes" | "/insights" | "/settings" | "/pending" | "/reconcile";
@@ -96,6 +97,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             })}
             {user && (
               <div className="ml-3 flex items-center gap-2 border-l pl-3">
+                <ActiveScopeChip />
                 <span className="text-xs text-muted-foreground">{user.email}</span>
                 <Button size="icon" variant="ghost" onClick={signOut} title={t("auth.signout")}>
                   <LogOut className="h-4 w-4" />
@@ -107,6 +109,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </header>
 
       <main className="mx-auto max-w-3xl px-4 pb-28 pt-4 md:pb-10 md:pt-6">
+        {/* Mobile-visible active-scope chip (header is hidden on mobile). */}
+        <div className="mb-2 flex justify-end md:hidden">
+          <ActiveScopeChip compact />
+        </div>
         {children}
       </main>
 

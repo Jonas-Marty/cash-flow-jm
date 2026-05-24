@@ -1,5 +1,5 @@
 import * as React from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, Trash2, ArchiveRestore, Archive, Pin, PinOff, Palette, ChevronUp, ChevronDown } from "lucide-react";
@@ -654,6 +654,17 @@ function SettingsPage() {
 
         {/* Recurring rules */}
         <RecurringRulesCard />
+
+        {/* Scopes */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">{tr("scopes.title")}</CardTitle></CardHeader>
+          <CardContent>
+            <p className="mb-3 text-sm text-muted-foreground">{tr("scopes.subtitle")}</p>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/scopes">{tr("settings.scopes.link")}</Link>
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Accounts */}
         <Card>
