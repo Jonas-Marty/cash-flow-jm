@@ -537,6 +537,7 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     setFeeAmount("");
     setFeeCategoryId("");
     setExistingFeeTxId(null);
+    setScopeSkipped(false);
     setTimeout(() => amountRef.current?.focus(), 0);
   };
 
