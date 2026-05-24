@@ -149,25 +149,6 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
   const [helpOpen, setHelpOpen] = React.useState(false);
   const amountRef = React.useRef<HTMLInputElement>(null);
 
-  // ───────── Active scope ─────────
-  // When a scope is active, pre-fill the category and show a banner.
-  // Per-transaction the user can "skip" it (then nothing scope-related is applied).
-  const [activeScopeId] = useActiveScopeId();
-  const scopesQ = useQuery({ queryKey: ["scopes"], queryFn: fetchScopes, enabled: !isEdit });
-  const activeScope = React.useMemo(() => {
-    if (isEdit || !activeScopeId) return null;
-    const s = (scopesQ.data ?? []).find((x) => x.id === activeScopeId);
-    return s && !s.closed_at ? s : null;
-  }, [isEdit, activeScopeId, scopesQ.data]);
-  // Per-transaction skip flag (re-set on reset / type change away from expense+income).
-  const [scopeSkipped, setScopeSkipped] = React.useState(false);
-  // Pre-fill the category when scope becomes active and user hasn't picked one.
-  React.useEffect(() => {
-    if (!activeScope || scopeSkipped || isEdit) return;
-    if (type === "transfer") return;
-    if (!categoryId) setCategoryId(activeScope.id);
-  }, [activeScope, scopeSkipped, isEdit, type, categoryId]);
-
   // ───────── Reimbursable section ─────────
   const [isReimbursable, setIsReimbursable] = React.useState(false);
   const [reimbCounterparty, setReimbCounterparty] = React.useState("");
