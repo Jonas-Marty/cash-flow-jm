@@ -655,6 +655,17 @@ function SettingsPage() {
         {/* Recurring rules */}
         <RecurringRulesCard />
 
+        {/* Scopes */}
+        <Card>
+          <CardHeader><CardTitle className="text-base">{tr("scopes.title")}</CardTitle></CardHeader>
+          <CardContent>
+            <p className="mb-3 text-sm text-muted-foreground">{tr("scopes.subtitle")}</p>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/scopes">{tr("settings.scopes.link")}</Link>
+            </Button>
+          </CardContent>
+        </Card>
+
         {/* Accounts */}
         <Card>
           <CardHeader><CardTitle className="text-base">{tr("settings.accounts")}</CardTitle></CardHeader>
