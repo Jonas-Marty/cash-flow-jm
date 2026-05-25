@@ -111,10 +111,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {user && (
               <div className="ml-3 flex items-center gap-2 border-l pl-3">
                 <ActiveScopeChip />
-                <span className="text-xs text-muted-foreground">{user.email}</span>
-                <Button size="icon" variant="ghost" onClick={signOut} title={t("auth.signout")}>
-                  <LogOut className="h-4 w-4" />
-                </Button>
+                <AccountMenu />
               </div>
             )}
           </nav>
