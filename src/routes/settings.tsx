@@ -31,6 +31,7 @@ import { useAuth, useIsAdmin } from "@/lib/auth";
 import { Switch } from "@/components/ui/switch";
 import { useQuery as useRQ } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
+import { SettingsSectionNav, type SettingsSection } from "@/components/SettingsSectionNav";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -298,10 +299,29 @@ function SettingsPage() {
 
   return (
     <AppShell>
-      <div className="space-y-6">
+      <div className="lg:grid lg:grid-cols-[1fr_220px] lg:gap-8">
+        <SettingsSectionNav
+          title={tr("settings.nav.on_this_page")}
+          sections={[
+            { id: "preferences", label: tr("settings.preferences") },
+            { id: "groups", label: tr("settings.groups") },
+            { id: "envelopes", label: tr("settings.envelopes") },
+            { id: "savings", label: tr("settings.nav.savings_sweeps") },
+            { id: "recurring", label: tr("recurring.title") },
+            { id: "scopes", label: tr("scopes.title") },
+            { id: "accounts", label: tr("settings.accounts") },
+            { id: "nextcloud", label: tr("nextcloud.title") },
+            { id: "api-tokens", label: tr("settings.nav.api_tokens") },
+            { id: "integrations", label: tr("settings.integrations") },
+            { id: "audit", label: tr("audit.title") },
+            { id: "account", label: tr("settings.account") },
+          ] satisfies SettingsSection[]}
+        />
+        <div className="space-y-6 lg:col-start-1 lg:row-start-1 [&>section]:scroll-mt-24">
         <h1 className="text-2xl font-semibold tracking-tight">{tr("settings.title")}</h1>
 
         {/* Preferences (merged: Localization · Appearance · Money) */}
+        <section id="preferences">
         <Card>
           <CardHeader><CardTitle className="text-base">{tr("settings.preferences")}</CardTitle></CardHeader>
           <CardContent className="space-y-6">
@@ -435,8 +455,10 @@ function SettingsPage() {
             </section>
           </CardContent>
         </Card>
+        </section>
 
         {/* Groups */}
+        <section id="groups">
         <Card>
           <CardHeader><CardTitle className="text-base">{tr("settings.groups")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -482,8 +504,10 @@ function SettingsPage() {
             </ul>
           </CardContent>
         </Card>
+        </section>
 
         {/* Categories */}
+        <section id="envelopes">
         <Card>
           <CardHeader><CardTitle className="text-base">{tr("settings.envelopes")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -648,14 +672,16 @@ function SettingsPage() {
             })()}
           </CardContent>
         </Card>
+        </section>
 
         {/* Savings & Sweeps */}
-        <SavingsAndSweepsCard />
+        <section id="savings"><SavingsAndSweepsCard /></section>
 
         {/* Recurring rules */}
-        <RecurringRulesCard />
+        <section id="recurring"><RecurringRulesCard /></section>
 
         {/* Scopes */}
+        <section id="scopes">
         <Card>
           <CardHeader><CardTitle className="text-base">{tr("scopes.title")}</CardTitle></CardHeader>
           <CardContent>
@@ -665,8 +691,10 @@ function SettingsPage() {
             </Button>
           </CardContent>
         </Card>
+        </section>
 
         {/* Accounts */}
+        <section id="accounts">
         <Card>
           <CardHeader><CardTitle className="text-base">{tr("settings.accounts")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -744,12 +772,14 @@ function SettingsPage() {
             </ul>
           </CardContent>
         </Card>
+        </section>
 
-        <NextcloudCard />
-        <ApiTokensCard />
-        <IntegrationsCard />
-        <AuditLogCard />
-        <AccountCard />
+        <section id="nextcloud"><NextcloudCard /></section>
+        <section id="api-tokens"><ApiTokensCard /></section>
+        <section id="integrations"><IntegrationsCard /></section>
+        <section id="audit"><AuditLogCard /></section>
+        <section id="account"><AccountCard /></section>
+        </div>
       </div>
     </AppShell>
   );
