@@ -487,8 +487,10 @@ function SettingsPage() {
             </ul>
           </CardContent>
         </Card>
+        </section>
 
         {/* Categories */}
+        <section id="envelopes">
         <Card>
           <CardHeader><CardTitle className="text-base">{tr("settings.envelopes")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
