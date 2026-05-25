@@ -655,14 +655,16 @@ function SettingsPage() {
             })()}
           </CardContent>
         </Card>
+        </section>
 
         {/* Savings & Sweeps */}
-        <SavingsAndSweepsCard />
+        <section id="savings"><SavingsAndSweepsCard /></section>
 
         {/* Recurring rules */}
-        <RecurringRulesCard />
+        <section id="recurring"><RecurringRulesCard /></section>
 
         {/* Scopes */}
+        <section id="scopes">
         <Card>
           <CardHeader><CardTitle className="text-base">{tr("scopes.title")}</CardTitle></CardHeader>
           <CardContent>
@@ -672,8 +674,10 @@ function SettingsPage() {
             </Button>
           </CardContent>
         </Card>
+        </section>
 
         {/* Accounts */}
+        <section id="accounts">
         <Card>
           <CardHeader><CardTitle className="text-base">{tr("settings.accounts")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
