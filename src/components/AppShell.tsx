@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { LayoutDashboard, Plus, ListOrdered, Settings as SettingsIcon, Wallet, PiggyBank, LogOut, LineChart, Inbox, MoreHorizontal, Scale, User as UserIcon, Sun, Moon, Monitor, Languages, Check } from "lucide-react";
+import { LayoutDashboard, Plus, ListOrdered, Settings as SettingsIcon, Wallet, PiggyBank, LogOut, LineChart, Inbox, MoreHorizontal, Scale, Sun, Moon, Monitor, Languages, Check } from "lucide-react";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -63,7 +63,7 @@ const mobileTabs: MobileTab[] = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const loc = useLocation();
   const { t } = useI18n();
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const pendingCountQ = useQuery({
     queryKey: ["pending_transactions", "pending", "count"],
     queryFn: async () => (await fetchPendingTransactions("pending")).length,
