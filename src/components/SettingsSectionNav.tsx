@@ -12,6 +12,14 @@ export function SettingsSectionNav({
 }) {
   const [active, setActive] = React.useState<string>(sections[0]?.id ?? "");
   const lockUntilRef = React.useRef<number>(0);
+  const chipRefs = React.useRef<Record<string, HTMLAnchorElement | null>>({});
+
+  React.useEffect(() => {
+    const el = chipRefs.current[active];
+    if (el && typeof el.scrollIntoView === "function") {
+      el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    }
+  }, [active]);
 
   React.useEffect(() => {
     const triggerOffset = 120; // px from top of viewport
@@ -69,6 +77,9 @@ export function SettingsSectionNav({
             <a
               key={s.id}
               href={`#${s.id}`}
+              ref={(el) => {
+                chipRefs.current[s.id] = el;
+              }}
               onClick={(e) => handleClick(e, s.id)}
               className={cn(
                 "whitespace-nowrap rounded-full border px-3 py-1 text-xs transition-colors",
