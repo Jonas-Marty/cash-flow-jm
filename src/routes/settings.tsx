@@ -299,10 +299,12 @@ function SettingsPage() {
 
   return (
     <AppShell>
-      <div className="space-y-6">
+      <div className="lg:grid lg:grid-cols-[1fr_220px] lg:gap-8">
+        <div className="space-y-6 [&>section]:scroll-mt-24">
         <h1 className="text-2xl font-semibold tracking-tight">{tr("settings.title")}</h1>
 
         {/* Preferences (merged: Localization · Appearance · Money) */}
+        <section id="preferences">
         <Card>
           <CardHeader><CardTitle className="text-base">{tr("settings.preferences")}</CardTitle></CardHeader>
           <CardContent className="space-y-6">
