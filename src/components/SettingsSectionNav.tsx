@@ -63,7 +63,7 @@ export function SettingsSectionNav({
   return (
     <>
       {/* Mobile: horizontal scroll chips */}
-      <nav className="sticky top-14 z-20 -mx-4 mb-4 border-b bg-background/90 px-4 py-2 backdrop-blur lg:hidden">
+      <nav className="sticky top-14 z-20 -mx-4 mb-4 border-b bg-background/90 px-4 py-2 backdrop-blur xl:hidden">
         <div className="flex gap-2 overflow-x-auto">
           {sections.map((s) => (
             <a
@@ -84,7 +84,7 @@ export function SettingsSectionNav({
       </nav>
 
       {/* Desktop: sticky vertical list */}
-      <aside className="hidden lg:col-start-2 lg:row-start-1 lg:block">
+      <aside className="hidden xl:col-start-2 xl:row-start-1 xl:block">
         <div className="sticky top-20">
           <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {title}
