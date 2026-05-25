@@ -63,7 +63,7 @@ export function SettingsSectionNav({
       </nav>
 
       {/* Desktop: sticky vertical list */}
-      <aside className="hidden lg:block">
+      <aside className="hidden lg:col-start-2 lg:row-start-1 lg:block">
         <div className="sticky top-20">
           <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             {title}
