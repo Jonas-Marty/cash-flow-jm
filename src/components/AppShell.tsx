@@ -235,3 +235,91 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
+function initials(email: string | undefined | null) {
+  if (!email) return "?";
+  const name = email.split("@")[0] ?? "";
+  return name.slice(0, 2).toUpperCase() || "?";
+}
+
+function AccountMenu() {
+  const { t, lang, setLang } = useI18n();
+  const { user, signOut } = useAuth();
+  const qc = useQueryClient();
+  const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings, enabled: !!user });
+  const theme = ((settingsQ.data?.theme as string) ?? "system") as "light" | "dark" | "system";
+
+  const setTheme = async (mode: "light" | "dark" | "system") => {
+    if (!settingsQ.data) return;
+    const { error } = await supabase.from("settings").update({ theme: mode }).eq("id", settingsQ.data.id);
+    if (!error) qc.invalidateQueries({ queryKey: ["settings"] });
+  };
+
+  if (!user) return null;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 rounded-full bg-muted text-xs font-semibold text-foreground hover:bg-muted/80"
+          aria-label={t("settings.account")}
+        >
+          {initials(user.email)}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel className="font-normal">
+          <div className="text-xs text-muted-foreground">{t("settings.you")}</div>
+          <div className="truncate text-sm font-medium">{user.email}</div>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link to="/settings" className="cursor-pointer">
+            <SettingsIcon className="h-4 w-4" />
+            <span>{t("nav.settings")}</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            {theme === "dark" ? <Moon className="h-4 w-4" /> : theme === "light" ? <Sun className="h-4 w-4" /> : <Monitor className="h-4 w-4" />}
+            <span>{t("settings.theme")}</span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent>
+              {(["system", "light", "dark"] as const).map((m) => (
+                <DropdownMenuItem key={m} onClick={() => setTheme(m)}>
+                  {m === "system" ? <Monitor className="h-4 w-4" /> : m === "light" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                  <span className="flex-1">{t(`settings.theme.${m}`)}</span>
+                  {theme === m && <Check className="h-4 w-4" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
+        </DropdownMenuSub>
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>
+            <Languages className="h-4 w-4" />
+            <span>{t("settings.language")}</span>
+          </DropdownMenuSubTrigger>
+          <DropdownMenuPortal>
+            <DropdownMenuSubContent>
+              {LANGUAGES.map((l) => (
+                <DropdownMenuItem key={l.code} onClick={() => setLang(l.code as Lang)}>
+                  <span className="flex-1">{l.label}</span>
+                  {lang === l.code && <Check className="h-4 w-4" />}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuPortal>
+        </DropdownMenuSub>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => signOut()} className="text-destructive focus:text-destructive">
+          <LogOut className="h-4 w-4" />
+          <span>{t("auth.signout")}</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
