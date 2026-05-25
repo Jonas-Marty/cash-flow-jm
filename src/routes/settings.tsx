@@ -438,8 +438,10 @@ function SettingsPage() {
             </section>
           </CardContent>
         </Card>
+        </section>
 
         {/* Groups */}
+        <section id="groups">
         <Card>
           <CardHeader><CardTitle className="text-base">{tr("settings.groups")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
