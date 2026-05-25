@@ -63,7 +63,7 @@ export function SettingsSectionNav({
   return (
     <>
       {/* Mobile: horizontal scroll chips */}
-      <nav className="sticky top-14 z-20 -mx-4 mb-4 border-b bg-background/90 px-4 py-2 backdrop-blur xl:hidden">
+      <nav className="sticky top-0 z-20 -mx-4 mb-4 border-b bg-background/90 px-4 py-2 backdrop-blur md:top-14 xl:hidden">
         <div className="flex gap-2 overflow-x-auto">
           {sections.map((s) => (
             <a
