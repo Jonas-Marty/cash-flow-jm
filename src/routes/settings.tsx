@@ -755,12 +755,32 @@ function SettingsPage() {
             </ul>
           </CardContent>
         </Card>
+        </section>
 
-        <NextcloudCard />
-        <ApiTokensCard />
-        <IntegrationsCard />
-        <AuditLogCard />
-        <AccountCard />
+        <section id="nextcloud"><NextcloudCard /></section>
+        <section id="api-tokens"><ApiTokensCard /></section>
+        <section id="integrations"><IntegrationsCard /></section>
+        <section id="audit"><AuditLogCard /></section>
+        <section id="account"><AccountCard /></section>
+        </div>
+
+        <SettingsSectionNav
+          title={tr("settings.nav.on_this_page")}
+          sections={[
+            { id: "preferences", label: tr("settings.preferences") },
+            { id: "groups", label: tr("settings.groups") },
+            { id: "envelopes", label: tr("settings.envelopes") },
+            { id: "savings", label: tr("settings.nav.savings_sweeps") },
+            { id: "recurring", label: tr("recurring.title") },
+            { id: "scopes", label: tr("scopes.title") },
+            { id: "accounts", label: tr("settings.accounts") },
+            { id: "nextcloud", label: tr("nextcloud.title") },
+            { id: "api-tokens", label: tr("settings.nav.api_tokens") },
+            { id: "integrations", label: tr("settings.integrations") },
+            { id: "audit", label: tr("audit.title") },
+            { id: "account", label: tr("settings.account") },
+          ] satisfies SettingsSection[]}
+        />
       </div>
     </AppShell>
   );
