@@ -7,15 +7,15 @@
  *   bridge Node's `http` module to that Web-standard fetch handler.
  *
  * Layout produced by `vite build --config vite.config.node.ts`:
- *   .output/
- *     server/index.mjs   <- SSR entry (exports default { fetch })
- *     public/            <- static client assets
+ *   dist/
+ *     server/server.js   <- SSR entry (exports default { fetch })
+ *     client/            <- static client assets
  *
  * Env:
  *   PORT      (default 3000)
  *   HOST      (default 0.0.0.0)
- *   PUBLIC_DIR (default /app/.output/public)
- *   SERVER_ENTRY (default /app/.output/server/index.mjs)
+ *   PUBLIC_DIR (default /app/dist/client)
+ *   SERVER_ENTRY (default /app/dist/server/server.js)
  */
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
@@ -25,8 +25,8 @@ import { Readable } from "node:stream";
 
 const PORT = parseInt(process.env.PORT ?? "3000", 10);
 const HOST = process.env.HOST ?? "0.0.0.0";
-const PUBLIC_DIR = resolve(process.env.PUBLIC_DIR ?? "/app/.output/public");
-const SERVER_ENTRY = resolve(process.env.SERVER_ENTRY ?? "/app/.output/server/index.mjs");
+const PUBLIC_DIR = resolve(process.env.PUBLIC_DIR ?? "/app/dist/client");
+const SERVER_ENTRY = resolve(process.env.SERVER_ENTRY ?? "/app/dist/server/server.js");
 
 if (!existsSync(SERVER_ENTRY)) {
   console.error(JSON.stringify({ level: "error", event: "boot.missing_server_entry", path: SERVER_ENTRY }));
