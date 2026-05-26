@@ -29,15 +29,15 @@ WORKDIR /app
 ENV NODE_ENV=production \
     PORT=3000 \
     HOST=0.0.0.0 \
-    PUBLIC_DIR=/app/.output/public \
-    SERVER_ENTRY=/app/.output/server/index.mjs \
+    PUBLIC_DIR=/app/dist/client \
+    SERVER_ENTRY=/app/dist/server/server.js \
     LOG_SERVICE_NAME=cash-flow
 
 COPY package.json package-lock.json* ./
 RUN npm install --omit=dev \
     && npm cache clean --force
 
-COPY --from=build /app/.output ./.output
+COPY --from=build /app/dist ./dist
 COPY server/node-server.mjs ./server/node-server.mjs
 
 RUN addgroup -S app && adduser -S app -G app && chown -R app:app /app
