@@ -5,7 +5,7 @@ FROM node:22-alpine AS deps
 WORKDIR /app
 RUN apk add --no-cache libc6-compat
 COPY package.json package-lock.json* bun.lockb* ./
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+RUN npm install
 
 # ---------- 2. build ----------
 FROM node:22-alpine AS build
@@ -34,7 +34,7 @@ ENV NODE_ENV=production \
     LOG_SERVICE_NAME=cash-flow
 
 COPY package.json package-lock.json* ./
-RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev; fi \
+RUN npm install --omit=dev \
     && npm cache clean --force
 
 COPY --from=build /app/.output ./.output
@@ -49,3 +49,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD wget -qO- "http://127.0.0.1:${PORT}/" >/dev/null 2>&1 || exit 1
 
 CMD ["node", "server/node-server.mjs"]
+ver.mjs"]
