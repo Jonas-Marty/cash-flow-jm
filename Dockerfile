@@ -21,7 +21,7 @@ ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
 ENV VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
 
 # Build SSR + client assets targeting Node
-RUN npx vite build --config vite.config.ts.node
+RUN npx vite build --config vite.config.node.ts
 
 # ---------- 3. runtime ----------
 FROM node:22-alpine AS runtime
