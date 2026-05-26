@@ -6,7 +6,7 @@
  *   `{ fetch(request) }` handler. Coolify on a plain VM runs Node, so we
  *   bridge Node's `http` module to that Web-standard fetch handler.
  *
- * Layout produced by `vite build --config vite.config.ts.node`:
+ * Layout produced by `vite build --config vite.config.node.ts`:
  *   .output/
  *     server/index.mjs   <- SSR entry (exports default { fetch })
  *     public/            <- static client assets
