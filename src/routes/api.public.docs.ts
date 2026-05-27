@@ -28,7 +28,7 @@ const HTML = `<!doctype html>
 /**
  * Swagger UI for the public API. Loads the spec from /api/public/openapi.
  */
-export const Route = createFileRoute("/api/docs")({
+export const Route = createFileRoute("/api/public/docs")({
   server: {
     handlers: {
       GET: async () =>

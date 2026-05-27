@@ -19,13 +19,13 @@ import { Route as EnvelopesRouteImport } from './routes/envelopes'
 import { Route as AddRouteImport } from './routes/add'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EditIdRouteImport } from './routes/edit.$id'
-import { Route as ApiDocsRouteImport } from './routes/api.docs'
 import { Route as ApiPublicTransactionsRouteImport } from './routes/api.public.transactions'
 import { Route as ApiPublicPruneAuditRouteImport } from './routes/api.public.prune-audit'
 import { Route as ApiPublicProcessRecurringRouteImport } from './routes/api.public.process-recurring'
 import { Route as ApiPublicPendingTransactionsRouteImport } from './routes/api.public.pending-transactions'
 import { Route as ApiPublicOpenapiRouteImport } from './routes/api.public.openapi'
 import { Route as ApiPublicMetricsRouteImport } from './routes/api.public.metrics'
+import { Route as ApiPublicDocsRouteImport } from './routes/api.public.docs'
 import { Route as ApiPublicCategoriesRouteImport } from './routes/api.public.categories'
 import { Route as ApiPublicAttachmentsRouteImport } from './routes/api.public.attachments'
 import { Route as ApiPublicAccountsRouteImport } from './routes/api.public.accounts'
@@ -82,11 +82,6 @@ const EditIdRoute = EditIdRouteImport.update({
   path: '/edit/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiDocsRoute = ApiDocsRouteImport.update({
-  id: '/api/docs',
-  path: '/api/docs',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiPublicTransactionsRoute = ApiPublicTransactionsRouteImport.update({
   id: '/api/public/transactions',
   path: '/api/public/transactions',
@@ -117,6 +112,11 @@ const ApiPublicOpenapiRoute = ApiPublicOpenapiRouteImport.update({
 const ApiPublicMetricsRoute = ApiPublicMetricsRouteImport.update({
   id: '/api/public/metrics',
   path: '/api/public/metrics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicDocsRoute = ApiPublicDocsRouteImport.update({
+  id: '/api/public/docs',
+  path: '/api/public/docs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicCategoriesRoute = ApiPublicCategoriesRouteImport.update({
@@ -156,13 +156,13 @@ export interface FileRoutesByFullPath {
   '/scopes': typeof ScopesRoute
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRoute
-  '/api/docs': typeof ApiDocsRoute
   '/edit/$id': typeof EditIdRoute
   '/api/nextcloud/callback': typeof ApiNextcloudCallbackRoute
   '/api/public/account-statements': typeof ApiPublicAccountStatementsRoute
   '/api/public/accounts': typeof ApiPublicAccountsRoute
   '/api/public/attachments': typeof ApiPublicAttachmentsRoute
   '/api/public/categories': typeof ApiPublicCategoriesRoute
+  '/api/public/docs': typeof ApiPublicDocsRoute
   '/api/public/metrics': typeof ApiPublicMetricsRoute
   '/api/public/openapi': typeof ApiPublicOpenapiRoute
   '/api/public/pending-transactions': typeof ApiPublicPendingTransactionsRoute
@@ -180,13 +180,13 @@ export interface FileRoutesByTo {
   '/scopes': typeof ScopesRoute
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRoute
-  '/api/docs': typeof ApiDocsRoute
   '/edit/$id': typeof EditIdRoute
   '/api/nextcloud/callback': typeof ApiNextcloudCallbackRoute
   '/api/public/account-statements': typeof ApiPublicAccountStatementsRoute
   '/api/public/accounts': typeof ApiPublicAccountsRoute
   '/api/public/attachments': typeof ApiPublicAttachmentsRoute
   '/api/public/categories': typeof ApiPublicCategoriesRoute
+  '/api/public/docs': typeof ApiPublicDocsRoute
   '/api/public/metrics': typeof ApiPublicMetricsRoute
   '/api/public/openapi': typeof ApiPublicOpenapiRoute
   '/api/public/pending-transactions': typeof ApiPublicPendingTransactionsRoute
@@ -205,13 +205,13 @@ export interface FileRoutesById {
   '/scopes': typeof ScopesRoute
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRoute
-  '/api/docs': typeof ApiDocsRoute
   '/edit/$id': typeof EditIdRoute
   '/api/nextcloud/callback': typeof ApiNextcloudCallbackRoute
   '/api/public/account-statements': typeof ApiPublicAccountStatementsRoute
   '/api/public/accounts': typeof ApiPublicAccountsRoute
   '/api/public/attachments': typeof ApiPublicAttachmentsRoute
   '/api/public/categories': typeof ApiPublicCategoriesRoute
+  '/api/public/docs': typeof ApiPublicDocsRoute
   '/api/public/metrics': typeof ApiPublicMetricsRoute
   '/api/public/openapi': typeof ApiPublicOpenapiRoute
   '/api/public/pending-transactions': typeof ApiPublicPendingTransactionsRoute
@@ -231,13 +231,13 @@ export interface FileRouteTypes {
     | '/scopes'
     | '/settings'
     | '/transactions'
-    | '/api/docs'
     | '/edit/$id'
     | '/api/nextcloud/callback'
     | '/api/public/account-statements'
     | '/api/public/accounts'
     | '/api/public/attachments'
     | '/api/public/categories'
+    | '/api/public/docs'
     | '/api/public/metrics'
     | '/api/public/openapi'
     | '/api/public/pending-transactions'
@@ -255,13 +255,13 @@ export interface FileRouteTypes {
     | '/scopes'
     | '/settings'
     | '/transactions'
-    | '/api/docs'
     | '/edit/$id'
     | '/api/nextcloud/callback'
     | '/api/public/account-statements'
     | '/api/public/accounts'
     | '/api/public/attachments'
     | '/api/public/categories'
+    | '/api/public/docs'
     | '/api/public/metrics'
     | '/api/public/openapi'
     | '/api/public/pending-transactions'
@@ -279,13 +279,13 @@ export interface FileRouteTypes {
     | '/scopes'
     | '/settings'
     | '/transactions'
-    | '/api/docs'
     | '/edit/$id'
     | '/api/nextcloud/callback'
     | '/api/public/account-statements'
     | '/api/public/accounts'
     | '/api/public/attachments'
     | '/api/public/categories'
+    | '/api/public/docs'
     | '/api/public/metrics'
     | '/api/public/openapi'
     | '/api/public/pending-transactions'
@@ -304,13 +304,13 @@ export interface RootRouteChildren {
   ScopesRoute: typeof ScopesRoute
   SettingsRoute: typeof SettingsRoute
   TransactionsRoute: typeof TransactionsRoute
-  ApiDocsRoute: typeof ApiDocsRoute
   EditIdRoute: typeof EditIdRoute
   ApiNextcloudCallbackRoute: typeof ApiNextcloudCallbackRoute
   ApiPublicAccountStatementsRoute: typeof ApiPublicAccountStatementsRoute
   ApiPublicAccountsRoute: typeof ApiPublicAccountsRoute
   ApiPublicAttachmentsRoute: typeof ApiPublicAttachmentsRoute
   ApiPublicCategoriesRoute: typeof ApiPublicCategoriesRoute
+  ApiPublicDocsRoute: typeof ApiPublicDocsRoute
   ApiPublicMetricsRoute: typeof ApiPublicMetricsRoute
   ApiPublicOpenapiRoute: typeof ApiPublicOpenapiRoute
   ApiPublicPendingTransactionsRoute: typeof ApiPublicPendingTransactionsRoute
@@ -391,13 +391,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EditIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/docs': {
-      id: '/api/docs'
-      path: '/api/docs'
-      fullPath: '/api/docs'
-      preLoaderRoute: typeof ApiDocsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/transactions': {
       id: '/api/public/transactions'
       path: '/api/public/transactions'
@@ -438,6 +431,13 @@ declare module '@tanstack/react-router' {
       path: '/api/public/metrics'
       fullPath: '/api/public/metrics'
       preLoaderRoute: typeof ApiPublicMetricsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/docs': {
+      id: '/api/public/docs'
+      path: '/api/public/docs'
+      fullPath: '/api/public/docs'
+      preLoaderRoute: typeof ApiPublicDocsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/categories': {
@@ -488,13 +488,13 @@ const rootRouteChildren: RootRouteChildren = {
   ScopesRoute: ScopesRoute,
   SettingsRoute: SettingsRoute,
   TransactionsRoute: TransactionsRoute,
-  ApiDocsRoute: ApiDocsRoute,
   EditIdRoute: EditIdRoute,
   ApiNextcloudCallbackRoute: ApiNextcloudCallbackRoute,
   ApiPublicAccountStatementsRoute: ApiPublicAccountStatementsRoute,
   ApiPublicAccountsRoute: ApiPublicAccountsRoute,
   ApiPublicAttachmentsRoute: ApiPublicAttachmentsRoute,
   ApiPublicCategoriesRoute: ApiPublicCategoriesRoute,
+  ApiPublicDocsRoute: ApiPublicDocsRoute,
   ApiPublicMetricsRoute: ApiPublicMetricsRoute,
   ApiPublicOpenapiRoute: ApiPublicOpenapiRoute,
   ApiPublicPendingTransactionsRoute: ApiPublicPendingTransactionsRoute,
