@@ -19,6 +19,7 @@ import { Route as EnvelopesRouteImport } from './routes/envelopes'
 import { Route as AddRouteImport } from './routes/add'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EditIdRouteImport } from './routes/edit.$id'
+import { Route as ApiDocsRouteImport } from './routes/api.docs'
 import { Route as ApiPublicTransactionsRouteImport } from './routes/api.public.transactions'
 import { Route as ApiPublicPruneAuditRouteImport } from './routes/api.public.prune-audit'
 import { Route as ApiPublicProcessRecurringRouteImport } from './routes/api.public.process-recurring'
@@ -79,6 +80,11 @@ const IndexRoute = IndexRouteImport.update({
 const EditIdRoute = EditIdRouteImport.update({
   id: '/edit/$id',
   path: '/edit/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDocsRoute = ApiDocsRouteImport.update({
+  id: '/api/docs',
+  path: '/api/docs',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicTransactionsRoute = ApiPublicTransactionsRouteImport.update({
@@ -150,6 +156,7 @@ export interface FileRoutesByFullPath {
   '/scopes': typeof ScopesRoute
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRoute
+  '/api/docs': typeof ApiDocsRoute
   '/edit/$id': typeof EditIdRoute
   '/api/nextcloud/callback': typeof ApiNextcloudCallbackRoute
   '/api/public/account-statements': typeof ApiPublicAccountStatementsRoute
@@ -173,6 +180,7 @@ export interface FileRoutesByTo {
   '/scopes': typeof ScopesRoute
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRoute
+  '/api/docs': typeof ApiDocsRoute
   '/edit/$id': typeof EditIdRoute
   '/api/nextcloud/callback': typeof ApiNextcloudCallbackRoute
   '/api/public/account-statements': typeof ApiPublicAccountStatementsRoute
@@ -197,6 +205,7 @@ export interface FileRoutesById {
   '/scopes': typeof ScopesRoute
   '/settings': typeof SettingsRoute
   '/transactions': typeof TransactionsRoute
+  '/api/docs': typeof ApiDocsRoute
   '/edit/$id': typeof EditIdRoute
   '/api/nextcloud/callback': typeof ApiNextcloudCallbackRoute
   '/api/public/account-statements': typeof ApiPublicAccountStatementsRoute
@@ -222,6 +231,7 @@ export interface FileRouteTypes {
     | '/scopes'
     | '/settings'
     | '/transactions'
+    | '/api/docs'
     | '/edit/$id'
     | '/api/nextcloud/callback'
     | '/api/public/account-statements'
@@ -245,6 +255,7 @@ export interface FileRouteTypes {
     | '/scopes'
     | '/settings'
     | '/transactions'
+    | '/api/docs'
     | '/edit/$id'
     | '/api/nextcloud/callback'
     | '/api/public/account-statements'
@@ -268,6 +279,7 @@ export interface FileRouteTypes {
     | '/scopes'
     | '/settings'
     | '/transactions'
+    | '/api/docs'
     | '/edit/$id'
     | '/api/nextcloud/callback'
     | '/api/public/account-statements'
@@ -292,6 +304,7 @@ export interface RootRouteChildren {
   ScopesRoute: typeof ScopesRoute
   SettingsRoute: typeof SettingsRoute
   TransactionsRoute: typeof TransactionsRoute
+  ApiDocsRoute: typeof ApiDocsRoute
   EditIdRoute: typeof EditIdRoute
   ApiNextcloudCallbackRoute: typeof ApiNextcloudCallbackRoute
   ApiPublicAccountStatementsRoute: typeof ApiPublicAccountStatementsRoute
@@ -376,6 +389,13 @@ declare module '@tanstack/react-router' {
       path: '/edit/$id'
       fullPath: '/edit/$id'
       preLoaderRoute: typeof EditIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/docs': {
+      id: '/api/docs'
+      path: '/api/docs'
+      fullPath: '/api/docs'
+      preLoaderRoute: typeof ApiDocsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/transactions': {
@@ -468,6 +488,7 @@ const rootRouteChildren: RootRouteChildren = {
   ScopesRoute: ScopesRoute,
   SettingsRoute: SettingsRoute,
   TransactionsRoute: TransactionsRoute,
+  ApiDocsRoute: ApiDocsRoute,
   EditIdRoute: EditIdRoute,
   ApiNextcloudCallbackRoute: ApiNextcloudCallbackRoute,
   ApiPublicAccountStatementsRoute: ApiPublicAccountStatementsRoute,
