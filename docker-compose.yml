@@ -47,8 +47,6 @@ services:
       NEXTCLOUD_BASE_URL: ${NEXTCLOUD_BASE_URL:-}
       NEXTCLOUD_CLIENT_ID: ${NEXTCLOUD_CLIENT_ID:-}
       NEXTCLOUD_CLIENT_SECRET: ${NEXTCLOUD_CLIENT_SECRET:-}
-    ports:
-      - "${APP_HOST_PORT:-3000}:3000"
     logging:
       driver: json-file
       options:
