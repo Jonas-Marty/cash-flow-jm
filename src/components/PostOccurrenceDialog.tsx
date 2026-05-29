@@ -49,18 +49,21 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
     setBusy(false);
   }, [occurrence]);
 
-  if (!occurrence) return null;
-  const r = occurrence.rule;
+  const ctx = React.useMemo(() => {
+    if (!occurrence) return null;
+    return {
+      date: parseISO(date || occurrence.effective_on),
+      dueDate: parseISO(occurrence.due_on),
+      prevDate: parseISO(prevDate),
+      nextDate: nextDate ? parseISO(nextDate) : null,
+      today: new Date(),
+      runNumber,
+      locale: resolveFormatLocale(settingsQ.data?.format_locale),
+    };
+  }, [date, occurrence, prevDate, nextDate, runNumber, settingsQ.data?.format_locale]);
 
-  const ctx = React.useMemo(() => ({
-    date: parseISO(date || occurrence.effective_on),
-    dueDate: parseISO(occurrence.due_on),
-    prevDate: parseISO(prevDate),
-    nextDate: nextDate ? parseISO(nextDate) : null,
-    today: new Date(),
-    runNumber,
-    locale: resolveFormatLocale(settingsQ.data?.format_locale),
-  }), [date, occurrence, prevDate, nextDate, runNumber, settingsQ.data?.format_locale]);
+  if (!occurrence || !ctx) return null;
+  const r = occurrence.rule;
 
   const resolvedDesc = interpolate(description, ctx);
   const resolvedNote = interpolate(note, ctx);
