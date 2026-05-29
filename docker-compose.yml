@@ -10,11 +10,25 @@
 #        VITE_SUPABASE_PUBLISHABLE_KEY
 #        SUPABASE_URL
 #        SUPABASE_SERVICE_ROLE_KEY
+#        SUPABASE_DB_URL
 #        METRICS_TOKEN
 #   4. Dokploy will automatically pass these during build and runtime.
 # ====================================================================
 
 services:
+  # ---------- Migration runner (runs once before app starts) ----------
+  migrate:
+    build:
+      context: .
+      dockerfile: docker/migrate/Dockerfile
+    environment:
+      DATABASE_URL: ${SUPABASE_DB_URL}
+    networks:
+      - default
+      - supabase
+    restart: "no"
+
+  # ---------- Frontend app ----------
   app:
     build:
       context: .
@@ -24,6 +38,9 @@ services:
         VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
     image: cash-flow-app:latest
     restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -52,3 +69,8 @@ services:
       options:
         max-size: "10m"
         max-file: "5"
+
+networks:
+  supabase:
+    external: true
+    name: ${SUPABASE_DOCKER_NETWORK}
