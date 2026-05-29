@@ -25,7 +25,14 @@ RUN npx vite build --config vite.config.node.ts
 
 # ---------- 3. runtime ----------
 FROM node:22-alpine AS runtime
+
+# Create user and group first
+RUN addgroup -S app && adduser -S app -G app
+
 WORKDIR /app
+# Ensure working directory is owned by the app user
+RUN chown app:app /app
+
 ENV NODE_ENV=production \
     PORT=3000 \
     HOST=0.0.0.0 \
@@ -33,15 +40,18 @@ ENV NODE_ENV=production \
     SERVER_ENTRY=/app/dist/server/server.js \
     LOG_SERVICE_NAME=cash-flow
 
-COPY package.json package-lock.json* ./
+# Copy dependency files with correct ownership
+COPY --chown=app:app package.json package-lock.json* ./
+
+# Switch to the non-root user for npm install and subsequent steps
+USER app
+
 RUN npm install --omit=dev \
     && npm cache clean --force
 
-COPY --from=build /app/dist ./dist
-COPY server/node-server.mjs ./server/node-server.mjs
-
-RUN addgroup -S app && adduser -S app -G app && chown -R app:app /app
-USER app
+# Copy build artifacts with correct ownership
+COPY --chown=app:app --from=build /app/dist ./dist
+COPY --chown=app:app server/node-server.mjs ./server/node-server.mjs
 
 EXPOSE 3000
 
