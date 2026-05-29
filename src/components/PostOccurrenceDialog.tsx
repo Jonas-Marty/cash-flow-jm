@@ -39,6 +39,10 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
   const [note, setNote] = React.useState<string>("");
   const [amount, setAmount] = React.useState<string>("");
   const [busy, setBusy] = React.useState(false);
+  const descRef = React.useRef<HTMLInputElement | null>(null);
+  const noteRef = React.useRef<HTMLInputElement | null>(null);
+  const lastFocusedRef = React.useRef<"description" | "note">("description");
+  const cursorRef = React.useRef<number | null>(null);
 
   React.useEffect(() => {
     if (!occurrence) return;
@@ -102,7 +106,20 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
   };
 
   const insertToken = (token: string) => {
-    setDescription((prev) => `${prev}\${${token}}`);
+    const snippet = `\${${token}}`;
+    const target = lastFocusedRef.current;
+    const inputEl = target === "note" ? noteRef.current : descRef.current;
+    const setter = target === "note" ? setNote : setDescription;
+    const current = target === "note" ? note : description;
+    const pos = cursorRef.current ?? inputEl?.selectionStart ?? current.length;
+    const next = current.slice(0, pos) + snippet + current.slice(pos);
+    setter(next);
+    const newPos = pos + snippet.length;
+    cursorRef.current = newPos;
+    requestAnimationFrame(() => {
+      inputEl?.focus();
+      try { inputEl?.setSelectionRange(newPos, newPos); } catch { /* noop */ }
+    });
   };
 
   return (
@@ -148,14 +165,30 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
           )}
           <div>
             <Label className="text-xs">{t("recurring.post_dialog.description")}</Label>
-            <Input value={description} onChange={(e) => setDescription(e.target.value)} />
+            <Input
+              ref={descRef}
+              value={description}
+              onChange={(e) => { setDescription(e.target.value); cursorRef.current = e.target.selectionStart; }}
+              onFocus={(e) => { lastFocusedRef.current = "description"; cursorRef.current = e.currentTarget.selectionStart; }}
+              onSelect={(e) => { cursorRef.current = (e.currentTarget as HTMLInputElement).selectionStart; }}
+              onKeyUp={(e) => { cursorRef.current = (e.currentTarget as HTMLInputElement).selectionStart; }}
+              onClick={(e) => { cursorRef.current = (e.currentTarget as HTMLInputElement).selectionStart; }}
+            />
             <div className="mt-1 text-xs text-muted-foreground">
               {t("recurring.post_dialog.preview")}: <span className="font-mono">{resolvedDesc || "—"}</span>
             </div>
           </div>
           <div>
             <Label className="text-xs">{t("recurring.post_dialog.note")}</Label>
-            <Input value={note} onChange={(e) => setNote(e.target.value)} />
+            <Input
+              ref={noteRef}
+              value={note}
+              onChange={(e) => { setNote(e.target.value); cursorRef.current = e.target.selectionStart; }}
+              onFocus={(e) => { lastFocusedRef.current = "note"; cursorRef.current = e.currentTarget.selectionStart; }}
+              onSelect={(e) => { cursorRef.current = (e.currentTarget as HTMLInputElement).selectionStart; }}
+              onKeyUp={(e) => { cursorRef.current = (e.currentTarget as HTMLInputElement).selectionStart; }}
+              onClick={(e) => { cursorRef.current = (e.currentTarget as HTMLInputElement).selectionStart; }}
+            />
             {note && (
               <div className="mt-1 text-xs text-muted-foreground">
                 <span className="font-mono">{resolvedNote || "—"}</span>
@@ -171,6 +204,7 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
                 <button
                   key={tok.token}
                   type="button"
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => insertToken(tok.token)}
                   className="rounded border bg-muted/50 px-1.5 py-0.5 font-mono text-[11px] hover:bg-muted"
                   title={tok.help}
