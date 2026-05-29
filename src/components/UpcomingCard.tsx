@@ -146,6 +146,7 @@ export function UpcomingCard({ symbol }: { symbol: string }) {
         runNumber={dialogOcc ? computeRunNumber(occs, dialogOcc) : 1}
         prevDate={dialogOcc ? computePrevDate(occs, dialogOcc) : ""}
         nextDate={dialogOcc ? computeNextDate(occs, dialogOcc) : null}
+        initialAmount={dialogOcc ? amounts[dialogOcc.id] : undefined}
         onClose={() => setDialogOcc(null)}
         onPosted={() => qc.invalidateQueries()}
       />
