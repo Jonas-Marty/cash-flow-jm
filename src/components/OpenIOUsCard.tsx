@@ -8,6 +8,16 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
@@ -25,7 +35,7 @@ import {
   type ReimbursementLink,
 } from "@/lib/finance";
 import { useI18n } from "@/i18n";
-import { Plus, Check, Ban, Pencil, MinusCircle } from "lucide-react";
+import { Plus, Check, Ban, Pencil, MinusCircle, HelpCircle } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 type Direction = "owed_to_me" | "i_owe";
@@ -44,6 +54,7 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
 
   const [cancelTx, setCancelTx] = React.useState<Transaction | null>(null);
   const [cancelReason, setCancelReason] = React.useState("");
+  const [settleTx, setSettleTx] = React.useState<Transaction | null>(null);
   const [writeOffTx, setWriteOffTx] = React.useState<Transaction | null>(null);
   const [writeOffCategoryId, setWriteOffCategoryId] = React.useState("");
   const [writeOffNote, setWriteOffNote] = React.useState("");
@@ -75,11 +86,20 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
   const remaining = (tx: Transaction) =>
     Math.max(0, Number(tx.amount) - (linkedSumByOrig.get(tx.id) ?? 0));
 
-  const onMarkSettled = async (tx: Transaction) => {
+  const invalidateReimbursables = async () => {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["reimbursables"] }),
+      qc.invalidateQueries({ queryKey: ["reimbursement_links"] }),
+      qc.invalidateQueries({ queryKey: ["transactions"] }),
+    ]);
+  };
+  const onMarkSettledConfirm = async () => {
+    if (!settleTx) return;
     try {
-      await setReimbursableStatus(tx.id, "settled");
+      await setReimbursableStatus(settleTx.id, "settled");
       toast.success(tr("toast.saved"));
-      qc.invalidateQueries();
+      await invalidateReimbursables();
+      setSettleTx(null);
     } catch (e) { toast.error((e as Error).message); }
   };
   const onCancelConfirm = async () => {
@@ -87,7 +107,7 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
     try {
       await setReimbursableStatus(cancelTx.id, "cancelled", cancelReason.trim() || null);
       toast.success(tr("toast.saved"));
-      qc.invalidateQueries();
+      await invalidateReimbursables();
       setCancelTx(null);
       setCancelReason("");
     } catch (e) { toast.error((e as Error).message); }
@@ -101,7 +121,7 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
         note: writeOffNote.trim() || null,
       });
       toast.success(tr("iou.writeoff.toast"));
-      qc.invalidateQueries();
+      await invalidateReimbursables();
       setWriteOffTx(null);
       setWriteOffCategoryId("");
       setWriteOffNote("");
@@ -162,37 +182,56 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
           <span className="tabular-nums text-sm font-semibold">{fmtAmt(tx)}</span>
         </div>
         <div className="flex w-full items-center justify-end gap-1 sm:w-auto">
-          <Button asChild size="sm" variant="default" className="h-7 px-2 text-xs">
-            <a href={repaymentLink(tx)}>
-              <Plus className="mr-1 h-3 w-3" /> {tr("iou.add_repayment")}
-            </a>
-          </Button>
-          <Button
-            size="sm" variant="ghost" className="h-7 px-2 text-xs"
-            onClick={() => onMarkSettled(tx)}
-            aria-label={tr("dash.reimb.mark_settled")} title={tr("dash.reimb.mark_settled")}
-          >
-            <Check className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground"
-            onClick={() => {
-              setWriteOffTx(tx);
-              setWriteOffCategoryId("");
-              setWriteOffNote("");
-            }}
-            aria-label={tr("iou.writeoff.action")}
-            title={tx.type === "income" ? tr("iou.writeoff.tooltip.income") : tr("iou.writeoff.tooltip.expense")}
-          >
-            <MinusCircle className="h-3.5 w-3.5" />
-          </Button>
-          <Button
-            size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground"
-            onClick={() => { setCancelTx(tx); setCancelReason(""); }}
-            aria-label={tr("dash.reimb.mark_cancelled")} title={tr("dash.reimb.mark_cancelled")}
-          >
-            <Ban className="h-3.5 w-3.5" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button asChild size="sm" variant="default" className="h-7 px-2 text-xs">
+                <a href={repaymentLink(tx)} aria-label={tr("iou.add_repayment")}>
+                  <Plus className="mr-1 h-3 w-3" /> {tr("iou.add_repayment")}
+                </a>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>{tr("iou.help.add_repayment")}</p></TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm" variant="ghost" className="h-7 px-2 text-xs"
+                onClick={() => setSettleTx(tx)}
+                aria-label={tr("dash.reimb.mark_settled")}
+              >
+                <Check className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>{tr("iou.help.mark_settled")}</p></TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground"
+                onClick={() => {
+                  setWriteOffTx(tx);
+                  setWriteOffCategoryId("");
+                  setWriteOffNote("");
+                }}
+                aria-label={tr("iou.writeoff.action")}
+              >
+                <MinusCircle className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>{tr("iou.help.writeoff")}</p></TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground"
+                onClick={() => { setCancelTx(tx); setCancelReason(""); }}
+                aria-label={tr("dash.reimb.mark_cancelled")}
+              >
+                <Ban className="h-3.5 w-3.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs"><p>{tr("iou.help.cancel")}</p></TooltipContent>
+          </Tooltip>
           <Button asChild size="sm" variant="ghost" className="h-7 px-2 text-xs" aria-label={tr("common.edit")}>
             <Link to="/edit/$id" params={{ id: tx.id }}><Pencil className="h-3.5 w-3.5" /></Link>
           </Button>
@@ -226,11 +265,24 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
       {isEmpty ? (
         <p className="py-2 text-center text-sm text-muted-foreground">{tr("iou.empty.both")}</p>
       ) : (
-        <>
+        <TooltipProvider delayDuration={200}>
           {renderSection(tr("iou.owed_to_me"), owedToMe)}
           {renderSection(tr("iou.i_owe"), iOwe)}
-        </>
+        </TooltipProvider>
       )}
+
+      <AlertDialog open={!!settleTx} onOpenChange={(v) => { if (!v) setSettleTx(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tr("iou.mark_settled.confirm.title")}</AlertDialogTitle>
+            <AlertDialogDescription>{tr("iou.mark_settled.confirm.body")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tr("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={onMarkSettledConfirm}>{tr("common.confirm")}</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={!!cancelTx} onOpenChange={(v) => { if (!v) setCancelTx(null); }}>
         <DialogContent>
@@ -238,6 +290,7 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
             <DialogTitle>{tr("dash.reimb.mark_cancelled")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">{tr("iou.help.cancel")}</p>
             <p className="text-sm text-muted-foreground">{tr("dash.reimb.cancel.prompt")}</p>
             <Textarea rows={3} value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} />
           </div>
@@ -289,17 +342,53 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
   );
 
   if (headless) {
-    return <div className="space-y-4">{body}</div>;
+    return (
+      <div className="space-y-4">
+        <IouHelpPopover />
+        {body}
+      </div>
+    );
   }
   return (
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-baseline justify-between gap-2">
-          <CardTitle className="text-base">{tr("iou.title")}</CardTitle>
+          <CardTitle className="flex items-center gap-1 text-base">
+            {tr("iou.title")}
+            <IouHelpPopover />
+          </CardTitle>
           <span className="text-xs text-muted-foreground">{tr("dash.reimb.subtitle")}</span>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">{body}</CardContent>
     </Card>
+  );
+}
+
+function IouHelpPopover() {
+  const { t: tr } = useI18n();
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          className="h-6 w-6 text-muted-foreground"
+          aria-label={tr("iou.help.title")}
+        >
+          <HelpCircle className="h-4 w-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-80 text-sm">
+        <p className="mb-2 font-medium">{tr("iou.help.title")}</p>
+        <ul className="space-y-2 text-xs text-muted-foreground">
+          <li>{tr("iou.help.add_repayment")}</li>
+          <li>{tr("iou.help.mark_settled")}</li>
+          <li>{tr("iou.help.writeoff")}</li>
+          <li>{tr("iou.help.cancel")}</li>
+        </ul>
+      </PopoverContent>
+    </Popover>
   );
 }
