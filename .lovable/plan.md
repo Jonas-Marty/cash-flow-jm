@@ -1,109 +1,64 @@
-## Goal
+# Plan: Clarify IOU actions & Pending tabs, fix "Mark as settled" bug
 
-Add **Scopes** — temporary "event" categories (vacation, wedding, project) that can be activated while adding transactions, then closed once the event ends, deducting the total from a chosen funding category in one clean reallocation.
+## 1. Explain the 4 IOU actions
 
-Pure category-based model (your choice). No new tag plumbing.
+Here is what each action does today (from `src/components/OpenIOUsCard.tsx` + `src/lib/finance.ts`):
 
----
+- **Add repayment** — Opens the Add‑transaction form pre‑filled with the open amount, the counterparty, and a `reimburse_for` link. When you save, the new transaction is linked to the original via `transaction_reimbursements`. A DB trigger (`recompute_reimbursable_status`) then flips the original to `settled` automatically once linked amounts cover the original. Use this when **real money actually moved** (someone paid you back, or you repaid them).
+- **Mark as settled** — Directly sets `reimbursable_status = 'settled'` on the original transaction, **without** creating a linked repayment transaction. Use this when the debt was cleared **outside the app** (e.g. cash handover you don't want to book, or a tiny rounding remainder you want to close). It's essentially "I confirm this is done, don't track it any more."
+- **Book as loss (write‑off)** — Creates an offsetting transaction in a category you pick (e.g. "Bad debt", "Gifts given"), links it as a reimbursement of the remaining amount, which causes the original to become `settled`. Use this when you're **giving up on collecting / accepting you won't be repaid**, and you want the loss to show up in your budget/reports.
+- **Cancel** — Sets `reimbursable_status = 'cancelled'` with an optional reason. Use this when the IOU **shouldn't have been an IOU in the first place** (mis‑flagged, duplicate, voided). Unlike write‑off, no offsetting transaction is created. The recompute trigger explicitly skips cancelled rows so they don't auto‑reopen.
 
-## Concepts
+### UI changes for IOUs
 
-- **Scope** = a regular `categories` row plus three new fields:
-  - `is_scope: bool` — marks it as a scope category
-  - `funding_category_id: uuid?` — where the total gets reallocated from on close (e.g. "General Savings", "Taschengeld")
-  - `closed_at: timestamptz?` — when set, the scope is closed (archived from the "active scope" picker, hidden from /add category dropdown, still visible in reports)
-- One scope can be **active at a time** (UI state, stored in `localStorage`). Activation is opt-in — you choose when to turn it on.
-- Active scope is a *suggestion + override*: when active, the category in /add auto-fills to the scope, and is overridden if you pick something else for that transaction (e.g. the electricity bill case).
+In `src/components/OpenIOUsCard.tsx`:
 
----
+- Add new i18n keys with one‑sentence explanations for each of the 4 actions (EN + DE), e.g. `iou.help.add_repayment`, `iou.help.mark_settled`, `iou.help.writeoff`, `iou.help.cancel`.
+- Each action button gets a shadcn `Tooltip` (desktop hover) **and** the same explanation rendered in the existing confirmation/dialog (Cancel dialog already has one; write‑off dialog already has one — extend with the meaning). For "Add repayment" and "Mark as settled" which have no dialog, the tooltip alone isn't enough on mobile, so:
+- Add a single small **info icon** (lucide `HelpCircle`) next to the section header ("Money owed to me" / "I owe") that opens a shadcn `Popover` (works on tap) listing all 4 actions with their explanations. This is the mobile‑friendly fallback and also serves as a glossary on desktop.
+- Confirmation dialogs already exist for Cancel and Write‑off. **Mark as settled** currently fires immediately with no confirmation — add a small `AlertDialog` ("Mark XYZ as settled? This closes the IOU without recording a repayment.") because it's a destructive‑ish action and matches the recently added skip‑confirmation pattern.
 
-## UX flow
+## 2. Explain the Pending tabs
 
-### 1. Defining scopes — `/scopes` route (no nav entry)
+In `src/routes/pending.tsx` the tabs are: **Pending**, **Open IOUs**, **Rejected**, **Confirmed**.
 
-- Reachable from Settings → "Scopes" link and from the active-scope chip in the header.
-- Lists: **Active** (open scopes) and **Closed** (history) sections.
-- Each row: name, funding category, spent so far, [Activate] [Edit] [Close].
-- **Create scope** form: name, funding category (dropdown of non-scope categories), optional planned budget.
-- **Close scope** dialog: shows total spent, confirms "Deduct CHF 1'240 from General Savings?" → on confirm:
-  - Creates one `category_reallocations` row (from = funding category, to = scope category, amount = total spent)
-  - Sets `closed_at = now()`
-  - Auto-deactivates if it was the active scope
-  - Toast with undo (10s) that deletes the reallocation and clears `closed_at`
+- **Pending** — Imported transactions (e.g. via API / external source) waiting for you to review, edit, and confirm or reject. They are **not** booked yet.
+- **Open IOUs** — Already booked transactions you flagged as reimbursable that haven't been settled. Same content as the dashboard "Open IOUs" card.
+- **Rejected** — Pending entries you rejected; kept for audit. Can be restored back to Pending.
+- **Confirmed** — Pending entries you already confirmed; shown for traceability — the real transaction lives in Transactions.
 
-### 2. Activating a scope
+### UI changes
 
-- `/scopes` → [Activate] button on a row. Only one active at a time.
-- Active scope stored in `localStorage` (key `active_scope_id`) + a tiny query cache. No DB column — it's per-device.
-- A persistent **chip in the app header** (AppShell) appears when active: `🎯 Italy 2026 ▾` → click opens a popover with [Open /scopes] [Disable].
+- Add i18n keys `pending.tab.help.*` with one‑sentence explanations.
+- Render a short description line under each active tab (a single line below `TabsList`, e.g. `<p className="text-xs text-muted-foreground">{t('pending.tab.help.' + tab)}</p>`), so the meaning is always visible on any device without requiring hover. Cheaper than per‑tab tooltips and works on touch.
 
-### 3. /add behavior when scope is active
+## 3. Investigate "Mark as settled vanished then came back"
 
-- **Banner at top** of the form (colored, dismissible per-transaction):
-  > 🎯 Scope active: **Italy 2026** — category will be pre-filled. Change it for unrelated transactions.
-  > [Use scope ✓] [Skip for this one]
-- **Per-field hint** under the Category select: "Auto-set by active scope" (muted, with a tiny "x" to clear).
-- Category select is pre-filled to the scope; user can change it freely (e.g. pick "Electricity" instead) — the banner state toggles to "Skipped for this transaction" so it's obvious nothing scope-related is being applied.
-- After save, the next /add visit re-applies the scope (banner shown again).
-- "Save & New" preserves the scope auto-fill for the next entry.
+What the code does today: `setReimbursableStatus(tx.id, 'settled')` runs an UPDATE on `transactions`, then `qc.invalidateQueries()` refetches. I checked the DB triggers:
 
-### 4. Reporting
+- `default_reimbursable_status` only sets a default when status is NULL; it does **not** revert `settled`.
+- `recompute_reimbursable_status` only runs from the `transaction_reimbursements` insert/delete trigger, not from a direct status update.
+- No other trigger touches `reimbursable_status` on plain UPDATEs.
 
-- Scope categories appear in normal envelope/insights views (they are categories), but get a 🎯 icon prefix and a "Scope" badge.
-- On `/envelopes` and category lists, closed scopes are collapsed into a "Closed scopes" section.
-- The reallocation created on close shows up in existing reallocation history (no new view needed).
+So a direct status flip to `settled` **should** persist. Likely causes for the symptom the user described:
 
----
+1. The mutation's `await` resolved but the row UPDATE silently affected 0 rows (RLS or wrong id) — Supabase JS does not throw on 0‑row updates. The optimistic toast then fires, but the row reappears on next refetch.
+2. `qc.invalidateQueries()` with no key invalidates everything; the immediate refetch may return cached data if a stale read of `reimbursables/open` happened first. (Unlikely but possible.)
 
-## Technical changes
+### Fix
 
-### Database (one migration)
+In `src/components/OpenIOUsCard.tsx` / `src/lib/finance.ts`:
 
-```sql
-ALTER TABLE categories
-  ADD COLUMN is_scope boolean NOT NULL DEFAULT false,
-  ADD COLUMN funding_category_id uuid REFERENCES categories(id) ON DELETE SET NULL,
-  ADD COLUMN closed_at timestamptz;
+- Change `setReimbursableStatus` to `.update(...).eq('id', txId).select('id')` and throw if `data.length === 0` (so the toast actually reflects truth).
+- In `onMarkSettled` / `onCancelConfirm` / `onWriteOffConfirm`, narrow `qc.invalidateQueries` to the affected keys (`['reimbursables']`, `['reimbursement_links']`, `['transactions']`) and `await` the invalidation, so the UI cannot show a stale empty state.
+- After the fix, manually verify in the preview: mark a real IOU as settled, reload, confirm it stays settled. If the row reappears, capture the row id from the toast and inspect `transactions.reimbursable_status` directly to confirm whether the UPDATE landed.
 
-CREATE INDEX idx_categories_is_scope ON categories(user_id, is_scope) WHERE is_scope = true;
-```
+## Technical summary
 
-No new table — scope == category with `is_scope=true`. Reuse existing `category_reallocations` for the close-out movement.
+Files touched:
+- `src/components/OpenIOUsCard.tsx` — add `Tooltip` on the 4 action buttons, header `Popover` glossary, confirmation `AlertDialog` for Mark‑as‑settled, awaited narrow invalidations.
+- `src/routes/pending.tsx` — add per‑tab description line.
+- `src/i18n/translations.ts` — new keys for help texts (EN + DE).
+- `src/lib/finance.ts` — make `setReimbursableStatus` verify the row actually updated; same defensive check in `writeOffReimbursable` final update.
 
-### Files to touch
-
-- **`src/routes/scopes.tsx`** (new) — list + create + edit + close UI. Uses new helpers in finance.ts.
-- **`src/components/ActiveScopeChip.tsx`** (new) — header chip, mounted in `AppShell.tsx`.
-- **`src/components/AppShell.tsx`** — render the chip when an active scope exists.
-- **`src/routes/add.tsx`** — read active scope (hook), render banner + per-field hint, pre-fill category, track "skip for this transaction" state. Affects the existing `category` field state and the new ImpactPreview (the scope category's "Remaining" naturally appears).
-- **`src/routes/settings.tsx`** — add "Scopes" link/button in an appropriate section.
-- **`src/lib/finance.ts`** — `fetchScopes()`, `fetchScopeTotal(scopeId)`, `createScope()`, `updateScope()`, `closeScope(scopeId)` (does the reallocation insert + sets closed_at atomically via server fn), `reopenScope()` for undo.
-- **`src/lib/activeScope.ts`** (new) — `useActiveScope()` hook reading/writing localStorage + broadcasting changes via a small event emitter so AppShell chip and /add stay in sync.
-- **`src/i18n/index.tsx`** — DE/EN keys: `scopes.title`, `scopes.create`, `scopes.funding_from`, `scopes.activate`, `scopes.deactivate`, `scopes.close`, `scopes.close_confirm`, `scopes.banner.active`, `scopes.banner.skip`, `scopes.field_hint`, `scopes.closed_label`, `scopes.empty`.
-- **Category dropdowns** elsewhere (recurring rules, transactions filter) — filter out `closed_at IS NOT NULL` scopes by default; show them in archived/closed lists.
-
-### Close-scope server function (atomicity)
-
-`closeScope(scopeId)` runs as a single server fn:
-1. Compute `total = sum(transactions where category_id = scopeId)` for this user.
-2. Insert `category_reallocations` (from = funding, to = scope, amount = total, note = "Close scope: …").
-3. `UPDATE categories SET closed_at = now() WHERE id = scopeId`.
-
-If `funding_category_id IS NULL`, skip step 2 and just mark closed (with a warning toast on the client before calling).
-
-### Edge cases handled
-
-- Funding category deleted/archived → on close, prompt to pick a new one.
-- Re-activating a closed scope (re-open) → server fn deletes the close-out reallocation if it exists and clears `closed_at`.
-- Two devices → active scope is per-device (localStorage). The scope itself is shared (DB).
-- ImpactPreview already shows category remaining changes, so adding to a scope category will naturally show "Italy 2026: 240 → 180 (spent)".
-
----
-
-## Open questions (defaults assumed)
-
-1. **Planned budget on scopes?** Default: yes — reuse existing `allocated_budget` column so envelope view shows progress vs plan. Free if 0.
-2. **Multiple active scopes simultaneously?** Default: no, one active at a time keeps the /add UX unambiguous.
-3. **Auto-deduct from funding's allocated each month while open?** Default: no — funding only moves on close, matching your choice.
-
-Going with these defaults unless you say otherwise.
+No DB migrations needed. No business‑logic change to the IOU lifecycle — only clearer UI + a confirmation step + stricter post‑mutation feedback.
