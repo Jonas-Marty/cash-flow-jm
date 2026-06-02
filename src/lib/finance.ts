@@ -971,14 +971,18 @@ export async function setReimbursableStatus(
   status: "open" | "settled" | "cancelled",
   cancelReason?: string | null,
 ): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from("transactions")
     .update({
       reimbursable_status: status,
       reimbursable_cancel_reason: status === "cancelled" ? cancelReason ?? null : null,
     })
-    .eq("id", txId);
+    .eq("id", txId)
+    .select("id");
   if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error("Update affected no rows — check permissions or that the transaction still exists.");
+  }
 }
 
 // Write off an open reimbursable: creates an offsetting transaction in a chosen
