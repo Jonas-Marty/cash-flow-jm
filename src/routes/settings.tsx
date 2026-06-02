@@ -698,8 +698,8 @@ function SettingsPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">{tr("settings.accounts")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-2 md:grid-cols-[1fr_140px_120px_120px_auto]">
-              <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label><Input value={aName} onChange={(e) => setAName(e.target.value)} placeholder="Main Bank" /></div>
+            <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-[minmax(180px,1fr)_140px_140px_120px_auto]">
+              <div className="md:col-span-2 lg:col-span-1"><Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label><Input value={aName} onChange={(e) => setAName(e.target.value)} placeholder="Main Bank" /></div>
               <div>
                 <Label className="mb-1 block text-xs text-muted-foreground">{tr("common.type")}</Label>
                 <Select value={aType} onValueChange={(v) => setAType(v as AccountType)}>
