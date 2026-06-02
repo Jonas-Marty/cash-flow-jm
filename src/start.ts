@@ -1,6 +1,7 @@
 import { createStart, createMiddleware } from "@tanstack/react-start";
 import { log, newRequestId } from "@/lib/logger";
 import { requestsTotal, requestErrorsTotal, requestDurationMsSum } from "@/lib/metrics";
+import { attachSupabaseAuth } from "@/integrations/supabase/auth-attacher";
 
 /**
  * Global request middleware.
@@ -90,5 +91,6 @@ const requestLogger = createMiddleware().server(async ({ next, request }) => {
 });
 
 export const startInstance = createStart(() => ({
+  functionMiddleware: [attachSupabaseAuth],
   requestMiddleware: [requestLogger],
 }));
