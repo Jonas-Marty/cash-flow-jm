@@ -70,6 +70,9 @@ function PendingRoute() {
             <TabsTrigger value="rejected">{t("pending.tab.rejected")}</TabsTrigger>
             <TabsTrigger value="confirmed">{t("pending.tab.confirmed")}</TabsTrigger>
           </TabsList>
+          <p className="mt-2 text-xs text-muted-foreground">
+            {t(`pending.tab.help.${tab}`)}
+          </p>
           <TabsContent value={tab} className="mt-4 space-y-3">
             {tab === "ious" ? (
               <OpenIOUsCard symbol={sym} headless />
