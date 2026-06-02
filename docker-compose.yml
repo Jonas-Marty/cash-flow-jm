@@ -20,7 +20,7 @@ services:
   migrate:
     build:
       context: .
-      dockerfile: docker/migrate/Dockerfile
+      dockerfile: Dockerfile.migrate
     environment:
       DATABASE_URL: ${SUPABASE_DB_URL}
     networks:

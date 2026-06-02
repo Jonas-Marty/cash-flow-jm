@@ -17,5 +17,3 @@ coverage
 !architecture.md
 supabase/.branches
 supabase/.temp
-# Files only needed by the standalone Supabase stack — not by the app image.
-docker
