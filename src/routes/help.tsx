@@ -14,8 +14,6 @@ import {
   LineChart, Inbox, Scale, Settings as SettingsIcon, Users, HelpCircle,
   Sparkles, Search,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-
 export const Route = createFileRoute("/help")({
   head: () => ({
     meta: [
@@ -460,6 +458,3 @@ function HelpPage() {
     </div>
   );
 }
-
-// Keep an alias so TS knows we use cn import-friendly utilities; intentional no-op.
-export const _cn = cn;
