@@ -1,64 +1,76 @@
-# Plan: Clarify IOU actions & Pending tabs, fix "Mark as settled" bug
+# Plan: In-app Help / Wiki page
 
-## 1. Explain the 4 IOU actions
+Add a dedicated `/help` route that explains the app's concepts and UI for new users. Content-only feature — no business logic changes.
 
-Here is what each action does today (from `src/components/OpenIOUsCard.tsx` + `src/lib/finance.ts`):
+## Route & navigation
 
-- **Add repayment** — Opens the Add‑transaction form pre‑filled with the open amount, the counterparty, and a `reimburse_for` link. When you save, the new transaction is linked to the original via `transaction_reimbursements`. A DB trigger (`recompute_reimbursable_status`) then flips the original to `settled` automatically once linked amounts cover the original. Use this when **real money actually moved** (someone paid you back, or you repaid them).
-- **Mark as settled** — Directly sets `reimbursable_status = 'settled'` on the original transaction, **without** creating a linked repayment transaction. Use this when the debt was cleared **outside the app** (e.g. cash handover you don't want to book, or a tiny rounding remainder you want to close). It's essentially "I confirm this is done, don't track it any more."
-- **Book as loss (write‑off)** — Creates an offsetting transaction in a category you pick (e.g. "Bad debt", "Gifts given"), links it as a reimbursement of the remaining amount, which causes the original to become `settled`. Use this when you're **giving up on collecting / accepting you won't be repaid**, and you want the loss to show up in your budget/reports.
-- **Cancel** — Sets `reimbursable_status = 'cancelled'` with an optional reason. Use this when the IOU **shouldn't have been an IOU in the first place** (mis‑flagged, duplicate, voided). Unlike write‑off, no offsetting transaction is created. The recompute trigger explicitly skips cancelled rows so they don't auto‑reopen.
+- New file `src/routes/help.tsx` → URL `/help`, using the existing `AppShell`.
+- Reachable from:
+  - **Desktop**: an `?` icon button in the header next to `ActiveScopeChip` / `AccountMenu` (less crowded than adding another nav tab).
+  - **Mobile**: an entry in the "More" popover (`mobileMoreItems` in `AppShell.tsx`), labelled "Help".
+  - **First-run hint**: a small "New here? Read the guide" link on the empty-state of the Dashboard (only when the user has 0 transactions). Non-blocking, dismissible via localStorage.
+- Each section has a stable `id` so we can deep-link from anywhere in the app (e.g. the existing IOU help popover can link to `/help#iou-actions`).
 
-### UI changes for IOUs
+## Page layout
 
-In `src/components/OpenIOUsCard.tsx`:
+Single scrollable page with a sticky **table of contents** on the left (desktop) / collapsible at the top (mobile). Built from shadcn primitives only — `Card`, `Accordion`, `Separator`, `Badge`, lucide icons. No new dependencies.
 
-- Add new i18n keys with one‑sentence explanations for each of the 4 actions (EN + DE), e.g. `iou.help.add_repayment`, `iou.help.mark_settled`, `iou.help.writeoff`, `iou.help.cancel`.
-- Each action button gets a shadcn `Tooltip` (desktop hover) **and** the same explanation rendered in the existing confirmation/dialog (Cancel dialog already has one; write‑off dialog already has one — extend with the meaning). For "Add repayment" and "Mark as settled" which have no dialog, the tooltip alone isn't enough on mobile, so:
-- Add a single small **info icon** (lucide `HelpCircle`) next to the section header ("Money owed to me" / "I owe") that opens a shadcn `Popover` (works on tap) listing all 4 actions with their explanations. This is the mobile‑friendly fallback and also serves as a glossary on desktop.
-- Confirmation dialogs already exist for Cancel and Write‑off. **Mark as settled** currently fires immediately with no confirmation — add a small `AlertDialog` ("Mark XYZ as settled? This closes the IOU without recording a repayment.") because it's a destructive‑ish action and matches the recently added skip‑confirmation pattern.
+```text
+┌─────────────────────────────────────────────┐
+│  Help & Guide                       [search]│
+├──────────────┬──────────────────────────────┤
+│ ToC (sticky) │  Section 1: Getting started  │
+│  - Start     │  Section 2: Core concepts    │
+│  - Concepts  │  Section 3: Screens          │
+│  - Screens   │  …                           │
+│  - Workflows │                              │
+│  - Glossary  │                              │
+│  - FAQ       │                              │
+└──────────────┴──────────────────────────────┘
+```
 
-## 2. Explain the Pending tabs
+Each section is an `<section id="…">` with an `h2`. Sub-topics use `Accordion` so the page stays scannable. A small client-side filter input at the top hides accordion items whose title/body don't match (pure string match, no fuzzy lib).
 
-In `src/routes/pending.tsx` the tabs are: **Pending**, **Open IOUs**, **Rejected**, **Confirmed**.
+## Sections (content outline)
 
-- **Pending** — Imported transactions (e.g. via API / external source) waiting for you to review, edit, and confirm or reject. They are **not** booked yet.
-- **Open IOUs** — Already booked transactions you flagged as reimbursable that haven't been settled. Same content as the dashboard "Open IOUs" card.
-- **Rejected** — Pending entries you rejected; kept for audit. Can be restored back to Pending.
-- **Confirmed** — Pending entries you already confirmed; shown for traceability — the real transaction lives in Transactions.
+1. **Getting started** — what the app is for (personal cash-flow + envelope budgeting + IOU tracking), the 3-minute setup: create accounts → create categories/envelopes → add first transaction → review dashboard.
+2. **Core concepts** — short cards (icon + 1–2 sentences) for: Account, Transaction, Category, Category group, Envelope / budget, Scope, IOU / reimbursable, Pending transaction, Recurring rule, Reconciliation, Sweep / savings target, Attachment, Tag.
+3. **Screens** — one accordion per route, mirroring `AppShell` tabs:
+   - Dashboard (`/`) — what each card means (Budget balance, Open IOUs, Pending confirmations, Upcoming, Trend strip, Top transactions, Day heatmap).
+   - Transactions (`/transactions`) — filters, amount filter syntax, tag search, edit/delete flow.
+   - Add (`/add`) — required vs optional fields, smart suggestions, reimbursable flag, attachments.
+   - Envelopes (`/envelopes`) — month budgets, rollover, reallocate, sweeps to savings.
+   - Insights (`/insights`) — overview / breakdown / trends / projection tabs, period picker.
+   - Pending (`/pending`) — Pending vs Open IOUs vs Rejected vs Confirmed tabs (reuse the same wording added recently).
+   - Reconcile (`/reconcile`) — what drift means, how to fix it.
+   - Scopes (`/scopes`) — personal vs shared scope, switching the active scope.
+   - Settings (`/settings`) — accounts, categories, savings & sweeps, API tokens, Nextcloud, recurring rules, audit log, data export, self-host migration pointer.
+4. **Common workflows** — step-by-step recipes:
+   - Recording a shared expense and getting repaid (IOU lifecycle: add → repayment / mark settled / write off / cancel; deep-link `#iou-actions`).
+   - Importing transactions via the public API and confirming them.
+   - Monthly close: reconcile → sweep leftovers → review insights.
+   - Recurring bills: create rule → post occurrences.
+   - Connecting Nextcloud for attachments.
+5. **Glossary** — alphabetised one-liners for every term used in the UI (sourced from existing i18n strings so wording matches).
+6. **FAQ / troubleshooting** — pulled from real issues we've already addressed: "An IOU I settled came back" (→ now fixed, what to do if it happens again), "Why is my drift not zero?", "Where do skipped recurring occurrences go?", "How do I move my data to a self-hosted instance?" (link to the existing migration doc), "How do I delete my account / data?".
 
-### UI changes
+## i18n
 
-- Add i18n keys `pending.tab.help.*` with one‑sentence explanations.
-- Render a short description line under each active tab (a single line below `TabsList`, e.g. `<p className="text-xs text-muted-foreground">{t('pending.tab.help.' + tab)}</p>`), so the meaning is always visible on any device without requiring hover. Cheaper than per‑tab tooltips and works on touch.
-
-## 3. Investigate "Mark as settled vanished then came back"
-
-What the code does today: `setReimbursableStatus(tx.id, 'settled')` runs an UPDATE on `transactions`, then `qc.invalidateQueries()` refetches. I checked the DB triggers:
-
-- `default_reimbursable_status` only sets a default when status is NULL; it does **not** revert `settled`.
-- `recompute_reimbursable_status` only runs from the `transaction_reimbursements` insert/delete trigger, not from a direct status update.
-- No other trigger touches `reimbursable_status` on plain UPDATEs.
-
-So a direct status flip to `settled` **should** persist. Likely causes for the symptom the user described:
-
-1. The mutation's `await` resolved but the row UPDATE silently affected 0 rows (RLS or wrong id) — Supabase JS does not throw on 0‑row updates. The optimistic toast then fires, but the row reappears on next refetch.
-2. `qc.invalidateQueries()` with no key invalidates everything; the immediate refetch may return cached data if a stale read of `reimbursables/open` happened first. (Unlikely but possible.)
-
-### Fix
-
-In `src/components/OpenIOUsCard.tsx` / `src/lib/finance.ts`:
-
-- Change `setReimbursableStatus` to `.update(...).eq('id', txId).select('id')` and throw if `data.length === 0` (so the toast actually reflects truth).
-- In `onMarkSettled` / `onCancelConfirm` / `onWriteOffConfirm`, narrow `qc.invalidateQueries` to the affected keys (`['reimbursables']`, `['reimbursement_links']`, `['transactions']`) and `await` the invalidation, so the UI cannot show a stale empty state.
-- After the fix, manually verify in the preview: mark a real IOU as settled, reload, confirm it stays settled. If the row reappears, capture the row id from the toast and inspect `transactions.reimbursable_status` directly to confirm whether the UPDATE landed.
+All new strings go into `src/i18n/index.tsx` under a new `help.*` namespace, with English + German in the same edit (matches the project's existing pattern). No content is hard-coded in JSX — every paragraph is a `t("help.…")` call so future languages just translate one file.
 
 ## Technical summary
 
-Files touched:
-- `src/components/OpenIOUsCard.tsx` — add `Tooltip` on the 4 action buttons, header `Popover` glossary, confirmation `AlertDialog` for Mark‑as‑settled, awaited narrow invalidations.
-- `src/routes/pending.tsx` — add per‑tab description line.
-- `src/i18n/translations.ts` — new keys for help texts (EN + DE).
-- `src/lib/finance.ts` — make `setReimbursableStatus` verify the row actually updated; same defensive check in `writeOffReimbursable` final update.
+Files added / changed:
+- **New**: `src/routes/help.tsx` — the page, with section components defined inline (or split into `src/components/help/*.tsx` if it grows beyond ~400 lines).
+- **Edit**: `src/components/AppShell.tsx` — add desktop header `?` icon link and a "Help" entry in `mobileMoreItems`.
+- **Edit**: `src/i18n/index.tsx` — add `help.*` keys (EN + DE) and `nav.help`.
+- **Edit (small)**: `src/components/OpenIOUsCard.tsx` — change the existing `IouHelpPopover` footer to include a "Full guide →" link to `/help#iou-actions` (optional polish, keeps the popover for quick lookup).
+- **Edit (small)**: `src/routes/index.tsx` — empty-state "New here? Read the guide" link, gated on zero transactions and a `localStorage` dismiss flag.
 
-No DB migrations needed. No business‑logic change to the IOU lifecycle — only clearer UI + a confirmation step + stricter post‑mutation feedback.
+No DB migrations, no new packages, no server functions. The route is static content rendered from i18n strings, so it works offline-friendly and is cheap to maintain.
+
+## Out of scope (suggested follow-ups, not part of this plan)
+
+- Per-screen "?" buttons that deep-link into the exact help section (can be added incrementally once `/help` exists).
+- A guided product tour (e.g. driver.js) — heavier dependency, decide later.
+- Versioned changelog / "What's new" section — separate route if wanted.

@@ -388,6 +388,11 @@ function IouHelpPopover() {
           <li>{tr("iou.help.writeoff")}</li>
           <li>{tr("iou.help.cancel")}</li>
         </ul>
+        <div className="mt-3 border-t pt-2 text-xs">
+          <Link to="/help" hash="iou-actions" className="text-primary hover:underline">
+            {tr("iou.help.full_guide")} →
+          </Link>
+        </div>
       </PopoverContent>
     </Popover>
   );

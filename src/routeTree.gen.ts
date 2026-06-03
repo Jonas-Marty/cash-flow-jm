@@ -15,6 +15,7 @@ import { Route as ScopesRouteImport } from './routes/scopes'
 import { Route as ReconcileRouteImport } from './routes/reconcile'
 import { Route as PendingRouteImport } from './routes/pending'
 import { Route as InsightsRouteImport } from './routes/insights'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as EnvelopesRouteImport } from './routes/envelopes'
 import { Route as AddRouteImport } from './routes/add'
 import { Route as IndexRouteImport } from './routes/index'
@@ -60,6 +61,11 @@ const PendingRoute = PendingRouteImport.update({
 const InsightsRoute = InsightsRouteImport.update({
   id: '/insights',
   path: '/insights',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
   getParentRoute: () => rootRouteImport,
 } as any)
 const EnvelopesRoute = EnvelopesRouteImport.update({
@@ -150,6 +156,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/add': typeof AddRoute
   '/envelopes': typeof EnvelopesRoute
+  '/help': typeof HelpRoute
   '/insights': typeof InsightsRoute
   '/pending': typeof PendingRoute
   '/reconcile': typeof ReconcileRoute
@@ -174,6 +181,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/add': typeof AddRoute
   '/envelopes': typeof EnvelopesRoute
+  '/help': typeof HelpRoute
   '/insights': typeof InsightsRoute
   '/pending': typeof PendingRoute
   '/reconcile': typeof ReconcileRoute
@@ -199,6 +207,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/add': typeof AddRoute
   '/envelopes': typeof EnvelopesRoute
+  '/help': typeof HelpRoute
   '/insights': typeof InsightsRoute
   '/pending': typeof PendingRoute
   '/reconcile': typeof ReconcileRoute
@@ -225,6 +234,7 @@ export interface FileRouteTypes {
     | '/'
     | '/add'
     | '/envelopes'
+    | '/help'
     | '/insights'
     | '/pending'
     | '/reconcile'
@@ -249,6 +259,7 @@ export interface FileRouteTypes {
     | '/'
     | '/add'
     | '/envelopes'
+    | '/help'
     | '/insights'
     | '/pending'
     | '/reconcile'
@@ -273,6 +284,7 @@ export interface FileRouteTypes {
     | '/'
     | '/add'
     | '/envelopes'
+    | '/help'
     | '/insights'
     | '/pending'
     | '/reconcile'
@@ -298,6 +310,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AddRoute: typeof AddRoute
   EnvelopesRoute: typeof EnvelopesRoute
+  HelpRoute: typeof HelpRoute
   InsightsRoute: typeof InsightsRoute
   PendingRoute: typeof PendingRoute
   ReconcileRoute: typeof ReconcileRoute
@@ -361,6 +374,13 @@ declare module '@tanstack/react-router' {
       path: '/insights'
       fullPath: '/insights'
       preLoaderRoute: typeof InsightsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/envelopes': {
@@ -482,6 +502,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AddRoute: AddRoute,
   EnvelopesRoute: EnvelopesRoute,
+  HelpRoute: HelpRoute,
   InsightsRoute: InsightsRoute,
   PendingRoute: PendingRoute,
   ReconcileRoute: ReconcileRoute,
@@ -505,13 +526,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

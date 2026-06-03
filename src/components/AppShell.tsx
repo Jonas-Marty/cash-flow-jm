@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { LayoutDashboard, Plus, ListOrdered, Settings as SettingsIcon, Wallet, PiggyBank, LogOut, LineChart, Inbox, MoreHorizontal, Scale, Sun, Moon, Monitor, Languages, Check } from "lucide-react";
+import { LayoutDashboard, Plus, ListOrdered, Settings as SettingsIcon, Wallet, PiggyBank, LogOut, LineChart, Inbox, MoreHorizontal, Scale, Sun, Moon, Monitor, Languages, Check, HelpCircle } from "lucide-react";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
@@ -24,7 +24,7 @@ import {
 import { ActiveScopeChip } from "@/components/ActiveScopeChip";
 
 type Tab = {
-  to: "/" | "/transactions" | "/add" | "/envelopes" | "/insights" | "/settings" | "/pending" | "/reconcile";
+  to: "/" | "/transactions" | "/add" | "/envelopes" | "/insights" | "/settings" | "/pending" | "/reconcile" | "/help";
   labelKey: string;
   icon: typeof LayoutDashboard;
   exact?: boolean;
@@ -49,6 +49,7 @@ const mobileMoreItems: Tab[] = [
   { to: "/insights", labelKey: "nav.insights", icon: LineChart },
   { to: "/pending", labelKey: "nav.pending", icon: Inbox },
   { to: "/reconcile", labelKey: "nav.reconcile", icon: Scale },
+  { to: "/help", labelKey: "nav.help", icon: HelpCircle },
   { to: "/settings", labelKey: "nav.settings", icon: SettingsIcon },
 ];
 
@@ -111,6 +112,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {user && (
               <div className="ml-3 flex items-center gap-2 border-l pl-3">
                 <ActiveScopeChip />
+                <Link
+                  to="/help"
+                  className={cn(
+                    "inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
+                    loc.pathname.startsWith("/help") && "bg-accent text-accent-foreground",
+                  )}
+                  aria-label={t("nav.help")}
+                  title={t("nav.help")}
+                >
+                  <HelpCircle className="h-4 w-4" />
+                </Link>
                 <AccountMenu />
               </div>
             )}
