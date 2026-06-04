@@ -18,6 +18,7 @@ import { Route as PendingRouteImport } from './routes/pending'
 import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as EnvelopesRouteImport } from './routes/envelopes'
+import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as AddRouteImport } from './routes/add'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EditIdRouteImport } from './routes/edit.$id'
@@ -77,6 +78,11 @@ const HelpRoute = HelpRouteImport.update({
 const EnvelopesRoute = EnvelopesRouteImport.update({
   id: '/envelopes',
   path: '/envelopes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AssistantRoute = AssistantRouteImport.update({
+  id: '/assistant',
+  path: '/assistant',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AddRoute = AddRouteImport.update({
@@ -161,6 +167,7 @@ const ApiNextcloudCallbackRoute = ApiNextcloudCallbackRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/add': typeof AddRoute
+  '/assistant': typeof AssistantRoute
   '/envelopes': typeof EnvelopesRoute
   '/help': typeof HelpRoute
   '/insights': typeof InsightsRoute
@@ -187,6 +194,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/add': typeof AddRoute
+  '/assistant': typeof AssistantRoute
   '/envelopes': typeof EnvelopesRoute
   '/help': typeof HelpRoute
   '/insights': typeof InsightsRoute
@@ -214,6 +222,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/add': typeof AddRoute
+  '/assistant': typeof AssistantRoute
   '/envelopes': typeof EnvelopesRoute
   '/help': typeof HelpRoute
   '/insights': typeof InsightsRoute
@@ -242,6 +251,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/add'
+    | '/assistant'
     | '/envelopes'
     | '/help'
     | '/insights'
@@ -268,6 +278,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/add'
+    | '/assistant'
     | '/envelopes'
     | '/help'
     | '/insights'
@@ -294,6 +305,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/add'
+    | '/assistant'
     | '/envelopes'
     | '/help'
     | '/insights'
@@ -321,6 +333,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AddRoute: typeof AddRoute
+  AssistantRoute: typeof AssistantRoute
   EnvelopesRoute: typeof EnvelopesRoute
   HelpRoute: typeof HelpRoute
   InsightsRoute: typeof InsightsRoute
@@ -408,6 +421,13 @@ declare module '@tanstack/react-router' {
       path: '/envelopes'
       fullPath: '/envelopes'
       preLoaderRoute: typeof EnvelopesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/assistant': {
+      id: '/assistant'
+      path: '/assistant'
+      fullPath: '/assistant'
+      preLoaderRoute: typeof AssistantRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/add': {
@@ -521,6 +541,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AddRoute: AddRoute,
+  AssistantRoute: AssistantRoute,
   EnvelopesRoute: EnvelopesRoute,
   HelpRoute: HelpRoute,
   InsightsRoute: InsightsRoute,
