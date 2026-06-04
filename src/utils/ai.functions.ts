@@ -183,7 +183,7 @@ export const chat = createServerFn({ method: "POST" })
     }
     history.push({ role: "user", content: data.message });
 
-    const result = await runChat(creds, supabase, userId, sys, history);
+    const result = await runChat(creds, supabase, userId, sys, history, conversationId);
 
     if (data.persist && conversationId) {
       await supabase.from("ai_messages").insert({
