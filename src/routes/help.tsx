@@ -12,7 +12,7 @@ import { useI18n, type Lang } from "@/i18n";
 import {
   BookOpen, Compass, LayoutDashboard, ListOrdered, Plus, PiggyBank,
   LineChart, Inbox, Scale, Settings as SettingsIcon, Users, HelpCircle,
-  Sparkles, Search,
+  Sparkles, Search, Shield, Github,
 } from "lucide-react";
 export const Route = createFileRoute("/help")({
   head: () => ({
@@ -196,13 +196,34 @@ const EN: Content = {
           q: "Where do skipped recurring occurrences go?",
           a: "Nowhere — they are simply not posted. The recurring rule continues with the next scheduled date. You can always post an occurrence later from the Upcoming card.",
         },
+      ],
+    },
+    {
+      id: "data-storage",
+      icon: Shield,
+      title: "Data storage & privacy",
+      intro:
+        "Be aware where and how your data is stored before entering anything sensitive.",
+      items: [
         {
-          q: "How do I move my data to a self-hosted instance?",
-          a: "Use **Settings → Export** to download your full dataset, then import it into your own instance. The export covers accounts, categories, transactions, attachments metadata, recurring rules and settings. Attachments themselves (in Nextcloud or storage) need to be migrated separately.",
+          q: "Where is my data stored?",
+          a: "This instance is hosted on a **private homelab server in Switzerland**, operated by an individual (not a company or cloud provider). It is not located in a commercial data center.",
         },
         {
-          q: "How do I delete my account or data?",
-          a: "Open **Settings → Account** and use the delete option. This removes all your data from the database; it is permanent.",
+          q: "Is my data encrypted?",
+          a: "**No.** Data is currently stored **unencrypted** at rest in the database. The server operator has full technical access to the database and can read any information you enter (descriptions, amounts, notes, attachments, tags, account names, etc.).",
+        },
+        {
+          q: "What does this mean for me?",
+          a: "Only enter information you are comfortable with the server operator being able to read. Avoid storing highly sensitive data (passwords, full IBANs you wouldn't share, medical references, etc.).",
+        },
+        {
+          q: "How is this handled legally?",
+          a: "See the [Privacy Policy / GDPR notice](/privacy) — you accepted it at sign-up. It explains who the data controller is, what is stored, and your rights under GDPR / DSGVO.",
+        },
+        {
+          q: "Can I run my own instance?",
+          a: "Yes. The project is open source. See the [GitHub repository](https://github.com/Jonas-Marty/cash-flow-jm) — the README explains how to build and how to deploy against your own Supabase instance.",
         },
       ],
     },
