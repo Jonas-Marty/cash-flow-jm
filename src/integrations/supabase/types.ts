@@ -124,6 +124,98 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_conversations: {
+        Row: {
+          created_at: string
+          id: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_credentials: {
+        Row: {
+          api_token: string | null
+          base_url: string | null
+          created_at: string
+          enabled: boolean
+          model: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          api_token?: string | null
+          base_url?: string | null
+          created_at?: string
+          enabled?: boolean
+          model?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          api_token?: string | null
+          base_url?: string | null
+          created_at?: string
+          enabled?: boolean
+          model?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_messages: {
+        Row: {
+          content: Json
+          conversation_id: string
+          created_at: string
+          id: string
+          role: string
+          tool_calls: Json | null
+          user_id: string
+        }
+        Insert: {
+          content?: Json
+          conversation_id: string
+          created_at?: string
+          id?: string
+          role: string
+          tool_calls?: Json | null
+          user_id: string
+        }
+        Update: {
+          content?: Json
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          role?: string
+          tool_calls?: Json | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       api_tokens: {
         Row: {
           created_at: string
