@@ -434,22 +434,9 @@ Business gauges (current totals for users, transactions, recent audit events) ar
 
 ### Operator integration
 
-```yaml
-# Prometheus scrape config
-- job_name: cash-flow
-  metrics_path: /api/public/metrics
-  authorization:
-    type: Bearer
-    credentials: <METRICS_TOKEN>
-```
-
-```bash
-# Nightly retention prune (Coolify scheduled task or cron)
-curl -X POST -H "Authorization: Bearer $METRICS_TOKEN" \
-     https://<host>/api/public/prune-audit
-```
-
-Promtail / Filebeat picks up the container's stdout — no extra log files, no rotation needed inside the app.
+Operator-facing deployment topics — Prometheus scrape configuration, audit-log
+retention scheduling, and container log shipping (Promtail / Filebeat / Vector
+picking up stdout) — live in [`README.md`](./README.md#6-observability).
 
 ### Out of scope
 
@@ -459,51 +446,18 @@ Promtail / Filebeat picks up the container's stdout — no extra log files, no r
 
 ## 9. Scheduled tasks (cron) for self-hosted deployments
 
-The default behaviour is **lazy / app-driven**: `process_recurring_rules(today)` runs every time the dashboard loads. Auto-post rules only materialise into transactions when a user opens the app. For a single-user, regularly-used self-hosted instance this is fine — the next visit catches up everything in one batch.
+Self-hosting deployment topics — running the migrator, building the app
+container, wiring the `docker-compose.yml` stack against an existing Supabase
+instance, and scheduling `process_recurring_rules_for_all_users` (Options A
+/ B / C) plus audit-log pruning — live in
+[`README.md`](./README.md#5-scheduled-tasks-cron).
 
-If you want auto-posts (and pending-occurrence promotions) to land **without** anyone opening the app — e.g. so account balances are always current for an external reporting script — wire up a scheduled job. Three options, in order of simplicity. **Option A is implemented**; B and C are documented for completeness.
-
-### Option A — host-level cron on the Coolify server (implemented, recommended)
-
-No extra container, no extensions. Add a cron entry on the host that hits the bundled HTTP endpoint:
-
-```cron
-# /etc/cron.d/cash-flow-recurring  — every hour at :05
-5 * * * * root curl -fsS -X POST -H "Authorization: Bearer ${METRICS_TOKEN}" \
-    https://app.example.com/api/public/process-recurring > /dev/null
-```
-
-Pieces that ship with the app:
-1. **Endpoint** `src/routes/api.public.process-recurring.ts`. Accepts `GET` or `POST`, requires `Authorization: Bearer ${METRICS_TOKEN}`. Optional `?today=YYYY-MM-DD` query param for backfills (defaults to the server's local date). Returns `{ users_processed, today }`. Same auth pattern as `api.public.prune-audit.ts`.
-2. **SQL function** `public.process_recurring_rules_for_all_users(p_today date) RETURNS integer`. `SECURITY DEFINER`, locked down so only `service_role` can `EXECUTE` (the endpoint uses `supabaseAdmin`). Iterates `SELECT DISTINCT user_id FROM recurring_rules WHERE archived = false` and runs the same two-pass logic as the per-user `process_recurring_rules` (Pass 1: promote auto-post pendings whose effective date arrived; Pass 2: extend the schedule forward).
-
-The endpoint is served by the **`app`** container in `docker-compose.yml`. No other container needs to be aware of the schedule. The audit-log pruner uses the same pattern (see `src/routes/api.public.prune-audit.ts`).
-
-On Coolify, drop the cron line into `/etc/cron.d/cash-flow-recurring` on the host (not inside any container). `${METRICS_TOKEN}` must match the value in the app's environment. Hourly is generous — once a day shortly after midnight is enough for typical use; hourly only matters if you have rules whose `effective_on` lands mid-day (rare).
-
-### Option B — Postgres `pg_cron` inside the database container
-
-`supabase/postgres` ships `pg_cron` enabled. A scheduled SQL job can call the bulk processor directly without going through the app:
-
-```sql
-SELECT cron.schedule(
-  'process-recurring-hourly',
-  '5 * * * *',
-  $$ SELECT public.process_recurring_rules_for_all_users(CURRENT_DATE); $$
-);
-```
-
-Pros: zero network hops, runs even if the `app` container is down. Cons: harder to observe (no app logs, no `METRICS_TOKEN` audit trail) and `pg_cron` runs as `postgres`, so you'd also need to `GRANT EXECUTE` on the bulk function to that role. The job runs inside the **`db`** container.
-
-### Option C — `pg_net` from `db` calling the app's HTTP endpoint
-
-Same shape as Lovable Cloud's hosted cron pattern: `pg_cron` triggers `net.http_post(...)` against the app's `/api/public/process-recurring`. Effectively a worse Option A — adds a network hop and an extension dependency for no gain on a single-host setup. Listed only for completeness.
-
-### Recommendation
-
-- **Solo user, opens the app most days** → keep the lazy model. No cron.
-- **Auto-posts must drive an external script (export, email, BI)** → Option A. Single secret (`METRICS_TOKEN`), unified logging path, easy to disable.
-- **App container is offline-tolerant or you want zero network surface** → Option B.
+The endpoint that the cron hits is `src/routes/api.public.process-recurring.ts`;
+it calls the `SECURITY DEFINER` SQL function
+`public.process_recurring_rules_for_all_users(p_today date)`, which runs the
+same two-pass logic as the per-user `process_recurring_rules` (Pass 1: promote
+auto-post pendings whose effective date arrived; Pass 2: extend the schedule
+forward).
 
 ### Bugfix (2026-05-01) — promotion pass silently failing
 
