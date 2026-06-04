@@ -378,6 +378,21 @@ const DE: Content = {
         { q: "Kann ich meine eigene Instanz betreiben?", a: "Ja. Das Projekt ist Open Source. Siehe das [GitHub-Repository](https://github.com/Jonas-Marty/cash-flow-jm) — die README erklärt Build und Deployment gegen eine eigene Supabase-Instanz." },
       ],
     },
+    {
+      id: "ai",
+      icon: Sparkles,
+      title: "KI-Assistent",
+      intro:
+        "Optionaler Chat-Assistent, der ein von dir bereitgestelltes Modell nutzt. Erlaubt sind nur Themen rund um diese App: persönliche Finanzen, Bedienung, Datenschutz.",
+      items: [
+        { q: "Wie aktiviere ich ihn?", a: "**Einstellungen → KI-Assistent**: einschalten, **API Base URL** (z. B. `https://api.openai.com/v1`), **Modellname** (z. B. `gpt-4o-mini`) und **API Token** eintragen. *Verbindung testen*, dann *Speichern*." },
+        { q: "Welche Provider funktionieren?", a: "Alles, was die OpenAI-Chat-Completions-API spricht: OpenAI, OpenRouter, Groq, Together, lokal **Ollama** (`http://host:11434/v1`), **LM Studio**, **vLLM**, **llama.cpp**-Server usw." },
+        { q: "Was kann er?", a: "Add-Formular vorausfüllen aus Sätzen wie *„Ich habe 50 im Coop bezahlt für Lebensmittel, Kreditkarte\"*; Fragen zu deinen Daten beantworten (*„Wo habe ich letzten Monat am meisten ausgegeben?\"*) via Lesetools; App-Funktionen und Datenschutz erklären. Alles andere lehnt er ab." },
+        { q: "Schreibt er in meine Daten?", a: "Nein. Er **bereitet nur einen Entwurf** für das Add-Formular vor — speichern musst du selbst. Alle anderen Tools lesen nur." },
+        { q: "Was wird an den Provider gesendet?", a: "Deine Nachrichten plus die Ergebnisse der Lesetools, die das Modell aufruft (Buchungen, Kontostände, Kategoriesummen). Siehe [Datenschutzseite](/privacy) für den vollständigen Datenfluss." },
+        { q: "Wo wird mein API Token gespeichert?", a: "Serverseitig in der Tabelle `ai_credentials`. Er wird **nicht** an den Browser zurückgegeben, aber der Server-Betreiber kann ihn lesen — behandle ihn wie andere Zugangsdaten auf dieser Instanz." },
+      ],
+    },
   ],
 };
 
