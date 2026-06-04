@@ -8,6 +8,81 @@ import { buildSystemPrompt } from "@/lib/ai/systemPrompt";
 import type { AssistantAction } from "@/lib/ai/types";
 
 // ---------------------------------------------------------------------------
+// Audit log
+// ---------------------------------------------------------------------------
+
+function providerHost(url: string): string | null {
+  try {
+    return new URL(url).host;
+  } catch {
+    return null;
+  }
+}
+
+function preview(v: unknown, max = 1000): string {
+  let s: string;
+  try {
+    s = typeof v === "string" ? v : JSON.stringify(v);
+  } catch {
+    s = String(v);
+  }
+  if (s.length > max) s = s.slice(0, max) + `…[+${s.length - max} chars]`;
+  return s;
+}
+
+async function writeAudit(row: {
+  user_id: string;
+  kind: "chat_request" | "tool_call";
+  model?: string | null;
+  provider_host?: string | null;
+  tool_name?: string | null;
+  conversation_id?: string | null;
+  duration_ms?: number | null;
+  ok?: boolean | null;
+  error_message?: string | null;
+  payload: Record<string, unknown>;
+}): Promise<void> {
+  try {
+    // Defensive: never let a token slip into the log.
+    const safe = JSON.parse(JSON.stringify(row.payload || {}));
+    stripSecrets(safe);
+    await supabaseAdmin.from("ai_audit_logs").insert({
+      user_id: row.user_id,
+      kind: row.kind,
+      model: row.model ?? null,
+      provider_host: row.provider_host ?? null,
+      tool_name: row.tool_name ?? null,
+      conversation_id: row.conversation_id ?? null,
+      duration_ms: row.duration_ms ?? null,
+      ok: row.ok ?? null,
+      error_message: row.error_message ?? null,
+      payload: safe,
+    });
+  } catch {
+    // Swallow logging errors; they must never break a chat turn.
+  }
+}
+
+function stripSecrets(obj: unknown): void {
+  if (!obj || typeof obj !== "object") return;
+  for (const k of Object.keys(obj as Record<string, unknown>)) {
+    const lk = k.toLowerCase();
+    if (
+      lk.includes("token") ||
+      lk.includes("authorization") ||
+      lk.includes("api_key") ||
+      lk === "apikey" ||
+      lk.includes("secret") ||
+      lk.includes("password")
+    ) {
+      (obj as Record<string, unknown>)[k] = "[redacted]";
+    } else {
+      stripSecrets((obj as Record<string, unknown>)[k]);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Credentials
 // ---------------------------------------------------------------------------
 
