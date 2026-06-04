@@ -25,8 +25,13 @@ export const getAISettings = createServerFn({ method: "GET" })
 
 const settingsSchema = z.object({
   enabled: z.boolean(),
-  base_url: z.string().trim().url().max(500).nullable(),
-  model: z.string().trim().min(1).max(120).nullable(),
+  base_url: z
+    .string()
+    .trim()
+    .max(500)
+    .nullable()
+    .refine((v) => v === null || /^https?:\/\//i.test(v), { message: "base_url must be a http(s) URL" }),
+  model: z.string().trim().max(120).nullable(),
   // Empty string means "leave existing"; null means "clear".
   api_token: z.string().max(1000).nullable().optional(),
 });
