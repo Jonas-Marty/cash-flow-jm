@@ -227,6 +227,39 @@ const EN: Content = {
         },
       ],
     },
+    {
+      id: "ai",
+      icon: Sparkles,
+      title: "AI assistant",
+      intro:
+        "An optional in-app assistant that uses a chat model you provide. Only personal-finance, app-usage and privacy topics are allowed.",
+      items: [
+        {
+          q: "How do I enable it?",
+          a: "Open **Settings → AI Assistant**, switch it on, paste the **API base URL** (e.g. `https://api.openai.com/v1`), the **model name** (e.g. `gpt-4o-mini`), and your **API token**. Hit *Test connection*, then *Save*.",
+        },
+        {
+          q: "Which providers work?",
+          a: "Anything that speaks the OpenAI Chat-Completions API: OpenAI, OpenRouter, Groq, Together, local **Ollama** (`http://host:11434/v1`), **LM Studio**, **vLLM**, **llama.cpp** server, etc.",
+        },
+        {
+          q: "What can it do?",
+          a: "Prefill the Add-Transaction form from a sentence like *\"I spent 50 at Coop on groceries, paid by credit card\"*; answer questions about your data (*\"where did I spend most last month?\"*) by calling read-only tools; and explain app features and the privacy notice. It will refuse any other topic.",
+        },
+        {
+          q: "Does it write to my data?",
+          a: "No. It only **prepares a draft** for the Add screen — you always review and save manually. All other tools are read-only.",
+        },
+        {
+          q: "What is sent to my provider?",
+          a: "Your messages, plus the results of any read tool the model decides to call (transactions, balances, category totals). See the [privacy page](/privacy) for the full data flow.",
+        },
+        {
+          q: "Where is my API token stored?",
+          a: "Server-side in the `ai_credentials` table. It is **not** returned to the browser, but the server operator can read it — treat it like other credentials on this instance.",
+        },
+      ],
+    },
   ],
 };
 
