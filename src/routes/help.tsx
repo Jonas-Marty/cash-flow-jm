@@ -329,8 +329,20 @@ const DE: Content = {
         { q: "Eine als abgegolten markierte IOU war nach dem Reload wieder da", a: "War ein bekannter Bug und ist behoben: die UI meldet jetzt nur Erfolg, wenn das Update in der Datenbank tatsächlich gelaufen ist. Falls es erneut auftritt, notiere die Buchungs-ID und prüfe, ob die Zeile für deinen User erreichbar ist (RLS / Scope)." },
         { q: "Warum ist meine Drift nicht null?", a: "Drift heißt: Summe der Kontostände passt nicht zu Sparständen + ungekehrtem Geld. Typische Ursachen: Übertrag nur einseitig erfasst, Buchung in einer Sparkategorie ohne Sweep, oder Kategorie fälschlich als Sparkategorie markiert. Letzte Bewegungen der betroffenen Konten durchgehen." },
         { q: "Wo landen übersprungene wiederkehrende Vorkommen?", a: "Nirgends — sie werden einfach nicht gepostet. Die Regel läuft mit dem nächsten Termin weiter. Du kannst ein Vorkommen jederzeit später aus der *Anstehend*-Karte posten." },
-        { q: "Wie ziehe ich Daten in eine selbst gehostete Instanz um?", a: "**Einstellungen → Export** lädt deinen kompletten Datenbestand herunter; in der eigenen Instanz importieren. Der Export umfasst Konten, Kategorien, Buchungen, Anhang-Metadaten, Regeln und Einstellungen. Die Anhangsdateien selbst (in Nextcloud oder Storage) müssen separat umziehen." },
-        { q: "Wie lösche ich meinen Account / meine Daten?", a: "**Einstellungen → Account** öffnen und die Lösch-Option nutzen. Das entfernt alle Daten endgültig aus der Datenbank." },
+      ],
+    },
+    {
+      id: "data-storage",
+      icon: Shield,
+      title: "Datenspeicherung & Datenschutz",
+      intro:
+        "Bitte mach dir bewusst, wo und wie deine Daten gespeichert werden, bevor du Sensibles eingibst.",
+      items: [
+        { q: "Wo werden meine Daten gespeichert?", a: "Diese Instanz läuft auf einem **privaten Homelab-Server in der Schweiz**, betrieben von einer Einzelperson (nicht einem Unternehmen oder Cloud-Anbieter). Sie steht nicht in einem kommerziellen Rechenzentrum." },
+        { q: "Sind meine Daten verschlüsselt?", a: "**Nein.** Die Daten liegen aktuell **unverschlüsselt** in der Datenbank. Die betreibende Person hat vollen technischen Zugriff und kann alle eingegebenen Informationen lesen (Beschreibungen, Beträge, Notizen, Anhänge, Tags, Kontonamen usw.)." },
+        { q: "Was bedeutet das für mich?", a: "Gib nur Informationen ein, mit deren Einsicht durch die betreibende Person du einverstanden bist. Vermeide stark sensible Daten (Passwörter, vollständige IBANs, medizinische Hinweise usw.)." },
+        { q: "Wie ist das rechtlich geregelt?", a: "Siehe die [Datenschutzerklärung / DSGVO-Hinweis](/privacy) — du hast ihr bei der Registrierung zugestimmt. Sie nennt die verantwortliche Stelle, was gespeichert wird, und deine Rechte nach DSGVO." },
+        { q: "Kann ich meine eigene Instanz betreiben?", a: "Ja. Das Projekt ist Open Source. Siehe das [GitHub-Repository](https://github.com/Jonas-Marty/cash-flow-jm) — die README erklärt Build und Deployment gegen eine eigene Supabase-Instanz." },
       ],
     },
   ],
