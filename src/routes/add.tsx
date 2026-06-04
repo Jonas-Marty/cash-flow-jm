@@ -70,6 +70,14 @@ function AddTransactionRoute() {
       amount: sp.get("amount") ?? undefined,
       source: sp.get("source") ?? undefined,
       counterparty: sp.get("counterparty") ?? undefined,
+      account_name: sp.get("account_name") ?? undefined,
+      category: sp.get("category") ?? undefined,
+      category_name: sp.get("category_name") ?? undefined,
+      description: sp.get("description") ?? undefined,
+      note: sp.get("note") ?? undefined,
+      occurred_on: sp.get("occurred_on") ?? undefined,
+      iou_with: sp.get("iou_with") ?? undefined,
+      iou_amount: sp.get("iou_amount") ?? undefined,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -82,6 +90,15 @@ export interface AddPrefill {
   amount?: string;
   source?: string;
   counterparty?: string;
+  /** Free-text account name from AI; resolved client-side. */
+  account_name?: string;
+  category?: string;
+  category_name?: string;
+  description?: string;
+  note?: string;
+  occurred_on?: string;
+  iou_with?: string;
+  iou_amount?: string;
 }
 
 export function TransactionForm({ editId, prefill }: { editId: string | null; prefill?: AddPrefill }) {
@@ -372,15 +389,50 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
   const prefillAppliedRef = React.useRef(false);
   React.useEffect(() => {
     if (isEdit || prefillAppliedRef.current || !prefill) return;
-    if (!prefill.type && !prefill.amount && !prefill.source && !prefill.counterparty && !prefill.reimburse_for) return;
+    const anyField =
+      prefill.type || prefill.amount || prefill.source || prefill.counterparty || prefill.reimburse_for ||
+      prefill.account_name || prefill.category || prefill.category_name || prefill.description ||
+      prefill.note || prefill.occurred_on || prefill.iou_with || prefill.iou_amount;
+    if (!anyField) return;
+    // Wait until accounts/categories are loaded so name-based prefill can resolve.
+    if ((prefill.account_name || prefill.category_name) && (accounts.length === 0 || categories.length === 0)) return;
     prefillAppliedRef.current = true;
     if (prefill.type) setType(prefill.type);
     if (prefill.amount) { setAmount(prefill.amount); mark("amount"); }
     if (prefill.source) { setSourceId(prefill.source); mark("sourceId"); }
     if (prefill.counterparty) setReimbCounterparty(prefill.counterparty);
+    if (!prefill.source && prefill.account_name) {
+      const needle = prefill.account_name.toLowerCase();
+      const match =
+        accounts.find((a) => a.name.toLowerCase() === needle) ||
+        accounts.find((a) => a.name.toLowerCase().includes(needle));
+      if (match) { setSourceId(match.id); mark("sourceId"); }
+    }
+    if (prefill.category) { setCategoryId(prefill.category); }
+    else if (prefill.category_name) {
+      const needle = prefill.category_name.toLowerCase();
+      const match =
+        categories.find((c) => c.name.toLowerCase() === needle) ||
+        categories.find((c) => c.name.toLowerCase().includes(needle));
+      if (match) setCategoryId(match.id);
+    }
+    if (prefill.description) setDescription(prefill.description);
+    if (prefill.note) setNote(prefill.note);
+    if (prefill.occurred_on) {
+      const d = new Date(prefill.occurred_on);
+      if (!Number.isNaN(d.getTime())) setDate(d);
+    }
+    if (prefill.iou_with || prefill.iou_amount) {
+      setIsReimbursable(true);
+      if (prefill.iou_with) setReimbCounterparty(prefill.iou_with);
+      if (prefill.iou_amount) {
+        const cur = prefill.iou_with ? ` (${prefill.iou_with}: ${prefill.iou_amount})` : ` (owed: ${prefill.iou_amount})`;
+        setReimbReason((prev) => (prev ? prev : `Share owed${cur}`));
+      }
+    }
     // The actual link selection happens when openReimbQ has loaded — see
     // the auto-link effect below.
-  }, [isEdit, prefill]);
+  }, [isEdit, prefill, accounts, categories]);
 
   // Default source = most-used account in recent transactions (skip in edit mode)
   React.useEffect(() => {

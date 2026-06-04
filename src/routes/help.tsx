@@ -227,6 +227,39 @@ const EN: Content = {
         },
       ],
     },
+    {
+      id: "ai",
+      icon: Sparkles,
+      title: "AI assistant",
+      intro:
+        "An optional in-app assistant that uses a chat model you provide. Only personal-finance, app-usage and privacy topics are allowed.",
+      items: [
+        {
+          q: "How do I enable it?",
+          a: "Open **Settings → AI Assistant**, switch it on, paste the **API base URL** (e.g. `https://api.openai.com/v1`), the **model name** (e.g. `gpt-4o-mini`), and your **API token**. Hit *Test connection*, then *Save*.",
+        },
+        {
+          q: "Which providers work?",
+          a: "Anything that speaks the OpenAI Chat-Completions API: OpenAI, OpenRouter, Groq, Together, local **Ollama** (`http://host:11434/v1`), **LM Studio**, **vLLM**, **llama.cpp** server, etc.",
+        },
+        {
+          q: "What can it do?",
+          a: "Prefill the Add-Transaction form from a sentence like *\"I spent 50 at Coop on groceries, paid by credit card\"*; answer questions about your data (*\"where did I spend most last month?\"*) by calling read-only tools; and explain app features and the privacy notice. It will refuse any other topic.",
+        },
+        {
+          q: "Does it write to my data?",
+          a: "No. It only **prepares a draft** for the Add screen — you always review and save manually. All other tools are read-only.",
+        },
+        {
+          q: "What is sent to my provider?",
+          a: "Your messages, plus the results of any read tool the model decides to call (transactions, balances, category totals). See the [privacy page](/privacy) for the full data flow.",
+        },
+        {
+          q: "Where is my API token stored?",
+          a: "Server-side in the `ai_credentials` table. It is **not** returned to the browser, but the server operator can read it — treat it like other credentials on this instance.",
+        },
+      ],
+    },
   ],
 };
 
@@ -343,6 +376,21 @@ const DE: Content = {
         { q: "Was bedeutet das für mich?", a: "Gib nur Informationen ein, mit deren Einsicht durch die betreibende Person du einverstanden bist. Vermeide stark sensible Daten (Passwörter, vollständige IBANs, medizinische Hinweise usw.)." },
         { q: "Wie ist das rechtlich geregelt?", a: "Siehe die [Datenschutzerklärung / DSGVO-Hinweis](/privacy) — du hast ihr bei der Registrierung zugestimmt. Sie nennt die verantwortliche Stelle, was gespeichert wird, und deine Rechte nach DSGVO." },
         { q: "Kann ich meine eigene Instanz betreiben?", a: "Ja. Das Projekt ist Open Source. Siehe das [GitHub-Repository](https://github.com/Jonas-Marty/cash-flow-jm) — die README erklärt Build und Deployment gegen eine eigene Supabase-Instanz." },
+      ],
+    },
+    {
+      id: "ai",
+      icon: Sparkles,
+      title: "KI-Assistent",
+      intro:
+        "Optionaler Chat-Assistent, der ein von dir bereitgestelltes Modell nutzt. Erlaubt sind nur Themen rund um diese App: persönliche Finanzen, Bedienung, Datenschutz.",
+      items: [
+        { q: "Wie aktiviere ich ihn?", a: "**Einstellungen → KI-Assistent**: einschalten, **API Base URL** (z. B. `https://api.openai.com/v1`), **Modellname** (z. B. `gpt-4o-mini`) und **API Token** eintragen. *Verbindung testen*, dann *Speichern*." },
+        { q: "Welche Provider funktionieren?", a: "Alles, was die OpenAI-Chat-Completions-API spricht: OpenAI, OpenRouter, Groq, Together, lokal **Ollama** (`http://host:11434/v1`), **LM Studio**, **vLLM**, **llama.cpp**-Server usw." },
+        { q: "Was kann er?", a: "Add-Formular vorausfüllen aus Sätzen wie *„Ich habe 50 im Coop bezahlt für Lebensmittel, Kreditkarte\"*; Fragen zu deinen Daten beantworten (*„Wo habe ich letzten Monat am meisten ausgegeben?\"*) via Lesetools; App-Funktionen und Datenschutz erklären. Alles andere lehnt er ab." },
+        { q: "Schreibt er in meine Daten?", a: "Nein. Er **bereitet nur einen Entwurf** für das Add-Formular vor — speichern musst du selbst. Alle anderen Tools lesen nur." },
+        { q: "Was wird an den Provider gesendet?", a: "Deine Nachrichten plus die Ergebnisse der Lesetools, die das Modell aufruft (Buchungen, Kontostände, Kategoriesummen). Siehe [Datenschutzseite](/privacy) für den vollständigen Datenfluss." },
+        { q: "Wo wird mein API Token gespeichert?", a: "Serverseitig in der Tabelle `ai_credentials`. Er wird **nicht** an den Browser zurückgegeben, aber der Server-Betreiber kann ihn lesen — behandle ihn wie andere Zugangsdaten auf dieser Instanz." },
       ],
     },
   ],

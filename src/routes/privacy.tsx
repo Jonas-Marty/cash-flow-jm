@@ -65,6 +65,11 @@ const EN: Content = {
       body: "Your data is **not sold** and **not shared** with third parties for marketing or profiling. Data leaves the server only if you explicitly trigger it — for example by:\n- Connecting Nextcloud for attachments (attachments are then stored in **your** Nextcloud).\n- Using the public REST API with your own tokens.\n- Exporting your data.\n\nNo subprocessors are used.",
     },
     {
+      id: "ai",
+      title: "6a. Optional AI assistant",
+      body: "If you enable the in-app AI assistant in Settings, the following additional processing happens:\n\n- **You bring your own provider.** You configure an OpenAI-compatible API endpoint, model name and API token. Nothing is sent anywhere until you do.\n- **Token storage.** The API token is stored **server-side** in the `ai_credentials` table on the same Swiss homelab server. It is **never** returned to the browser. **The server operator can technically read the stored token** because the database is not encrypted at rest — treat it like any other credential on this instance and use a token scoped to the minimum permissions you need.\n- **What is sent to your provider.** When you chat with the assistant, your messages plus the results of any read tool the model decides to call (transactions, balances, category totals, open IOUs, account names, help-page snippets) are sent to the endpoint you configured. The operator of that endpoint sees this data — choose a provider you trust (e.g. a local Ollama instance on your own machine if you want zero external sharing).\n- **No automatic writes.** The assistant can only **prepare a draft** for the Add-Transaction form; you always review and save manually.\n- **Scope.** The system prompt restricts the assistant to personal-finance, app-usage and privacy questions. Off-topic questions are refused.\n- **Disable any time** by turning the toggle off in Settings or by clearing the stored token.",
+    },
+    {
       id: "retention",
       title: "7. Retention",
       body: "- **Application data:** kept until you delete it or request deletion of your account.\n- **Audit logs:** retained for up to 365 days, then pruned.\n- **Request logs:** kept for the lifetime of the running container's log driver (typically a few weeks).",
@@ -124,6 +129,11 @@ const DE: Content = {
       id: "sharing",
       title: "6. Weitergabe an Dritte",
       body: "Deine Daten werden **nicht verkauft** und **nicht für Marketing oder Profilbildung** an Dritte weitergegeben. Daten verlassen den Server nur, wenn du es aktiv auslöst — z. B. durch:\n- Verbinden von Nextcloud für Anhänge (Anhänge liegen dann in **deiner** Nextcloud).\n- Nutzung der öffentlichen REST-API mit eigenen Tokens.\n- Export deiner Daten.\n\nEs werden keine Auftragsverarbeiter eingesetzt.",
+    },
+    {
+      id: "ai",
+      title: "6a. Optionaler KI-Assistent",
+      body: "Wenn du den KI-Assistenten in den Einstellungen aktivierst, kommen folgende zusätzliche Verarbeitungen hinzu:\n\n- **Bring deinen eigenen Provider mit.** Du konfigurierst einen OpenAI-kompatiblen API-Endpoint, Modellnamen und API-Token. Ohne diese Eingaben wird nichts versendet.\n- **Token-Speicherung.** Der API-Token wird **serverseitig** in der Tabelle `ai_credentials` auf demselben Schweizer Homelab-Server gespeichert. Er wird **nie** an den Browser zurückgegeben. **Die betreibende Person kann den Token technisch lesen**, weil die Datenbank nicht verschlüsselt ist — behandle ihn wie andere Zugangsdaten auf dieser Instanz und verwende einen Token mit minimal nötigen Rechten.\n- **Was an den Provider gesendet wird.** Bei einem Chat werden deine Nachrichten sowie die Ergebnisse der Lesetools, die das Modell aufruft (Buchungen, Kontostände, Kategoriesummen, offene IOUs, Kontonamen, Hilfeauszüge), an den von dir konfigurierten Endpoint gesendet. Dessen Betreiber sieht diese Daten — wähle einen Provider, dem du vertraust (z. B. lokale Ollama-Instanz, wenn nichts nach außen soll).\n- **Keine automatischen Schreibvorgänge.** Der Assistent kann nur **einen Entwurf** für das Add-Formular vorbereiten; speichern musst du selbst.\n- **Themen-Beschränkung.** Der System-Prompt erlaubt nur Themen rund um persönliche Finanzen, App-Bedienung und Datenschutz. Anderes wird abgelehnt.\n- **Jederzeit deaktivierbar** über den Schalter in den Einstellungen oder durch Leeren des gespeicherten Tokens.",
     },
     {
       id: "retention",
