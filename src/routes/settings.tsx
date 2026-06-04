@@ -32,6 +32,7 @@ import { Switch } from "@/components/ui/switch";
 import { useQuery as useRQ } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
 import { SettingsSectionNav, type SettingsSection } from "@/components/SettingsSectionNav";
+import { AISettingsCard } from "@/components/AISettingsCard";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -312,6 +313,7 @@ function SettingsPage() {
             { id: "accounts", label: tr("settings.accounts") },
             { id: "nextcloud", label: tr("nextcloud.title") },
             { id: "api-tokens", label: tr("settings.nav.api_tokens") },
+            { id: "ai", label: tr("ai.settings.title") },
             { id: "integrations", label: tr("settings.integrations") },
             { id: "audit", label: tr("audit.title") },
             { id: "account", label: tr("settings.account") },
@@ -776,6 +778,7 @@ function SettingsPage() {
 
         <section id="nextcloud"><NextcloudCard /></section>
         <section id="api-tokens"><ApiTokensCard /></section>
+       <section id="ai"><AISettingsCard /></section>
         <section id="integrations"><IntegrationsCard /></section>
         <section id="audit"><AuditLogCard /></section>
         <section id="account"><AccountCard /></section>
