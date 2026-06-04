@@ -13,6 +13,7 @@ import { Route as TransactionsRouteImport } from './routes/transactions'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScopesRouteImport } from './routes/scopes'
 import { Route as ReconcileRouteImport } from './routes/reconcile'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PendingRouteImport } from './routes/pending'
 import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as HelpRouteImport } from './routes/help'
@@ -51,6 +52,11 @@ const ScopesRoute = ScopesRouteImport.update({
 const ReconcileRoute = ReconcileRouteImport.update({
   id: '/reconcile',
   path: '/reconcile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PendingRoute = PendingRouteImport.update({
@@ -159,6 +165,7 @@ export interface FileRoutesByFullPath {
   '/help': typeof HelpRoute
   '/insights': typeof InsightsRoute
   '/pending': typeof PendingRoute
+  '/privacy': typeof PrivacyRoute
   '/reconcile': typeof ReconcileRoute
   '/scopes': typeof ScopesRoute
   '/settings': typeof SettingsRoute
@@ -184,6 +191,7 @@ export interface FileRoutesByTo {
   '/help': typeof HelpRoute
   '/insights': typeof InsightsRoute
   '/pending': typeof PendingRoute
+  '/privacy': typeof PrivacyRoute
   '/reconcile': typeof ReconcileRoute
   '/scopes': typeof ScopesRoute
   '/settings': typeof SettingsRoute
@@ -210,6 +218,7 @@ export interface FileRoutesById {
   '/help': typeof HelpRoute
   '/insights': typeof InsightsRoute
   '/pending': typeof PendingRoute
+  '/privacy': typeof PrivacyRoute
   '/reconcile': typeof ReconcileRoute
   '/scopes': typeof ScopesRoute
   '/settings': typeof SettingsRoute
@@ -237,6 +246,7 @@ export interface FileRouteTypes {
     | '/help'
     | '/insights'
     | '/pending'
+    | '/privacy'
     | '/reconcile'
     | '/scopes'
     | '/settings'
@@ -262,6 +272,7 @@ export interface FileRouteTypes {
     | '/help'
     | '/insights'
     | '/pending'
+    | '/privacy'
     | '/reconcile'
     | '/scopes'
     | '/settings'
@@ -287,6 +298,7 @@ export interface FileRouteTypes {
     | '/help'
     | '/insights'
     | '/pending'
+    | '/privacy'
     | '/reconcile'
     | '/scopes'
     | '/settings'
@@ -313,6 +325,7 @@ export interface RootRouteChildren {
   HelpRoute: typeof HelpRoute
   InsightsRoute: typeof InsightsRoute
   PendingRoute: typeof PendingRoute
+  PrivacyRoute: typeof PrivacyRoute
   ReconcileRoute: typeof ReconcileRoute
   ScopesRoute: typeof ScopesRoute
   SettingsRoute: typeof SettingsRoute
@@ -360,6 +373,13 @@ declare module '@tanstack/react-router' {
       path: '/reconcile'
       fullPath: '/reconcile'
       preLoaderRoute: typeof ReconcileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pending': {
@@ -505,6 +525,7 @@ const rootRouteChildren: RootRouteChildren = {
   HelpRoute: HelpRoute,
   InsightsRoute: InsightsRoute,
   PendingRoute: PendingRoute,
+  PrivacyRoute: PrivacyRoute,
   ReconcileRoute: ReconcileRoute,
   ScopesRoute: ScopesRoute,
   SettingsRoute: SettingsRoute,
