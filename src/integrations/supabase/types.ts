@@ -124,6 +124,51 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_audit_logs: {
+        Row: {
+          conversation_id: string | null
+          duration_ms: number | null
+          error_message: string | null
+          id: string
+          kind: string
+          model: string | null
+          occurred_at: string
+          ok: boolean | null
+          payload: Json
+          provider_host: string | null
+          tool_name: string | null
+          user_id: string
+        }
+        Insert: {
+          conversation_id?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          kind: string
+          model?: string | null
+          occurred_at?: string
+          ok?: boolean | null
+          payload?: Json
+          provider_host?: string | null
+          tool_name?: string | null
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          id?: string
+          kind?: string
+          model?: string | null
+          occurred_at?: string
+          ok?: boolean | null
+          payload?: Json
+          provider_host?: string | null
+          tool_name?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_conversations: {
         Row: {
           created_at: string
