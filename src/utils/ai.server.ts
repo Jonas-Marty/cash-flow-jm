@@ -8,6 +8,81 @@ import { buildSystemPrompt } from "@/lib/ai/systemPrompt";
 import type { AssistantAction } from "@/lib/ai/types";
 
 // ---------------------------------------------------------------------------
+// Audit log
+// ---------------------------------------------------------------------------
+
+function providerHost(url: string): string | null {
+  try {
+    return new URL(url).host;
+  } catch {
+    return null;
+  }
+}
+
+function preview(v: unknown, max = 1000): string {
+  let s: string;
+  try {
+    s = typeof v === "string" ? v : JSON.stringify(v);
+  } catch {
+    s = String(v);
+  }
+  if (s.length > max) s = s.slice(0, max) + `…[+${s.length - max} chars]`;
+  return s;
+}
+
+async function writeAudit(row: {
+  user_id: string;
+  kind: "chat_request" | "tool_call";
+  model?: string | null;
+  provider_host?: string | null;
+  tool_name?: string | null;
+  conversation_id?: string | null;
+  duration_ms?: number | null;
+  ok?: boolean | null;
+  error_message?: string | null;
+  payload: Record<string, unknown>;
+}): Promise<void> {
+  try {
+    // Defensive: never let a token slip into the log.
+    const safe = JSON.parse(JSON.stringify(row.payload || {}));
+    stripSecrets(safe);
+    await supabaseAdmin.from("ai_audit_logs").insert({
+      user_id: row.user_id,
+      kind: row.kind,
+      model: row.model ?? null,
+      provider_host: row.provider_host ?? null,
+      tool_name: row.tool_name ?? null,
+      conversation_id: row.conversation_id ?? null,
+      duration_ms: row.duration_ms ?? null,
+      ok: row.ok ?? null,
+      error_message: row.error_message ?? null,
+      payload: safe,
+    });
+  } catch {
+    // Swallow logging errors; they must never break a chat turn.
+  }
+}
+
+function stripSecrets(obj: unknown): void {
+  if (!obj || typeof obj !== "object") return;
+  for (const k of Object.keys(obj as Record<string, unknown>)) {
+    const lk = k.toLowerCase();
+    if (
+      lk.includes("token") ||
+      lk.includes("authorization") ||
+      lk.includes("api_key") ||
+      lk === "apikey" ||
+      lk.includes("secret") ||
+      lk.includes("password")
+    ) {
+      (obj as Record<string, unknown>)[k] = "[redacted]";
+    } else {
+      stripSecrets((obj as Record<string, unknown>)[k]);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Credentials
 // ---------------------------------------------------------------------------
 
@@ -383,6 +458,7 @@ export async function runChat(
   userId: string,
   systemPromptCtx: Parameters<typeof buildSystemPrompt>[0],
   history: { role: "user" | "assistant" | "tool"; content: string; tool_call_id?: string; tool_calls?: OAIMessage["tool_calls"] }[],
+  conversationId?: string | null,
 ): Promise<ChatResult> {
   const messages: OAIMessage[] = [
     { role: "system", content: buildSystemPrompt(systemPromptCtx) },
@@ -400,8 +476,11 @@ export async function runChat(
   }));
 
   let lastAction: AssistantAction | null = null;
+  const host = providerHost(creds.base_url);
+  const lastUser = [...history].reverse().find((m) => m.role === "user")?.content ?? "";
 
   for (let step = 0; step < 6; step++) {
+    const reqStarted = Date.now();
     const resp = await fetch(`${creds.base_url}/chat/completions`, {
       method: "POST",
       headers: {
@@ -417,13 +496,50 @@ export async function runChat(
     });
     if (!resp.ok) {
       const body = await resp.text();
+      await writeAudit({
+        user_id: userId,
+        kind: "chat_request",
+        model: creds.model,
+        provider_host: host,
+        conversation_id: conversationId ?? null,
+        duration_ms: Date.now() - reqStarted,
+        ok: false,
+        error_message: `${resp.status} ${body.slice(0, 200)}`,
+        payload: {
+          step,
+          status: resp.status,
+          message_count: messages.length,
+          last_user_message: preview(lastUser, 500),
+          response_body_preview: preview(body, 1000),
+        },
+      });
       throw new Error(`AI provider error (${resp.status}): ${body.slice(0, 500)}`);
     }
     const json = (await resp.json()) as {
       choices?: { message?: OAIMessage; finish_reason?: string }[];
+      usage?: Record<string, unknown>;
     };
     const msg = json.choices?.[0]?.message;
     if (!msg) throw new Error("AI provider returned no message");
+
+    await writeAudit({
+      user_id: userId,
+      kind: "chat_request",
+      model: creds.model,
+      provider_host: host,
+      conversation_id: conversationId ?? null,
+      duration_ms: Date.now() - reqStarted,
+      ok: true,
+      payload: {
+        step,
+        message_count: messages.length,
+        last_user_message: preview(lastUser, 500),
+        finish_reason: json.choices?.[0]?.finish_reason ?? null,
+        usage: json.usage ?? null,
+        assistant_text_preview: preview(msg.content ?? "", 1000),
+        tool_call_names: (msg.tool_calls ?? []).map((c) => c.function.name),
+      },
+    });
 
     // Push the assistant turn (with any tool_calls) so the next request includes it.
     messages.push({
@@ -440,22 +556,40 @@ export async function runChat(
     for (const call of msg.tool_calls) {
       const tool = TOOLS.find((t) => t.name === call.function.name);
       let result: ToolResult;
+      const toolStarted = Date.now();
+      let parsedArgs: Record<string, unknown> = {};
+      try {
+        parsedArgs = call.function.arguments ? JSON.parse(call.function.arguments) : {};
+      } catch {
+        parsedArgs = { __raw: call.function.arguments };
+      }
       if (!tool) {
         result = { ok: false, error: `Unknown tool: ${call.function.name}` };
       } else {
-        let args: Record<string, unknown> = {};
         try {
-          args = call.function.arguments ? JSON.parse(call.function.arguments) : {};
-        } catch {
-          args = {};
-        }
-        try {
-          result = await tool.exec(args, sb, userId);
+          result = await tool.exec(parsedArgs, sb, userId);
         } catch (e) {
           result = { ok: false, error: e instanceof Error ? e.message : String(e) };
         }
       }
       if (result.ok && result.action) lastAction = result.action;
+      await writeAudit({
+        user_id: userId,
+        kind: "tool_call",
+        model: creds.model,
+        provider_host: host,
+        tool_name: call.function.name,
+        conversation_id: conversationId ?? null,
+        duration_ms: Date.now() - toolStarted,
+        ok: result.ok,
+        error_message: result.ok ? null : result.error,
+        payload: {
+          step,
+          args: parsedArgs,
+          result_preview: result.ok ? preview(result.data, 2000) : null,
+          action: result.ok ? result.action ?? null : null,
+        },
+      });
       messages.push({
         role: "tool",
         tool_call_id: call.id,
