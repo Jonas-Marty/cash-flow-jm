@@ -481,11 +481,23 @@ function HelpPage() {
           })}
 
           <Separator />
-          <p className="text-center text-xs text-muted-foreground">
+          <div className="flex flex-col items-center gap-2 text-xs text-muted-foreground">
+            <a
+              href="https://github.com/Jonas-Marty/cash-flow-jm"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 hover:text-foreground"
+            >
+              <Github className="h-3.5 w-3.5" />
+              {lang === "de" ? "Quellcode auf GitHub" : "Source code on GitHub"}
+            </a>
+            <Link to="/privacy" className="hover:text-foreground">
+              {lang === "de" ? "Datenschutz / DSGVO" : "Privacy / GDPR"}
+            </Link>
             <Link to="/" className="underline-offset-2 hover:underline">
               ← {lang === "de" ? "Zur Übersicht" : "Back to dashboard"}
             </Link>
-          </p>
+          </div>
         </div>
       </div>
     </div>
