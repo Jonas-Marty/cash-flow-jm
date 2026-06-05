@@ -82,6 +82,9 @@ export function NextcloudCard() {
           <p className="text-xs text-muted-foreground">{t("nextcloud.saved_not_connected")}</p>
         ) : null}
         <p className="text-xs text-muted-foreground">{t("nextcloud.privilege_hint")}</p>
+        <p className="text-xs text-muted-foreground">
+          {t("nextcloud.redirect_uri_hint", { uri: `${typeof window !== "undefined" ? window.location.origin : "…"}/api/nextcloud/callback` })}
+        </p>
       </CardContent>
     </Card>
   );
