@@ -79,20 +79,61 @@ const EN: Content = {
       id: "concepts",
       icon: BookOpen,
       title: "Core concepts",
+      intro:
+        "These building blocks work together to give you a complete picture of your money. Think of it like a set of envelopes, a notebook, and a filing cabinet — just digital.",
       items: [
-        { q: "Account", a: "A real-world container for money: a bank account, cash wallet, credit card, or savings pot. Every transaction belongs to exactly one account (transfers belong to two)." },
-        { q: "Transaction", a: "A single movement of money: expense, income or transfer. Has a date, amount, account, category and optional tags, attachments and notes." },
-        { q: "Category", a: "What the money was for (Groceries, Salary, Rent…). Categories are grouped, and most categories represent a monthly *envelope* you can budget." },
-        { q: "Category group", a: "A bucket that groups related categories (e.g. *Food* contains Groceries, Eating out, Coffee). Used in reports and for shared sweep settings." },
-        { q: "Envelope / budget", a: "The monthly amount you plan to spend in a category. The Envelopes screen shows how much is left in each envelope for the current month." },
-        { q: "Scope", a: "A lens that pre-filters and pre-fills the app — for example a trip, a project, or a shared household. Switching the active scope changes the dashboard, transaction list and add-form defaults." },
-        { q: "IOU / reimbursable", a: "A transaction flagged because someone owes you (or you owe someone). Open IOUs stay visible until you record a repayment, mark them settled, write them off, or cancel them." },
-        { q: "Pending transaction", a: "An entry imported from outside the app (via the public API or another source) that has not yet been booked. You review it and then confirm or reject." },
-        { q: "Recurring rule", a: "A template that posts a transaction on a schedule (rent, salary, subscriptions). You can skip, edit or post individual occurrences." },
-        { q: "Reconciliation", a: "Comparing the app's account totals with reality. The Reconcile screen shows any drift between booked balances, savings envelopes, and unswept money." },
-        { q: "Sweep / savings target", a: "At month-end, any leftover budget in an envelope can be *swept* into a savings category. You can set a default target and per-group overrides." },
-        { q: "Attachment", a: "A file (receipt, invoice) linked to a transaction. Optionally synced to Nextcloud if you connect it." },
-        { q: "Tag", a: "A free-form label you can attach to transactions and search by. Useful for cross-cutting concerns that don't fit categories (e.g. *vacation-2025*)." },
+        {
+          q: "Account",
+          a: "A real-world container for money: a bank account, cash wallet, credit card, or savings pot. Every transaction belongs to exactly one account (transfers belong to two).\n\n**Example:** You might have *UBS Checking*, *PostFinance Savings*, *Cash in Wallet*, and *Visa Credit Card*. When you buy groceries with your Visa, the transaction is recorded against the *Visa Credit Card* account. When you withdraw cash from an ATM, that is a transfer from *UBS Checking* to *Cash in Wallet*.",
+        },
+        {
+          q: "Transaction",
+          a: "A single movement of money: an expense, income, or transfer. Has a date, amount, account, category and optional tags, attachments and notes.\n\n**Example:** On 5 June you spend CHF 64.50 at Migros using your debit card. That is an **expense** of 64.50, on account *UBS Checking*, in category *Groceries*. On 30 June your employer pays your salary of CHF 5,200 — that is an **income** transaction on account *UBS Checking*, category *Salary*. Moving CHF 200 from checking to savings is a **transfer**.",
+        },
+        {
+          q: "Category",
+          a: "What the money was for (Groceries, Salary, Rent…). Categories are grouped, and most categories represent a monthly *envelope* you can budget.\n\n**Example:** You create categories like *Groceries*, *Restaurant*, *Coffee*, *Rent*, *Electricity*, *Salary*, and *Holiday Savings*. When you record a purchase, you pick the category so the app knows which envelope to draw from. A reimbursement from a friend goes into a category too — but you might leave the category empty so it does not affect your budget.",
+        },
+        {
+          q: "Category group",
+          a: "A bucket that groups related categories (e.g. *Food* contains Groceries, Eating out, Coffee). Used in reports and for shared sweep settings.\n\n**Example:** Your *Food* group holds *Groceries*, *Restaurant*, and *Coffee*. Your *Fixed Costs* group holds *Rent*, *Insurance*, and *Phone*. When you look at the Insights Breakdown tab, you can see totals per group — which quickly tells you whether you spend more on food or fixed costs.",
+        },
+        {
+          q: "Envelope / budget",
+          a: "The monthly amount you plan to spend in a category. The Envelopes screen shows how much is left in each envelope for the current month.\n\n**Example:** You decide to budget CHF 400 for *Groceries* this month. The envelope starts with 400. After you spend 120 at Migros, the envelope shows 280 left. If you later spend 50 at the bakery, it drops to 230. If you receive a CHF 30 reimbursement for a shared dinner (linked to an IOU), the envelope grows back to 260 — because you got some of that grocery money back.\n\nAt month-end, whatever is still in the envelope (or the shortfall) is handled by your sweep and rollover settings.",
+        },
+        {
+          q: "Scope",
+          a: "A lens that pre-filters and pre-fills the app — for example a trip, a project, or a shared household. Switching the active scope changes the dashboard, transaction list and add-form defaults.\n\n**Example:** You create a scope called *Paris Trip 2025*. While that scope is active, every new transaction you add is tagged with it automatically. The dashboard only shows accounts and transactions linked to that trip. When you come home, you switch back to the default scope and your normal household budget returns.",
+        },
+        {
+          q: "IOU / reimbursable",
+          a: "A transaction flagged because someone owes you (or you owe someone). Open IOUs stay visible until you record a repayment, mark them settled, write them off, or cancel them.\n\n**Example:** You pay CHF 120 for a team dinner with your credit card and your colleague owes you half. You record the expense as CHF 120, toggle **Reimbursable**, enter *Colleague Anna* as counterparty. The full 120 hits your *Restaurant* budget, but an open IOU of 60 shows up on your dashboard. When Anna pays you back via TWINT, you record a repayment — the IOU closes and your *Restaurant* envelope gets credited back 60.",
+        },
+        {
+          q: "Pending transaction",
+          a: "An entry imported from outside the app (via the public API or another source) that has not yet been booked. You review it and then confirm or reject.\n\n**Example:** Your bank API pushes a transaction: *Coop, CHF 45.30, 12 June*. It lands in **Pending** because the app does not know which category it belongs to. You open it, assign *Groceries*, and click **Confirm**. Now it becomes a real transaction in your ledger.",
+        },
+        {
+          q: "Recurring rule",
+          a: "A template that posts a transaction on a schedule (rent, salary, subscriptions). You can skip, edit or post individual occurrences.\n\n**Example:** Your rent of CHF 1,450 is due on the 1st of every month. You set up a recurring rule: amount 1,450, category *Rent*, account *UBS Checking*, day-of-month = 1. The dashboard shows the next upcoming occurrence. If you are on holiday and the landlord delays the debit until the 5th, you can edit that single occurrence without changing the rule.",
+        },
+        {
+          q: "Reconciliation",
+          a: "Comparing the app's account totals with reality. The Reconcile screen shows any drift between booked balances, savings envelopes, and unswept money.\n\n**Example:** Your real bank statement says your checking account holds CHF 3,240. The app says CHF 3,440. The reconcile screen shows a CHF 200 drift. You trace it back: you recorded a transfer to savings but forgot to create the matching incoming side. After fixing it, drift is zero and everything lines up.",
+        },
+        {
+          q: "Sweep / savings target",
+          a: "At month-end, any leftover budget in an envelope can be *swept* into a savings category. You can set a default target and per-group overrides.\n\n**What happens with leftover money?**\nImagine your *Groceries* envelope had CHF 400 for June. You only spent CHF 350. At the end of June, the remaining CHF 50 can be **swept** into your *Holiday Savings* category (or any savings target you configured). That CHF 50 is now counted as saved, and the *Groceries* envelope resets to zero for the fresh month of July.\n\n**What happens if you overspend?**\nImagine you budgeted CHF 400 for *Groceries* but spent CHF 450. At month-end the envelope shows −50. Depending on your settings, that shortfall can be left as-is (you start July already 50 in the red), or it can be covered from another envelope via *Reallocate*. The app never silently moves money — you always decide what happens.\n\nSavings categories (like *Holiday Savings* or *Emergency Fund*) are different: they are **running balances**, not monthly envelopes. Money accumulates month after month until you spend from them.",
+        },
+        {
+          q: "Attachment",
+          a: "A file (receipt, invoice) linked to a transaction. Optionally synced to Nextcloud if you connect it.\n\n**Example:** After paying CHF 89 for a dentist visit, you snap a photo of the receipt and attach it to the transaction. Six months later, when your health insurance asks for proof, you open the transaction and the receipt is right there.",
+        },
+        {
+          q: "Tag",
+          a: "A free-form label you can attach to transactions and search by. Useful for cross-cutting concerns that don't fit categories (e.g. *vacation-2025*).\n\n**Example:** You tag flights, hotel bookings, and restaurant meals with *#paris-2025*. Later, you can search that tag and see the total cost of the trip across all categories — without creating a separate *Paris* category for each expense type.",
+        },
       ],
     },
     {
@@ -296,20 +337,61 @@ const DE: Content = {
       id: "concepts",
       icon: BookOpen,
       title: "Grundkonzepte",
+      intro:
+        "Diese Bausteine arbeiten zusammen, um dir ein vollständiges Bild deines Geldes zu geben. Stell dir einen Satz Umschläge, ein Notizbuch und einen Aktenschrank vor — nur digital.",
       items: [
-        { q: "Konto", a: "Ein realer Geldbehälter: Bankkonto, Bargeld, Kreditkarte, Sparbuch. Jede Buchung gehört zu genau einem Konto (Übertrag zu zweien)." },
-        { q: "Buchung", a: "Eine einzelne Geldbewegung: Ausgabe, Einnahme oder Übertrag. Mit Datum, Betrag, Konto, Kategorie und optional Tags, Anhängen, Notizen." },
-        { q: "Kategorie", a: "Wofür das Geld war (Lebensmittel, Gehalt, Miete…). Kategorien sind gruppiert; die meisten sind monatliche *Umschläge*, für die du Budgets setzen kannst." },
-        { q: "Kategoriegruppe", a: "Bündelt verwandte Kategorien (z. B. *Essen* enthält Lebensmittel, Restaurant, Kaffee). Wird in Auswertungen und für gemeinsame Sweep-Einstellungen verwendet." },
-        { q: "Umschlag / Budget", a: "Der monatliche Betrag, den du in einer Kategorie ausgeben willst. Die Budget-Seite zeigt den verbleibenden Stand pro Umschlag." },
-        { q: "Scope", a: "Ein Filter, der die App vorbelegt — z. B. eine Reise, ein Projekt, ein gemeinsamer Haushalt. Der aktive Scope beeinflusst Übersicht, Buchungsliste und Add-Formular." },
-        { q: "IOU / erstattungsfähig", a: "Eine Buchung, die markiert wurde, weil dir jemand Geld schuldet (oder umgekehrt). Offene IOUs bleiben sichtbar, bis du eine Rückzahlung erfasst, sie als abgegolten markierst, abschreibst oder stornierst." },
-        { q: "Offene Buchung", a: "Ein Eintrag, der aus einem externen System (oder über die öffentliche API) importiert wurde und noch nicht gebucht ist. Du prüfst und bestätigst oder lehnst ab." },
-        { q: "Wiederkehrende Regel", a: "Eine Vorlage, die Buchungen nach Zeitplan erzeugt (Miete, Gehalt, Abos). Einzelne Vorkommen lassen sich überspringen, ändern oder posten." },
-        { q: "Abgleich", a: "Vergleich der App-Salden mit der Realität. Die Abgleich-Seite zeigt jede Abweichung zwischen gebuchten Salden, Sparumschlägen und ungekehrtem Geld." },
-        { q: "Sweep / Sparziel", a: "Am Monatsende kann übriges Budget aus einem Umschlag in eine Sparkategorie *gekehrt* werden. Ein Standardziel und Gruppen-Overrides sind möglich." },
-        { q: "Anhang", a: "Eine Datei (Quittung, Rechnung), die einer Buchung beiliegt. Optional über Nextcloud synchronisierbar." },
-        { q: "Tag", a: "Ein freies Label für Buchungen, das du durchsuchen kannst. Praktisch für Querschnitte, die nicht zu einer Kategorie passen (z. B. *urlaub-2025*)." },
+        {
+          q: "Konto",
+          a: "Ein realer Geldbehälter: Bankkonto, Bargeld, Kreditkarte, Sparbuch. Jede Buchung gehört zu genau einem Konto (Übertrag zu zweien).\n\n**Beispiel:** Du hast vielleicht *UBS Giro*, *PostFinance Spar*, *Bargeld* und *Visa Kreditkarte*. Wenn du mit der Visa einkaufen gehst, wird die Buchung auf das Konto *Visa Kreditkarte* gebucht. Wenn du am Bankomat Bargeld abhebst, ist das ein Übertrag von *UBS Giro* nach *Bargeld*.",
+        },
+        {
+          q: "Buchung",
+          a: "Eine einzelne Geldbewegung: Ausgabe, Einnahme oder Übertrag. Mit Datum, Betrag, Konto, Kategorie und optional Tags, Anhängen, Notizen.\n\n**Beispiel:** Am 5. Juni gibst du 64.50 CHF bei der Migros mit der Debitkarte aus. Das ist eine **Ausgabe** von 64.50, auf dem Konto *UBS Giro*, in der Kategorie *Lebensmittel*. Am 30. Juni zahlt dir dein Arbeitgeber 5,200 CHF Lohn — das ist eine **Einnahme** auf *UBS Giro*, Kategorie *Lohn*. 200 CHF von Giro auf Sparbuch zu überweisen ist ein **Übertrag**.",
+        },
+        {
+          q: "Kategorie",
+          a: "Wofür das Geld war (Lebensmittel, Gehalt, Miete…). Kategorien sind gruppiert; die meisten sind monatliche *Umschläge*, für die du Budgets setzen kannst.\n\n**Beispiel:** Du legst Kategorien an wie *Lebensmittel*, *Restaurant*, *Kaffee*, *Miete*, *Strom*, *Lohn* und *Urlaubsrücklage*. Wenn du einen Kauf erfassen willst, wählst du die Kategorie, damit die App weiss, aus welchem Umschlag das Geld kommen soll. Eine Rückerstattung von einer Freundin buchst du ebenfalls in eine Kategorie — oder lässt die Kategorie weg, damit sie dein Budget nicht beeinflusst.",
+        },
+        {
+          q: "Kategoriegruppe",
+          a: "Bündelt verwandte Kategorien (z. B. *Essen* enthält Lebensmittel, Restaurant, Kaffee). Wird in Auswertungen und für gemeinsame Sweep-Einstellungen verwendet.\n\n**Beispiel:** Deine Gruppe *Essen* enthält *Lebensmittel*, *Restaurant* und *Kaffee*. Deine Gruppe *Fixkosten* enthält *Miete*, *Versicherung* und *Telefon*. In der Aufschlüsselung unter *Auswertungen* siehst du dann die Summen pro Gruppe — und erkennst auf einen Blick, ob du mehr für Essen oder für Fixkosten ausgibst.",
+        },
+        {
+          q: "Umschlag / Budget",
+          a: "Der monatliche Betrag, den du in einer Kategorie ausgeben willst. Die Budget-Seite zeigt den verbleibenden Stand pro Umschlag.\n\n**Beispiel:** Du budgetierst 400 CHF für *Lebensmittel* im Juni. Der Umschlag startet mit 400. Nach dem Einkauf bei Migros für 120 bleiben 280. Wenn du später 50 beim Bäcker ausgibst, sinkt er auf 230. Wenn du eine Rückerstattung von 30 CHF für ein gemeinsames Abendessen bekommst (verknüpft mit einer IOU), wächst der Umschlag wieder auf 260 — weil du einen Teil des Essensgeldes zurückbekommen hast.\n\nAm Monatsende wird das, was noch im Umschlag ist (oder das Defizit), durch deine Sweep- und Rollover-Einstellungen verarbeitet.",
+        },
+        {
+          q: "Scope",
+          a: "Ein Filter, der die App vorbelegt — z. B. eine Reise, ein Projekt, ein gemeinsamer Haushalt. Der aktive Scope beeinflusst Übersicht, Buchungsliste und Add-Formular.\n\n**Beispiel:** Du erstellst einen Scope *Paris 2025*. Solange dieser aktiv ist, wird jede neue Buchung automatisch damit markiert. Die Übersicht zeigt nur Konten und Buchungen, die mit der Reise verknüpft sind. Wenn du zurück bist, schaltest du auf den Standard-Scope um — und dein normales Haushaltsbudget ist wieder da.",
+        },
+        {
+          q: "IOU / erstattungsfähig",
+          a: "Eine Buchung, die markiert wurde, weil dir jemand Geld schuldet (oder umgekehrt). Offene IOUs bleiben sichtbar, bis du eine Rückzahlung erfasst, sie als abgegolten markierst, abschreibst oder stornierst.\n\n**Beispiel:** Du zahlst 120 CHF für ein Team-Abendessen mit deiner Kreditkarte; dein Kollege schuldet dir die Hälfte. Du buchst die Ausgabe als 120 CHF, aktivierst **Erstattungsfähig** und gibst *Kollegin Anna* als Gegenpartei an. Die vollen 120 belasten deinen *Restaurant*-Umschlag, aber eine offene IOU über 60 erscheint auf der Übersicht. Wenn Anna dir via TWINT zurückzahlt, erfasst du die Rückzahlung — die IOU schließt sich und dein *Restaurant*-Umschlag wird um 60 wieder aufgestockt.",
+        },
+        {
+          q: "Offene Buchung",
+          a: "Ein Eintrag, der aus einem externen System (oder über die öffentliche API) importiert wurde und noch nicht gebucht ist. Du prüfst und bestätigst oder lehnst ab.\n\n**Beispiel:** Deine Bank-API schiebt eine Buchung: *Coop, 45.30 CHF, 12. Juni*. Sie landet unter **Offen**, weil die App noch nicht weiss, welcher Kategorie sie gehört. Du öffnest sie, weist *Lebensmittel* zu und klickst **Bestätigen**. Jetzt ist sie eine echte Buchung in deinem Kontenbuch.",
+        },
+        {
+          q: "Wiederkehrende Regel",
+          a: "Eine Vorlage, die Buchungen nach Zeitplan erzeugt (Miete, Gehalt, Abos). Einzelne Vorkommen lassen sich überspringen, ändern oder posten.\n\n**Beispiel:** Deine Miete von 1,450 CHF fällt jeden 1. des Monats an. Du legst eine Regel an: Betrag 1,450, Kategorie *Miete*, Konto *UBS Giro*, Tag-im-Monat = 1. Die Übersicht zeigt das nächste anstehende Vorkommen. Falls du im Urlaub bist und der Vermieter die Abbuchung auf den 5. verschiebt, kannst du dieses eine Vorkommen ändern, ohne die Regel anzufassen.",
+        },
+        {
+          q: "Abgleich",
+          a: "Vergleich der App-Salden mit der Realität. Die Abgleich-Seite zeigt jede Abweichung zwischen gebuchten Salden, Sparumschlägen und ungekehrtem Geld.\n\n**Beispiel:** Dein echter Kontoauszug sagt, dein Giro hat 3,240 CHF. Die App zeigt 3,440 CHF. Der Abgleich zeigt eine Drift von 200 CHF. Du stellst fest: du hast einen Übertrag aufs Sparbuch gebucht, aber die Gegenbuchung vergessen. Nach der Korrektur ist die Drift null — alles stimmt.",
+        },
+        {
+          q: "Sweep / Sparziel",
+          a: "Am Monatsende kann übriges Budget aus einem Umschlag in eine Sparkategorie *gekehrt* werden. Ein Standardziel und Gruppen-Overrides sind möglich.\n\n**Was passiert mit übrigem Geld?**\nStell dir vor, dein *Lebensmittel*-Umschlag hatte 400 CHF für Juni. Du hast nur 350 ausgegeben. Am Ende des Monats können die verbleibenden 50 CHF per **Sweep** in deine *Urlaubsrücklage* (oder ein anderes konfiguriertes Sparziel) überführt werden. Die 50 CHF gelten dann als gespart, und der *Lebensmittel*-Umschlag wird für den frischen Juli auf null zurückgesetzt.\n\n**Was passicht bei Überziehung?**\nStell dir vor, du hast 400 CHF für *Lebensmittel* budgetiert, aber 450 ausgegeben. Am Monatsende zeigt der Umschlag −50. Je nach Einstellung bleibt das Defizit bestehen (du startest den Juli bereits mit 50 im Minus), oder es wird durch *Umverteilen* von einem anderen Umschlag gedeckt. Die App verschiebt nie stillschweigend Geld — du entscheidest immer, was passiert.\n\nSpar-Kategorien (wie *Urlaubsrücklage* oder *Notgroschen*) funktionieren anders: Sie haben einen **laufenden Saldo**, kein Monatsbudget. Geld summiert sich Monat für Monat, bis du daraus ausgibst.",
+        },
+        {
+          q: "Anhang",
+          a: "Eine Datei (Quittung, Rechnung), die einer Buchung beiliegt. Optional über Nextcloud synchronisierbar.\n\n**Beispiel:** Nach dem Bezahlen von 89 CHF beim Zahnarzt fotografierst du die Quittung und hängst sie an die Buchung an. Sechs Monate später, wenn deine Krankenkasse einen Nachweis verlangt, öffnest du die Buchung — und die Quittung ist gleich zur Hand.",
+        },
+        {
+          q: "Tag",
+          a: "Ein freies Label für Buchungen, das du durchsuchen kannst. Praktisch für Querschnitte, die nicht zu einer Kategorie passen (z. B. *urlaub-2025*).\n\n**Beispiel:** Du markierst Flug, Hotel und Restaurantbesuche mit *#paris-2025*. Später suchst du nach diesem Tag und siehst die Gesamtkosten der Reise über alle Kategorien hinweg — ohne für jeden Ausgabentyp eine separate *Paris*-Kategorie anlegen zu müssen.",
+        },
       ],
     },
     {
