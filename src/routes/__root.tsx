@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Link, Outlet, createRootRouteWithContext, HeadContent, Scripts } from "@tanstack/react-router";
+import { Link, Outlet, createRootRouteWithContext, HeadContent, Scripts, useLocation } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { I18nProvider, type Lang } from "@/i18n";
@@ -69,6 +69,7 @@ function RootComponent() {
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
+  const loc = useLocation();
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
@@ -77,6 +78,14 @@ function AuthGate({ children }: { children: React.ReactNode }) {
     );
   }
   if (!session) {
+    // Allow the privacy/GDPR page without a session, so the sign-up GDPR link works.
+    if (loc.pathname.startsWith("/privacy")) {
+      return (
+        <I18nProvider lang="de" setLang={async () => {}}>
+          <main className="mx-auto max-w-3xl px-4 py-8">{children}</main>
+        </I18nProvider>
+      );
+    }
     // AuthPage uses useI18n, so wrap it in a minimal i18n provider with no settings fetch.
     return (
       <I18nProvider lang="de" setLang={async () => {}}>

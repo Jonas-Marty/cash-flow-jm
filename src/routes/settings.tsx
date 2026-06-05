@@ -32,6 +32,8 @@ import { Switch } from "@/components/ui/switch";
 import { useQuery as useRQ } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
 import { SettingsSectionNav, type SettingsSection } from "@/components/SettingsSectionNav";
+import { AISettingsCard } from "@/components/AISettingsCard";
+import { AIAuditLogCard } from "@/components/AIAuditLogCard";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -312,6 +314,8 @@ function SettingsPage() {
             { id: "accounts", label: tr("settings.accounts") },
             { id: "nextcloud", label: tr("nextcloud.title") },
             { id: "api-tokens", label: tr("settings.nav.api_tokens") },
+            { id: "ai", label: tr("ai.settings.title") },
+            { id: "ai-audit", label: tr("ai.audit.title") },
             { id: "integrations", label: tr("settings.integrations") },
             { id: "audit", label: tr("audit.title") },
             { id: "account", label: tr("settings.account") },
@@ -698,8 +702,8 @@ function SettingsPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">{tr("settings.accounts")}</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-2 md:grid-cols-[1fr_140px_120px_120px_auto]">
-              <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label><Input value={aName} onChange={(e) => setAName(e.target.value)} placeholder="Main Bank" /></div>
+            <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-[minmax(180px,1fr)_140px_140px_120px_auto]">
+              <div className="md:col-span-2 lg:col-span-1"><Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label><Input value={aName} onChange={(e) => setAName(e.target.value)} placeholder="Main Bank" /></div>
               <div>
                 <Label className="mb-1 block text-xs text-muted-foreground">{tr("common.type")}</Label>
                 <Select value={aType} onValueChange={(v) => setAType(v as AccountType)}>
@@ -776,6 +780,8 @@ function SettingsPage() {
 
         <section id="nextcloud"><NextcloudCard /></section>
         <section id="api-tokens"><ApiTokensCard /></section>
+       <section id="ai"><AISettingsCard /></section>
+        <section id="ai-audit"><AIAuditLogCard /></section>
         <section id="integrations"><IntegrationsCard /></section>
         <section id="audit"><AuditLogCard /></section>
         <section id="account"><AccountCard /></section>

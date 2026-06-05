@@ -2,12 +2,14 @@ import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Wallet } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/i18n";
 
@@ -17,6 +19,7 @@ export function AuthPage() {
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [busy, setBusy] = React.useState(false);
+  const [gdprAccepted, setGdprAccepted] = React.useState(false);
 
   // Show enabled OAuth providers (admins haven't enabled any by default)
   const providersQ = useQuery({
@@ -40,6 +43,10 @@ export function AuthPage() {
 
   const onSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!gdprAccepted) {
+      toast.error(t("auth.gdpr.required"));
+      return;
+    }
     setBusy(true);
     const { error } = await supabase.auth.signUp({
       email,
@@ -104,7 +111,22 @@ export function AuthPage() {
                   <Label htmlFor="pw-up">{t("auth.password")}</Label>
                   <Input id="pw-up" type="password" autoComplete="new-password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
                 </div>
-                <Button type="submit" className="w-full" disabled={busy}>
+                <div className="flex items-start gap-2 rounded-md border bg-muted/30 p-3">
+                  <Checkbox
+                    id="gdpr"
+                    checked={gdprAccepted}
+                    onCheckedChange={(v) => setGdprAccepted(v === true)}
+                    className="mt-0.5"
+                  />
+                  <Label htmlFor="gdpr" className="cursor-pointer text-xs font-normal leading-snug">
+                    {t("auth.gdpr.accept_prefix")}{" "}
+                    <Link to="/privacy" target="_blank" className="text-primary underline">
+                      {t("auth.gdpr.policy_link")}
+                    </Link>{" "}
+                    {t("auth.gdpr.accept_suffix")}
+                  </Label>
+                </div>
+                <Button type="submit" className="w-full" disabled={busy || !gdprAccepted}>
                   {busy ? "…" : t("auth.signup")}
                 </Button>
                 <p className="text-xs text-muted-foreground">{t("auth.signup_hint")}</p>

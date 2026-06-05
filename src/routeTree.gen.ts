@@ -13,9 +13,12 @@ import { Route as TransactionsRouteImport } from './routes/transactions'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScopesRouteImport } from './routes/scopes'
 import { Route as ReconcileRouteImport } from './routes/reconcile'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PendingRouteImport } from './routes/pending'
 import { Route as InsightsRouteImport } from './routes/insights'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as EnvelopesRouteImport } from './routes/envelopes'
+import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as AddRouteImport } from './routes/add'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EditIdRouteImport } from './routes/edit.$id'
@@ -52,6 +55,11 @@ const ReconcileRoute = ReconcileRouteImport.update({
   path: '/reconcile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PendingRoute = PendingRouteImport.update({
   id: '/pending',
   path: '/pending',
@@ -62,9 +70,19 @@ const InsightsRoute = InsightsRouteImport.update({
   path: '/insights',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EnvelopesRoute = EnvelopesRouteImport.update({
   id: '/envelopes',
   path: '/envelopes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AssistantRoute = AssistantRouteImport.update({
+  id: '/assistant',
+  path: '/assistant',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AddRoute = AddRouteImport.update({
@@ -149,9 +167,12 @@ const ApiNextcloudCallbackRoute = ApiNextcloudCallbackRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/add': typeof AddRoute
+  '/assistant': typeof AssistantRoute
   '/envelopes': typeof EnvelopesRoute
+  '/help': typeof HelpRoute
   '/insights': typeof InsightsRoute
   '/pending': typeof PendingRoute
+  '/privacy': typeof PrivacyRoute
   '/reconcile': typeof ReconcileRoute
   '/scopes': typeof ScopesRoute
   '/settings': typeof SettingsRoute
@@ -173,9 +194,12 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/add': typeof AddRoute
+  '/assistant': typeof AssistantRoute
   '/envelopes': typeof EnvelopesRoute
+  '/help': typeof HelpRoute
   '/insights': typeof InsightsRoute
   '/pending': typeof PendingRoute
+  '/privacy': typeof PrivacyRoute
   '/reconcile': typeof ReconcileRoute
   '/scopes': typeof ScopesRoute
   '/settings': typeof SettingsRoute
@@ -198,9 +222,12 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/add': typeof AddRoute
+  '/assistant': typeof AssistantRoute
   '/envelopes': typeof EnvelopesRoute
+  '/help': typeof HelpRoute
   '/insights': typeof InsightsRoute
   '/pending': typeof PendingRoute
+  '/privacy': typeof PrivacyRoute
   '/reconcile': typeof ReconcileRoute
   '/scopes': typeof ScopesRoute
   '/settings': typeof SettingsRoute
@@ -224,9 +251,12 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/add'
+    | '/assistant'
     | '/envelopes'
+    | '/help'
     | '/insights'
     | '/pending'
+    | '/privacy'
     | '/reconcile'
     | '/scopes'
     | '/settings'
@@ -248,9 +278,12 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/add'
+    | '/assistant'
     | '/envelopes'
+    | '/help'
     | '/insights'
     | '/pending'
+    | '/privacy'
     | '/reconcile'
     | '/scopes'
     | '/settings'
@@ -272,9 +305,12 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/add'
+    | '/assistant'
     | '/envelopes'
+    | '/help'
     | '/insights'
     | '/pending'
+    | '/privacy'
     | '/reconcile'
     | '/scopes'
     | '/settings'
@@ -297,9 +333,12 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AddRoute: typeof AddRoute
+  AssistantRoute: typeof AssistantRoute
   EnvelopesRoute: typeof EnvelopesRoute
+  HelpRoute: typeof HelpRoute
   InsightsRoute: typeof InsightsRoute
   PendingRoute: typeof PendingRoute
+  PrivacyRoute: typeof PrivacyRoute
   ReconcileRoute: typeof ReconcileRoute
   ScopesRoute: typeof ScopesRoute
   SettingsRoute: typeof SettingsRoute
@@ -349,6 +388,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ReconcileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/pending': {
       id: '/pending'
       path: '/pending'
@@ -363,11 +409,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InsightsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/envelopes': {
       id: '/envelopes'
       path: '/envelopes'
       fullPath: '/envelopes'
       preLoaderRoute: typeof EnvelopesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/assistant': {
+      id: '/assistant'
+      path: '/assistant'
+      fullPath: '/assistant'
+      preLoaderRoute: typeof AssistantRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/add': {
@@ -481,9 +541,12 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AddRoute: AddRoute,
+  AssistantRoute: AssistantRoute,
   EnvelopesRoute: EnvelopesRoute,
+  HelpRoute: HelpRoute,
   InsightsRoute: InsightsRoute,
   PendingRoute: PendingRoute,
+  PrivacyRoute: PrivacyRoute,
   ReconcileRoute: ReconcileRoute,
   ScopesRoute: ScopesRoute,
   SettingsRoute: SettingsRoute,
