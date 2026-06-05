@@ -66,7 +66,7 @@ export const Route = createFileRoute("/api/nextcloud/callback")({
             })
             .eq("user_id", userId);
           if (uErr) throw new Error(uErr.message);
-          return new Response(htmlPage("Nextcloud", `<h1>Connected ✓</h1><p>You can close this tab.</p><p><a href="/settings">Back to settings</a></p>`), { status: 200, headers: { "Content-Type": "text/html" } });
+          return new Response(null, { status: 302, headers: { Location: "/settings#nextcloud" } });
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           return new Response(htmlPage("Nextcloud", `<h1>Connection failed</h1><p>${escapeHtml(msg)}</p><p><a href="/settings">Back to settings</a></p>`), { status: 500, headers: { "Content-Type": "text/html" } });
