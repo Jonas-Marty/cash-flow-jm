@@ -165,6 +165,7 @@ function Dashboard() {
               showOther={showOther}
               setShowOther={setShowOther}
               fxReady={!hasForeign || !!fxQ.data}
+              locale={locale}
               tr={t}
             />
           </CardContent>
