@@ -387,7 +387,7 @@ function NetWorthBlock({
   totalAssetsConverted, totalLiabConverted,
   assetsByCur, liabByCur,
   symbol, mainCode, symbolForCode,
-  showOther, setShowOther, fxReady, tr,
+  showOther, setShowOther, fxReady, locale, tr,
 }: {
   showConverted: boolean;
   hasForeign: boolean;
@@ -406,6 +406,7 @@ function NetWorthBlock({
   showOther: boolean;
   setShowOther: (b: boolean) => void;
   fxReady: boolean;
+  locale: import("date-fns").Locale;
   tr: (k: string, v?: Record<string, string | number>) => string;
 }) {
   // Effective values: when toggle on AND fx ready, show converted; else main-only
