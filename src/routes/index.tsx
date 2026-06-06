@@ -426,6 +426,11 @@ function NetWorthBlock({
       )}>
         {loading ? <Skeleton className="h-9 w-48" /> : fmtMoney(net, symbol)}
       </div>
+      {!loading && (
+        <div className="mt-1 text-xs text-muted-foreground">
+          {tr("dashboard.networth_as_of", { date: format(new Date(), "PP", { locale }) })}
+        </div>
+      )}
       {useConverted && (
         <div className="mt-1 text-xs text-muted-foreground">{tr("dashboard.networth_converted_hint")}</div>
       )}
