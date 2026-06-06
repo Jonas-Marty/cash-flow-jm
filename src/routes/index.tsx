@@ -165,6 +165,7 @@ function Dashboard() {
               showOther={showOther}
               setShowOther={setShowOther}
               fxReady={!hasForeign || !!fxQ.data}
+              locale={locale}
               tr={t}
             />
           </CardContent>
@@ -386,7 +387,7 @@ function NetWorthBlock({
   totalAssetsConverted, totalLiabConverted,
   assetsByCur, liabByCur,
   symbol, mainCode, symbolForCode,
-  showOther, setShowOther, fxReady, tr,
+  showOther, setShowOther, fxReady, locale, tr,
 }: {
   showConverted: boolean;
   hasForeign: boolean;
@@ -405,6 +406,7 @@ function NetWorthBlock({
   showOther: boolean;
   setShowOther: (b: boolean) => void;
   fxReady: boolean;
+  locale: import("date-fns").Locale;
   tr: (k: string, v?: Record<string, string | number>) => string;
 }) {
   // Effective values: when toggle on AND fx ready, show converted; else main-only
@@ -426,6 +428,11 @@ function NetWorthBlock({
       )}>
         {loading ? <Skeleton className="h-9 w-48" /> : fmtMoney(net, symbol)}
       </div>
+      {!loading && (
+        <div className="mt-1 text-xs text-muted-foreground">
+          {tr("dashboard.networth_as_of", { date: format(new Date(), "PP", { locale }) })}
+        </div>
+      )}
       {useConverted && (
         <div className="mt-1 text-xs text-muted-foreground">{tr("dashboard.networth_converted_hint")}</div>
       )}
