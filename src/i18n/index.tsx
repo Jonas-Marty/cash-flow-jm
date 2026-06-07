@@ -1306,6 +1306,7 @@ const en: Dict = {
   "settings.no_envelopes": "No envelopes yet.",
   "settings.no_groups": "No groups yet. Create groups like \"Fixed costs\", \"Personal\", \"Income\", \"Reserves\".",
   "settings.accounts.asset_hint": "Tip: Use an asset account for gift cards or stored-value (e.g. Coop Geschenkkarten).",
+  "settings.accounts.opening_balance_hint": "Opening balance sign: Positive = money you own (e.g. bank balance). Negative = money you owe. For a new credit card with already-spent money, enter the balance as negative (e.g. -500).",
   "settings.footer": "",
 
   "recurring.title": "Recurring transactions",

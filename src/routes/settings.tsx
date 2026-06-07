@@ -727,6 +727,7 @@ function SettingsPage() {
               <div className="flex items-end"><Button className="w-full" onClick={addAccount}><Plus className="h-4 w-4" /> {tr("common.add")}</Button></div>
             </div>
             <p className="text-xs text-muted-foreground">{tr("settings.accounts.asset_hint")}</p>
+            <p className="text-xs text-muted-foreground">{tr("settings.accounts.opening_balance_hint")}</p>
 
             <ul className="divide-y">
               {(accountsQ.data ?? []).map((a) => (
