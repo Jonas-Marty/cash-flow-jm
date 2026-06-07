@@ -443,6 +443,7 @@ const de: Dict = {
   "settings.no_envelopes": "Noch keine Budgets.",
   "settings.no_groups": "Noch keine Gruppen. Lege z.B. „Fixkosten“, „Persönliche Ausgaben“, „Einnahmen“, „Rückstellungen“ an.",
   "settings.accounts.asset_hint": "Tipp: Verwende ein Vermögenskonto für Geschenkkarten oder Guthaben (z.B. Coop Geschenkkarten).",
+  "settings.accounts.opening_balance_hint": "Hinweis zum Anfangssaldo: Positiv = Geld, das dir gehört (z.B. Bankguthaben). Negativ = Geld, das du schuldest. Bei einer neuen Kreditkarte mit bereits getätigten Ausgaben gibst du den Saldo daher negativ ein (z.B. -500).",
   "settings.footer": "",
 
   // Recurring
@@ -1305,6 +1306,7 @@ const en: Dict = {
   "settings.no_envelopes": "No envelopes yet.",
   "settings.no_groups": "No groups yet. Create groups like \"Fixed costs\", \"Personal\", \"Income\", \"Reserves\".",
   "settings.accounts.asset_hint": "Tip: Use an asset account for gift cards or stored-value (e.g. Coop Geschenkkarten).",
+  "settings.accounts.opening_balance_hint": "Opening balance sign: Positive = money you own (e.g. bank balance). Negative = money you owe. For a new credit card with already-spent money, enter the balance as negative (e.g. -500).",
   "settings.footer": "",
 
   "recurring.title": "Recurring transactions",
