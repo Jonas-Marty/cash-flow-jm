@@ -135,12 +135,15 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
   const repaymentLink = (tx: Transaction) => {
     const rem = remaining(tx);
     const dir = directionOf(tx);
+    const origName = (tx.description || tx.reimbursable_counterparty || tr("add.expense")).trim();
     const params = new URLSearchParams({
       reimburse_for: tx.id,
       // owed_to_me: original was expense → repayment is income.
       // i_owe:      original was income  → repayment is expense.
       type: dir === "owed_to_me" ? "income" : "expense",
       amount: rem.toFixed(2),
+      description: tr("iou.repayment.prefill_description", { name: origName }),
+      note: tr("iou.repayment.prefill_note", { name: origName }),
     });
     if (tx.reimbursable_counterparty) params.set("counterparty", tx.reimbursable_counterparty);
     return `/add?${params.toString()}`;
