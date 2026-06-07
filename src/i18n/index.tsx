@@ -1139,6 +1139,8 @@ const en: Dict = {
   "iou.writeoff.toast": "Written off",
   "iou.add_repayment": "Add repayment",
   "iou.empty.both": "No open IOUs.",
+  "iou.repayment.prefill_description": "Reimbursement for {name}",
+  "iou.repayment.prefill_note": "Reimbursement for: {name}",
   "iou.help.title": "What do the actions mean?",
   "iou.help.add_repayment": "Add repayment — when real money actually moved (someone paid you back or you repaid them). Creates a linked transaction; the IOU auto-closes once the amount is covered.",
   "iou.help.mark_settled": "Mark settled — when the debt was cleared outside the app (e.g. cash handover) or to close a tiny remainder. No transaction is created.",
