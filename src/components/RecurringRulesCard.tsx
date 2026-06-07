@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -389,13 +390,38 @@ export function RecurringRulesCard() {
   };
 
   const del = async (id: string) => {
-    if (!confirm(t("recurring.confirm_delete"))) return;
+    // Count posted transactions linked to this rule. If none, allow a full
+    // hard-delete. If any exist, we cannot drop the rule (transactions keep
+    // a FK to it) — fall back to archiving and explain why.
+    const { count, error: cntErr } = await supabase
+      .from("transactions")
+      .select("id", { count: "exact", head: true })
+      .eq("recurring_rule_id", id);
+    if (cntErr) { toast.error(cntErr.message); return; }
+    const linked = count ?? 0;
+    const rule = rules.find((r) => r.id === id);
+    if (linked === 0) {
+      if (!confirm(t("recurring.confirm_delete_full"))) return;
+      // Wipe dependents first to avoid FK errors.
+      await supabase.from("recurring_occurrences").delete().eq("rule_id", id);
+      await supabase.from("recurring_rule_slices").delete().eq("rule_id", id);
+      const { error } = await supabase.from("recurring_rules").delete().eq("id", id);
+      if (error) { toast.error(error.message); return; }
+      toast.success(t("toast.deleted"));
+      qc.invalidateQueries();
+      return;
+    }
+    if (rule?.archived) {
+      toast.error(t("recurring.cannot_delete_has_tx", { n: linked }));
+      return;
+    }
+    if (!confirm(t("recurring.archive_instead", { n: linked }))) return;
     try {
       await archiveRecurringRule(id, true);
     } catch (e) {
       return toast.error((e as Error).message);
     }
-    toast.success(t("toast.deleted"));
+    toast.success(t("toast.archived"));
     qc.invalidateQueries();
   };
 
@@ -414,6 +440,8 @@ export function RecurringRulesCard() {
   const accounts = accountsQ.data ?? [];
   const categories = categoriesQ.data ?? [];
   const accountName = (id: string | null) => accounts.find((a) => a.id === id)?.name ?? "—";
+
+  const [archivedOpen, setArchivedOpen] = React.useState(false);
 
   const renderRule = (r: RecurringRule) => {
     const next = nextDueDate(r, today);
@@ -500,8 +528,18 @@ export function RecurringRulesCard() {
             )}
             {sections.archived.length > 0 && (
               <div>
-                <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">{t("recurring.section_archived")}</div>
-                <ul className="divide-y opacity-50">{sections.archived.map(renderRule)}</ul>
+                <button
+                  type="button"
+                  onClick={() => setArchivedOpen((v) => !v)}
+                  className="mb-1 inline-flex items-center gap-1 text-xs font-semibold uppercase text-muted-foreground hover:text-foreground"
+                  aria-expanded={archivedOpen}
+                >
+                  {archivedOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                  {t("recurring.section_archived")} ({sections.archived.length})
+                </button>
+                {archivedOpen && (
+                  <ul className="divide-y opacity-50">{sections.archived.map(renderRule)}</ul>
+                )}
               </div>
             )}
           </>
