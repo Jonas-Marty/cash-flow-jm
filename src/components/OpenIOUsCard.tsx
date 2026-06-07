@@ -143,7 +143,7 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
       type: dir === "owed_to_me" ? "income" : "expense",
       amount: rem.toFixed(2),
       description: tr("iou.repayment.prefill_description", { name: origName }),
-      note: tr("iou.repayment.prefill_note", { name: origName }),
+      note: tx.note || "",
     });
     if (tx.reimbursable_counterparty) params.set("counterparty", tx.reimbursable_counterparty);
     return `/add?${params.toString()}`;
