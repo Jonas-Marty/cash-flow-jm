@@ -443,6 +443,7 @@ const de: Dict = {
   "settings.no_envelopes": "Noch keine Budgets.",
   "settings.no_groups": "Noch keine Gruppen. Lege z.B. „Fixkosten“, „Persönliche Ausgaben“, „Einnahmen“, „Rückstellungen“ an.",
   "settings.accounts.asset_hint": "Tipp: Verwende ein Vermögenskonto für Geschenkkarten oder Guthaben (z.B. Coop Geschenkkarten).",
+  "settings.accounts.opening_balance_hint": "Hinweis zum Anfangssaldo: Positiv = Geld, das dir gehört (z.B. Bankguthaben). Negativ = Geld, das du schuldest. Bei einer neuen Kreditkarte mit bereits getätigten Ausgaben gibst du den Saldo daher negativ ein (z.B. -500).",
   "settings.footer": "",
 
   // Recurring
