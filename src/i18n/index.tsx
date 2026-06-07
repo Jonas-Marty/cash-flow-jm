@@ -274,6 +274,8 @@ const de: Dict = {
   "iou.writeoff.toast": "Abgeschrieben",
   "iou.add_repayment": "Rückzahlung erfassen",
   "iou.empty.both": "Keine offenen Schuldverhältnisse.",
+  "iou.repayment.prefill_description": "Rückerstattung für {name}",
+  "iou.repayment.prefill_note": "Rückerstattung für: {name}",
   "iou.help.title": "Was bedeuten die Aktionen?",
   "iou.help.add_repayment": "Rückzahlung erfassen – wenn echtes Geld geflossen ist (jemand hat dich zurückgezahlt oder du hast zurückgezahlt). Es wird eine verlinkte Buchung erstellt; der Posten schliesst sich automatisch, sobald der Betrag gedeckt ist.",
   "iou.help.mark_settled": "Als erstattet markieren – wenn die Schuld ausserhalb der App beglichen wurde (z. B. Bargeld) oder ein kleiner Restbetrag abgeschlossen werden soll. Es wird keine Buchung angelegt.",
