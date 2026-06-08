@@ -28,6 +28,7 @@ import {
 import { EntityVisual } from "@/components/EntityVisual";
 import { AlertTriangle, Link as LinkIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { StringAutocomplete } from "@/components/StringAutocomplete";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Toggle } from "@/components/ui/toggle";
 import { useI18n } from "@/i18n";
