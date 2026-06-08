@@ -1347,12 +1347,12 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
                         <div className="mt-2 space-y-2">
                           <div>
                             <Label className="mb-1 block text-xs">{tr("add.reimb.counterparty")}</Label>
-                            <Input
-                              list="reimb-cp-list"
+                            <StringAutocomplete
                               value={s.reimbCounterparty}
-                              onChange={(e) =>
-                                setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, reimbCounterparty: e.target.value } : x)))
+                              onChange={(v) =>
+                                setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, reimbCounterparty: v } : x)))
                               }
+                              options={reimbCpQ.data ?? []}
                             />
                           </div>
                           <div>
@@ -1511,16 +1511,12 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
                 <div className="space-y-2">
                   <div>
                     <Label htmlFor="reimb-cp" className="mb-1 block text-xs">{tr("add.reimb.counterparty")}</Label>
-                    <Input
+                    <StringAutocomplete
                       id="reimb-cp"
-                      list="reimb-cp-list"
                       value={reimbCounterparty}
-                      onChange={(e) => setReimbCounterparty(e.target.value)}
-                      placeholder=""
+                      onChange={setReimbCounterparty}
+                      options={reimbCpQ.data ?? []}
                     />
-                    <datalist id="reimb-cp-list">
-                      {(reimbCpQ.data ?? []).map((cp) => <option key={cp} value={cp} />)}
-                    </datalist>
                   </div>
                   <div>
                     <Label htmlFor="reimb-reason" className="mb-1 block text-xs">{tr("add.reimb.reason")}</Label>
