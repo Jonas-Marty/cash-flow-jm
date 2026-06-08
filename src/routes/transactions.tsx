@@ -76,6 +76,29 @@ function renderNoteWithTags(note: string, tokens: string[]): React.ReactNode {
   return out;
 }
 
+function TagBadges({ tags, tokens }: { tags: string[]; tokens: string[] }) {
+  if (tags.length === 0) return null;
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-1">
+      {tags.map((t) => {
+        const matched = tokens.some((tok) => normalize(t).includes(normalize(tok.replace(/^#/, ""))));
+        return (
+          <Badge
+            key={t}
+            variant="secondary"
+            className={cn(
+              "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+              matched && "ring-1 ring-yellow-400/60",
+            )}
+          >
+            {`#${t}`}
+          </Badge>
+        );
+      })}
+    </div>
+  );
+}
+
 function TransactionsPage() {
   const { t: tr, locale, lang } = useI18n();
   const qc = useQueryClient();
