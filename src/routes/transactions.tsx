@@ -76,6 +76,29 @@ function renderNoteWithTags(note: string, tokens: string[]): React.ReactNode {
   return out;
 }
 
+function TagBadges({ tags, tokens }: { tags: string[]; tokens: string[] }) {
+  if (tags.length === 0) return null;
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-1">
+      {tags.map((t) => {
+        const matched = tokens.some((tok) => normalize(t).includes(normalize(tok.replace(/^#/, ""))));
+        return (
+          <Badge
+            key={t}
+            variant="secondary"
+            className={cn(
+              "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+              matched && "ring-1 ring-yellow-400/60",
+            )}
+          >
+            {`#${t}`}
+          </Badge>
+        );
+      })}
+    </div>
+  );
+}
+
 function TransactionsPage() {
   const { t: tr, locale, lang } = useI18n();
   const qc = useQueryClient();
@@ -649,6 +672,11 @@ function TransactionsPage() {
                     const ChevIcon = open ? ChevronDown : ChevronRight;
                     const headerLabel = row.txs.map((x) => x.description).filter(Boolean).slice(0, 2).join(", ") || tr("tx.split.label");
                     const amtMatch = amountMatchedFor(total);
+                    const perSliceTags = row.txs.map((x) => tagsByTx.get(x.id) ?? []);
+                    const unionTags = Array.from(new Set(perSliceTags.flat()));
+                    const sharedTags = perSliceTags.length > 0
+                      ? perSliceTags.reduce<string[]>((acc, cur, idx) => (idx === 0 ? [...cur] : acc.filter((t) => cur.includes(t))), [])
+                      : [];
                     return (
                       <div key={`g-${row.groupId}`} className="bg-muted/20">
                         <div className="flex w-full items-start gap-3 px-4 py-3 hover:bg-muted/40">
@@ -678,6 +706,7 @@ function TransactionsPage() {
                             <div className="text-xs text-muted-foreground">
                               {highlightTokens(src?.name ?? "?", tokens)} · {open ? tr("tx.split.collapse") : tr("tx.split.expand", { n: row.txs.length })}
                             </div>
+                            <TagBadges tags={open ? sharedTags : unionTags} tokens={tokens} />
                           </div>
                           </button>
                           <Button asChild variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" aria-label={tr("common.edit")}>
@@ -691,11 +720,13 @@ function TransactionsPage() {
                           <ul className="border-t bg-background">
                             {row.txs.map((t) => {
                               const cat = t.category_id ? categoryById.get(t.category_id) : null;
+                              const sliceTags = tagsByTx.get(t.id) ?? [];
                               return (
                                 <li key={t.id} className="flex items-center justify-between gap-3 px-4 py-2 pl-14 text-sm">
                                   <div className="min-w-0">
                                     <div className="truncate font-medium">{highlightTokens(t.description || tr("add.split.no_category"), tokens)}</div>
                                     <div className="text-xs text-muted-foreground">{highlightTokens(cat?.name ?? tr("add.split.no_category"), tokens)}</div>
+                                    <TagBadges tags={sliceTags} tokens={tokens} />
                                   </div>
                                   <div className={cn("tabular-nums font-medium", tone)}>
                                     {sign}{fmtMoney(Number(t.amount), grpSym).replace("-", "")}
