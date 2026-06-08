@@ -578,7 +578,8 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
   };
 
   const reset = () => {
-    setAmount(""); setDescription(""); setNote(""); setCategoryId("");
+    setAmount(""); setDescription(""); setNote("");
+    setCategoryId(activeScope && type !== "transfer" ? activeScope.id : "");
     setDate(new Date());
     setTouched({});
     setAppliedFrom(null);
