@@ -1629,7 +1629,9 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
                             key={t.id}
                             className={cn(
                               "flex items-start gap-2 rounded-md px-2 py-1.5",
-                              isMatched ? "bg-primary/10 ring-1 ring-primary/40" : "bg-background/60",
+                              isMatched
+                                ? "bg-warning/15 ring-1 ring-warning/60"
+                                : "bg-background/60",
                             )}
                           >
                             <Checkbox
