@@ -646,6 +646,8 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     setFeeCategoryId("");
     setExistingFeeTxId(null);
     setScopeSkipped(false);
+    linkSelectionsTouchedRef.current = false;
+    lastSuggestionKeyRef.current = "";
     setTimeout(() => amountRef.current?.focus(), 0);
   };
 
