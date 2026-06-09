@@ -1587,7 +1587,7 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
               : "add.reimb.link.selected_summary.over";
           return (
             <Collapsible defaultOpen={!!suggestedMatch}>
-              <Card className={suggestedMatch ? "border-primary/40 bg-primary/5" : ""}>
+              <Card className={suggestedMatch ? "border-warning/60 bg-warning/5" : ""}>
                 <CardContent className="space-y-2 py-3">
                   <CollapsibleTrigger asChild>
                     <button
