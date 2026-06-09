@@ -500,16 +500,67 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
 
   // Auto-link candidates: open reimbursables for the current source account
   // (same currency) that this income could plausibly settle.
-  const autoLinkCandidates = React.useMemo<Transaction[]>(() => {
+  // Candidates for the reimbursable-link card: open reimbursables on a
+  // same-currency account, optionally filtered by counterparty ("From whom"
+  // on the income transaction). Sorted by most-recent first so the
+  // subset-sum search prefers recent items when there are too many.
+  const linkCandidates = React.useMemo<Transaction[]>(() => {
     if (type !== "income" || !sourceId) return [];
     const srcAcc = accountById.get(sourceId);
     if (!srcAcc) return [];
-    return (openReimbQ.data ?? []).filter((t) => {
+    const wantedCp = reimbCounterparty.trim().toLowerCase();
+    const list = (openReimbQ.data ?? []).filter((t) => {
       const tAcc = accountById.get(t.source_account_id);
       if (!tAcc) return false;
-      return tAcc.currency_code === srcAcc.currency_code && (remainingByOrig.get(t.id) ?? 0) > 0;
+      if (tAcc.currency_code !== srcAcc.currency_code) return false;
+      if ((remainingByOrig.get(t.id) ?? 0) <= 0) return false;
+      if (wantedCp) {
+        const cp = (t.reimbursable_counterparty ?? "").trim().toLowerCase();
+        if (cp !== wantedCp) return false;
+      }
+      return true;
     });
-  }, [type, sourceId, openReimbQ.data, accountById, remainingByOrig]);
+    list.sort((a, b) => (a.occurred_on < b.occurred_on ? 1 : a.occurred_on > b.occurred_on ? -1 : 0));
+    return list;
+  }, [type, sourceId, openReimbQ.data, accountById, remainingByOrig, reimbCounterparty]);
+
+  // Subset-sum suggestion: best subset of candidates whose remaining amounts
+  // sum to the income amount within a generous tolerance. Only computed when
+  // the user has typed a counterparty — otherwise we don't claim a "match".
+  const suggestedMatch = React.useMemo<{ ids: string[]; total: number; exact: boolean } | null>(() => {
+    if (type !== "income" || amountNum == null) return null;
+    if (!reimbCounterparty.trim()) return null;
+    const pool = linkCandidates.slice(0, REIMB_MATCH_MAX_CANDIDATES);
+    if (pool.length === 0) return null;
+    const amounts = pool.map((t) => remainingByOrig.get(t.id) ?? 0);
+    const m = findSubsetSumMatch(amounts, amountNum, defaultTolerance(amountNum));
+    if (!m) return null;
+    return {
+      ids: m.indices.map((i) => pool[i].id),
+      total: m.total,
+      exact: m.exact,
+    };
+  }, [type, amountNum, reimbCounterparty, linkCandidates, remainingByOrig]);
+
+  // Track whether the user has manually edited link selections so we don't
+  // clobber their choices when the subset-sum suggestion changes.
+  const linkSelectionsTouchedRef = React.useRef(false);
+  const lastSuggestionKeyRef = React.useRef<string>("");
+  React.useEffect(() => {
+    const key = suggestedMatch ? suggestedMatch.ids.slice().sort().join("|") : "";
+    if (key === lastSuggestionKeyRef.current) return;
+    lastSuggestionKeyRef.current = key;
+    if (linkSelectionsTouchedRef.current) return;
+    if (!suggestedMatch) {
+      setLinkSelections({});
+      return;
+    }
+    const next: Record<string, number> = {};
+    suggestedMatch.ids.forEach((id) => {
+      next[id] = remainingByOrig.get(id) ?? 0;
+    });
+    setLinkSelections(next);
+  }, [suggestedMatch, remainingByOrig]);
 
   // When deep-linked from "Add refund", preselect the original reimbursable.
   const reimbForAppliedRef = React.useRef(false);
