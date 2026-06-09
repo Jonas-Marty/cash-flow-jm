@@ -536,25 +536,10 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     };
   }, [type, amountNum, linkCandidates, remainingByOrig]);
 
-  // Track whether the user has manually edited link selections so we don't
-  // clobber their choices when the subset-sum suggestion changes.
+  // The subset-sum suggestion is only a *highlight* — we never auto-check
+  // the items because an amount match may be coincidental. The user must
+  // confirm explicitly by ticking the checkbox or clicking "Link suggested".
   const linkSelectionsTouchedRef = React.useRef(false);
-  const lastSuggestionKeyRef = React.useRef<string>("");
-  React.useEffect(() => {
-    const key = suggestedMatch ? suggestedMatch.ids.slice().sort().join("|") : "";
-    if (key === lastSuggestionKeyRef.current) return;
-    lastSuggestionKeyRef.current = key;
-    if (linkSelectionsTouchedRef.current) return;
-    if (!suggestedMatch) {
-      setLinkSelections({});
-      return;
-    }
-    const next: Record<string, number> = {};
-    suggestedMatch.ids.forEach((id) => {
-      next[id] = remainingByOrig.get(id) ?? 0;
-    });
-    setLinkSelections(next);
-  }, [suggestedMatch, remainingByOrig]);
 
   // When deep-linked from "Add refund", preselect the original reimbursable.
   const reimbForAppliedRef = React.useRef(false);
@@ -641,7 +626,6 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     setExistingFeeTxId(null);
     setScopeSkipped(false);
     linkSelectionsTouchedRef.current = false;
-    lastSuggestionKeyRef.current = "";
     setTimeout(() => amountRef.current?.focus(), 0);
   };
 
@@ -1603,7 +1587,7 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
               : "add.reimb.link.selected_summary.over";
           return (
             <Collapsible defaultOpen={!!suggestedMatch}>
-              <Card className={suggestedMatch ? "border-primary/40 bg-primary/5" : ""}>
+              <Card className={suggestedMatch ? "border-warning/60 bg-warning/5" : ""}>
                 <CardContent className="space-y-2 py-3">
                   <CollapsibleTrigger asChild>
                     <button
@@ -1645,7 +1629,9 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
                             key={t.id}
                             className={cn(
                               "flex items-start gap-2 rounded-md px-2 py-1.5",
-                              isMatched ? "bg-primary/10 ring-1 ring-primary/40" : "bg-background/60",
+                              isMatched
+                                ? "bg-warning/15 ring-1 ring-warning/60"
+                                : "bg-background/60",
                             )}
                           >
                             <Checkbox

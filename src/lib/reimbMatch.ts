@@ -21,9 +21,12 @@ export type SubsetMatch = {
   exact: boolean;
 };
 
-/** Default tolerance: max(0.05, 1% of target). */
+/** Default tolerance: generous — max(0.50, 5% of target).
+ *  Refunds frequently round up/down (e.g. 19.55 paid back as 20.00, or
+ *  18.55 paid back as 19.95), so we intentionally err on the side of
+ *  surfacing a potential match for the user to confirm. */
 export function defaultTolerance(target: number): number {
-  return Math.max(0.05, Math.abs(target) * 0.01);
+  return Math.max(0.5, Math.abs(target) * 0.05);
 }
 
 export function findSubsetSumMatch(
