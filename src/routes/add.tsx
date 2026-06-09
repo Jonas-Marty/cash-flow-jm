@@ -1591,75 +1591,155 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
           </Card>
         )}
 
-        {/* Auto-link suggestion: this income could settle open reimbursables */}
-        {!isEdit && type === "income" && autoLinkCandidates.length > 0 && (
-          <Card className="border-primary/40 bg-primary/5">
-            <CardContent className="space-y-2 py-3">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <LinkIcon className="h-4 w-4" />
-                {tr("add.reimb.autolink.title")}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {tr("add.reimb.autolink.detail", {
-                  count: String(autoLinkCandidates.length),
-                  amount: fmtMoney(
-                    autoLinkCandidates.reduce((s, t) => s + (remainingByOrig.get(t.id) ?? 0), 0),
-                    symbol,
-                  ),
-                })}
-              </p>
-              <ul className="space-y-1">
-                {autoLinkCandidates.map((t) => {
-                  const rem = remainingByOrig.get(t.id) ?? 0;
-                  const checked = linkSelections[t.id] != null;
-                  const acc = accountById.get(t.source_account_id);
-                  const sym = acc?.currency_symbol ?? symbol;
-                  return (
-                    <li key={t.id} className="flex items-start gap-2 rounded-md bg-background/60 px-2 py-1.5">
-                      <Checkbox
-                        checked={checked}
-                        onCheckedChange={(v) => {
-                          setLinkSelections((cur) => {
-                            const next = { ...cur };
-                            if (v) next[t.id] = rem;
-                            else delete next[t.id];
-                            return next;
-                          });
-                        }}
-                        className="mt-0.5"
-                      />
-                      <div className="min-w-0 flex-1 text-xs">
-                        <div className="truncate font-medium">
-                          {t.description || tr("add.expense")}
-                          {t.reimbursable_counterparty && (
-                            <span className="ml-1 text-muted-foreground">{tr("add.reimb.autolink.from", { who: t.reimbursable_counterparty })}</span>
+        {/* Reimbursable-link card: subset-sum suggestion when we have a match,
+            otherwise collapsed manual-link list. */}
+        {!isEdit && type === "income" && linkCandidates.length > 0 && (() => {
+          const matchedIds = new Set(suggestedMatch?.ids ?? []);
+          const selectedTotal = Object.values(linkSelections).reduce((s, v) => s + (Number(v) || 0), 0);
+          const hasSelection = Object.keys(linkSelections).length > 0;
+          const incomeAmt = amountNum ?? 0;
+          const diff = selectedTotal - incomeAmt;
+          const absDiff = Math.abs(diff);
+          const summaryKey = absDiff < 0.005
+            ? "add.reimb.link.selected_summary.exact"
+            : diff < 0
+              ? "add.reimb.link.selected_summary.under"
+              : "add.reimb.link.selected_summary.over";
+          return (
+            <Collapsible defaultOpen={!!suggestedMatch}>
+              <Card className={suggestedMatch ? "border-primary/40 bg-primary/5" : ""}>
+                <CardContent className="space-y-2 py-3">
+                  <CollapsibleTrigger asChild>
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between gap-2 text-left"
+                    >
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <LinkIcon className="h-4 w-4" />
+                        {suggestedMatch
+                          ? tr("add.reimb.link.suggested_title", {
+                              n: String(suggestedMatch.ids.length),
+                              amount: fmtMoney(suggestedMatch.total, symbol),
+                            })
+                          : (
+                            <>
+                              <span>{tr("add.reimb.link.section_title")}</span>
+                              <span className="text-xs font-normal text-muted-foreground">
+                                {tr("add.reimb.link.count_label", { n: String(linkCandidates.length) })}
+                              </span>
+                            </>
                           )}
-                        </div>
-                        <div className="text-muted-foreground">
-                          {format(new Date(t.occurred_on + "T00:00:00"), "dd.MM.yyyy", { locale })} · {fmtMoney(rem, sym)}
-                        </div>
                       </div>
-                    </li>
-                  );
-                })}
-              </ul>
-              {Object.keys(linkSelections).length === 0 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const next: Record<string, number> = {};
-                    autoLinkCandidates.forEach((t) => { next[t.id] = remainingByOrig.get(t.id) ?? 0; });
-                    setLinkSelections(next);
-                  }}
-                >
-                  {tr("add.reimb.autolink.link_all")}
-                </Button>
-              )}
-            </CardContent>
-          </Card>
-        )}
+                      <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [&[data-state=open]]:rotate-180" />
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="space-y-2">
+                    {!suggestedMatch && (
+                      <p className="text-xs text-muted-foreground">{tr("add.reimb.link.no_match_hint")}</p>
+                    )}
+                    <ul className="space-y-1">
+                      {linkCandidates.map((t) => {
+                        const rem = remainingByOrig.get(t.id) ?? 0;
+                        const checked = linkSelections[t.id] != null;
+                        const acc = accountById.get(t.source_account_id);
+                        const sym = acc?.currency_symbol ?? symbol;
+                        const isMatched = matchedIds.has(t.id);
+                        return (
+                          <li
+                            key={t.id}
+                            className={cn(
+                              "flex items-start gap-2 rounded-md px-2 py-1.5",
+                              isMatched ? "bg-primary/10 ring-1 ring-primary/40" : "bg-background/60",
+                            )}
+                          >
+                            <Checkbox
+                              checked={checked}
+                              onCheckedChange={(v) => {
+                                linkSelectionsTouchedRef.current = true;
+                                setLinkSelections((cur) => {
+                                  const next = { ...cur };
+                                  if (v) next[t.id] = rem;
+                                  else delete next[t.id];
+                                  return next;
+                                });
+                              }}
+                              className="mt-0.5"
+                            />
+                            <div className="min-w-0 flex-1 text-xs">
+                              <div className="truncate font-medium">
+                                {t.description || tr("add.expense")}
+                                {t.reimbursable_counterparty && (
+                                  <span className="ml-1 text-muted-foreground">
+                                    {tr("add.reimb.autolink.from", { who: t.reimbursable_counterparty })}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-muted-foreground">
+                                {format(new Date(t.occurred_on + "T00:00:00"), "dd.MM.yyyy", { locale })} · {fmtMoney(rem, sym)}
+                              </div>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    {hasSelection && incomeAmt > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        {tr(summaryKey, {
+                          sel: fmtMoney(selectedTotal, symbol),
+                          inc: fmtMoney(incomeAmt, symbol),
+                          diff: fmtMoney(absDiff, symbol),
+                        })}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {suggestedMatch && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            linkSelectionsTouchedRef.current = true;
+                            const next: Record<string, number> = {};
+                            suggestedMatch.ids.forEach((id) => { next[id] = remainingByOrig.get(id) ?? 0; });
+                            setLinkSelections(next);
+                          }}
+                        >
+                          {tr("add.reimb.link.link_suggested")}
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          linkSelectionsTouchedRef.current = true;
+                          const next: Record<string, number> = {};
+                          linkCandidates.forEach((t) => { next[t.id] = remainingByOrig.get(t.id) ?? 0; });
+                          setLinkSelections(next);
+                        }}
+                      >
+                        {tr("add.reimb.autolink.link_all")}
+                      </Button>
+                      {hasSelection && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            linkSelectionsTouchedRef.current = true;
+                            setLinkSelections({});
+                          }}
+                        >
+                          {tr("add.reimb.link.clear")}
+                        </Button>
+                      )}
+                    </div>
+                  </CollapsibleContent>
+                </CardContent>
+              </Card>
+            </Collapsible>
+          );
+        })()}
 
         <div className="pt-2">
           {isEdit && editId ? (
