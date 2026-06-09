@@ -508,28 +508,22 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     if (type !== "income" || !sourceId) return [];
     const srcAcc = accountById.get(sourceId);
     if (!srcAcc) return [];
-    const wantedCp = reimbCounterparty.trim().toLowerCase();
     const list = (openReimbQ.data ?? []).filter((t) => {
       const tAcc = accountById.get(t.source_account_id);
       if (!tAcc) return false;
       if (tAcc.currency_code !== srcAcc.currency_code) return false;
       if ((remainingByOrig.get(t.id) ?? 0) <= 0) return false;
-      if (wantedCp) {
-        const cp = (t.reimbursable_counterparty ?? "").trim().toLowerCase();
-        if (cp !== wantedCp) return false;
-      }
       return true;
     });
     list.sort((a, b) => (a.occurred_on < b.occurred_on ? 1 : a.occurred_on > b.occurred_on ? -1 : 0));
     return list;
-  }, [type, sourceId, openReimbQ.data, accountById, remainingByOrig, reimbCounterparty]);
+  }, [type, sourceId, openReimbQ.data, accountById, remainingByOrig]);
 
   // Subset-sum suggestion: best subset of candidates whose remaining amounts
   // sum to the income amount within a generous tolerance. Only computed when
   // the user has typed a counterparty — otherwise we don't claim a "match".
   const suggestedMatch = React.useMemo<{ ids: string[]; total: number; exact: boolean } | null>(() => {
     if (type !== "income" || amountNum == null) return null;
-    if (!reimbCounterparty.trim()) return null;
     const pool = linkCandidates.slice(0, REIMB_MATCH_MAX_CANDIDATES);
     if (pool.length === 0) return null;
     const amounts = pool.map((t) => remainingByOrig.get(t.id) ?? 0);
@@ -540,7 +534,7 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
       total: m.total,
       exact: m.exact,
     };
-  }, [type, amountNum, reimbCounterparty, linkCandidates, remainingByOrig]);
+  }, [type, amountNum, linkCandidates, remainingByOrig]);
 
   // Track whether the user has manually edited link selections so we don't
   // clobber their choices when the subset-sum suggestion changes.
