@@ -2,7 +2,7 @@ import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Trash2, ArchiveRestore, Archive, Pin, PinOff, Palette, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Trash2, ArchiveRestore, Archive, Pin, PinOff, Palette, ChevronUp, ChevronDown, Pencil, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 
 import { AppShell } from "@/components/AppShell";
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { EntityChip } from "@/components/EntityChip";
 import { IconPicker } from "@/components/IconPicker";
 import { supabase } from "@/integrations/supabase/client";
