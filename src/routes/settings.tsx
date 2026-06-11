@@ -789,6 +789,9 @@ function SettingsPage() {
                         />
                       </PopoverContent>
                     </Popover>
+                    <Button variant="ghost" size="icon" onClick={() => openEditAccount(a)} aria-label={tr("settings.edit_account")}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => togglePin("accounts", a.id, !!a.pinned)} aria-label={a.pinned ? tr("settings.unpin") : tr("settings.pin")}>
                       {a.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
                     </Button>
