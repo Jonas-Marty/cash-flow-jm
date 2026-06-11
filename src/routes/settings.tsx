@@ -810,6 +810,34 @@ function SettingsPage() {
         </Card>
         </section>
 
+        <Dialog open={!!editAccount} onOpenChange={(o) => { if (!o) setEditAccount(null); }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{tr("settings.edit_account")}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label>
+                <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+              </div>
+              <div>
+                <Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.opening_balance")}</Label>
+                <Input inputMode="decimal" value={editOpening} onChange={(e) => setEditOpening(e.target.value)} />
+              </div>
+              {openingChanged && (
+                <div className="flex gap-2 rounded-md border border-warning/60 bg-warning/10 p-3 text-sm">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                  <p>{tr("settings.opening_balance.warning")}</p>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setEditAccount(null)}>{tr("common.cancel")}</Button>
+              <Button onClick={saveEditAccount}>{tr("common.save")}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <section id="nextcloud"><NextcloudCard /></section>
         <section id="api-tokens"><ApiTokensCard /></section>
        <section id="ai"><AISettingsCard /></section>
