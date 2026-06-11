@@ -428,6 +428,8 @@ const de: Dict = {
   "settings.monthly_budget": "Monatsbudget",
   "settings.account_asset": "Vermögen",
   "settings.account_liability": "Verbindlichkeit",
+  "settings.edit_account": "Konto bearbeiten",
+  "settings.opening_balance.warning": "Achtung: Eine Änderung des Anfangssaldos verändert alle berechneten Salden dieses Kontos rückwirkend. Bestehende Buchungen werden nicht angepasst.",
   "settings.kind_income": "Einnahme",
   "settings.kind_expense": "Ausgabe",
   "settings.kind_savings": "Rückstellung",
