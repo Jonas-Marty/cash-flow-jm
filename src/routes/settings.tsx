@@ -115,6 +115,33 @@ function SettingsPage() {
     qc.invalidateQueries();
   };
 
+  // Edit account
+  const [editAccount, setEditAccount] = React.useState<null | { id: string; name: string; opening_balance: number }>(null);
+  const [editName, setEditName] = React.useState("");
+  const [editOpening, setEditOpening] = React.useState("0");
+  const openEditAccount = (a: { id: string; name: string; opening_balance: number | string }) => {
+    const ob = Number(a.opening_balance) || 0;
+    setEditAccount({ id: a.id, name: a.name, opening_balance: ob });
+    setEditName(a.name);
+    setEditOpening(String(ob));
+  };
+  const saveEditAccount = async () => {
+    if (!editAccount) return;
+    const name = editName.trim();
+    if (!name) { toast.error(tr("toast.name_required")); return; }
+    const opening = Number(editOpening);
+    if (!Number.isFinite(opening)) { toast.error(tr("toast.name_required")); return; }
+    const { error } = await supabase
+      .from("accounts")
+      .update({ name, opening_balance: opening })
+      .eq("id", editAccount.id);
+    if (error) return toast.error(error.message);
+    toast.success(tr("toast.saved"));
+    setEditAccount(null);
+    qc.invalidateQueries();
+  };
+  const openingChanged = !!editAccount && Number(editOpening) !== editAccount.opening_balance;
+
   // Category form
   const [cName, setCName] = React.useState("");
   const [cBudget, setCBudget] = React.useState("0");
