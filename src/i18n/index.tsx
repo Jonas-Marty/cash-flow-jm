@@ -1302,6 +1302,8 @@ const en: Dict = {
   "settings.monthly_budget": "Monthly budget",
   "settings.account_asset": "Asset",
   "settings.account_liability": "Liability",
+  "settings.edit_account": "Edit account",
+  "settings.opening_balance.warning": "Heads up: changing the opening balance retroactively shifts all computed balances on this account. Existing transactions are not modified.",
   "settings.kind_income": "Income",
   "settings.kind_expense": "Expense",
   "settings.kind_savings": "Savings (Reserve)",
