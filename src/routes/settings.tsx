@@ -2,7 +2,7 @@ import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Plus, Trash2, ArchiveRestore, Archive, Pin, PinOff, Palette, ChevronUp, ChevronDown } from "lucide-react";
+import { Plus, Trash2, ArchiveRestore, Archive, Pin, PinOff, Palette, ChevronUp, ChevronDown, Pencil, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 
 import { AppShell } from "@/components/AppShell";
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { EntityChip } from "@/components/EntityChip";
 import { IconPicker } from "@/components/IconPicker";
 import { supabase } from "@/integrations/supabase/client";
@@ -113,6 +114,33 @@ function SettingsPage() {
     toast.success(tr("toast.deleted"));
     qc.invalidateQueries();
   };
+
+  // Edit account
+  const [editAccount, setEditAccount] = React.useState<null | { id: string; name: string; opening_balance: number }>(null);
+  const [editName, setEditName] = React.useState("");
+  const [editOpening, setEditOpening] = React.useState("0");
+  const openEditAccount = (a: { id: string; name: string; opening_balance: number | string }) => {
+    const ob = Number(a.opening_balance) || 0;
+    setEditAccount({ id: a.id, name: a.name, opening_balance: ob });
+    setEditName(a.name);
+    setEditOpening(String(ob));
+  };
+  const saveEditAccount = async () => {
+    if (!editAccount) return;
+    const name = editName.trim();
+    if (!name) { toast.error(tr("toast.name_required")); return; }
+    const opening = Number(editOpening);
+    if (!Number.isFinite(opening)) { toast.error(tr("toast.name_required")); return; }
+    const { error } = await supabase
+      .from("accounts")
+      .update({ name, opening_balance: opening })
+      .eq("id", editAccount.id);
+    if (error) return toast.error(error.message);
+    toast.success(tr("toast.saved"));
+    setEditAccount(null);
+    qc.invalidateQueries();
+  };
+  const openingChanged = !!editAccount && Number(editOpening) !== editAccount.opening_balance;
 
   // Category form
   const [cName, setCName] = React.useState("");
@@ -761,6 +789,9 @@ function SettingsPage() {
                         />
                       </PopoverContent>
                     </Popover>
+                    <Button variant="ghost" size="icon" onClick={() => openEditAccount(a)} aria-label={tr("settings.edit_account")}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => togglePin("accounts", a.id, !!a.pinned)} aria-label={a.pinned ? tr("settings.unpin") : tr("settings.pin")}>
                       {a.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
                     </Button>
@@ -778,6 +809,34 @@ function SettingsPage() {
           </CardContent>
         </Card>
         </section>
+
+        <Dialog open={!!editAccount} onOpenChange={(o) => { if (!o) setEditAccount(null); }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{tr("settings.edit_account")}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-3">
+              <div>
+                <Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label>
+                <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
+              </div>
+              <div>
+                <Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.opening_balance")}</Label>
+                <Input inputMode="decimal" value={editOpening} onChange={(e) => setEditOpening(e.target.value)} />
+              </div>
+              {openingChanged && (
+                <div className="flex gap-2 rounded-md border border-warning/60 bg-warning/10 p-3 text-sm">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                  <p>{tr("settings.opening_balance.warning")}</p>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setEditAccount(null)}>{tr("common.cancel")}</Button>
+              <Button onClick={saveEditAccount}>{tr("common.save")}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <section id="nextcloud"><NextcloudCard /></section>
         <section id="api-tokens"><ApiTokensCard /></section>
