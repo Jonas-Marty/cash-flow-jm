@@ -73,6 +73,9 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
       today: new Date(),
       runNumber,
       locale: resolveFormatLocale(settingsQ.data?.format_locale),
+      frequency: occurrence.rule.frequency,
+      anchorMonth: parseISO(occurrence.rule.starts_on).getMonth() + 1,
+      reportingOffsetMonths: occurrence.rule.reporting_offset_months ?? 0,
     };
   }, [date, occurrence, prevDate, nextDate, runNumber, settingsQ.data?.format_locale]);
 

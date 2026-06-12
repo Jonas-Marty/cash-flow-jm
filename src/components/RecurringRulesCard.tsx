@@ -52,6 +52,7 @@ type Draft = {
   backfill: "none" | "post" | "pending";
   is_variable_date: boolean;
   is_split: boolean;
+  reporting_offset_months: string;
   slices: SliceDraft[];
 };
 
@@ -95,6 +96,7 @@ function emptyDraft(): Draft {
     backfill: "none",
     is_variable_date: false,
     is_split: false,
+    reporting_offset_months: "0",
     slices: [emptySlice(), emptySlice()],
   };
 }
@@ -117,6 +119,7 @@ function ruleToDraft(r: RecurringRule): Draft {
     backfill: "none",
     is_variable_date: !!r.is_variable_date,
     is_split: !!r.is_split,
+    reporting_offset_months: String(r.reporting_offset_months ?? 0),
     slices: r.slices && r.slices.length >= 2
       ? r.slices.map((s) => ({
           id: s.id,
@@ -341,6 +344,7 @@ export function RecurringRulesCard() {
       auto_post: (draft.is_variable_amount || draft.is_variable_date) ? false : draft.auto_post,
       is_variable_date: draft.is_variable_date,
       is_split: draft.is_split,
+      reporting_offset_months: Number(draft.reporting_offset_months) || 0,
     };
     let savedId: string | undefined = draft.id;
     if (isNew) {
@@ -647,6 +651,11 @@ export function RecurringRulesCard() {
             </div>
             <PlaceholderPalette
               formatLocaleCode={settingsQ.data?.format_locale}
+              ruleCtx={{
+                frequency: draft.frequency,
+                startsOn: draft.starts_on,
+                reportingOffsetMonths: Number(draft.reporting_offset_months) || 0,
+              }}
               onInsert={(snippet) => insertPlaceholder({
                 snippet,
                 target: activeField,
@@ -679,6 +688,19 @@ export function RecurringRulesCard() {
                     <SelectItem value="yearly">{t("recurring.freq.yearly")}</SelectItem>
                   </SelectContent>
                 </Select>
+                {(draft.frequency === "quarterly" || draft.frequency === "yearly") && (
+                  <AnchorMonthHint
+                    frequency={draft.frequency}
+                    startsOn={draft.starts_on}
+                    onUseCalendarQuarter={() => {
+                      const d = parseISO(draft.starts_on);
+                      const m = d.getMonth();
+                      const calendarMonth = Math.floor(m / 3) * 3; // 0,3,6,9
+                      const next = new Date(d.getFullYear(), calendarMonth, d.getDate());
+                      setDraft({ ...draft, starts_on: format(next, "yyyy-MM-dd") });
+                    }}
+                  />
+                )}
               </div>
               <div>
                 <Label className="text-xs">{t("recurring.field.day_rule")}</Label>
@@ -697,6 +719,27 @@ export function RecurringRulesCard() {
                   <Input inputMode="numeric" min={1} max={31} type="number" value={draft.day_of_month} onChange={(e) => setDraft({ ...draft, day_of_month: e.target.value })} />
                 </div>
               )}
+            </div>
+            <div>
+              <Label className="text-xs">{t("recurring.field.reports_on")}</Label>
+              <Select
+                value={String(Number(draft.reporting_offset_months) || 0)}
+                onValueChange={(v) => setDraft({ ...draft, reporting_offset_months: v })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">{t("recurring.reports_on.this")}</SelectItem>
+                  <SelectItem value={String(draft.frequency === "quarterly" ? 3 : draft.frequency === "yearly" ? 12 : 1)}>
+                    {t("recurring.reports_on.previous")}
+                  </SelectItem>
+                  <SelectItem value={String((draft.frequency === "quarterly" ? 3 : draft.frequency === "yearly" ? 12 : 1) * 2)}>
+                    {t("recurring.reports_on.two_back")}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                {t("recurring.reports_on.hint")}
+              </div>
             </div>
             <div>
               <Label className="text-xs">{t("recurring.field.weekend")}</Label>
@@ -792,6 +835,11 @@ export function RecurringRulesCard() {
                 </div>
                 <PlaceholderPalette
                   formatLocaleCode={settingsQ.data?.format_locale}
+              ruleCtx={{
+                frequency: draft.frequency,
+                startsOn: draft.starts_on,
+                reportingOffsetMonths: Number(draft.reporting_offset_months) || 0,
+              }}
                   onInsert={(snippet) => insertSlicePlaceholder({
                     snippet,
                     active: activeSlice,
@@ -1090,9 +1138,11 @@ function insertSlicePlaceholder({
 function PlaceholderPalette({
   onInsert,
   formatLocaleCode,
+  ruleCtx,
 }: {
   onInsert: (snippet: string) => void;
   formatLocaleCode?: string;
+  ruleCtx?: { frequency: RecurringFrequency; startsOn: string; reportingOffsetMonths: number };
 }) {
   const { t } = useI18n();
   const fmtLocale = resolveFormatLocale(formatLocaleCode);
@@ -1100,8 +1150,17 @@ function PlaceholderPalette({
     const today = new Date();
     const prev = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
     const next = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
-    return { date: today, dueDate: today, prevDate: prev, nextDate: next, today, runNumber: 3, locale: fmtLocale };
-  }, [fmtLocale]);
+    let anchorMonth: number | undefined;
+    if (ruleCtx?.startsOn) {
+      try { anchorMonth = parseISO(ruleCtx.startsOn).getMonth() + 1; } catch { /* ignore */ }
+    }
+    return {
+      date: today, dueDate: today, prevDate: prev, nextDate: next, today, runNumber: 3, locale: fmtLocale,
+      frequency: ruleCtx?.frequency,
+      anchorMonth,
+      reportingOffsetMonths: ruleCtx?.reportingOffsetMonths ?? 0,
+    };
+  }, [fmtLocale, ruleCtx?.frequency, ruleCtx?.startsOn, ruleCtx?.reportingOffsetMonths]);
   const [showFormatHelp, setShowFormatHelp] = React.useState(false);
   return (
     <div className="rounded-md border p-2">
@@ -1383,6 +1442,53 @@ function PreviewPanel({
           )}
         </ul>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Tiny hint that tells the user which months a quarterly/yearly rule actually
+ * fires in (the anchor is implicit in `starts_on`), with a one-click button
+ * that snaps `starts_on` onto a calendar quarter (Jan/Apr/Jul/Oct).
+ */
+function AnchorMonthHint({
+  frequency,
+  startsOn,
+  onUseCalendarQuarter,
+}: {
+  frequency: RecurringFrequency;
+  startsOn: string;
+  onUseCalendarQuarter: () => void;
+}) {
+  const { t, locale } = useI18n();
+  if (!startsOn) return null;
+  let d: Date;
+  try { d = parseISO(startsOn); } catch { return null; }
+  if (frequency === "yearly") {
+    return (
+      <div className="mt-1 text-[11px] text-muted-foreground">
+        {t("recurring.anchor.yearly", { month: format(d, "MMMM", { locale }) })}
+      </div>
+    );
+  }
+  // quarterly — list the four anchor months
+  const m0 = d.getMonth();
+  const months = [0, 3, 6, 9].map((step) =>
+    format(new Date(2000, (m0 + step) % 12, 1), "MMM", { locale }),
+  );
+  const isCalendar = m0 % 3 === 0;
+  return (
+    <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+      <span>{t("recurring.anchor.quarterly", { months: months.join(" · ") })}</span>
+      {!isCalendar && (
+        <button
+          type="button"
+          onClick={onUseCalendarQuarter}
+          className="underline-offset-2 hover:underline"
+        >
+          {t("recurring.anchor.use_calendar_quarter")}
+        </button>
+      )}
     </div>
   );
 }
