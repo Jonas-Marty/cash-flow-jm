@@ -651,6 +651,11 @@ export function RecurringRulesCard() {
             </div>
             <PlaceholderPalette
               formatLocaleCode={settingsQ.data?.format_locale}
+              ruleCtx={{
+                frequency: draft.frequency,
+                startsOn: draft.starts_on,
+                reportingOffsetMonths: Number(draft.reporting_offset_months) || 0,
+              }}
               onInsert={(snippet) => insertPlaceholder({
                 snippet,
                 target: activeField,
