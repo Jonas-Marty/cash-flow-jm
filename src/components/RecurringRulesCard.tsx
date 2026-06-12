@@ -344,6 +344,7 @@ export function RecurringRulesCard() {
       auto_post: (draft.is_variable_amount || draft.is_variable_date) ? false : draft.auto_post,
       is_variable_date: draft.is_variable_date,
       is_split: draft.is_split,
+      reporting_offset_months: Number(draft.reporting_offset_months) || 0,
     };
     let savedId: string | undefined = draft.id;
     if (isNew) {
