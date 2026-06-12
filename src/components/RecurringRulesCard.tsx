@@ -1138,9 +1138,11 @@ function insertSlicePlaceholder({
 function PlaceholderPalette({
   onInsert,
   formatLocaleCode,
+  ruleCtx,
 }: {
   onInsert: (snippet: string) => void;
   formatLocaleCode?: string;
+  ruleCtx?: { frequency: RecurringFrequency; startsOn: string; reportingOffsetMonths: number };
 }) {
   const { t } = useI18n();
   const fmtLocale = resolveFormatLocale(formatLocaleCode);
@@ -1148,8 +1150,17 @@ function PlaceholderPalette({
     const today = new Date();
     const prev = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
     const next = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
-    return { date: today, dueDate: today, prevDate: prev, nextDate: next, today, runNumber: 3, locale: fmtLocale };
-  }, [fmtLocale]);
+    let anchorMonth: number | undefined;
+    if (ruleCtx?.startsOn) {
+      try { anchorMonth = parseISO(ruleCtx.startsOn).getMonth() + 1; } catch { /* ignore */ }
+    }
+    return {
+      date: today, dueDate: today, prevDate: prev, nextDate: next, today, runNumber: 3, locale: fmtLocale,
+      frequency: ruleCtx?.frequency,
+      anchorMonth,
+      reportingOffsetMonths: ruleCtx?.reportingOffsetMonths ?? 0,
+    };
+  }, [fmtLocale, ruleCtx?.frequency, ruleCtx?.startsOn, ruleCtx?.reportingOffsetMonths]);
   const [showFormatHelp, setShowFormatHelp] = React.useState(false);
   return (
     <div className="rounded-md border p-2">
