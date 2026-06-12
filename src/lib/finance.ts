@@ -277,6 +277,7 @@ export interface RecurringRule {
   archived: boolean;
   is_split?: boolean;
   is_variable_date?: boolean;
+  reporting_offset_months?: number;
   slices?: RecurringRuleSlice[];
 }
 
