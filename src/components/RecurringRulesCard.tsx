@@ -683,6 +683,19 @@ export function RecurringRulesCard() {
                     <SelectItem value="yearly">{t("recurring.freq.yearly")}</SelectItem>
                   </SelectContent>
                 </Select>
+                {(draft.frequency === "quarterly" || draft.frequency === "yearly") && (
+                  <AnchorMonthHint
+                    frequency={draft.frequency}
+                    startsOn={draft.starts_on}
+                    onUseCalendarQuarter={() => {
+                      const d = parseISO(draft.starts_on);
+                      const m = d.getMonth();
+                      const calendarMonth = Math.floor(m / 3) * 3; // 0,3,6,9
+                      const next = new Date(d.getFullYear(), calendarMonth, d.getDate());
+                      setDraft({ ...draft, starts_on: format(next, "yyyy-MM-dd") });
+                    }}
+                  />
+                )}
               </div>
               <div>
                 <Label className="text-xs">{t("recurring.field.day_rule")}</Label>
@@ -701,6 +714,27 @@ export function RecurringRulesCard() {
                   <Input inputMode="numeric" min={1} max={31} type="number" value={draft.day_of_month} onChange={(e) => setDraft({ ...draft, day_of_month: e.target.value })} />
                 </div>
               )}
+            </div>
+            <div>
+              <Label className="text-xs">{t("recurring.field.reports_on")}</Label>
+              <Select
+                value={String(Number(draft.reporting_offset_months) || 0)}
+                onValueChange={(v) => setDraft({ ...draft, reporting_offset_months: v })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">{t("recurring.reports_on.this")}</SelectItem>
+                  <SelectItem value={String(draft.frequency === "quarterly" ? 3 : draft.frequency === "yearly" ? 12 : 1)}>
+                    {t("recurring.reports_on.previous")}
+                  </SelectItem>
+                  <SelectItem value={String((draft.frequency === "quarterly" ? 3 : draft.frequency === "yearly" ? 12 : 1) * 2)}>
+                    {t("recurring.reports_on.two_back")}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="mt-1 text-[11px] text-muted-foreground">
+                {t("recurring.reports_on.hint")}
+              </div>
             </div>
             <div>
               <Label className="text-xs">{t("recurring.field.weekend")}</Label>
