@@ -811,6 +811,7 @@ export type Database = {
           is_variable_date: boolean
           name: string
           note: string | null
+          reporting_offset_months: number
           source_account_id: string
           starts_on: string
           type: Database["public"]["Enums"]["transaction_type"]
@@ -837,6 +838,7 @@ export type Database = {
           is_variable_date?: boolean
           name: string
           note?: string | null
+          reporting_offset_months?: number
           source_account_id: string
           starts_on: string
           type: Database["public"]["Enums"]["transaction_type"]
@@ -863,6 +865,7 @@ export type Database = {
           is_variable_date?: boolean
           name?: string
           note?: string | null
+          reporting_offset_months?: number
           source_account_id?: string
           starts_on?: string
           type?: Database["public"]["Enums"]["transaction_type"]
@@ -1339,19 +1342,36 @@ export type Database = {
         }
         Returns: boolean
       }
-      interpolate_template: {
-        Args: {
-          p_date: string
-          p_due: string
-          p_locale: string
-          p_next: string
-          p_prev: string
-          p_run: number
-          p_template: string
-          p_today: string
-        }
-        Returns: string
-      }
+      interpolate_template:
+        | {
+            Args: {
+              p_date: string
+              p_due: string
+              p_locale: string
+              p_next: string
+              p_prev: string
+              p_run: number
+              p_template: string
+              p_today: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_date: string
+              p_due: string
+              p_frequency?: string
+              p_locale: string
+              p_next: string
+              p_prev: string
+              p_reporting_offset_months?: number
+              p_run: number
+              p_starts_on?: string
+              p_template: string
+              p_today: string
+            }
+            Returns: string
+          }
       log_audit_event: {
         Args: { p_action: string; p_metadata?: Json }
         Returns: number
