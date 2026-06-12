@@ -680,6 +680,9 @@ export async function postOccurrence(occ: RecurringOccurrence & { rule: Recurrin
       today: new Date(),
       runNumber,
       locale: fmtLocale,
+      frequency: r.frequency,
+      anchorMonth: new Date(r.starts_on).getMonth() + 1,
+      reportingOffsetMonths: r.reporting_offset_months ?? 0,
     };
     const rows = slices.map((s, i) => ({
       user_id: userId,
