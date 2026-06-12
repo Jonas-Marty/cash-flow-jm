@@ -52,6 +52,7 @@ type Draft = {
   backfill: "none" | "post" | "pending";
   is_variable_date: boolean;
   is_split: boolean;
+  reporting_offset_months: string;
   slices: SliceDraft[];
 };
 
@@ -95,6 +96,7 @@ function emptyDraft(): Draft {
     backfill: "none",
     is_variable_date: false,
     is_split: false,
+    reporting_offset_months: "0",
     slices: [emptySlice(), emptySlice()],
   };
 }
@@ -117,6 +119,7 @@ function ruleToDraft(r: RecurringRule): Draft {
     backfill: "none",
     is_variable_date: !!r.is_variable_date,
     is_split: !!r.is_split,
+    reporting_offset_months: String(r.reporting_offset_months ?? 0),
     slices: r.slices && r.slices.length >= 2
       ? r.slices.map((s) => ({
           id: s.id,
