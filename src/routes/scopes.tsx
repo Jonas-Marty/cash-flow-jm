@@ -139,8 +139,15 @@ function ScopesRoute() {
                 fundingCandidates={fundingCandidates}
                 symbol={sym}
                 isActive={activeId === s.id}
-                onActivate={() => { setActiveId(s.id); toast.success(t("scopes.toast.activated", { name: s.name })); }}
-                onDeactivate={() => setActiveId(null)}
+                onActivate={async () => {
+                  try {
+                    await setActiveId(s.id);
+                    toast.success(t("scopes.toast.activated", { name: s.name }));
+                  } catch (e) {
+                    toast.error(e instanceof Error ? e.message : String(e));
+                  }
+                }}
+                onDeactivate={() => void setActiveId(null)}
               />
             ))}
           </div>
@@ -177,12 +184,11 @@ function ScopeRow({
   fundingCandidates: Category[];
   symbol: string;
   isActive: boolean;
-  onActivate: () => void;
+  onActivate: () => void | Promise<void>;
   onDeactivate: () => void;
 }) {
   const { t } = useI18n();
   const qc = useQueryClient();
-  const [, setActiveId] = useActiveScopeId();
   const totalQ = useQuery({
     queryKey: ["scope_total", scope.id],
     queryFn: () => fetchScopeTotal(scope.id),
@@ -213,10 +219,10 @@ function ScopeRow({
   const close = useMutation({
     mutationFn: () => closeScope(scope.id),
     onSuccess: async (res) => {
-      if (isActive) setActiveId(null);
       await qc.invalidateQueries({ queryKey: ["scopes"] });
       await qc.invalidateQueries({ queryKey: ["categories"] });
       await qc.invalidateQueries({ queryKey: ["reallocations"] });
+      await qc.invalidateQueries({ queryKey: ["settings"] });
       toast.success(
         t("scopes.toast.closed", { amount: fmtMoney(res.total, symbol) }),
         {
@@ -249,9 +255,9 @@ function ScopeRow({
   const del = useMutation({
     mutationFn: () => deleteScope(scope.id),
     onSuccess: async () => {
-      if (isActive) setActiveId(null);
       await qc.invalidateQueries({ queryKey: ["scopes"] });
       await qc.invalidateQueries({ queryKey: ["categories"] });
+      await qc.invalidateQueries({ queryKey: ["settings"] });
       toast.success(t("common.deleted"));
     },
     onError: (e: Error) => toast.error(e.message),

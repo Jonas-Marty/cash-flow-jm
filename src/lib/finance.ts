@@ -306,6 +306,7 @@ export interface RecurringOccurrence {
 
 export interface Settings {
   id: string;
+  active_scope_id: string | null;
   currency_code: string;
   currency_symbol: string;
   language: string;
@@ -394,6 +395,15 @@ export async function fetchSettings(): Promise<Settings> {
     return created as Settings;
   }
   return data as Settings;
+}
+
+export async function updateActiveScope(activeScopeId: string | null): Promise<void> {
+  const settings = await fetchSettings();
+  const { error } = await supabase
+    .from("settings")
+    .update({ active_scope_id: activeScopeId })
+    .eq("id", settings.id);
+  if (error) throw error;
 }
 
 export async function fetchAccounts(): Promise<Account[]> {
@@ -1276,8 +1286,8 @@ export async function deleteAccountStatement(
 }
 
 // ───────── Scopes ─────────
-// A "scope" is a normal category row with `is_scope = true`. While active
-// (per-device, see useActiveScope) it auto-fills the category in /add.
+// A "scope" is a normal category row with `is_scope = true`. The active scope
+// is persisted in settings and auto-fills the category in /add.
 // On close, the total of all transactions on this scope category is
 // reallocated from the chosen funding category in one entry.
 
