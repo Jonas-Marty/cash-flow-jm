@@ -1,7 +1,7 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { LayoutDashboard, Plus, ListOrdered, Settings as SettingsIcon, Wallet, PiggyBank, LogOut, LineChart, Inbox, MoreHorizontal, Scale, Sun, Moon, Monitor, Languages, Check, HelpCircle, Sparkles } from "lucide-react";
 import { AssistantBubble } from "@/components/AssistantBubble";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useI18n, LANGUAGES, type Lang } from "@/i18n";
@@ -75,6 +75,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   });
   const pendingCount = pendingCountQ.data ?? 0;
   const [moreOpen, setMoreOpen] = useState(false);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+
+    const updateKeyboardState = () => {
+      const keyboardOpen = window.innerWidth < 768 && window.innerHeight - viewport.height > 120;
+      document.documentElement.toggleAttribute("data-mobile-keyboard-open", keyboardOpen);
+    };
+
+    updateKeyboardState();
+    viewport.addEventListener("resize", updateKeyboardState);
+    viewport.addEventListener("scroll", updateKeyboardState);
+    return () => {
+      viewport.removeEventListener("resize", updateKeyboardState);
+      viewport.removeEventListener("scroll", updateKeyboardState);
+      document.documentElement.removeAttribute("data-mobile-keyboard-open");
+    };
+  }, []);
   const moreActive = mobileMoreItems.some((t) =>
     t.exact ? loc.pathname === t.to : loc.pathname.startsWith(t.to),
   );
@@ -132,7 +150,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="mx-auto max-w-3xl px-4 pb-28 pt-4 md:pb-10 md:pt-6">
+      <main className="app-main mx-auto max-w-3xl px-4 pb-28 pt-4 md:pb-10 md:pt-6">
         {/* Mobile-visible active-scope chip (header is hidden on mobile). */}
         <div className="mb-2 flex justify-end md:hidden">
           <ActiveScopeChip compact />
@@ -140,7 +158,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      <nav className="fixed inset-x-0 bottom-0 z-40 border-t bg-background md:hidden">
+      <nav className="mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 border-t bg-background md:hidden">
         <ul className="mx-auto grid max-w-3xl grid-cols-5">
           {mobileTabs.map((tab) => {
             const Icon = tab.icon;
