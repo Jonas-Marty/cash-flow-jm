@@ -17,13 +17,8 @@ export function ActiveScopeChip({ compact = false }: { compact?: boolean }) {
   const scope = React.useMemo(() => {
     if (!activeId) return null;
     const s = (scopesQ.data ?? []).find((x) => x.id === activeId);
-    // If the scope is closed or gone, auto-clear.
-    if (!s || s.closed_at) {
-      if (activeId) setActiveId(null);
-      return null;
-    }
-    return s;
-  }, [activeId, scopesQ.data, setActiveId]);
+    return s && !s.closed_at ? s : null;
+  }, [activeId, scopesQ.data]);
 
   if (!scope) return null;
 
@@ -56,7 +51,7 @@ export function ActiveScopeChip({ compact = false }: { compact?: boolean }) {
             size="sm"
             variant="ghost"
             className="justify-start text-destructive hover:text-destructive"
-            onClick={() => setActiveId(null)}
+            onClick={() => void setActiveId(null)}
           >
             <X className="mr-2 h-4 w-4" />
             {t("scopes.chip.disable")}

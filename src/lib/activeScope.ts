@@ -1,51 +1,25 @@
 import * as React from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
-/**
- * Per-device "active scope" — the scope category that auto-fills
- * the /add form. Stored in localStorage so it survives reloads but
- * does not sync across devices.
- */
-const KEY = "active_scope_id";
-const EVENT = "active-scope-change";
+import { fetchSettings, updateActiveScope } from "@/lib/finance";
 
-function read(): string | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return window.localStorage.getItem(KEY);
-  } catch {
-    return null;
-  }
-}
+/** Persistent, account-wide active scope backed by the user's settings row. */
+export function useActiveScopeId(): [string | null, (id: string | null) => Promise<void>] {
+  const queryClient = useQueryClient();
+  const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
 
-function write(id: string | null) {
-  if (typeof window === "undefined") return;
-  try {
-    if (id) window.localStorage.setItem(KEY, id);
-    else window.localStorage.removeItem(KEY);
-  } catch {
-    /* ignore */
-  }
-  window.dispatchEvent(new CustomEvent(EVENT));
-}
+  const setId = React.useCallback(async (id: string | null) => {
+    const previous = queryClient.getQueryData<Awaited<ReturnType<typeof fetchSettings>>>(["settings"]);
+    if (previous) queryClient.setQueryData(["settings"], { ...previous, active_scope_id: id });
+    try {
+      await updateActiveScope(id);
+    } catch (error) {
+      if (previous) queryClient.setQueryData(["settings"], previous);
+      throw error;
+    } finally {
+      await queryClient.invalidateQueries({ queryKey: ["settings"] });
+    }
+  }, [queryClient]);
 
-export function getActiveScopeId(): string | null {
-  return read();
-}
-
-export function setActiveScopeId(id: string | null): void {
-  write(id);
-}
-
-export function useActiveScopeId(): [string | null, (id: string | null) => void] {
-  const [id, setId] = React.useState<string | null>(() => read());
-  React.useEffect(() => {
-    const handler = () => setId(read());
-    window.addEventListener(EVENT, handler);
-    window.addEventListener("storage", handler);
-    return () => {
-      window.removeEventListener(EVENT, handler);
-      window.removeEventListener("storage", handler);
-    };
-  }, []);
-  return [id, (v: string | null) => write(v)];
+  return [settingsQ.data?.active_scope_id ?? null, setId];
 }
