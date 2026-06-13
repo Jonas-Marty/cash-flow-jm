@@ -155,3 +155,24 @@
     color: var(--color-foreground);
   }
 }
+
+@media (max-width: 767px) {
+  .app-main {
+    padding-bottom: calc(7rem + env(safe-area-inset-bottom));
+  }
+
+  .mobile-bottom-nav {
+    padding-bottom: env(safe-area-inset-bottom);
+    transition: opacity 120ms ease;
+  }
+
+  html[data-mobile-keyboard-open] .mobile-bottom-nav,
+  body:has(input:focus, textarea:focus, [contenteditable="true"]:focus) .mobile-bottom-nav {
+    display: none;
+  }
+
+  html[data-mobile-keyboard-open] .app-main,
+  body:has(input:focus, textarea:focus, [contenteditable="true"]:focus) .app-main {
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  }
+}
