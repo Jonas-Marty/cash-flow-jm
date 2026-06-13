@@ -683,15 +683,15 @@ function TransactionsPage() {
                           <button
                             type="button"
                             onClick={() => toggleGroup(row.groupId)}
-                            className="flex flex-1 items-start gap-3 text-left"
+                             className="flex min-w-0 flex-1 items-start gap-3 text-left"
                           >
                           <RowVisual entity={src ?? null} typeIcon={<Icon className="h-3 w-3" />} tone={tone} />
                           <div className="min-w-0 flex-1">
-                            <div className="flex items-baseline justify-between gap-2">
-                              <div className="flex min-w-0 items-center gap-1.5">
+                             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
+                               <div className="flex min-w-0 items-start gap-1.5">
                                 <ChevIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                <span className="truncate text-sm font-medium">{highlightTokens(headerLabel, tokens)}</span>
-                                <span className="ml-1 inline-flex items-center gap-1 rounded bg-accent px-1.5 py-0.5 text-[10px] font-semibold uppercase text-accent-foreground">
+                                 <span className="min-w-0 break-words text-sm font-medium">{highlightTokens(headerLabel, tokens)}</span>
+                                 <span className="ml-1 inline-flex shrink-0 items-center gap-1 rounded bg-accent px-1.5 py-0.5 text-[10px] font-semibold uppercase text-accent-foreground">
                                   <Layers className="h-3 w-3" /> {tr("tx.split.label")}
                                 </span>
                               </div>
@@ -722,9 +722,9 @@ function TransactionsPage() {
                               const cat = t.category_id ? categoryById.get(t.category_id) : null;
                               const sliceTags = tagsByTx.get(t.id) ?? [];
                               return (
-                                <li key={t.id} className="flex items-center justify-between gap-3 px-4 py-2 pl-14 text-sm">
-                                  <div className="min-w-0">
-                                    <div className="truncate font-medium">{highlightTokens(t.description || tr("add.split.no_category"), tokens)}</div>
+                                 <li key={t.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 px-4 py-2 pl-14 text-sm">
+                                   <div className="min-w-0">
+                                     <div className="break-words font-medium">{highlightTokens(t.description || tr("add.split.no_category"), tokens)}</div>
                                     <div className="text-xs text-muted-foreground">{highlightTokens(cat?.name ?? tr("add.split.no_category"), tokens)}</div>
                                     <TagBadges tags={sliceTags} tokens={tokens} />
                                   </div>
@@ -759,8 +759,8 @@ function TransactionsPage() {
                     <div key={t.id} className="flex items-start gap-3 px-4 py-3">
                       <RowVisual entity={primary} typeIcon={<Icon className="h-3 w-3" />} tone={tone} />
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <div className="truncate text-sm font-medium">
+                         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
+                           <div className="min-w-0 break-words text-sm font-medium">
                             {highlightTokens(
                               t.description || (t.type === "transfer" ? tr("tx.transfer_label") : t.type === "income" ? tr("add.income") : tr("add.expense")),
                               tokens,
