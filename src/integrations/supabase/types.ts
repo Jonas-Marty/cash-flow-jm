@@ -877,6 +877,7 @@ export type Database = {
       }
       settings: {
         Row: {
+          active_scope_id: string | null
           created_at: string
           currency_code: string
           currency_symbol: string
@@ -892,6 +893,7 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          active_scope_id?: string | null
           created_at?: string
           currency_code?: string
           currency_symbol?: string
@@ -907,6 +909,7 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          active_scope_id?: string | null
           created_at?: string
           currency_code?: string
           currency_symbol?: string
@@ -921,7 +924,22 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "settings_active_scope_id_fkey"
+            columns: ["active_scope_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "settings_active_scope_id_fkey"
+            columns: ["active_scope_id"]
+            isOneToOne: false
+            referencedRelation: "category_savings_balance"
+            referencedColumns: ["category_id"]
+          },
+        ]
       }
       transaction_attachments: {
         Row: {
