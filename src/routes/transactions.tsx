@@ -695,6 +695,7 @@ function TransactionsPage() {
                                 </div>
                                 <span className="ml-5 mt-1 inline-flex items-center gap-1 rounded bg-accent px-1.5 py-0.5 text-[10px] font-semibold uppercase text-accent-foreground sm:ml-5">
                                   <Layers className="h-3 w-3" /> {tr("tx.split.label")}
+                                 </span>
                               </div>
                                <div className={cn("ml-5 text-sm font-semibold tabular-nums whitespace-nowrap sm:ml-0 sm:text-right", tone)}>
                                 {amtMatch ? (
