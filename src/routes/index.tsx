@@ -346,12 +346,14 @@ function ProjectionTile({
         <div className="text-sm font-medium">{label}</div>
         <div className="text-xs text-muted-foreground">{dateLabel}</div>
       </div>
-      <PrivacyValue className={cn(
-        "mt-1 text-2xl font-bold tabular-nums",
-        net >= 0 ? "text-success" : "text-destructive",
-      )}>
-        {loading ? <Skeleton className="h-8 w-40" /> : fmtMoney(net, symbol)}
-      </PrivacyValue>
+      {loading ? <Skeleton className="mt-1 h-8 w-40" /> : (
+        <PrivacyValue className={cn(
+          "mt-1 text-2xl font-bold tabular-nums",
+          net >= 0 ? "text-success" : "text-destructive",
+        )}>
+          {fmtMoney(net, symbol)}
+        </PrivacyValue>
+      )}
       <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
         <div className="rounded border p-2">
           <div className="text-muted-foreground">{tr("dashboard.assets")}</div>
@@ -445,12 +447,14 @@ function NetWorthBlock({
 
   return (
     <>
-      <PrivacyValue className={cn(
-        "text-3xl font-bold tabular-nums",
-        net >= 0 ? "text-success" : "text-destructive",
-      )}>
-        {loading ? <Skeleton className="h-9 w-48" /> : fmtMoney(net, symbol)}
-      </PrivacyValue>
+      {loading ? <Skeleton className="h-9 w-48" /> : (
+        <PrivacyValue className={cn(
+          "text-3xl font-bold tabular-nums",
+          net >= 0 ? "text-success" : "text-destructive",
+        )}>
+          {fmtMoney(net, symbol)}
+        </PrivacyValue>
+      )}
       {!loading && (
         <div className="mt-1 text-xs text-muted-foreground">
           {tr("dashboard.networth_as_of", { date: format(new Date(), "PP", { locale }) })}
