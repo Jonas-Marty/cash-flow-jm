@@ -5,6 +5,7 @@ import { fmtMoney } from "@/lib/finance";
 import { useI18n } from "@/i18n";
 import { computeMonthTotals, monthVerdict, type MonthBudgetTotals } from "@/lib/budgetSummary";
 import type { CategoryMonthRow, PendingCategorySigned } from "@/lib/finance";
+import { PrivacyValue } from "@/components/DashboardPrivacy";
 
 /**
  * "Will I stay within budget this month?" — the single verdict line plus
@@ -50,8 +51,8 @@ export function MonthBudgetSummary({
           </div>
           <div className="flex items-baseline gap-2 text-sm">
             <span className="text-muted-foreground">{t("dashboard.month_verdict.label")}</span>
-            <span className={cn("text-base font-bold tabular-nums", tone)}>{netStr}</span>
-            <span className={cn("text-xs", tone)}>· {verdictLabel}</span>
+            <PrivacyValue className={cn("text-base font-bold tabular-nums", tone)}>{netStr}</PrivacyValue>
+            <PrivacyValue className={cn("text-xs", tone)}>· {verdictLabel}</PrivacyValue>
           </div>
         </div>
 
@@ -105,19 +106,19 @@ function SummaryLine({
     <div className="rounded-md border bg-card/50 p-2">
       <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
       {kind === "savings" ? (
-        <div className="mt-1 text-base font-bold tabular-nums">{fmtMoney(allocated, symbol)}</div>
+        <PrivacyValue className="mt-1 text-base font-bold tabular-nums">{fmtMoney(allocated, symbol)}</PrivacyValue>
       ) : (
         <>
-          <div className="mt-1 text-base font-bold tabular-nums">
+          <PrivacyValue className="mt-1 text-base font-bold tabular-nums">
             {fmtMoney(projected, symbol)}
             <span className="ml-1 text-xs font-normal text-muted-foreground">/ {fmtMoney(allocated, symbol)}</span>
-          </div>
-          <div className="text-xs tabular-nums text-muted-foreground">
+          </PrivacyValue>
+          <PrivacyValue className="block text-xs tabular-nums text-muted-foreground">
             {fmtMoney(actual, symbol)} {kind === "income" ? t("dashboard.summary.received_label") : t("dashboard.summary.spent_label")}
             {pending > 0 && (
               <span className="text-warning"> + {fmtMoney(pending, symbol)} {kind === "income" ? t("dashboard.summary.expected_label") : t("dashboard.summary.pending_label")}</span>
             )}
-          </div>
+          </PrivacyValue>
         </>
       )}
     </div>

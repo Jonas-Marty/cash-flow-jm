@@ -1,7 +1,7 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, ArrowLeftRight, Plus, ChevronDown, ChevronRight } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowLeftRight, Plus, ChevronDown, ChevronRight, Eye, EyeOff } from "lucide-react";
 import { format } from "date-fns";
 
 import { AppShell } from "@/components/AppShell";
@@ -35,13 +35,23 @@ import {
 } from "@/lib/finance";
 import { useFxRates, convert } from "@/lib/fx";
 import { MonthBudgetSummary } from "@/components/MonthBudgetSummary";
+import { DashboardPrivacyProvider, PrivacyValue, useDashboardPrivacy } from "@/components/DashboardPrivacy";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
 function Dashboard() {
+  return (
+    <DashboardPrivacyProvider>
+      <DashboardContent />
+    </DashboardPrivacyProvider>
+  );
+}
+
+function DashboardContent() {
   const { t, locale } = useI18n();
+  const { hidden: privacyHidden, toggle: togglePrivacy } = useDashboardPrivacy();
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   const m = monthKey(monthStart);
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
@@ -136,9 +146,22 @@ function Dashboard() {
             <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard.title")}</h1>
             <p className="text-sm text-muted-foreground">{format(new Date(), "MMMM yyyy", { locale })}</p>
           </div>
-          <Button asChild size="sm" className="hidden md:inline-flex">
-            <Link to="/add"><Plus className="h-4 w-4" /> {t("nav.add_transaction")}</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={togglePrivacy}
+              aria-label={t(privacyHidden ? "dashboard.privacy.show" : "dashboard.privacy.hide")}
+              title={t(privacyHidden ? "dashboard.privacy.show" : "dashboard.privacy.hide")}
+              aria-pressed={privacyHidden}
+            >
+              {privacyHidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
+            <Button asChild size="sm" className="hidden md:inline-flex">
+              <Link to="/add"><Plus className="h-4 w-4" /> {t("nav.add_transaction")}</Link>
+            </Button>
+          </div>
         </header>
 
         {/* Net worth */}
@@ -323,20 +346,22 @@ function ProjectionTile({
         <div className="text-sm font-medium">{label}</div>
         <div className="text-xs text-muted-foreground">{dateLabel}</div>
       </div>
-      <div className={cn(
-        "mt-1 text-2xl font-bold tabular-nums",
-        net >= 0 ? "text-success" : "text-destructive",
-      )}>
-        {loading ? <Skeleton className="h-8 w-40" /> : fmtMoney(net, symbol)}
-      </div>
+      {loading ? <Skeleton className="mt-1 h-8 w-40" /> : (
+        <PrivacyValue className={cn(
+          "mt-1 text-2xl font-bold tabular-nums",
+          net >= 0 ? "text-success" : "text-destructive",
+        )}>
+          {fmtMoney(net, symbol)}
+        </PrivacyValue>
+      )}
       <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
         <div className="rounded border p-2">
           <div className="text-muted-foreground">{tr("dashboard.assets")}</div>
-          <div className={cn("mt-0.5 font-semibold tabular-nums", totalAssets < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(totalAssets, symbol)}</div>
+          <PrivacyValue className={cn("mt-0.5 font-semibold tabular-nums", totalAssets < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(totalAssets, symbol)}</PrivacyValue>
         </div>
         <div className="rounded border p-2">
           <div className="text-muted-foreground">{tr("dashboard.liabilities")}</div>
-          <div className={cn("mt-0.5 font-semibold tabular-nums", totalLiabilities < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(totalLiabilities, symbol)}</div>
+          <PrivacyValue className={cn("mt-0.5 font-semibold tabular-nums", totalLiabilities < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(totalLiabilities, symbol)}</PrivacyValue>
         </div>
       </div>
       <div className="mt-2 text-[11px] text-muted-foreground">
@@ -367,9 +392,9 @@ function AccountsCard({
             {items.map((a) => (
               <li key={a.id} className="flex items-center justify-between py-2 text-sm">
                 <span className="truncate">{a.name}</span>
-                <span className={cn("tabular-nums font-medium", Number(a.balance) < 0 ? "text-destructive" : "text-foreground")}>
+                <PrivacyValue className={cn("tabular-nums font-medium", Number(a.balance) < 0 ? "text-destructive" : "text-foreground")}>
                   {fmtMoney(Number(a.balance), a.currency_symbol ?? symbol)}
-                </span>
+                </PrivacyValue>
               </li>
             ))}
           </ul>
@@ -422,12 +447,14 @@ function NetWorthBlock({
 
   return (
     <>
-      <div className={cn(
-        "text-3xl font-bold tabular-nums",
-        net >= 0 ? "text-success" : "text-destructive",
-      )}>
-        {loading ? <Skeleton className="h-9 w-48" /> : fmtMoney(net, symbol)}
-      </div>
+      {loading ? <Skeleton className="h-9 w-48" /> : (
+        <PrivacyValue className={cn(
+          "text-3xl font-bold tabular-nums",
+          net >= 0 ? "text-success" : "text-destructive",
+        )}>
+          {fmtMoney(net, symbol)}
+        </PrivacyValue>
+      )}
       {!loading && (
         <div className="mt-1 text-xs text-muted-foreground">
           {tr("dashboard.networth_as_of", { date: format(new Date(), "PP", { locale }) })}
@@ -439,11 +466,11 @@ function NetWorthBlock({
       <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
         <div className="rounded-md border p-3">
           <div className="text-muted-foreground">{tr("dashboard.assets")}</div>
-          <div className={cn("mt-1 font-semibold tabular-nums", a < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(a, symbol)}</div>
+          <PrivacyValue className={cn("mt-1 font-semibold tabular-nums", a < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(a, symbol)}</PrivacyValue>
         </div>
         <div className="rounded-md border p-3">
           <div className="text-muted-foreground">{tr("dashboard.liabilities")}</div>
-          <div className={cn("mt-1 font-semibold tabular-nums", l < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(l, symbol)}</div>
+          <PrivacyValue className={cn("mt-1 font-semibold tabular-nums", l < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(l, symbol)}</PrivacyValue>
         </div>
       </div>
 
@@ -462,17 +489,17 @@ function NetWorthBlock({
               {otherAssets.length > 0 && (
                 <div className="flex items-baseline justify-between gap-2 text-sm">
                   <span className="text-muted-foreground">{tr("dashboard.assets")}</span>
-                  <span className="tabular-nums font-medium">
+                  <PrivacyValue className="tabular-nums font-medium">
                     {otherAssets.map(([code, v]) => fmtMoney(v, symbolForCode(code))).join(" · ")}
-                  </span>
+                  </PrivacyValue>
                 </div>
               )}
               {otherLiab.length > 0 && (
                 <div className="flex items-baseline justify-between gap-2 text-sm">
                   <span className="text-muted-foreground">{tr("dashboard.liabilities")}</span>
-                  <span className="tabular-nums font-medium">
+                  <PrivacyValue className="tabular-nums font-medium">
                     {otherLiab.map(([code, v]) => fmtMoney(v, symbolForCode(code))).join(" · ")}
-                  </span>
+                  </PrivacyValue>
                 </div>
               )}
             </div>
