@@ -445,12 +445,12 @@ function NetWorthBlock({
 
   return (
     <>
-      <div className={cn(
+      <PrivacyValue className={cn(
         "text-3xl font-bold tabular-nums",
         net >= 0 ? "text-success" : "text-destructive",
       )}>
         {loading ? <Skeleton className="h-9 w-48" /> : fmtMoney(net, symbol)}
-      </div>
+      </PrivacyValue>
       {!loading && (
         <div className="mt-1 text-xs text-muted-foreground">
           {tr("dashboard.networth_as_of", { date: format(new Date(), "PP", { locale }) })}
@@ -462,11 +462,11 @@ function NetWorthBlock({
       <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
         <div className="rounded-md border p-3">
           <div className="text-muted-foreground">{tr("dashboard.assets")}</div>
-          <div className={cn("mt-1 font-semibold tabular-nums", a < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(a, symbol)}</div>
+          <PrivacyValue className={cn("mt-1 font-semibold tabular-nums", a < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(a, symbol)}</PrivacyValue>
         </div>
         <div className="rounded-md border p-3">
           <div className="text-muted-foreground">{tr("dashboard.liabilities")}</div>
-          <div className={cn("mt-1 font-semibold tabular-nums", l < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(l, symbol)}</div>
+          <PrivacyValue className={cn("mt-1 font-semibold tabular-nums", l < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(l, symbol)}</PrivacyValue>
         </div>
       </div>
 
@@ -485,17 +485,17 @@ function NetWorthBlock({
               {otherAssets.length > 0 && (
                 <div className="flex items-baseline justify-between gap-2 text-sm">
                   <span className="text-muted-foreground">{tr("dashboard.assets")}</span>
-                  <span className="tabular-nums font-medium">
+                  <PrivacyValue className="tabular-nums font-medium">
                     {otherAssets.map(([code, v]) => fmtMoney(v, symbolForCode(code))).join(" · ")}
-                  </span>
+                  </PrivacyValue>
                 </div>
               )}
               {otherLiab.length > 0 && (
                 <div className="flex items-baseline justify-between gap-2 text-sm">
                   <span className="text-muted-foreground">{tr("dashboard.liabilities")}</span>
-                  <span className="tabular-nums font-medium">
+                  <PrivacyValue className="tabular-nums font-medium">
                     {otherLiab.map(([code, v]) => fmtMoney(v, symbolForCode(code))).join(" · ")}
-                  </span>
+                  </PrivacyValue>
                 </div>
               )}
             </div>
