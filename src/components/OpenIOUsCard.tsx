@@ -37,6 +37,7 @@ import {
 import { useI18n } from "@/i18n";
 import { Plus, Check, Ban, Pencil, MinusCircle, HelpCircle } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { PrivacyValue } from "@/components/DashboardPrivacy";
 
 type Direction = "owed_to_me" | "i_owe";
 
@@ -252,9 +253,9 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
       <div className="space-y-2">
         <div className="flex items-baseline justify-between gap-2">
           <div className="text-sm font-medium">{title}</div>
-          <div className="tabular-nums text-sm font-semibold text-warning">
+          <PrivacyValue className="tabular-nums text-sm font-semibold text-warning">
             {fmtMoney(total, groupSym)}
-          </div>
+          </PrivacyValue>
         </div>
         <ul className="divide-y rounded-md border border-border/60">
           {rows.map(renderRow)}

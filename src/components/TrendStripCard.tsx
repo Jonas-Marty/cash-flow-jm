@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { fmtMoney } from "@/lib/finance";
 import { useI18n } from "@/i18n";
+import { PrivacyValue } from "@/components/DashboardPrivacy";
 
 /**
  * Compact trend card. Shows the user's cash net (income − expenses, transfers
@@ -97,11 +98,11 @@ function Row({ label, value, baseline, symbol, compareLabel, noBaseline }: {
         <div className="text-xs text-muted-foreground">{compareLabel}</div>
       </div>
       <div className="text-right">
-        <div className={cn("text-base font-semibold tabular-nums", value >= 0 ? "text-success" : "text-destructive")}>{valueStr}</div>
-        <div className={cn("flex items-center justify-end gap-1 text-xs tabular-nums", tone)}>
+        <PrivacyValue className={cn("text-base font-semibold tabular-nums", value >= 0 ? "text-success" : "text-destructive")}>{valueStr}</PrivacyValue>
+        <PrivacyValue className={cn("flex items-center justify-end gap-1 text-xs tabular-nums", tone)}>
           <Icon className="h-3 w-3" />
           {pct === null ? noBaseline : `${pct >= 0 ? "+" : ""}${pct.toFixed(0)}%`}
-        </div>
+        </PrivacyValue>
       </div>
     </div>
   );
