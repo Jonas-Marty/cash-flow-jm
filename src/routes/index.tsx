@@ -346,20 +346,20 @@ function ProjectionTile({
         <div className="text-sm font-medium">{label}</div>
         <div className="text-xs text-muted-foreground">{dateLabel}</div>
       </div>
-      <div className={cn(
+      <PrivacyValue className={cn(
         "mt-1 text-2xl font-bold tabular-nums",
         net >= 0 ? "text-success" : "text-destructive",
       )}>
         {loading ? <Skeleton className="h-8 w-40" /> : fmtMoney(net, symbol)}
-      </div>
+      </PrivacyValue>
       <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
         <div className="rounded border p-2">
           <div className="text-muted-foreground">{tr("dashboard.assets")}</div>
-          <div className={cn("mt-0.5 font-semibold tabular-nums", totalAssets < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(totalAssets, symbol)}</div>
+          <PrivacyValue className={cn("mt-0.5 font-semibold tabular-nums", totalAssets < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(totalAssets, symbol)}</PrivacyValue>
         </div>
         <div className="rounded border p-2">
           <div className="text-muted-foreground">{tr("dashboard.liabilities")}</div>
-          <div className={cn("mt-0.5 font-semibold tabular-nums", totalLiabilities < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(totalLiabilities, symbol)}</div>
+          <PrivacyValue className={cn("mt-0.5 font-semibold tabular-nums", totalLiabilities < 0 ? "text-destructive" : "text-foreground")}>{fmtMoney(totalLiabilities, symbol)}</PrivacyValue>
         </div>
       </div>
       <div className="mt-2 text-[11px] text-muted-foreground">
@@ -390,9 +390,9 @@ function AccountsCard({
             {items.map((a) => (
               <li key={a.id} className="flex items-center justify-between py-2 text-sm">
                 <span className="truncate">{a.name}</span>
-                <span className={cn("tabular-nums font-medium", Number(a.balance) < 0 ? "text-destructive" : "text-foreground")}>
+                <PrivacyValue className={cn("tabular-nums font-medium", Number(a.balance) < 0 ? "text-destructive" : "text-foreground")}>
                   {fmtMoney(Number(a.balance), a.currency_symbol ?? symbol)}
-                </span>
+                </PrivacyValue>
               </li>
             ))}
           </ul>
