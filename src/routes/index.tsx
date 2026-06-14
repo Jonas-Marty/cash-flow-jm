@@ -1,7 +1,7 @@
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, ArrowLeftRight, Plus, ChevronDown, ChevronRight } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowLeftRight, Plus, ChevronDown, ChevronRight, Eye, EyeOff } from "lucide-react";
 import { format } from "date-fns";
 
 import { AppShell } from "@/components/AppShell";
@@ -35,13 +35,23 @@ import {
 } from "@/lib/finance";
 import { useFxRates, convert } from "@/lib/fx";
 import { MonthBudgetSummary } from "@/components/MonthBudgetSummary";
+import { DashboardPrivacyProvider, PrivacyValue, useDashboardPrivacy } from "@/components/DashboardPrivacy";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
 function Dashboard() {
+  return (
+    <DashboardPrivacyProvider>
+      <DashboardContent />
+    </DashboardPrivacyProvider>
+  );
+}
+
+function DashboardContent() {
   const { t, locale } = useI18n();
+  const { hidden: privacyHidden, toggle: togglePrivacy } = useDashboardPrivacy();
   const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
   const m = monthKey(monthStart);
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
@@ -136,9 +146,22 @@ function Dashboard() {
             <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard.title")}</h1>
             <p className="text-sm text-muted-foreground">{format(new Date(), "MMMM yyyy", { locale })}</p>
           </div>
-          <Button asChild size="sm" className="hidden md:inline-flex">
-            <Link to="/add"><Plus className="h-4 w-4" /> {t("nav.add_transaction")}</Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={togglePrivacy}
+              aria-label={t(privacyHidden ? "dashboard.privacy.show" : "dashboard.privacy.hide")}
+              title={t(privacyHidden ? "dashboard.privacy.show" : "dashboard.privacy.hide")}
+              aria-pressed={privacyHidden}
+            >
+              {privacyHidden ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </Button>
+            <Button asChild size="sm" className="hidden md:inline-flex">
+              <Link to="/add"><Plus className="h-4 w-4" /> {t("nav.add_transaction")}</Link>
+            </Button>
+          </div>
         </header>
 
         {/* Net worth */}

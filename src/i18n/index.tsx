@@ -146,6 +146,8 @@ const de: Dict = {
 
   // Dashboard
   "dashboard.title": "Übersicht",
+  "dashboard.privacy.hide": "Dashboard-Beträge ausblenden",
+  "dashboard.privacy.show": "Dashboard-Beträge anzeigen",
   "dashboard.networth": "Nettovermögen",
   "dashboard.assets": "Vermögen",
   "dashboard.liabilities": "Verbindlichkeiten",
@@ -1032,6 +1034,8 @@ const en: Dict = {
   "confirm.delete_transaction": "Delete this transaction?",
 
   "dashboard.title": "Dashboard",
+  "dashboard.privacy.hide": "Hide dashboard amounts",
+  "dashboard.privacy.show": "Show dashboard amounts",
   "dashboard.networth": "Net worth",
   "dashboard.assets": "Assets",
   "dashboard.liabilities": "Liabilities",
