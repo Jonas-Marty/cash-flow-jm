@@ -140,24 +140,6 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     [accounts],
   );
 
-  // Sorted account/category chips: pinned first, then recency-weighted usage
-  const accountChips: ChipPickerItem[] = React.useMemo(() => {
-    const scores = scoreAccounts(recentQ.data ?? []);
-    return sortByPinAndScore(accounts, scores).map((a) => ({
-      id: a.id, name: a.name,
-      icon: a.icon, emoji: a.emoji, image_url: a.image_url, color: a.color,
-      pinned: a.pinned,
-    }));
-  }, [accounts, recentQ.data]);
-  const categoryChips: ChipPickerItem[] = React.useMemo(() => {
-    const scores = scoreCategories(recentQ.data ?? []);
-    return sortByPinAndScore(categories, scores).map((c) => ({
-      id: c.id, name: c.name,
-      icon: c.icon, emoji: c.emoji, image_url: c.image_url, color: c.color,
-      pinned: c.pinned,
-    }));
-  }, [categories, recentQ.data]);
-
   const [type, setType] = React.useState<TxType>("expense");
   const [amount, setAmount] = React.useState("");
   const [sourceId, setSourceId] = React.useState<string>("");
@@ -165,6 +147,38 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
   const [categoryId, setCategoryId] = React.useState<string>("");
   const [description, setDescription] = React.useState("");
   const [note, setNote] = React.useState("");
+
+  // Context-aware chip ordering: once the user picks a type/account/category,
+  // the remaining fields re-rank toward what was historically used together.
+  // See src/lib/usageScoring.ts for the scoring formula.
+  const accountChips: ChipPickerItem[] = React.useMemo(() => {
+    const ctx: SuggestionContext = {
+      type,
+      categoryId: categoryId || undefined,
+      description: description || undefined,
+    };
+    const scores = scoreAccounts(recentQ.data ?? [], ctx);
+    return sortByPinAndScore(accounts, scores).map((a) => ({
+      id: a.id, name: a.name,
+      icon: a.icon, emoji: a.emoji, image_url: a.image_url, color: a.color,
+      pinned: a.pinned,
+    }));
+  }, [accounts, recentQ.data, type, categoryId, description]);
+  const categoryChips: ChipPickerItem[] = React.useMemo(() => {
+    const ctx: SuggestionContext = {
+      type,
+      sourceAccountId: sourceId || undefined,
+      destAccountId: destId || undefined,
+      description: description || undefined,
+    };
+    const scores = scoreCategories(recentQ.data ?? [], ctx);
+    return sortByPinAndScore(categories, scores).map((c) => ({
+      id: c.id, name: c.name,
+      icon: c.icon, emoji: c.emoji, image_url: c.image_url, color: c.color,
+      pinned: c.pinned,
+    }));
+  }, [categories, recentQ.data, type, sourceId, destId, description]);
+
   const [date, setDate] = React.useState<Date>(new Date());
   const [saving, setSaving] = React.useState(false);
   const [helpOpen, setHelpOpen] = React.useState(false);
