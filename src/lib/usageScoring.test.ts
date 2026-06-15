@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { scoreAccounts, scoreCategories, sortByPinAndScore, monogram, colorFromName } from "./usageScoring";
+import { scoreAccounts, scoreCategories, scoreTags, sortByPinAndScore, monogram, colorFromName } from "./usageScoring";
 import type { Transaction } from "./finance";
 
 const NOW = new Date("2024-06-01T00:00:00Z").getTime();
@@ -34,6 +34,7 @@ describe("scoreAccounts", () => {
         make({ source_account_id: "a", occurred_on: today }),
         make({ source_account_id: "b", occurred_on: oneHalfLifeAgo }),
       ],
+      {},
       now,
     );
     expect(s.get("a")).toBeCloseTo(1, 5);
@@ -44,6 +45,7 @@ describe("scoreAccounts", () => {
   it("credits both source and destination accounts on a transfer", () => {
     const s = scoreAccounts(
       [make({ type: "transfer", source_account_id: "a", destination_account_id: "b", occurred_on: "2024-06-01" })],
+      {},
       NOW,
     );
     expect(s.get("a")).toBeCloseTo(1, 5);
@@ -55,6 +57,7 @@ describe("scoreCategories", () => {
   it("ignores transactions without a category", () => {
     const s = scoreCategories(
       [make({ category_id: null, occurred_on: "2024-06-01" })],
+      {},
       NOW,
     );
     expect(s.size).toBe(0);
@@ -67,6 +70,7 @@ describe("scoreCategories", () => {
         make({ category_id: "food", occurred_on: "2024-06-01" }),
         make({ category_id: "rent", occurred_on: "2024-06-01" }),
       ],
+      {},
       NOW,
     );
     expect(s.get("food")).toBeCloseTo(2, 5);
