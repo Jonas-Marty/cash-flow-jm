@@ -1355,11 +1355,23 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
                         }
                         transactions={recentQ.data ?? []}
                         placeholder={tr("add.split.note_placeholder")}
+                        ctx={{
+                          type,
+                          sourceAccountId: sourceId || undefined,
+                          categoryId: s.categoryId || undefined,
+                          description: s.description || undefined,
+                        }}
                       />
                       <TagChips
                         className="mt-2"
                         transactions={recentQ.data ?? []}
                         currentNote={s.note}
+                        ctx={{
+                          type,
+                          sourceAccountId: sourceId || undefined,
+                          categoryId: s.categoryId || undefined,
+                          description: s.description || undefined,
+                        }}
                         onAppend={(tag) => {
                           setSlices((cur) =>
                             cur.map((x, i) => {
