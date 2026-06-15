@@ -40,7 +40,7 @@ import { TagChips } from "@/components/TagChips";
 import { TagAutocompleteTextarea } from "@/components/TagAutocompleteTextarea";
 import { DateShortcuts } from "@/components/DateShortcuts";
 import { ChipPicker, type ChipPickerItem } from "@/components/ChipPicker";
-import { scoreAccounts, scoreCategories, sortByPinAndScore } from "@/lib/usageScoring";
+import { scoreAccounts, scoreCategories, sortByPinAndScore, type SuggestionContext } from "@/lib/usageScoring";
 import { DayHeatmapCalendar } from "@/components/DayHeatmapCalendar";
 import { DateInput } from "@/components/DateInput";
 import { ShortcutsDialog } from "@/components/ShortcutsDialog";
