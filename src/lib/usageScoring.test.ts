@@ -103,3 +103,47 @@ describe("monogram & colorFromName", () => {
     expect(colorFromName("Foo")).toBe(colorFromName("Foo"));
   });
 });
+
+describe("context-aware scoring", () => {
+  it("biases categories toward the selected source account", () => {
+    const txs = [
+      ...Array.from({ length: 5 }, () =>
+        make({ type: "expense", source_account_id: "coop", category_id: "groceries", occurred_on: "2024-06-01" }),
+      ),
+      ...Array.from({ length: 8 }, () =>
+        make({ type: "expense", source_account_id: "bank", category_id: "rent", occurred_on: "2024-06-01" }),
+      ),
+    ];
+    const global = scoreCategories(txs, {}, NOW);
+    expect((global.get("rent") ?? 0) > (global.get("groceries") ?? 0)).toBe(true);
+    const scoped = scoreCategories(txs, { type: "expense", sourceAccountId: "coop" }, NOW);
+    expect((scoped.get("groceries") ?? 0) > (scoped.get("rent") ?? 0)).toBe(true);
+    expect(scoped.get("rent")).toBeGreaterThan(0);
+  });
+
+  it("biases tags toward the selected category", () => {
+    const txs = [
+      make({ type: "expense", category_id: "groceries", note: "#migros lunch", occurred_on: "2024-06-01" }),
+      make({ type: "expense", category_id: "groceries", note: "#coop dinner", occurred_on: "2024-06-01" }),
+      make({ type: "expense", category_id: "groceries", note: "#migros snack", occurred_on: "2024-06-01" }),
+      ...Array.from({ length: 6 }, () =>
+        make({ type: "expense", category_id: "transport", note: "#sbb", occurred_on: "2024-06-01" }),
+      ),
+    ];
+    const global = scoreTags(txs, {}, NOW);
+    expect((global.get("sbb") ?? 0) > (global.get("migros") ?? 0)).toBe(true);
+    const scoped = scoreTags(txs, { type: "expense", categoryId: "groceries" }, NOW);
+    expect((scoped.get("migros") ?? 0) > (scoped.get("sbb") ?? 0)).toBe(true);
+    expect((scoped.get("coop") ?? 0) > (scoped.get("sbb") ?? 0)).toBe(true);
+  });
+
+  it("type acts as a hard filter for tags", () => {
+    const txs = [
+      make({ type: "income", note: "#salary", occurred_on: "2024-06-01" }),
+      make({ type: "expense", note: "#coop", occurred_on: "2024-06-01" }),
+    ];
+    const s = scoreTags(txs, { type: "expense" }, NOW);
+    expect(s.get("salary")).toBeUndefined();
+    expect(s.get("coop")).toBeGreaterThan(0);
+  });
+});
