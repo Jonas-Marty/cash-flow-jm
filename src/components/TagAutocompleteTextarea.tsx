@@ -3,6 +3,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { extractTags } from "@/lib/finance";
 import type { Transaction } from "@/lib/finance";
 import { cn } from "@/lib/utils";
+import { scoreTags, type SuggestionContext } from "@/lib/usageScoring";
 
 interface Props extends Omit<React.ComponentProps<typeof Textarea>, "onChange" | "value"> {
   value: string;
@@ -10,6 +11,8 @@ interface Props extends Omit<React.ComponentProps<typeof Textarea>, "onChange" |
   transactions: Transaction[];
   /** Optional extra suggestion source (already-known tags). */
   extraTags?: string[];
+  /** Context (selected account/category/description) used to re-rank tag suggestions. */
+  ctx?: SuggestionContext;
   className?: string;
 }
 
@@ -45,6 +48,7 @@ export const TagAutocompleteTextarea = React.forwardRef<HTMLTextAreaElement, Pro
   onChange,
   transactions,
   extraTags,
+  ctx,
   className,
   ...rest
 }, forwardedRef) {
@@ -58,21 +62,17 @@ export const TagAutocompleteTextarea = React.forwardRef<HTMLTextAreaElement, Pro
   const [open, setOpen] = React.useState(false);
   const [activeIdx, setActiveIdx] = React.useState(0);
 
-  // Build a ranked tag dictionary from history + extras.
+  // Build a ranked tag dictionary from history (context-aware) + extras.
   const ranked = React.useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const t of transactions) {
-      for (const tag of extractTags(t.note)) {
-        counts.set(tag, (counts.get(tag) ?? 0) + 1);
-      }
-    }
+    const scores = scoreTags(transactions, ctx ?? {});
     for (const tag of extraTags ?? []) {
-      if (!counts.has(tag)) counts.set(tag, 0);
+      if (!scores.has(tag)) scores.set(tag, 0);
     }
-    return Array.from(counts.entries())
+    return Array.from(scores.entries())
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .map(([t]) => t);
-  }, [transactions, extraTags]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [transactions, extraTags, ctx?.type, ctx?.sourceAccountId, ctx?.destAccountId, ctx?.categoryId, ctx?.description]);
 
   const active = detectActiveTag(value, caret);
   const presentTags = React.useMemo(() => new Set(extractTags(value)), [value]);
