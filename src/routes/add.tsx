@@ -1497,12 +1497,26 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
             onChange={(next) => { setNote(next); mark("note"); }}
             transactions={recentQ.data ?? []}
             placeholder={tr("add.note_placeholder")}
+            ctx={{
+              type,
+              sourceAccountId: sourceId || undefined,
+              destAccountId: destId || undefined,
+              categoryId: categoryId || undefined,
+              description: description || undefined,
+            }}
           />
           <p className="mt-1 text-[10px] text-muted-foreground">{tr("common.markdown_hint")}</p>
           <TagChips
             className="mt-2"
             transactions={recentQ.data ?? []}
             currentNote={note}
+            ctx={{
+              type,
+              sourceAccountId: sourceId || undefined,
+              destAccountId: destId || undefined,
+              categoryId: categoryId || undefined,
+              description: description || undefined,
+            }}
             onAppend={appendTag}
             onRemove={removeTag}
           />
