@@ -2,35 +2,33 @@ import * as React from "react";
 import type { Transaction } from "@/lib/finance";
 import { extractTags } from "@/lib/finance";
 import { cn } from "@/lib/utils";
+import { scoreTags, type SuggestionContext } from "@/lib/usageScoring";
 
 export function TagChips({
   transactions,
   currentNote,
   onAppend,
   onRemove,
+  ctx,
   className,
 }: {
   transactions: Transaction[];
   currentNote: string;
   onAppend: (tag: string) => void;
   onRemove?: (tag: string) => void;
+  ctx?: SuggestionContext;
   className?: string;
 }) {
   const present = React.useMemo(() => extractTags(currentNote), [currentNote]);
   const presentSet = React.useMemo(() => new Set(present), [present]);
 
   const top = React.useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const t of transactions) {
-      for (const tag of extractTags(t.note)) {
-        counts.set(tag, (counts.get(tag) ?? 0) + 1);
-      }
-    }
-    return Array.from(counts.entries())
-      .sort((a, b) => b[1] - a[1])
+    const scores = scoreTags(transactions, ctx ?? {});
+    return Array.from(scores.entries())
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .slice(0, 6)
       .map(([t]) => t);
-  }, [transactions]);
+  }, [transactions, ctx?.type, ctx?.sourceAccountId, ctx?.destAccountId, ctx?.categoryId, ctx?.description]);
 
   // Merge: active (in-note) tags first, then top suggestions not already shown.
   const merged = React.useMemo(() => {
