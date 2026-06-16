@@ -111,6 +111,7 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
   const { t: tr, locale, lang } = useI18n();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const notifyCreated = useServerFn(notifyTransactionCreated);
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
