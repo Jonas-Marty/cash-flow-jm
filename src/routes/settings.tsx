@@ -24,6 +24,7 @@ import { useI18n, LANGUAGES, type Lang } from "@/i18n";
 import { RecurringRulesCard } from "@/components/RecurringRulesCard";
 import { NextcloudCard } from "@/components/NextcloudCard";
 import { ApiTokensCard } from "@/components/ApiTokensCard";
+import { WebhooksCard } from "@/components/WebhooksCard";
 import { AuditLogCard } from "@/components/AuditLogCard";
 import { BudgetBalanceCard } from "@/components/BudgetBalanceCard";
 import { SavingsAndSweepsCard } from "@/components/SavingsAndSweepsCard";
@@ -840,6 +841,7 @@ function SettingsPage() {
 
         <section id="nextcloud"><NextcloudCard /></section>
         <section id="api-tokens"><ApiTokensCard /></section>
+        <section id="webhooks"><WebhooksCard /></section>
        <section id="ai"><AISettingsCard /></section>
         <section id="ai-audit"><AIAuditLogCard /></section>
         <section id="integrations"><IntegrationsCard /></section>
