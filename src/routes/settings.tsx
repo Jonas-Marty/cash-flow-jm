@@ -343,6 +343,7 @@ function SettingsPage() {
             { id: "accounts", label: tr("settings.accounts") },
             { id: "nextcloud", label: tr("nextcloud.title") },
             { id: "api-tokens", label: tr("settings.nav.api_tokens") },
+            { id: "webhooks", label: tr("webhooks.title") },
             { id: "ai", label: tr("ai.settings.title") },
             { id: "ai-audit", label: tr("ai.audit.title") },
             { id: "integrations", label: tr("settings.integrations") },
