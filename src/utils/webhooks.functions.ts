@@ -76,7 +76,13 @@ export const updateWebhook = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase } = context;
     const p = data.patch;
-    const update: Record<string, unknown> = {};
+    const update: {
+      name?: string;
+      url?: string;
+      auth_header_name?: string | null;
+      auth_header_value?: string | null;
+      active?: boolean;
+    } = {};
     if (p.name !== undefined) update.name = p.name;
     if (p.url !== undefined) update.url = p.url;
     if (p.auth_header_name !== undefined)
