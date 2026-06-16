@@ -134,7 +134,7 @@ export function IconPicker({ value, entityId, onChange, labels }: Props) {
           <input
             ref={fileRef}
             type="file"
-            accept="image/*"
+            accept="image/png,image/jpeg,image/webp,image/gif"
             className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); }}
           />
