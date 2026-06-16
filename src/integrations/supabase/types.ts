@@ -1207,6 +1207,45 @@ export type Database = {
         }
         Relationships: []
       }
+      webhooks: {
+        Row: {
+          active: boolean
+          auth_header_name: string | null
+          auth_header_value: string | null
+          created_at: string
+          events: string[]
+          id: string
+          name: string
+          updated_at: string
+          url: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          auth_header_name?: string | null
+          auth_header_value?: string | null
+          created_at?: string
+          events?: string[]
+          id?: string
+          name: string
+          updated_at?: string
+          url: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          auth_header_name?: string | null
+          auth_header_value?: string | null
+          created_at?: string
+          events?: string[]
+          id?: string
+          name?: string
+          updated_at?: string
+          url?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       account_balances: {

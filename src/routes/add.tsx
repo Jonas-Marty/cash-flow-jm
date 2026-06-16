@@ -14,6 +14,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useServerFn } from "@tanstack/react-start";
+import { notifyTransactionCreated } from "@/utils/webhooks.functions";
 import {
   fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings, fetchTransactions,
   fetchOpenReimbursables, fetchReimbursementLinks, fetchReimbursementCounterparties,
@@ -109,6 +111,7 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
   const { t: tr, locale, lang } = useI18n();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const notifyCreated = useServerFn(notifyTransactionCreated);
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
@@ -738,9 +741,16 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
         reimbursable_counterparty: p.reimbCounterparty,
         reimbursable_reason: p.reimbReason,
       }));
-      const { error } = await supabase.from("transactions").insert(rows);
+      const { data: insRows, error } = await supabase
+        .from("transactions")
+        .insert(rows)
+        .select("id");
       setSaving(false);
       if (error) { toast.error(error.message); return; }
+      const newIds = (insRows ?? []).map((r) => r.id).filter((x): x is string => !!x);
+      if (newIds.length > 0) {
+        void notifyCreated({ data: { ids: newIds } }).catch(() => {});
+      }
       toast.success(tr("toast.saved"));
       qc.invalidateQueries();
       if (andNew) { setSplitMode(false); setSlices([newSlice(), newSlice()]); reset(); }
@@ -841,6 +851,9 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
       .single();
     if (error) { setSaving(false); toast.error(error.message); return; }
     const newTxId = inserted?.id as string | undefined;
+    if (newTxId) {
+      void notifyCreated({ data: { ids: [newTxId] } }).catch(() => {});
+    }
     // Insert reimbursement link rows when the user confirmed the auto-link
     // suggestion (income settling an outgoing reimbursable) or when this
     // transaction was opened via reimburse_for (e.g. expense repayment of
