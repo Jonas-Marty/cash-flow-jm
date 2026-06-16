@@ -97,6 +97,13 @@ export const Route = createFileRoute("/api/public/transactions")({
           log.error({ event: "api.public.transactions.db_error", err: insErr.message, userId: auth.userId });
           return json({ error: "Internal server error" }, 500);
         }
+        // Fire-and-forget webhook dispatch.
+        try {
+          const { dispatchTransactionCreated } = await import("@/lib/notifiers/dispatch.server");
+          void dispatchTransactionCreated(auth.userId, "api", ins.id);
+        } catch (e) {
+          log.error({ event: "api.public.transactions.dispatch_failed", err: e instanceof Error ? e.message : String(e) });
+        }
         return json({ transaction: ins }, 201);
       },
     },
