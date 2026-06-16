@@ -105,7 +105,7 @@ async function deliverOne(userId: string, wh: WebhookRow, event: TransactionCrea
     eventName: event.event,
     deliveryId: event.delivery_id,
     attempts,
-    status: lastStatus,
+    status: lastStatus ?? undefined,
     err: lastError,
   });
   await writeAudit(userId, wh, event, { ok: false, status: lastStatus, attempts, error: lastError });
