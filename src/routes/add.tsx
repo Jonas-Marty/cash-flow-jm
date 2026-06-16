@@ -851,6 +851,9 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
       .single();
     if (error) { setSaving(false); toast.error(error.message); return; }
     const newTxId = inserted?.id as string | undefined;
+    if (newTxId) {
+      void notifyCreated({ data: { ids: [newTxId] } }).catch(() => {});
+    }
     // Insert reimbursement link rows when the user confirmed the auto-link
     // suggestion (income settling an outgoing reimbursable) or when this
     // transaction was opened via reimburse_for (e.g. expense repayment of
