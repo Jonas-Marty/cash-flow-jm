@@ -40,12 +40,23 @@ export function IconPicker({ value, entityId, onChange, labels }: Props) {
 
   const handleUpload = async (file: File) => {
     if (file.size > 5 * 1024 * 1024) { toast.error(labels.uploadHint); return; }
+    const ALLOWED_MIME = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+    if (!ALLOWED_MIME.includes(file.type)) {
+      toast.error("Only PNG, JPEG, WebP, or GIF images are allowed");
+      return;
+    }
     setUploading(true);
-    const ext = file.name.split(".").pop() ?? "png";
+    const extMap: Record<string, string> = {
+      "image/png": "png",
+      "image/jpeg": "jpg",
+      "image/webp": "webp",
+      "image/gif": "gif",
+    };
+    const ext = extMap[file.type] ?? "png";
     const { data: userData, error: userErr } = await supabase.auth.getUser();
     if (userErr || !userData?.user) { setUploading(false); toast.error("Not signed in"); return; }
     const path = `${userData.user.id}/${entityId}/${Date.now()}.${ext}`;
-    const { error: upErr } = await supabase.storage.from("account-category-images").upload(path, file, { upsert: true, contentType: file.type });
+    const { error: upErr } = await supabase.storage.from("account-category-images").upload(path, file, { upsert: true, contentType: extMap[file.type] === "jpg" ? "image/jpeg" : `image/${extMap[file.type]}` });
     if (upErr) { setUploading(false); toast.error(upErr.message); return; }
     const { data } = supabase.storage.from("account-category-images").getPublicUrl(path);
     setImage(data.publicUrl);
@@ -123,7 +134,7 @@ export function IconPicker({ value, entityId, onChange, labels }: Props) {
           <input
             ref={fileRef}
             type="file"
-            accept="image/*"
+            accept="image/png,image/jpeg,image/webp,image/gif"
             className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); }}
           />
