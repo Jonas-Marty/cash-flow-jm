@@ -1587,6 +1587,22 @@ const en: Dict = {
   "apitokens.confirm_delete": "Permanently delete token?",
   "apitokens.endpoint_hint": "POST /api/public/attachments with header 'Authorization: Bearer <token>' and JSON {transaction_id, link_url, display_name, source?}.",
 
+  // Webhooks
+  "webhooks.title": "Webhooks",
+  "webhooks.intro": "Call a URL whenever a transaction is added manually, auto-posted by a recurring rule, or created via the API. Useful for n8n / Flatastic bridges.",
+  "webhooks.name": "Name",
+  "webhooks.url": "URL",
+  "webhooks.header_name": "Auth header name (optional)",
+  "webhooks.header_value": "Auth header value (optional)",
+  "webhooks.header_label": "Header",
+  "webhooks.create": "Add",
+  "webhooks.created": "Webhook added",
+  "webhooks.empty": "No webhooks yet.",
+  "webhooks.test": "Send test event",
+  "webhooks.test_sent": "Test event dispatched",
+  "webhooks.confirm_delete": "Delete webhook?",
+  "webhooks.payload_hint": "Sends POST with JSON {event, delivery_id, delivered_at, transaction:{…, tags:[…]}}. Up to 3 attempts (1s/4s backoff); deliveries are recorded in the audit log.",
+
   // Audit log
   "audit.title": "Audit log",
   "audit.intro_user": "Recent changes to your data.",
