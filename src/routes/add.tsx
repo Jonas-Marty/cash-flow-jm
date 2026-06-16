@@ -741,9 +741,16 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
         reimbursable_counterparty: p.reimbCounterparty,
         reimbursable_reason: p.reimbReason,
       }));
-      const { error } = await supabase.from("transactions").insert(rows);
+      const { data: insRows, error } = await supabase
+        .from("transactions")
+        .insert(rows)
+        .select("id");
       setSaving(false);
       if (error) { toast.error(error.message); return; }
+      const newIds = (insRows ?? []).map((r) => r.id).filter((x): x is string => !!x);
+      if (newIds.length > 0) {
+        void notifyCreated({ data: { ids: newIds } }).catch(() => {});
+      }
       toast.success(tr("toast.saved"));
       qc.invalidateQueries();
       if (andNew) { setSplitMode(false); setSlices([newSlice(), newSlice()]); reset(); }
