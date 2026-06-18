@@ -309,6 +309,39 @@ const EN: Content = {
         },
       ],
     },
+    {
+      id: "webhooks",
+      icon: Webhook,
+      title: "Webhooks",
+      intro:
+        "Outbound webhooks notify an external service (e.g. n8n, Zapier, your own script) whenever a transaction is created. Useful for forwarding shared-household expenses to a separate app like Flatastic.",
+      items: [
+        {
+          q: "What triggers a webhook?",
+          a: "A webhook is fired for every newly created transaction, from any of these sources:\n- **`transaction.created.manual`** — you saved it via the Add screen.\n- **`transaction.created.recurring`** — a recurring rule auto-posted it.\n- **`transaction.created.api`** — it came in through the public REST API.\n\nEdits, deletes and reallocations do **not** fire a webhook (by design — keeps the contract simple).",
+        },
+        {
+          q: "How do I add one?",
+          a: "**Settings → Webhooks**: enter a name (free text, just for you), the target **URL** (must be reachable from the server), and optionally an **auth header**. The header name + value are sent on every request — n8n's *Header Auth* node, Zapier's *Custom Webhook*, or your own server can verify it.\n\nClick **Send test** to push a synthetic payload immediately and check your receiver.",
+        },
+        {
+          q: "Delivery, retries and logging",
+          a: "Delivery is **fire-and-forget from the user's perspective** — your transaction is saved first, then the webhook is dispatched in the background. Each delivery attempts up to **3 times** (1s and 4s back-off, 10s timeout per attempt). Every attempt is logged to:\n- **stdout** (structured JSON), useful when self-hosting,\n- the **audit log** (`Settings → Audit log`, action `custom`, kind `webhook.delivery`), with status, attempts, duration and error message.\n\nThere is no persistent queue: if all 3 attempts fail, the delivery is dropped and only the failure shows up in the audit log. Future notification channels (e.g. Gotify) will plug into the same dispatcher.",
+        },
+        {
+          q: "Payload structure",
+          a: "`POST <your-url>` with `Content-Type: application/json` and your configured auth header. Body:\n\n```json\n{\n  \"event\": \"transaction.created.manual\",\n  \"delivered_at\": \"2026-06-18T10:30:00.000Z\",\n  \"delivery_id\": \"a1c8e9d2-2f4d-4c11-9b1e-7e2a3a3d40e5\",\n  \"transaction\": {\n    \"id\": \"6b6a7c80-1f4a-4c2c-8f7d-2c0b3f1d9d11\",\n    \"occurred_on\": \"2026-06-18\",\n    \"amount\": 42.50,\n    \"destination_amount\": null,\n    \"type\": \"expense\",\n    \"source_account_id\": \"b6e3d0fa-…\",\n    \"destination_account_id\": null,\n    \"category_id\": \"3a9b1f7c-…\",\n    \"description\": \"Migros\",\n    \"note\": null,\n    \"tags\": [\"groceries\", \"household\"],\n    \"split_group_id\": null,\n    \"recurring_rule_id\": null,\n    \"created_at\": \"2026-06-18T10:30:00.142Z\"\n  }\n}\n```\n\nNotes:\n- `amount` is always **positive**; use `type` to interpret the sign (`expense` / `income` / `transfer`).\n- `destination_amount` is only set for cross-currency transfers.\n- `tags` are sent as a flat string array so receivers can branch without a second API call (e.g. *forward to Flatastic only if `tags` contains `household`*).\n- `delivery_id` is unique per delivery attempt batch — safe to use for **idempotency** on the receiver side.\n- IDs reference rows in your Cashflow database; resolve them via the public REST API if you need human-readable account or category names.",
+        },
+        {
+          q: "Example: forwarding to Flatastic via n8n",
+          a: "1. In n8n, create a workflow with a **Webhook** trigger node (method `POST`, *Header Auth* with the same name/value you store in Cashflow).\n2. Add an **IF** node to filter: e.g. only continue when `{{$json.transaction.tags}}` contains `household`.\n3. Add an **HTTP Request** node that calls the Flatastic API with the mapped fields.\n4. Activate the workflow, then in Cashflow click **Send test** — you should see the test event arrive in n8n.",
+        },
+        {
+          q: "Security",
+          a: "- Use **HTTPS** URLs (HTTP is rejected outside localhost).\n- The auth header value is stored server-side and **never logged** (not in stdout, not in the audit log).\n- Each webhook is scoped to your user (RLS): nobody else can read, edit, or fire it.\n- The server operator can read the stored header value in the database — treat it like any other credential on this instance.",
+        },
+      ],
+    },
   ],
 };
 
