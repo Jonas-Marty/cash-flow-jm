@@ -12,7 +12,7 @@ import { useI18n, type Lang } from "@/i18n";
 import {
   BookOpen, Compass, LayoutDashboard, ListOrdered, Plus, PiggyBank,
   LineChart, Inbox, Scale, Settings as SettingsIcon, Users, HelpCircle,
-  Sparkles, Search, Shield, Github,
+  Sparkles, Search, Shield, Github, Webhook,
 } from "lucide-react";
 export const Route = createFileRoute("/help")({
   head: () => ({
@@ -237,6 +237,14 @@ const EN: Content = {
           q: "Where do skipped recurring occurrences go?",
           a: "Nowhere — they are simply not posted. The recurring rule continues with the next scheduled date. You can always post an occurrence later from the Upcoming card.",
         },
+        {
+          q: "Do reallocations affect a category's monthly budget?",
+          a: "**No.** A reallocation only moves money between **savings** category balances (their running totals). The monthly envelope view (`Envelopes` / budget summary) is computed purely from real `transactions` rows — it ignores `category_reallocations` entirely.\n\n**What this means in practice:**\n- Moving CHF 100 from *Holiday Savings* → *Emergency Fund* changes both savings balances. No monthly envelope is touched.\n- Closing a scope inserts a reallocation from the **funding** category → the **scope's own** category. For that reallocation to actually move a balance, the funding category must be a **savings** category (running balance). If the funding category is a regular monthly envelope, the reallocation row is still written, but the funding envelope's *spent this month* total will not change — the original transactions you booked during the scope still hit whichever categories you picked at booking time.\n- **Rule of thumb:** treat scopes as a *savings → savings* movement. Fund them from a savings envelope (e.g. *Fun Money Pot*, *Travel Pot*), and the scope's own category will receive the final reallocated total.",
+        },
+        {
+          q: "Could reallocations be made to affect monthly budgets too?",
+          a: "Technically yes, but it would change the meaning of an envelope. Today an envelope answers *\"how much did I actually spend in this category this month?\"* — purely from transactions, which keeps it auditable against a bank statement.\n\nIf reallocations were folded in, an envelope would instead answer *\"how much budget did this category end up with after manual adjustments?\"* That introduces three side-effects to weigh:\n- **Double counting risk.** A scope close already redistributes via a reallocation; if envelopes also reacted to it, the same CHF would appear twice in reports unless every aggregation explicitly subtracts the reallocation leg.\n- **Historical drift.** Editing a reallocation would silently rewrite past months' budget figures.\n- **Insights & projection.** Trends, projections and the budget-balance card would all need to choose between *cash-flow truth* (transactions only) and *planned-vs-adjusted truth* (transactions + reallocations).\n\nFor now Cashflow deliberately keeps the two layers separate: **transactions** drive monthly envelopes, **reallocations** drive savings balances and scope closing.",
+        },
       ],
     },
     {
@@ -298,6 +306,39 @@ const EN: Content = {
         {
           q: "Where is my API token stored?",
           a: "Server-side in the `ai_credentials` table. It is **not** returned to the browser, but the server operator can read it — treat it like other credentials on this instance.",
+        },
+      ],
+    },
+    {
+      id: "webhooks",
+      icon: Webhook,
+      title: "Webhooks",
+      intro:
+        "Outbound webhooks notify an external service (e.g. n8n, Zapier, your own script) whenever a transaction is created. Useful for forwarding shared-household expenses to a separate app like Flatastic.",
+      items: [
+        {
+          q: "What triggers a webhook?",
+          a: "A webhook is fired for every newly created transaction, from any of these sources:\n- **`transaction.created.manual`** — you saved it via the Add screen.\n- **`transaction.created.recurring`** — a recurring rule auto-posted it.\n- **`transaction.created.api`** — it came in through the public REST API.\n\nEdits, deletes and reallocations do **not** fire a webhook (by design — keeps the contract simple).",
+        },
+        {
+          q: "How do I add one?",
+          a: "**Settings → Webhooks**: enter a name (free text, just for you), the target **URL** (must be reachable from the server), and optionally an **auth header**. The header name + value are sent on every request — n8n's *Header Auth* node, Zapier's *Custom Webhook*, or your own server can verify it.\n\nClick **Send test** to push a synthetic payload immediately and check your receiver.",
+        },
+        {
+          q: "Delivery, retries and logging",
+          a: "Delivery is **fire-and-forget from the user's perspective** — your transaction is saved first, then the webhook is dispatched in the background. Each delivery attempts up to **3 times** (1s and 4s back-off, 10s timeout per attempt). Every attempt is logged to:\n- **stdout** (structured JSON), useful when self-hosting,\n- the **audit log** (`Settings → Audit log`, action `custom`, kind `webhook.delivery`), with status, attempts, duration and error message.\n\nThere is no persistent queue: if all 3 attempts fail, the delivery is dropped and only the failure shows up in the audit log. Future notification channels (e.g. Gotify) will plug into the same dispatcher.",
+        },
+        {
+          q: "Payload structure",
+          a: "`POST <your-url>` with `Content-Type: application/json` and your configured auth header. Body:\n\n```json\n{\n  \"event\": \"transaction.created.manual\",\n  \"delivered_at\": \"2026-06-18T10:30:00.000Z\",\n  \"delivery_id\": \"a1c8e9d2-2f4d-4c11-9b1e-7e2a3a3d40e5\",\n  \"transaction\": {\n    \"id\": \"6b6a7c80-1f4a-4c2c-8f7d-2c0b3f1d9d11\",\n    \"occurred_on\": \"2026-06-18\",\n    \"amount\": 42.50,\n    \"destination_amount\": null,\n    \"type\": \"expense\",\n    \"source_account_id\": \"b6e3d0fa-…\",\n    \"destination_account_id\": null,\n    \"category_id\": \"3a9b1f7c-…\",\n    \"description\": \"Migros\",\n    \"note\": null,\n    \"tags\": [\"groceries\", \"household\"],\n    \"split_group_id\": null,\n    \"recurring_rule_id\": null,\n    \"created_at\": \"2026-06-18T10:30:00.142Z\"\n  }\n}\n```\n\nNotes:\n- `amount` is always **positive**; use `type` to interpret the sign (`expense` / `income` / `transfer`).\n- `destination_amount` is only set for cross-currency transfers.\n- `tags` are sent as a flat string array so receivers can branch without a second API call (e.g. *forward to Flatastic only if `tags` contains `household`*).\n- `delivery_id` is unique per delivery attempt batch — safe to use for **idempotency** on the receiver side.\n- IDs reference rows in your Cashflow database; resolve them via the public REST API if you need human-readable account or category names.",
+        },
+        {
+          q: "Example: forwarding to Flatastic via n8n",
+          a: "1. In n8n, create a workflow with a **Webhook** trigger node (method `POST`, *Header Auth* with the same name/value you store in Cashflow).\n2. Add an **IF** node to filter: e.g. only continue when `{{$json.transaction.tags}}` contains `household`.\n3. Add an **HTTP Request** node that calls the Flatastic API with the mapped fields.\n4. Activate the workflow, then in Cashflow click **Send test** — you should see the test event arrive in n8n.",
+        },
+        {
+          q: "Security",
+          a: "- Use **HTTPS** URLs (HTTP is rejected outside localhost).\n- The auth header value is stored server-side and **never logged** (not in stdout, not in the audit log).\n- Each webhook is scoped to your user (RLS): nobody else can read, edit, or fire it.\n- The server operator can read the stored header value in the database — treat it like any other credential on this instance.",
         },
       ],
     },
@@ -444,6 +485,14 @@ const DE: Content = {
         { q: "Eine als abgegolten markierte IOU war nach dem Reload wieder da", a: "War ein bekannter Bug und ist behoben: die UI meldet jetzt nur Erfolg, wenn das Update in der Datenbank tatsächlich gelaufen ist. Falls es erneut auftritt, notiere die Buchungs-ID und prüfe, ob die Zeile für deinen User erreichbar ist (RLS / Scope)." },
         { q: "Warum ist meine Drift nicht null?", a: "Drift heißt: Summe der Kontostände passt nicht zu Sparständen + ungekehrtem Geld. Typische Ursachen: Übertrag nur einseitig erfasst, Buchung in einer Sparkategorie ohne Sweep, oder Kategorie fälschlich als Sparkategorie markiert. Letzte Bewegungen der betroffenen Konten durchgehen." },
         { q: "Wo landen übersprungene wiederkehrende Vorkommen?", a: "Nirgends — sie werden einfach nicht gepostet. Die Regel läuft mit dem nächsten Termin weiter. Du kannst ein Vorkommen jederzeit später aus der *Anstehend*-Karte posten." },
+        {
+          q: "Beeinflussen Umverteilungen das Monatsbudget einer Kategorie?",
+          a: "**Nein.** Eine Umverteilung (`category_reallocations`) verschiebt nur den **laufenden Saldo** zwischen **Spar-Kategorien**. Die Monatsbudget-Ansicht (Umschläge / Budget-Zusammenfassung) wird ausschliesslich aus echten `transactions`-Zeilen berechnet — Umverteilungen werden dort komplett ignoriert.\n\n**Was das konkret heisst:**\n- 100 CHF von *Urlaubsrücklage* → *Notgroschen* zu verschieben ändert beide Spar-Salden. Kein Monatsumschlag wird berührt.\n- Beim Schliessen eines Scopes wird eine Umverteilung von der **Finanzierungs-Kategorie** → der **Scope-Kategorie** geschrieben. Damit diese Umverteilung wirklich einen Saldo bewegt, muss die Finanzierungskategorie eine **Spar-Kategorie** (laufender Saldo) sein. Bei einem normalen Monats-Umschlag wird die Reallocation-Zeile zwar erfasst, der *diesen Monat ausgegeben*-Wert des Umschlags ändert sich aber nicht — die Original-Buchungen aus dem Scope bleiben in den Kategorien, die du beim Buchen gewählt hast.\n- **Faustregel:** Behandle Scopes als *Spar → Spar*-Bewegung. Finanziere sie aus einem Spar-Umschlag (z. B. *Spass-Topf*, *Reise-Topf*), dann erhält die Scope-Kategorie am Ende den umverteilten Gesamtbetrag.",
+        },
+        {
+          q: "Könnten Umverteilungen auch Monatsbudgets beeinflussen?",
+          a: "Technisch ja, aber das würde die Bedeutung eines Umschlags ändern. Heute beantwortet ein Umschlag die Frage *„wie viel habe ich in dieser Kategorie diesen Monat tatsächlich ausgegeben?\"* — ausschliesslich aus Buchungen, was den Abgleich mit dem Bankauszug einfach hält.\n\nWürden Umverteilungen einbezogen, würde der Umschlag stattdessen sagen *„wie viel Budget hat diese Kategorie nach manuellen Anpassungen am Ende übrig?\"* Drei Nebenwirkungen wären abzuwägen:\n- **Doppelzählungs-Risiko.** Ein Scope-Schluss verteilt bereits per Umverteilung; würden Umschläge ebenfalls darauf reagieren, würde derselbe CHF doppelt in Berichten auftauchen, ausser jede Aggregation zieht die Reallocation-Seite explizit wieder ab.\n- **Rückwirkende Drift.** Eine bearbeitete Umverteilung würde stillschweigend die Budgetzahlen vergangener Monate verändern.\n- **Auswertungen & Prognose.** Trends, Prognose und die Budget-Balance-Karte müssten zwischen *Cash-Flow-Wahrheit* (nur Buchungen) und *Geplant-vs-angepasst-Wahrheit* (Buchungen + Umverteilungen) wählen.\n\nDeshalb hält Cashflow die beiden Ebenen bewusst getrennt: **Buchungen** treiben Monatsumschläge, **Umverteilungen** treiben Spar-Salden und Scope-Schluss.",
+        },
       ],
     },
     {
@@ -473,6 +522,39 @@ const DE: Content = {
         { q: "Schreibt er in meine Daten?", a: "Nein. Er **bereitet nur einen Entwurf** für das Add-Formular vor — speichern musst du selbst. Alle anderen Tools lesen nur." },
         { q: "Was wird an den Provider gesendet?", a: "Deine Nachrichten plus die Ergebnisse der Lesetools, die das Modell aufruft (Buchungen, Kontostände, Kategoriesummen). Siehe [Datenschutzseite](/privacy) für den vollständigen Datenfluss." },
         { q: "Wo wird mein API Token gespeichert?", a: "Serverseitig in der Tabelle `ai_credentials`. Er wird **nicht** an den Browser zurückgegeben, aber der Server-Betreiber kann ihn lesen — behandle ihn wie andere Zugangsdaten auf dieser Instanz." },
+      ],
+    },
+    {
+      id: "webhooks",
+      icon: Webhook,
+      title: "Webhooks",
+      intro:
+        "Ausgehende Webhooks benachrichtigen einen externen Dienst (z. B. n8n, Zapier, eigenes Script), sobald eine Buchung angelegt wird. Praktisch um z. B. gemeinsame Haushaltsausgaben an Flatastic weiterzureichen.",
+      items: [
+        {
+          q: "Was löst einen Webhook aus?",
+          a: "Ein Webhook wird für jede neu angelegte Buchung gefeuert, aus einer dieser Quellen:\n- **`transaction.created.manual`** — über das Add-Formular gespeichert.\n- **`transaction.created.recurring`** — automatisch durch eine wiederkehrende Regel gebucht.\n- **`transaction.created.api`** — über die öffentliche REST-API erfasst.\n\nÄnderungen, Löschungen und Umverteilungen lösen **keinen** Webhook aus (bewusste Vereinfachung des Vertrags).",
+        },
+        {
+          q: "Wie lege ich einen an?",
+          a: "**Einstellungen → Webhooks**: Name (frei wählbar), Ziel-**URL** (muss vom Server erreichbar sein), optional ein **Auth-Header** (Name + Wert). Der Header wird bei jedem Request mitgesendet — die *Header Auth*-Node in n8n, Zapiers *Custom Webhook* oder dein eigener Server kann ihn prüfen.\n\nMit **Test senden** schickst du sofort einen synthetischen Payload und prüfst den Empfänger.",
+        },
+        {
+          q: "Zustellung, Retries und Logging",
+          a: "Die Zustellung ist **für dich fire-and-forget** — die Buchung wird zuerst gespeichert, der Webhook danach im Hintergrund ausgeliefert. Pro Webhook werden bis zu **3 Versuche** gemacht (1 s und 4 s Backoff, 10 s Timeout je Versuch). Jeder Versuch wird geloggt nach:\n- **stdout** (strukturiertes JSON), nützlich beim Selbsthosten,\n- ins **Audit-Log** (`Einstellungen → Audit-Log`, Aktion `custom`, Kind `webhook.delivery`) mit Status, Versuchen, Dauer und Fehlermeldung.\n\nEs gibt keine persistente Queue: scheitern alle 3 Versuche, wird der Versand verworfen und nur der Fehler steht im Audit-Log. Künftige Notification-Kanäle (z. B. Gotify) hängen sich an denselben Dispatcher.",
+        },
+        {
+          q: "Aufbau des Payloads",
+          a: "`POST <deine-url>` mit `Content-Type: application/json` und deinem konfigurierten Auth-Header. Body:\n\n```json\n{\n  \"event\": \"transaction.created.manual\",\n  \"delivered_at\": \"2026-06-18T10:30:00.000Z\",\n  \"delivery_id\": \"a1c8e9d2-2f4d-4c11-9b1e-7e2a3a3d40e5\",\n  \"transaction\": {\n    \"id\": \"6b6a7c80-1f4a-4c2c-8f7d-2c0b3f1d9d11\",\n    \"occurred_on\": \"2026-06-18\",\n    \"amount\": 42.50,\n    \"destination_amount\": null,\n    \"type\": \"expense\",\n    \"source_account_id\": \"b6e3d0fa-…\",\n    \"destination_account_id\": null,\n    \"category_id\": \"3a9b1f7c-…\",\n    \"description\": \"Migros\",\n    \"note\": null,\n    \"tags\": [\"lebensmittel\", \"haushalt\"],\n    \"split_group_id\": null,\n    \"recurring_rule_id\": null,\n    \"created_at\": \"2026-06-18T10:30:00.142Z\"\n  }\n}\n```\n\nHinweise:\n- `amount` ist immer **positiv**; das Vorzeichen ergibt sich aus `type` (`expense` / `income` / `transfer`).\n- `destination_amount` ist nur bei Fremdwährungs-Überträgen gesetzt.\n- `tags` ist ein flaches String-Array, damit Empfänger ohne zweiten API-Call verzweigen können (z. B. *nur an Flatastic weiterleiten, wenn `tags` `haushalt` enthält*).\n- `delivery_id` ist pro Auslieferungs-Batch eindeutig — eignet sich als **Idempotenz-Schlüssel** auf der Empfängerseite.\n- IDs verweisen auf Zeilen in deiner Cashflow-DB; lesbare Konto-/Kategorienamen holst du dir bei Bedarf über die öffentliche REST-API.",
+        },
+        {
+          q: "Beispiel: Weiterleitung an Flatastic via n8n",
+          a: "1. In n8n einen Workflow mit **Webhook**-Trigger anlegen (Methode `POST`, *Header Auth* mit demselben Namen/Wert wie in Cashflow).\n2. **IF**-Node zum Filtern: z. B. nur weitermachen, wenn `{{$json.transaction.tags}}` `haushalt` enthält.\n3. **HTTP Request**-Node, der die Flatastic-API mit den gemappten Feldern aufruft.\n4. Workflow aktivieren, dann in Cashflow **Test senden** klicken — der Test-Event sollte in n8n ankommen.",
+        },
+        {
+          q: "Sicherheit",
+          a: "- Nur **HTTPS**-URLs (HTTP ist ausserhalb von localhost gesperrt).\n- Der Auth-Header-Wert liegt serverseitig und wird **nie geloggt** (weder nach stdout noch ins Audit-Log).\n- Jeder Webhook ist auf deinen User beschränkt (RLS): niemand sonst kann ihn sehen, ändern oder auslösen.\n- Der Server-Betreiber kann den gespeicherten Header-Wert in der DB lesen — behandle ihn wie andere Zugangsdaten auf dieser Instanz.",
+        },
       ],
     },
   ],
