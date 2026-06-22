@@ -13,7 +13,6 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { DateInput } from "@/components/DateInput";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -240,7 +239,11 @@ export function TransactionLinkSheet({ linkId, open, onOpenChange }: Props) {
                     </div>
                     <div>
                       <Label className="text-xs">{t("links.planned_on")}</Label>
-                      <DateInput value={plannedOn} onChange={setPlannedOn} placeholder={t("links.planned_on.placeholder")} />
+                      <Input
+                        type="date"
+                        value={plannedOn ? format(plannedOn, "yyyy-MM-dd") : ""}
+                        onChange={(e) => setPlannedOn(e.target.value ? new Date(e.target.value) : null)}
+                      />
                     </div>
                   </div>
                   <div>
