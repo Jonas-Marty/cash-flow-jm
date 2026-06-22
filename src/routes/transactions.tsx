@@ -808,6 +808,22 @@ function TransactionsPage() {
                                 {tr("dashboard.top_month.upcoming")}
                               </span>
                             )}
+                            {(() => {
+                              const lid = linkByTx.get(t.id);
+                              const lnk = lid ? linkById.get(lid) : null;
+                              if (!lnk) return null;
+                              const Icon = KIND_ICON[lnk.kind];
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={(ev) => { ev.preventDefault(); setOpenLinkId(lnk.id); }}
+                                  className="ml-2 inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-primary hover:bg-primary/20"
+                                  title={lnk.title}
+                                >
+                                  <Icon className="h-3 w-3" /> {lnk.title}
+                                </button>
+                              );
+                            })()}
                           </div>
                           <div className={cn("text-sm font-semibold tabular-nums whitespace-nowrap", tone)}>
                             {amtMatch ? (
