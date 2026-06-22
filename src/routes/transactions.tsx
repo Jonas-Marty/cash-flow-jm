@@ -30,6 +30,9 @@ import { DateInput } from "@/components/DateInput";
 import { EntityVisual } from "@/components/EntityVisual";
 import { highlightTokens, tokenize, normalize, parseLooseNumber } from "@/lib/highlight";
 import { matchesAmount, type AmountOp } from "@/lib/amountFilter";
+import { fetchTransactionLinks, fetchTransactionLinkMembers } from "@/lib/links";
+import { TransactionLinkPicker } from "@/components/TransactionLinkPicker";
+import { TransactionLinkSheet, KIND_ICON } from "@/components/TransactionLinkSheet";
 
 export const Route = createFileRoute("/transactions")({
   component: TransactionsPage,
@@ -109,6 +112,18 @@ function TransactionsPage() {
   const tagsQ = useQuery({ queryKey: ["transaction_tags"], queryFn: fetchTransactionTags });
   const rulesQ = useQuery({ queryKey: ["recurring_rules"], queryFn: fetchRecurringRules });
   const reimbLinksQ = useQuery({ queryKey: ["reimbursement_links"], queryFn: fetchReimbursementLinks });
+  const linksQ = useQuery({ queryKey: ["transaction_links"], queryFn: fetchTransactionLinks });
+  const linkMembersQ = useQuery({ queryKey: ["transaction_link_members"], queryFn: fetchTransactionLinkMembers });
+  const linkByTx = React.useMemo(() => {
+    const map = new Map<string, string>();
+    (linkMembersQ.data ?? []).forEach((m) => map.set(m.transaction_id, m.link_id));
+    return map;
+  }, [linkMembersQ.data]);
+  const linkById = React.useMemo(
+    () => new Map((linksQ.data ?? []).map((l) => [l.id, l])),
+    [linksQ.data],
+  );
+  const [openLinkId, setOpenLinkId] = React.useState<string | null>(null);
 
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
   const dateFmt = settingsQ.data?.date_format;
