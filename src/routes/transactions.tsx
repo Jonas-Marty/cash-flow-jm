@@ -894,6 +894,11 @@ function TransactionsPage() {
           </div>
         ))}
       </div>
+      <TransactionLinkSheet
+        linkId={openLinkId}
+        open={openLinkId !== null}
+        onOpenChange={(o) => { if (!o) setOpenLinkId(null); }}
+      />
     </AppShell>
   );
 }
