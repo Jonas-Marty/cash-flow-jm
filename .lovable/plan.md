@@ -1,92 +1,36 @@
-## Goal
+## What's actually happening
 
-Let you mark several transactions as parts of the same real-world purchase (gift card split across two cards, concert ticket + on-site food, IKEA trip paid cash + card). Individual transactions stay first-class and keep counting toward their own categories, budgets, and KPIs exactly as today. The link is a *view* on top, not a new accounting layer.
+Both symptoms have the same root cause: the dashboard page is wider than the mobile viewport, so Android Chrome shrinks-to-fit. After shrinking:
 
-If only part of a transaction belongs to the group, you split the transaction first (existing/future split flow), then link the resulting slice — the link itself never stores partial amounts.
+- The CSS media query `@media (max-width: 767px)` no longer matches (computed width is ~864px), so `.mobile-bottom-nav` (which is `md:hidden`) disappears — that's why the bottom menu only reappears when you zoom out (zoom = bring real viewport back to actual width).
+- The AI bubble uses `fixed right-4`, which pins to the (wider) layout viewport's right edge, so it floats far away from the visible content on the right.
 
-## How it fits the current model
+The first screenshot confirms it: no bottom nav at all, and content laid out at ~864 CSS px even though the device is 411 px.
 
-Building blocks today:
+## Fix
 
-- `transactions` — atomic, always counted.
-- `transaction_reimbursements` — 1:1 settled link.
-- `transaction_tags` — many-to-many free-form labels.
-- `category_reallocations`, Scopes — orthogonal, untouched.
+1. **Stop horizontal overflow at the shell.** In `src/components/AppShell.tsx`, add `overflow-x-clip` to the root wrapper `<div className="min-h-screen ...">` and to `<main className="app-main ...">`. This prevents any single rogue child from triggering Android's shrink-to-fit behavior, which restores the `md:hidden` bottom nav and re-anchors the bubble to the real viewport.
 
-Nothing today expresses "these N transactions are one purchase". Tags are the closest, but they're ad-hoc and have no shared metadata (title, note, planned date).
+2. **Find and fix the actual overflow source.** Reproduce locally with Playwright at 411×785, signed in, on `/`, and inspect `document.documentElement.scrollWidth`. Walk children with `scrollWidth > clientWidth` to identify the offender. Likely candidates based on a quick audit:
+   - `UpcomingCard` / `OpenIOUsCard` / `PendingConfirmationsCard` rows with long descriptions or amounts that don't truncate.
+   - `TopMonthTransactionsCard` amount column without `min-w-0` on the text wrapper.
+   - `TrendStripCard` chart container assuming a min width.
+   - The mobile `ActiveScopeChip compact` row at the top of `<main>` if the scope label is long.
 
-## Proposed schema
+   Apply targeted fixes (add `min-w-0` to flex children, `truncate` on long text, `overflow-hidden` on chart wrappers) so the page genuinely fits at 411 px even without the safety net.
 
-```text
-transaction_links
-  id, user_id, title, note, kind, planned_on, created_at, updated_at
-    kind: 'purchase' | 'event' | 'trip' | 'other'   (drives icon only)
+3. **Re-anchor the AI bubble visually.** Once overflow is gone, `right-4` will sit correctly. No code change needed unless the user still wants it closer to content — in that case, add `right-3` on mobile and keep `md:right-6`.
 
-transaction_link_members
-  link_id   -> transaction_links.id  (ON DELETE CASCADE)
-  transaction_id  -> transactions.id (ON DELETE CASCADE)
-  added_at
-  PRIMARY KEY (transaction_id)        -- transaction can be in at most ONE link
-  UNIQUE (link_id, transaction_id)
-```
+## Verification
 
-Key properties:
-
-- A transaction belongs to **at most one** link (per your decision). Enforced by `transaction_id` being the PK.
-- No `share_amount` column. If only part of a transaction belongs to the group, the user splits the transaction first and links the resulting slice.
-- A link can mix expenses, incomes (refunds), and transfers. We don't try to make it balance.
-- Reports keep using `transactions.amount` — the link is never rolled into budgets/KPIs.
-- Link total shown in the link sheet = `sum(signed amount)` grouped per currency, same pattern as the rest of the app.
-
-## UI sketch
-
-- Transaction row: small chip when the row is a member of a link → click opens the link sheet.
-- Add / Edit transaction: optional "Link to purchase…" combobox (search existing link, or "create new"). Because membership is exclusive, picking another link moves the transaction.
-- Link detail sheet: title, kind icon, optional note + planned date, member list, per-currency totals, "add transaction" search, "remove" per row.
-- New `/links` index (or a tab on transactions filtered by `link_id`) — minimal list of links with member counts and totals.
-- When removing the last member: confirm dialog "This will delete the link '<title>'. Continue?" before performing both the member delete and link delete.
-
-## Problems and how to handle them
-
-1. **Double-counting fear.** Users may think the link total replaces "real" spend. → UI labels the total as "Linked total — accounting unchanged" and the /help page documents the separation (same wording style as the reallocations note we just added).
-
-2. **Exclusive membership friction.** A transaction can only be in one link. → Combobox shows the current link in the field; choosing another asks "Move from '<old>' to '<new>'?". Cheap and explicit.
-
-3. **Deleted transaction.** `ON DELETE CASCADE` removes the membership row. If the link ends up empty, a backend trigger does **not** auto-delete (the user expects the confirmation popup). Instead we surface the empty link with a "Delete empty link" prompt the next time it's opened, and the UI's explicit "remove last member" action does the confirm + delete in one step.
-
-4. **Mixed types in one link.** Refund + purchase + transfer is fine; the link total is `sum(signed amount)` per currency. Transfers (no category) appear in the member list and contribute 0 to the totals to avoid confusion.
-
-5. **Overlap with tags.** Tags stay for ad-hoc filtering. Links are a named bundle with shared metadata and exclusive membership. We can later auto-suggest "create link from all rows sharing tag #X".
-
-6. **Overlap with reimbursements.** Reimbursements are 1:1 IOU settlement. Links are N:M descriptive. Independent; a transaction can be both reimbursed and a link member.
-
-7. **Privacy / RLS.** Both tables scoped to `auth.uid()`. Standard GRANT block, RLS enabled, policies — same template used everywhere.
-
-8. **Performance.** Transaction list needs a "is in a link?" flag per row. One LEFT JOIN on `transaction_link_members` (PK on `transaction_id` makes it cheap). Link detail loads its members in one query.
-
-9. **Webhooks.** Link create/attach is metadata, not a transaction event — skipped in this iteration. Can become `transaction.link.updated` later if needed.
-
-10. **Public API.** Explicitly out of scope per your direction.
-
-11. **Migration of existing data.** None needed — purely additive.
-
-## Build-iteration outline (for after plan approval)
-
-1. Migration: two tables, FKs, RLS, GRANTs, `updated_at` trigger for `transaction_links`.
-2. Server functions in `src/utils/links.functions.ts` (list/get/create/update/delete link, attach/detach transaction). All `requireSupabaseAuth`.
-3. UI:
-   - `LinkSheet` component (detail view, member list, totals, add/remove).
-   - "Link to purchase…" combobox embedded in `add.tsx` and `edit.$id.tsx`.
-   - Link chip on transaction rows in `transactions.tsx`.
-   - `/links` route (simple list).
-4. i18n strings (EN + DE) for all new copy.
-5. Help page section explaining links vs. tags vs. reimbursements vs. reallocations.
+- Playwright at viewport 411×785, signed-in session restored via `LOVABLE_BROWSER_SUPABASE_*` env vars, navigate to `/`. Screenshot must show:
+  - Bottom nav (Dashboard / Transactions / + / Envelopes / More) visible at the bottom.
+  - AI bubble sitting ~16 px from the right edge of the visible viewport, just above the bottom nav.
+  - `document.documentElement.scrollWidth === window.innerWidth` (logged to stdout).
+- Repeat at 360×780 (smallest common Android) to make sure nothing else overflows.
 
 ## Out of scope
 
-- Public API endpoints.
-- Budgets / KPIs aware of the link.
-- Auto-detection of related transactions.
-- Webhook events for link changes.
-- Shared / cross-user links.
-- Building a new transaction-split feature inside this iteration (the plan assumes splitting either already exists or is handled separately).
+- Any redesign of the dashboard cards or the bottom nav itself.
+- Desktop layout — no changes above the `md:` breakpoint.
+- Other routes (transactions, envelopes, links, etc.) — only fix them if the audit finds they share the same overflow culprit (e.g. a shared card component).
