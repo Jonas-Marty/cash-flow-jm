@@ -101,8 +101,8 @@ export function UpcomingCard({ symbol }: { symbol: string }) {
           const inputVal = amounts[o.id] ?? "";
           const canPost = !isVar || (inputVal !== "" && Number(inputVal) > 0);
           return (
-            <div key={o.id} className="flex items-center gap-3 px-4 py-3">
-              <div className="min-w-0 flex-1">
+            <div key={o.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
+              <div className="min-w-0 flex-1 basis-full sm:basis-0">
                 <div className="flex items-center gap-2">
                   <span className="truncate text-sm font-medium">{o.rule.name}</span>
                   <Badge variant="outline" className={cn("text-[10px]", late && "border-destructive text-destructive")}>{label}</Badge>
@@ -123,7 +123,7 @@ export function UpcomingCard({ symbol }: { symbol: string }) {
                   {sign}{fmtMoney(Number(o.rule.amount ?? 0), symbol).replace("-", "")}
                 </div>
               )}
-              <div className="flex gap-1">
+              <div className="flex shrink-0 gap-1">
                 <Button size="sm" variant="outline" onClick={() => onSkip(o.id)}>{t("dashboard.upcoming.skip")}</Button>
                 <Button size="sm" onClick={() => onPost(o)} disabled={!canPost}>{t("dashboard.upcoming.post")}</Button>
               </div>

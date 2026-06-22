@@ -98,7 +98,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     t.exact ? loc.pathname === t.to : loc.pathname.startsWith(t.to),
   );
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen overflow-x-clip bg-background text-foreground">
       <header className="hidden md:block sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-3">
           <Link to="/" className="flex items-center gap-2 font-semibold">
@@ -151,7 +151,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="app-main mx-auto max-w-3xl px-4 pb-28 pt-4 md:pb-10 md:pt-6">
+      <main className="app-main mx-auto w-full max-w-3xl overflow-x-clip px-4 pb-28 pt-4 md:pb-10 md:pt-6">
         {/* Mobile-visible active-scope chip (header is hidden on mobile). */}
         <div className="mb-2 flex justify-end md:hidden">
           <ActiveScopeChip compact />
