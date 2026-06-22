@@ -962,8 +962,6 @@ const de: Dict = {
   "links.toast.removed": "Buchung entfernt",
   "links.toast.saved": "Gespeichert",
   "links.toast.deleted": "Verknüpfung gelöscht",
-  "common.cancel": "Abbrechen",
-  "common.save": "Speichern",
   "common.remove": "Entfernen",
 };
 
