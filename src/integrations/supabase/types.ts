@@ -988,6 +988,72 @@ export type Database = {
           },
         ]
       }
+      transaction_link_members: {
+        Row: {
+          added_at: string
+          link_id: string
+          transaction_id: string
+        }
+        Insert: {
+          added_at?: string
+          link_id: string
+          transaction_id: string
+        }
+        Update: {
+          added_at?: string
+          link_id?: string
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_link_members_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "transaction_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transaction_link_members_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: true
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transaction_links: {
+        Row: {
+          created_at: string
+          id: string
+          kind: Database["public"]["Enums"]["transaction_link_kind"]
+          note: string | null
+          planned_on: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["transaction_link_kind"]
+          note?: string | null
+          planned_on?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["transaction_link_kind"]
+          note?: string | null
+          planned_on?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       transaction_reimbursements: {
         Row: {
           amount: number
@@ -1499,6 +1565,7 @@ export type Database = {
       pending_transaction_status: "pending" | "confirmed" | "rejected"
       recurring_day_rule: "fixed_day" | "end_of_month" | "first_of_month"
       recurring_frequency: "monthly" | "quarterly" | "yearly"
+      transaction_link_kind: "purchase" | "event" | "trip" | "other"
       transaction_type: "expense" | "income" | "transfer"
       weekend_adjust: "none" | "before" | "after"
     }
@@ -1635,6 +1702,7 @@ export const Constants = {
       pending_transaction_status: ["pending", "confirmed", "rejected"],
       recurring_day_rule: ["fixed_day", "end_of_month", "first_of_month"],
       recurring_frequency: ["monthly", "quarterly", "yearly"],
+      transaction_link_kind: ["purchase", "event", "trip", "other"],
       transaction_type: ["expense", "income", "transfer"],
       weekend_adjust: ["none", "before", "after"],
     },
