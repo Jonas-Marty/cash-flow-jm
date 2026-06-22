@@ -342,6 +342,31 @@ const EN: Content = {
         },
       ],
     },
+    {
+      id: "links",
+      icon: Link2,
+      title: "Transaction links",
+      intro:
+        "Group several individually-booked transactions that belong to the same real-world purchase (gift cards split across two cards, concert ticket + on-site food, IKEA trip paid by cash + card). The transactions still count individually in budgets, categories and KPIs — the link is just a named view on top.",
+      items: [
+        {
+          q: "How does it differ from splits, tags and reimbursements?",
+          a: "- **Splits** divide one payment into several category legs of one transaction.\n- **Tags** are ad-hoc labels for filtering — no shared metadata.\n- **Reimbursements** are a 1:1 settlement between an expense and a refund.\n- **Links** are N transactions sharing one named bundle (title, optional planned date, kind icon). A transaction can belong to **at most one** link.",
+        },
+        {
+          q: "Does a link change my budgets or KPIs?",
+          a: "**No.** Reports keep using each transaction's own `amount` against its own category and date. The link total shown in the sheet (\"Linked total\") is purely descriptive — for orientation, not double-counting.",
+        },
+        {
+          q: "Only part of a transaction belongs to the purchase",
+          a: "**Split the transaction first** (Add → Split), then link only the slice that belongs to the bundle. The link itself never stores partial amounts — that keeps accounting unambiguous.",
+        },
+        {
+          q: "What happens when I remove the last member?",
+          a: "You're asked to confirm: removing the last transaction deletes the link itself. Until then, deleting individual transactions just removes them from the link.",
+        },
+      ],
+    },
   ],
 };
 
