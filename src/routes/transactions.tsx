@@ -30,6 +30,9 @@ import { DateInput } from "@/components/DateInput";
 import { EntityVisual } from "@/components/EntityVisual";
 import { highlightTokens, tokenize, normalize, parseLooseNumber } from "@/lib/highlight";
 import { matchesAmount, type AmountOp } from "@/lib/amountFilter";
+import { fetchTransactionLinks, fetchTransactionLinkMembers } from "@/lib/links";
+import { TransactionLinkPicker } from "@/components/TransactionLinkPicker";
+import { TransactionLinkSheet, KIND_ICON } from "@/components/TransactionLinkSheet";
 
 export const Route = createFileRoute("/transactions")({
   component: TransactionsPage,
@@ -109,6 +112,18 @@ function TransactionsPage() {
   const tagsQ = useQuery({ queryKey: ["transaction_tags"], queryFn: fetchTransactionTags });
   const rulesQ = useQuery({ queryKey: ["recurring_rules"], queryFn: fetchRecurringRules });
   const reimbLinksQ = useQuery({ queryKey: ["reimbursement_links"], queryFn: fetchReimbursementLinks });
+  const linksQ = useQuery({ queryKey: ["transaction_links"], queryFn: fetchTransactionLinks });
+  const linkMembersQ = useQuery({ queryKey: ["transaction_link_members"], queryFn: fetchTransactionLinkMembers });
+  const linkByTx = React.useMemo(() => {
+    const map = new Map<string, string>();
+    (linkMembersQ.data ?? []).forEach((m) => map.set(m.transaction_id, m.link_id));
+    return map;
+  }, [linkMembersQ.data]);
+  const linkById = React.useMemo(
+    () => new Map((linksQ.data ?? []).map((l) => [l.id, l])),
+    [linksQ.data],
+  );
+  const [openLinkId, setOpenLinkId] = React.useState<string | null>(null);
 
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
   const dateFmt = settingsQ.data?.date_format;
@@ -793,6 +808,22 @@ function TransactionsPage() {
                                 {tr("dashboard.top_month.upcoming")}
                               </span>
                             )}
+                            {(() => {
+                              const lid = linkByTx.get(t.id);
+                              const lnk = lid ? linkById.get(lid) : null;
+                              if (!lnk) return null;
+                              const Icon = KIND_ICON[lnk.kind];
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={(ev) => { ev.preventDefault(); setOpenLinkId(lnk.id); }}
+                                  className="ml-2 inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-primary hover:bg-primary/20"
+                                  title={lnk.title}
+                                >
+                                  <Icon className="h-3 w-3" /> {lnk.title}
+                                </button>
+                              );
+                            })()}
                           </div>
                           <div className={cn("text-sm font-semibold tabular-nums whitespace-nowrap", tone)}>
                             {amtMatch ? (
@@ -847,6 +878,11 @@ function TransactionsPage() {
                       <Button asChild variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" aria-label={tr("common.edit")}>
                         <Link to="/edit/$id" params={{ id: t.id }}><Pencil className="h-4 w-4" /></Link>
                       </Button>
+                      <TransactionLinkPicker
+                        transactionId={t.id}
+                        currentLinkId={linkByTx.get(t.id) ?? null}
+                        compact
+                      />
                       <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => del(t.id)} aria-label={tr("common.delete")}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -858,6 +894,11 @@ function TransactionsPage() {
           </div>
         ))}
       </div>
+      <TransactionLinkSheet
+        linkId={openLinkId}
+        open={openLinkId !== null}
+        onOpenChange={(o) => { if (!o) setOpenLinkId(null); }}
+      />
     </AppShell>
   );
 }

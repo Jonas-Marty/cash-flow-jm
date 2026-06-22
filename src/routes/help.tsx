@@ -12,7 +12,7 @@ import { useI18n, type Lang } from "@/i18n";
 import {
   BookOpen, Compass, LayoutDashboard, ListOrdered, Plus, PiggyBank,
   LineChart, Inbox, Scale, Settings as SettingsIcon, Users, HelpCircle,
-  Sparkles, Search, Shield, Github, Webhook,
+  Sparkles, Search, Shield, Github, Webhook, Link2,
 } from "lucide-react";
 export const Route = createFileRoute("/help")({
   head: () => ({
@@ -342,6 +342,31 @@ const EN: Content = {
         },
       ],
     },
+    {
+      id: "links",
+      icon: Link2,
+      title: "Transaction links",
+      intro:
+        "Group several individually-booked transactions that belong to the same real-world purchase (gift cards split across two cards, concert ticket + on-site food, IKEA trip paid by cash + card). The transactions still count individually in budgets, categories and KPIs — the link is just a named view on top.",
+      items: [
+        {
+          q: "How does it differ from splits, tags and reimbursements?",
+          a: "- **Splits** divide one payment into several category legs of one transaction.\n- **Tags** are ad-hoc labels for filtering — no shared metadata.\n- **Reimbursements** are a 1:1 settlement between an expense and a refund.\n- **Links** are N transactions sharing one named bundle (title, optional planned date, kind icon). A transaction can belong to **at most one** link.",
+        },
+        {
+          q: "Does a link change my budgets or KPIs?",
+          a: "**No.** Reports keep using each transaction's own `amount` against its own category and date. The link total shown in the sheet (\"Linked total\") is purely descriptive — for orientation, not double-counting.",
+        },
+        {
+          q: "Only part of a transaction belongs to the purchase",
+          a: "**Split the transaction first** (Add → Split), then link only the slice that belongs to the bundle. The link itself never stores partial amounts — that keeps accounting unambiguous.",
+        },
+        {
+          q: "What happens when I remove the last member?",
+          a: "You're asked to confirm: removing the last transaction deletes the link itself. Until then, deleting individual transactions just removes them from the link.",
+        },
+      ],
+    },
   ],
 };
 
@@ -554,6 +579,31 @@ const DE: Content = {
         {
           q: "Sicherheit",
           a: "- Nur **HTTPS**-URLs (HTTP ist ausserhalb von localhost gesperrt).\n- Der Auth-Header-Wert liegt serverseitig und wird **nie geloggt** (weder nach stdout noch ins Audit-Log).\n- Jeder Webhook ist auf deinen User beschränkt (RLS): niemand sonst kann ihn sehen, ändern oder auslösen.\n- Der Server-Betreiber kann den gespeicherten Header-Wert in der DB lesen — behandle ihn wie andere Zugangsdaten auf dieser Instanz.",
+        },
+      ],
+    },
+    {
+      id: "links",
+      icon: Link2,
+      title: "Buchungs-Verknüpfungen",
+      intro:
+        "Bündle mehrere einzeln gebuchte Transaktionen, die zum selben realen Einkauf gehören (Geschenkkarte auf zwei Karten gesplittet, Konzertticket + Essen vor Ort, IKEA-Trip Bar + Karte). Die Buchungen zählen weiterhin einzeln in Budgets, Kategorien und KPIs — die Verknüpfung ist nur eine benannte Sicht darüber.",
+      items: [
+        {
+          q: "Was ist der Unterschied zu Splits, Tags und Erstattungen?",
+          a: "- **Splits** teilen **eine** Zahlung in mehrere Kategorie-Anteile **einer** Buchung.\n- **Tags** sind freie Labels fürs Filtern — kein gemeinsames Metadatum.\n- **Erstattungen** sind die 1:1-Verrechnung zwischen Ausgabe und Rückzahlung.\n- **Verknüpfungen** bündeln N Buchungen unter einem Titel (mit optionalem Plandatum und Icon). Eine Buchung kann zu **höchstens einer** Verknüpfung gehören.",
+        },
+        {
+          q: "Ändert eine Verknüpfung meine Budgets oder Auswertungen?",
+          a: "**Nein.** Die Auswertungen rechnen weiter mit dem `amount` jeder einzelnen Buchung in ihrer eigenen Kategorie und ihrem Datum. Der „Verknüpfte Gesamtbetrag\" im Sheet ist rein deskriptiv — zur Orientierung, nicht zur Doppelzählung.",
+        },
+        {
+          q: "Nur ein Teil einer Buchung gehört dazu",
+          a: "**Splitte die Buchung zuerst** (Neu → Splitten) und verknüpfe nur den passenden Teil. Die Verknüpfung selbst speichert keine Teilbeträge — das hält die Buchhaltung eindeutig.",
+        },
+        {
+          q: "Was passiert, wenn ich die letzte Buchung entferne?",
+          a: "Du wirst gefragt: das Entfernen der letzten Buchung **löscht die Verknüpfung selbst**. Solange noch mehrere Mitglieder drin sind, entfernt das Löschen einer Buchung sie nur aus der Verknüpfung.",
         },
       ],
     },
