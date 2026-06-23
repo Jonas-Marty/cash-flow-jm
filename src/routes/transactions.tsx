@@ -171,6 +171,8 @@ function TransactionsPage() {
   const [sort, setSort] = React.useState<SortKey>("date_desc");
   // Reimbursable filter: 'any' shows all, others narrow to flagged tx with that status.
   const [filterReimb, setFilterReimb] = React.useState<"any" | "open" | "settled" | "cancelled" | "all">("any");
+  // Category presence filter: any / categorized / uncategorized.
+  const [filterCategoryStatus, setFilterCategoryStatus] = React.useState<"any" | "categorized" | "uncategorized">("any");
 
   const searchRef = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => {
@@ -252,6 +254,8 @@ function TransactionsPage() {
       if (filterCategories.length) {
         if (!t.category_id || !filterCategories.includes(t.category_id)) return false;
       }
+      if (filterCategoryStatus === "uncategorized" && t.category_id) return false;
+      if (filterCategoryStatus === "categorized" && !t.category_id) return false;
       if (filterTags.length) {
         const txTags = tagsByTx.get(t.id) ?? [];
         if (!filterTags.some((tg) => txTags.includes(tg))) return false;
@@ -272,7 +276,7 @@ function TransactionsPage() {
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [txQ.data, filterTypes, filterAccounts, filterCategories, filterTags, filterReimb, fromStr, toStr,
+  }, [txQ.data, filterTypes, filterAccounts, filterCategories, filterCategoryStatus, filterTags, filterReimb, fromStr, toStr,
       amountOp, amountTarget, tolerance, tokens, accountById, categoryById, tagsByTx, splitGroupTotals]);
 
   const sorted = React.useMemo(() => {
@@ -361,13 +365,13 @@ function TransactionsPage() {
 
   const clearAll = () => {
     setFilterTypes([]); setFilterAccounts([]); setFilterCategories([]); setFilterTags([]);
-    setSearch(""); setFrom(null); setTo(null); setAmountOp("any"); setAmountVal(""); setFilterReimb("any");
+    setSearch(""); setFrom(null); setTo(null); setAmountOp("any"); setAmountVal(""); setFilterReimb("any"); setFilterCategoryStatus("any");
   };
 
   const activeFilterCount =
     filterTypes.length + filterAccounts.length + filterCategories.length + filterTags.length +
     (fromStr ? 1 : 0) + (toStr ? 1 : 0) + (amountOp !== "any" && amountTarget != null ? 1 : 0) +
-    (search.trim() ? 1 : 0) + (filterReimb !== "any" ? 1 : 0);
+    (search.trim() ? 1 : 0) + (filterReimb !== "any" ? 1 : 0) + (filterCategoryStatus !== "any" ? 1 : 0);
 
   // Did-you-mean hint: numeric search with no exact-match results
   const showAroundHint = filtered.length === 0 && tokens.length === 1 && numericTokens.length === 1 &&
@@ -434,6 +438,26 @@ function TransactionsPage() {
               emptyText={tr("msc.empty")}
               selectedLabel={(n) => tr("msc.n_selected", { n })}
             />
+          </div>
+
+          {/* Category presence filter */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">{tr("tx.category_filter")}:</span>
+            {(["any", "categorized", "uncategorized"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setFilterCategoryStatus(k)}
+                className={cn(
+                  "rounded-full border px-2.5 py-0.5 text-xs",
+                  filterCategoryStatus === k
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
+                )}
+              >
+                {tr(`tx.category_filter.${k}` as never)}
+              </button>
+            ))}
           </div>
 
           {/* Date range */}
@@ -617,6 +641,11 @@ function TransactionsPage() {
                 {`#${v}`}
               </FilterPill>
             ))}
+            {filterCategoryStatus !== "any" && (
+              <FilterPill onRemove={() => setFilterCategoryStatus("any")}>
+                {tr("tx.category_filter")}: {tr(`tx.category_filter.${filterCategoryStatus}` as never)}
+              </FilterPill>
+            )}
             {amountOp !== "any" && amountTarget != null && (
               <FilterPill onRemove={() => { setAmountOp("any"); setAmountVal(""); }}>
                 {tr(`tx.amount_op.${amountOp}` as never)} {amountVal}
