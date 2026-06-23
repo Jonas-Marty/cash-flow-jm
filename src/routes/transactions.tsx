@@ -1,5 +1,7 @@
 import * as React from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, stripSearchParams } from "@tanstack/react-router";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, subMonths, subDays, startOfYear } from "date-fns";
@@ -34,7 +36,37 @@ import { fetchTransactionLinks, fetchTransactionLinkMembers } from "@/lib/links"
 import { TransactionLinkPicker } from "@/components/TransactionLinkPicker";
 import { TransactionLinkSheet, KIND_ICON } from "@/components/TransactionLinkSheet";
 
+const SORT_VALUES = ["date_desc", "date_asc", "amount_desc", "amount_asc"] as const;
+const OP_VALUES = ["any", "lt", "lte", "eq", "gte", "gt", "around"] as const;
+const REIMB_VALUES = ["any", "open", "settled", "cancelled", "all"] as const;
+const TYPE_VALUES = ["expense", "income", "transfer"] as const;
+
+const stringArray = fallback(z.array(z.string()), []).default([]);
+
+const searchSchema = z.object({
+  q: fallback(z.string(), "").default(""),
+  types: fallback(z.array(z.enum(TYPE_VALUES)), []).default([]),
+  accts: stringArray,
+  cats: stringArray,
+  tags: stringArray,
+  from: fallback(z.string(), "").default(""),
+  to: fallback(z.string(), "").default(""),
+  op: fallback(z.enum(OP_VALUES), "any").default("any"),
+  val: fallback(z.string(), "").default(""),
+  tol: fallback(z.number(), 0.15).default(0.15),
+  sort: fallback(z.enum(SORT_VALUES), "date_desc").default("date_desc"),
+  reimb: fallback(z.enum(REIMB_VALUES), "any").default("any"),
+});
+
+const SEARCH_DEFAULTS = {
+  q: "", types: [] as TxType[], accts: [] as string[], cats: [] as string[], tags: [] as string[],
+  from: "", to: "", op: "any" as AmountOp, val: "", tol: 0.15,
+  sort: "date_desc" as SortKey, reimb: "any" as (typeof REIMB_VALUES)[number],
+};
+
 export const Route = createFileRoute("/transactions")({
+  validateSearch: zodValidator(searchSchema),
+  search: { middlewares: [stripSearchParams(SEARCH_DEFAULTS)] },
   component: TransactionsPage,
 });
 
@@ -107,6 +139,14 @@ function TagBadges({ tags, tokens }: { tags: string[]; tokens: string[] }) {
 function TransactionsPage() {
   const { t: tr, locale, lang } = useI18n();
   const qc = useQueryClient();
+  const navigate = useNavigate({ from: "/transactions" });
+  const s = Route.useSearch();
+  const patchSearch = React.useCallback(
+    (patch: Partial<typeof SEARCH_DEFAULTS>) => {
+      navigate({ search: (prev) => ({ ...prev, ...patch }) as never, replace: true });
+    },
+    [navigate],
+  );
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
@@ -159,20 +199,32 @@ function TransactionsPage() {
     return m;
   }, [txQ.data]);
 
-  // ----- Filter state (multi-select arrays) -----
-  const [filterTypes, setFilterTypes] = React.useState<TxType[]>([]);
-  const [filterAccounts, setFilterAccounts] = React.useState<string[]>([]);
-  const [filterCategories, setFilterCategories] = React.useState<string[]>([]);
-  const [filterTags, setFilterTags] = React.useState<string[]>([]);
-  const [search, setSearch] = React.useState("");
-  const [from, setFrom] = React.useState<Date | null>(null);
-  const [to, setTo] = React.useState<Date | null>(null);
-  const [amountOp, setAmountOp] = React.useState<AmountOp>("any");
-  const [amountVal, setAmountVal] = React.useState("");
-  const [tolerance, setTolerance] = React.useState(0.15);
-  const [sort, setSort] = React.useState<SortKey>("date_desc");
-  // Reimbursable filter: 'any' shows all, others narrow to flagged tx with that status.
-  const [filterReimb, setFilterReimb] = React.useState<"any" | "open" | "settled" | "cancelled" | "all">("any");
+  // ----- Filter state lives in URL search params (see Route.validateSearch) -----
+  const filterTypes = s.types as TxType[];
+  const filterAccounts = s.accts;
+  const filterCategories = s.cats;
+  const filterTags = s.tags;
+  const search = s.q;
+  const from = s.from ? new Date(`${s.from}T00:00:00`) : null;
+  const to = s.to ? new Date(`${s.to}T00:00:00`) : null;
+  const amountOp = s.op as AmountOp;
+  const amountVal = s.val;
+  const tolerance = s.tol;
+  const sort = s.sort as SortKey;
+  const filterReimb = s.reimb;
+
+  const setFilterTypes = (v: TxType[]) => patchSearch({ types: v });
+  const setFilterAccounts = (v: string[]) => patchSearch({ accts: v });
+  const setFilterCategories = (v: string[]) => patchSearch({ cats: v });
+  const setFilterTags = (v: string[]) => patchSearch({ tags: v });
+  const setSearch = (v: string) => patchSearch({ q: v });
+  const setFrom = (d: Date | null) => patchSearch({ from: d ? format(d, "yyyy-MM-dd") : "" });
+  const setTo = (d: Date | null) => patchSearch({ to: d ? format(d, "yyyy-MM-dd") : "" });
+  const setAmountOp = (v: AmountOp) => patchSearch({ op: v });
+  const setAmountVal = (v: string) => patchSearch({ val: v });
+  const setTolerance = (v: number) => patchSearch({ tol: v });
+  const setSort = (v: SortKey) => patchSearch({ sort: v });
+  const setFilterReimb = (v: typeof filterReimb) => patchSearch({ reimb: v });
 
   const searchRef = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => {
@@ -357,19 +409,17 @@ function TransactionsPage() {
   // ----- Quick range presets -----
   const setRange = (preset: "this_month" | "last_month" | "last_7" | "last_30" | "this_year") => {
     const now = new Date();
-    if (preset === "this_month") { setFrom(startOfMonth(now)); setTo(endOfMonth(now)); }
-    else if (preset === "last_month") {
-      const lm = subMonths(now, 1);
-      setFrom(startOfMonth(lm)); setTo(endOfMonth(lm));
-    }
-    else if (preset === "last_7") { setFrom(subDays(now, 7)); setTo(now); }
-    else if (preset === "last_30") { setFrom(subDays(now, 30)); setTo(now); }
-    else if (preset === "this_year") { setFrom(startOfYear(now)); setTo(now); }
+    let f: Date, t: Date;
+    if (preset === "this_month") { f = startOfMonth(now); t = endOfMonth(now); }
+    else if (preset === "last_month") { const lm = subMonths(now, 1); f = startOfMonth(lm); t = endOfMonth(lm); }
+    else if (preset === "last_7") { f = subDays(now, 7); t = now; }
+    else if (preset === "last_30") { f = subDays(now, 30); t = now; }
+    else { f = startOfYear(now); t = now; }
+    patchSearch({ from: format(f, "yyyy-MM-dd"), to: format(t, "yyyy-MM-dd") });
   };
 
   const clearAll = () => {
-    setFilterTypes([]); setFilterAccounts([]); setFilterCategories([]); setFilterTags([]);
-    setSearch(""); setFrom(null); setTo(null); setAmountOp("any"); setAmountVal(""); setFilterReimb("any");
+    navigate({ search: {} as never, replace: true });
   };
 
   const activeFilterCount =
