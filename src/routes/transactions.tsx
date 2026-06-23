@@ -641,6 +641,11 @@ function TransactionsPage() {
                 {`#${v}`}
               </FilterPill>
             ))}
+            {filterCategoryStatus !== "any" && (
+              <FilterPill onRemove={() => setFilterCategoryStatus("any")}>
+                {tr("tx.category_filter")}: {tr(`tx.category_filter.${filterCategoryStatus}` as never)}
+              </FilterPill>
+            )}
             {amountOp !== "any" && amountTarget != null && (
               <FilterPill onRemove={() => { setAmountOp("any"); setAmountVal(""); }}>
                 {tr(`tx.amount_op.${amountOp}` as never)} {amountVal}
