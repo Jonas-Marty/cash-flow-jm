@@ -254,6 +254,8 @@ function TransactionsPage() {
       if (filterCategories.length) {
         if (!t.category_id || !filterCategories.includes(t.category_id)) return false;
       }
+      if (filterCategoryStatus === "uncategorized" && t.category_id) return false;
+      if (filterCategoryStatus === "categorized" && !t.category_id) return false;
       if (filterTags.length) {
         const txTags = tagsByTx.get(t.id) ?? [];
         if (!filterTags.some((tg) => txTags.includes(tg))) return false;
@@ -274,7 +276,7 @@ function TransactionsPage() {
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [txQ.data, filterTypes, filterAccounts, filterCategories, filterTags, filterReimb, fromStr, toStr,
+  }, [txQ.data, filterTypes, filterAccounts, filterCategories, filterCategoryStatus, filterTags, filterReimb, fromStr, toStr,
       amountOp, amountTarget, tolerance, tokens, accountById, categoryById, tagsByTx, splitGroupTotals]);
 
   const sorted = React.useMemo(() => {
