@@ -171,6 +171,8 @@ function TransactionsPage() {
   const [sort, setSort] = React.useState<SortKey>("date_desc");
   // Reimbursable filter: 'any' shows all, others narrow to flagged tx with that status.
   const [filterReimb, setFilterReimb] = React.useState<"any" | "open" | "settled" | "cancelled" | "all">("any");
+  // Category presence filter: any / categorized / uncategorized.
+  const [filterCategoryStatus, setFilterCategoryStatus] = React.useState<"any" | "categorized" | "uncategorized">("any");
 
   const searchRef = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => {
