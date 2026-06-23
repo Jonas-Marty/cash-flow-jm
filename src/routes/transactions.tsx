@@ -143,7 +143,7 @@ function TransactionsPage() {
   const s = Route.useSearch();
   const patchSearch = React.useCallback(
     (patch: Partial<typeof SEARCH_DEFAULTS>) => {
-      navigate({ search: (prev) => ({ ...prev, ...patch }) as never, replace: true });
+      navigate({ search: ((prev: typeof SEARCH_DEFAULTS) => ({ ...prev, ...patch })) as never, replace: true });
     },
     [navigate],
   );
@@ -201,10 +201,10 @@ function TransactionsPage() {
 
   // ----- Filter state lives in URL search params (see Route.validateSearch) -----
   const filterTypes = s.types as TxType[];
-  const filterAccounts = s.accts;
-  const filterCategories = s.cats;
-  const filterTags = s.tags;
-  const search = s.q;
+  const filterAccounts = s.accts as string[];
+  const filterCategories = s.cats as string[];
+  const filterTags = s.tags as string[];
+  const search = s.q as string;
   const from = s.from ? new Date(`${s.from}T00:00:00`) : null;
   const to = s.to ? new Date(`${s.to}T00:00:00`) : null;
   const amountOp = s.op as AmountOp;
