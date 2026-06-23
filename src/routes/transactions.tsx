@@ -40,6 +40,8 @@ export const Route = createFileRoute("/transactions")({
 
 type SortKey = "date_desc" | "date_asc" | "amount_desc" | "amount_asc";
 
+const NO_CATEGORY = "__none__";
+
 /**
  * Render a note string with inline #hashtags shown as chips. Plain text
  * segments still get search-token highlighting; tag chips highlight when a
