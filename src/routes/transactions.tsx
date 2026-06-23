@@ -440,6 +440,26 @@ function TransactionsPage() {
             />
           </div>
 
+          {/* Category presence filter */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">{tr("tx.category_filter")}:</span>
+            {(["any", "categorized", "uncategorized"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setFilterCategoryStatus(k)}
+                className={cn(
+                  "rounded-full border px-2.5 py-0.5 text-xs",
+                  filterCategoryStatus === k
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
+                )}
+              >
+                {tr(`tx.category_filter.${k}` as never)}
+              </button>
+            ))}
+          </div>
+
           {/* Date range */}
           <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
             <div>
