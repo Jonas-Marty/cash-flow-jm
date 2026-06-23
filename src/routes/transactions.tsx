@@ -365,13 +365,13 @@ function TransactionsPage() {
 
   const clearAll = () => {
     setFilterTypes([]); setFilterAccounts([]); setFilterCategories([]); setFilterTags([]);
-    setSearch(""); setFrom(null); setTo(null); setAmountOp("any"); setAmountVal(""); setFilterReimb("any");
+    setSearch(""); setFrom(null); setTo(null); setAmountOp("any"); setAmountVal(""); setFilterReimb("any"); setFilterCategoryStatus("any");
   };
 
   const activeFilterCount =
     filterTypes.length + filterAccounts.length + filterCategories.length + filterTags.length +
     (fromStr ? 1 : 0) + (toStr ? 1 : 0) + (amountOp !== "any" && amountTarget != null ? 1 : 0) +
-    (search.trim() ? 1 : 0) + (filterReimb !== "any" ? 1 : 0);
+    (search.trim() ? 1 : 0) + (filterReimb !== "any" ? 1 : 0) + (filterCategoryStatus !== "any" ? 1 : 0);
 
   // Did-you-mean hint: numeric search with no exact-match results
   const showAroundHint = filtered.length === 0 && tokens.length === 1 && numericTokens.length === 1 &&
