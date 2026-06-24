@@ -689,6 +689,19 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
       }
     }
 
+    // Guard: don't allow turning off `is_reimbursable` on the parent edit row
+    // while reimbursement links or a write-off still reference it. The same
+    // applies per-slice in split mode (checked below per slice id).
+    if (isEdit && editId && !splitMode) {
+      const wasReimb = !!editQ.data?.tx.is_reimbursable;
+      const becameNotReimb = wasReimb && !isReimbursable;
+      const hasWriteoff = !!editQ.data?.tx.reimbursable_writeoff_transaction_id;
+      if (becameNotReimb && (editAsOriginalLinks.length > 0 || hasWriteoff)) {
+        toast.error(tr("add.reimb.cannot_unflag"));
+        return;
+      }
+    }
+
     // Split path: insert N rows sharing a split_group_id
     if (splitMode && type !== "transfer") {
       if (slices.length < 2) { toast.error(tr("add.split.toast.min")); return; }
