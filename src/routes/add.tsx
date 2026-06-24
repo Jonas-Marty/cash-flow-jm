@@ -711,12 +711,21 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
 
       setSaving(true);
       const occurred_on = format(date, "yyyy-MM-dd");
-      if (isEdit && editQ.data?.tx.split_group_id) {
-        // Update existing split group: replace rows (delete all then insert).
-        const groupId = editQ.data.tx.split_group_id;
-        const delRes = await supabase.from("transactions").delete().eq("split_group_id", groupId);
-        if (delRes.error) { setSaving(false); toast.error(delRes.error.message); return; }
-        const rows = parsed.map((p) => ({
+      // Edit-mode split save: diff existing slices vs incoming and apply
+      // UPDATE/INSERT/DELETE individually. Avoids the cascade-delete trigger
+      // collision that "DELETE then INSERT" hits when a slice is reimbursable
+      // and already has rows in transaction_reimbursements.
+      if (isEdit && editQ.data) {
+        const tx = editQ.data.tx;
+        const existingGroup = editQ.data.group ?? [];
+        const existingIds = new Set<string>(
+          existingGroup.length > 0 ? existingGroup.map((g) => g.id) : [tx.id],
+        );
+        const groupId =
+          tx.split_group_id ??
+          (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
+
+        const rowFor = (p: typeof parsed[number]) => ({
           occurred_on,
           amount: p.amount,
           description: p.description,
@@ -729,10 +738,54 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
           is_reimbursable: p.isReimbursable,
           reimbursable_counterparty: p.reimbCounterparty,
           reimbursable_reason: p.reimbReason,
-        }));
-        const { error } = await supabase.from("transactions").insert(rows);
+        });
+
+        const toUpdate: { id: string; row: ReturnType<typeof rowFor> }[] = [];
+        const toInsert: ReturnType<typeof rowFor>[] = [];
+        parsed.forEach((p) => {
+          if (existingIds.has(p.id)) toUpdate.push({ id: p.id, row: rowFor(p) });
+          else toInsert.push(rowFor(p));
+        });
+        const incomingIds = new Set(parsed.map((p) => p.id));
+        const toDeleteIds = [...existingIds].filter((id) => !incomingIds.has(id));
+
+        // Confirm if removing slices that have reimbursement links.
+        const allLinks = reimbLinksQ.data ?? [];
+        const lostLinkIds = toDeleteIds.filter((id) =>
+          allLinks.some(
+            (l) => l.original_transaction_id === id || l.settling_transaction_id === id,
+          ),
+        );
+        if (lostLinkIds.length > 0) {
+          const ok =
+            typeof window !== "undefined" &&
+            window.confirm(tr("add.split.confirm_remove_linked"));
+          if (!ok) {
+            setSaving(false);
+            return;
+          }
+        }
+
+        for (const u of toUpdate) {
+          const { error: uErr } = await supabase
+            .from("transactions")
+            .update(u.row)
+            .eq("id", u.id);
+          if (uErr) { setSaving(false); toast.error(uErr.message); return; }
+        }
+        if (toInsert.length > 0) {
+          const { error: iErr } = await supabase.from("transactions").insert(toInsert);
+          if (iErr) { setSaving(false); toast.error(iErr.message); return; }
+        }
+        if (toDeleteIds.length > 0) {
+          const { error: dErr } = await supabase
+            .from("transactions")
+            .delete()
+            .in("id", toDeleteIds);
+          if (dErr) { setSaving(false); toast.error(dErr.message); return; }
+        }
+
         setSaving(false);
-        if (error) { toast.error(error.message); return; }
         toast.success(tr("toast.saved"));
         qc.invalidateQueries();
         navigate({ to: "/transactions" });
