@@ -1349,8 +1349,10 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
             </div>
           )}
 
-          {/* Split toggle (only for expense/income, not transfer; hidden in edit mode) — placed before category so users see it first */}
-          {type !== "transfer" && !isEdit && (
+          {/* Split toggle (expense/income only, not transfer). In edit mode,
+              splitting a single tx is allowed unless it is a reimbursement
+              settler; ungrouping an existing split is blocked. */}
+          {type !== "transfer" && (
             <div className="flex items-center justify-between rounded-md border border-dashed border-border/60 px-3 py-2">
               <Label htmlFor="split-toggle" className="cursor-pointer text-sm font-normal">
                 {tr("add.split.toggle")}
@@ -1360,7 +1362,40 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
                 variant="outline"
                 size="sm"
                 pressed={splitMode}
-                onPressedChange={(v: boolean) => setSplitMode(v)}
+                onPressedChange={(v: boolean) => {
+                  if (v) {
+                    if (isEdit && editAsSettlerLinks.length > 0) {
+                      toast.error(tr("add.split.cannot_split_settler"));
+                      return;
+                    }
+                    // Convert a single edit-mode tx into the first slice so
+                    // it keeps its id (and reimbursement links/attachments).
+                    if (isEdit && editQ.data && !editQ.data.tx.split_group_id) {
+                      const t0 = editQ.data.tx;
+                      setSlices([
+                        {
+                          id: t0.id,
+                          amount: Number(t0.amount).toFixed(2),
+                          categoryId: t0.category_id ?? "",
+                          description: t0.description ?? "",
+                          note: t0.note ?? "",
+                          isReimbursable: !!t0.is_reimbursable,
+                          reimbCounterparty: t0.reimbursable_counterparty ?? "",
+                          reimbReason: t0.reimbursable_reason ?? "",
+                        },
+                        newSlice(),
+                      ]);
+                    }
+                    setSplitMode(true);
+                    return;
+                  }
+                  // Turning OFF
+                  if (isEdit && editQ.data?.tx.split_group_id) {
+                    toast.error(tr("add.split.cannot_ungroup"));
+                    return;
+                  }
+                  setSplitMode(false);
+                }}
                 aria-label={tr("add.split.toggle")}
               >
                 {splitMode ? tr("common.on") : tr("common.off")}
