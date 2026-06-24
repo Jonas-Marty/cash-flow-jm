@@ -310,6 +310,18 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
   // Draft attachments collected before the transaction is created.
   const [draftAttachments, setDraftAttachments] = React.useState<DraftAttachment[]>([]);
 
+  // ───────── Edit-mode reimbursement guards ─────────
+  // Links where this tx is the *original* (open reimbursable being repaid).
+  const editAsOriginalLinks = React.useMemo<ReimbursementLink[]>(() => {
+    if (!editId) return [];
+    return (reimbLinksQ.data ?? []).filter((l) => l.original_transaction_id === editId);
+  }, [editId, reimbLinksQ.data]);
+  // Links where this tx is the *settler* (repayment row).
+  const editAsSettlerLinks = React.useMemo<ReimbursementLink[]>(() => {
+    if (!editId) return [];
+    return (reimbLinksQ.data ?? []).filter((l) => l.settling_transaction_id === editId);
+  }, [editId, reimbLinksQ.data]);
+
   // ───────── Active scope ─────────
   const [activeScopeId] = useActiveScopeId();
   const scopesQ = useQuery({ queryKey: ["scopes"], queryFn: fetchScopes, enabled: !isEdit });
@@ -677,6 +689,19 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
       }
     }
 
+    // Guard: don't allow turning off `is_reimbursable` on the parent edit row
+    // while reimbursement links or a write-off still reference it. The same
+    // applies per-slice in split mode (checked below per slice id).
+    if (isEdit && editId && !splitMode) {
+      const wasReimb = !!editQ.data?.tx.is_reimbursable;
+      const becameNotReimb = wasReimb && !isReimbursable;
+      const hasWriteoff = !!editQ.data?.tx.reimbursable_writeoff_transaction_id;
+      if (becameNotReimb && (editAsOriginalLinks.length > 0 || hasWriteoff)) {
+        toast.error(tr("add.reimb.cannot_unflag"));
+        return;
+      }
+    }
+
     // Split path: insert N rows sharing a split_group_id
     if (splitMode && type !== "transfer") {
       if (slices.length < 2) { toast.error(tr("add.split.toast.min")); return; }
@@ -699,12 +724,21 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
 
       setSaving(true);
       const occurred_on = format(date, "yyyy-MM-dd");
-      if (isEdit && editQ.data?.tx.split_group_id) {
-        // Update existing split group: replace rows (delete all then insert).
-        const groupId = editQ.data.tx.split_group_id;
-        const delRes = await supabase.from("transactions").delete().eq("split_group_id", groupId);
-        if (delRes.error) { setSaving(false); toast.error(delRes.error.message); return; }
-        const rows = parsed.map((p) => ({
+      // Edit-mode split save: diff existing slices vs incoming and apply
+      // UPDATE/INSERT/DELETE individually. Avoids the cascade-delete trigger
+      // collision that "DELETE then INSERT" hits when a slice is reimbursable
+      // and already has rows in transaction_reimbursements.
+      if (isEdit && editQ.data) {
+        const tx = editQ.data.tx;
+        const existingGroup = editQ.data.group ?? [];
+        const existingIds = new Set<string>(
+          existingGroup.length > 0 ? existingGroup.map((g) => g.id) : [tx.id],
+        );
+        const groupId =
+          tx.split_group_id ??
+          (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
+
+        const rowFor = (p: typeof parsed[number]) => ({
           occurred_on,
           amount: p.amount,
           description: p.description,
@@ -717,10 +751,75 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
           is_reimbursable: p.isReimbursable,
           reimbursable_counterparty: p.reimbCounterparty,
           reimbursable_reason: p.reimbReason,
-        }));
-        const { error } = await supabase.from("transactions").insert(rows);
+        });
+
+        const toUpdate: { id: string; row: ReturnType<typeof rowFor> }[] = [];
+        const toInsert: ReturnType<typeof rowFor>[] = [];
+        parsed.forEach((p) => {
+          if (existingIds.has(p.id)) toUpdate.push({ id: p.id, row: rowFor(p) });
+          else toInsert.push(rowFor(p));
+        });
+        const incomingIds = new Set(parsed.map((p) => p.id));
+        const toDeleteIds = [...existingIds].filter((id) => !incomingIds.has(id));
+
+        // Per-slice guard: prevent turning off is_reimbursable on a slice
+        // that still has reimbursement links or a write-off.
+        const existingById = new Map<string, Transaction>(
+          (existingGroup.length > 0 ? existingGroup : [tx]).map((g) => [g.id, g as Transaction]),
+        );
+        for (const u of toUpdate) {
+          const prev = existingById.get(u.id);
+          if (!prev) continue;
+          const becameNotReimb = !!prev.is_reimbursable && !u.row.is_reimbursable;
+          if (!becameNotReimb) continue;
+          const hasLink = (reimbLinksQ.data ?? []).some(
+            (l) => l.original_transaction_id === u.id,
+          );
+          const hasWriteoff = !!prev.reimbursable_writeoff_transaction_id;
+          if (hasLink || hasWriteoff) {
+            setSaving(false);
+            toast.error(tr("add.reimb.cannot_unflag"));
+            return;
+          }
+        }
+
+        // Confirm if removing slices that have reimbursement links.
+        const allLinks = reimbLinksQ.data ?? [];
+        const lostLinkIds = toDeleteIds.filter((id) =>
+          allLinks.some(
+            (l) => l.original_transaction_id === id || l.settling_transaction_id === id,
+          ),
+        );
+        if (lostLinkIds.length > 0) {
+          const ok =
+            typeof window !== "undefined" &&
+            window.confirm(tr("add.split.confirm_remove_linked"));
+          if (!ok) {
+            setSaving(false);
+            return;
+          }
+        }
+
+        for (const u of toUpdate) {
+          const { error: uErr } = await supabase
+            .from("transactions")
+            .update(u.row)
+            .eq("id", u.id);
+          if (uErr) { setSaving(false); toast.error(uErr.message); return; }
+        }
+        if (toInsert.length > 0) {
+          const { error: iErr } = await supabase.from("transactions").insert(toInsert);
+          if (iErr) { setSaving(false); toast.error(iErr.message); return; }
+        }
+        if (toDeleteIds.length > 0) {
+          const { error: dErr } = await supabase
+            .from("transactions")
+            .delete()
+            .in("id", toDeleteIds);
+          if (dErr) { setSaving(false); toast.error(dErr.message); return; }
+        }
+
         setSaving(false);
-        if (error) { toast.error(error.message); return; }
         toast.success(tr("toast.saved"));
         qc.invalidateQueries();
         navigate({ to: "/transactions" });
@@ -837,8 +936,25 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
       .filter((x) => x.id && Number.isFinite(x.amount) && x.amount > 0);
     if (isEdit && editId) {
       const { error } = await supabase.from("transactions").update(payload).eq("id", editId);
+      if (error) { setSaving(false); toast.error(error.message); return; }
+      // Mirror amount changes into reimbursement link rows where this tx
+      // is the settler, so the original's settled/open status stays correct.
+      if (editAsSettlerLinks.length === 1) {
+        const link = editAsSettlerLinks[0];
+        if (Math.abs(Number(link.amount) - amt) > 0.005) {
+          const { error: lErr } = await supabase
+            .from("transaction_reimbursements")
+            .update({ amount: amt })
+            .eq("id", link.id);
+          if (lErr) toast.error(lErr.message);
+        }
+      } else if (editAsSettlerLinks.length > 1) {
+        const total = editAsSettlerLinks.reduce((s, l) => s + Number(l.amount), 0);
+        if (Math.abs(total - amt) > 0.005) {
+          toast.warning(tr("add.reimb.settler_amount_mismatch"));
+        }
+      }
       setSaving(false);
-      if (error) { toast.error(error.message); return; }
       toast.success(tr("toast.saved"));
       qc.invalidateQueries();
       navigate({ to: "/transactions" });
@@ -1233,8 +1349,10 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
             </div>
           )}
 
-          {/* Split toggle (only for expense/income, not transfer; hidden in edit mode) — placed before category so users see it first */}
-          {type !== "transfer" && !isEdit && (
+          {/* Split toggle (expense/income only, not transfer). In edit mode,
+              splitting a single tx is allowed unless it is a reimbursement
+              settler; ungrouping an existing split is blocked. */}
+          {type !== "transfer" && (
             <div className="flex items-center justify-between rounded-md border border-dashed border-border/60 px-3 py-2">
               <Label htmlFor="split-toggle" className="cursor-pointer text-sm font-normal">
                 {tr("add.split.toggle")}
@@ -1244,7 +1362,40 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
                 variant="outline"
                 size="sm"
                 pressed={splitMode}
-                onPressedChange={(v: boolean) => setSplitMode(v)}
+                onPressedChange={(v: boolean) => {
+                  if (v) {
+                    if (isEdit && editAsSettlerLinks.length > 0) {
+                      toast.error(tr("add.split.cannot_split_settler"));
+                      return;
+                    }
+                    // Convert a single edit-mode tx into the first slice so
+                    // it keeps its id (and reimbursement links/attachments).
+                    if (isEdit && editQ.data && !editQ.data.tx.split_group_id) {
+                      const t0 = editQ.data.tx;
+                      setSlices([
+                        {
+                          id: t0.id,
+                          amount: Number(t0.amount).toFixed(2),
+                          categoryId: t0.category_id ?? "",
+                          description: t0.description ?? "",
+                          note: t0.note ?? "",
+                          isReimbursable: !!t0.is_reimbursable,
+                          reimbCounterparty: t0.reimbursable_counterparty ?? "",
+                          reimbReason: t0.reimbursable_reason ?? "",
+                        },
+                        newSlice(),
+                      ]);
+                    }
+                    setSplitMode(true);
+                    return;
+                  }
+                  // Turning OFF
+                  if (isEdit && editQ.data?.tx.split_group_id) {
+                    toast.error(tr("add.split.cannot_ungroup"));
+                    return;
+                  }
+                  setSplitMode(false);
+                }}
                 aria-label={tr("add.split.toggle")}
               >
                 {splitMode ? tr("common.on") : tr("common.off")}

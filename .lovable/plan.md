@@ -1,96 +1,113 @@
-# Persist Transaction Filters
+# Editing splits & reimbursables, plus split-from-edit
 
-Currently filter state on `/transactions` lives in component `useState`. Editing a transaction navigates to `/edit/$id`, which unmounts the route and discards state. Going back re-mounts with defaults.
+## Root cause of the error
 
-Below are the realistic options, with trade-offs. Pick one and I'll implement.
+When you save an edited split group, `add.tsx` does:
 
----
+```ts
+await supabase.from("transactions").delete().eq("split_group_id", groupId);
+await supabase.from("transactions").insert(newRows);
+```
 
-## Option A — URL search params (recommended)
+If any slice in the group is reimbursable and already has a row in
+`transaction_reimbursements` (your repayment), deleting that slice fires
+`cascade_delete_reimbursement_links` → `DELETE FROM transaction_reimbursements`
+→ `AFTER DELETE` trigger → `recompute_reimbursable_status(original_id)` →
+`UPDATE transactions SET reimbursable_status=... WHERE id = original_id`.
 
-Encode filters into the URL via TanStack Router `validateSearch` (Zod). The transactions route becomes e.g. `/transactions?q=foo&cats=abc,___none__&from=2026-01-01&to=2026-06-30&type=expense`.
+`original_id` is the same row Postgres is currently deleting in the outer
+statement, so PG raises `tuple to be deleted was already modified by an
+operation triggered by the current command`.
 
-**Pros**
+It is not specific to the non‑reimbursable slice — any save on a group that
+contains a reimbursable‑with‑links slice fails.
 
-- Survives navigation, refresh, and browser back/forward naturally.
-- Shareable / bookmarkable filtered views (e.g. send a link to "uncategorized last month").
-- Plays well with TanStack Router's typed search + `useNavigate({ search })`.
-- No stale-state risk across devices or sessions — what you see is what's in the URL.
-- Back button after edit restores the exact view because the URL was preserved on navigation away.
+## Implications of editing reimbursables
 
-**Cons**
+Reimbursable transactions participate in three pieces of state we have to
+keep consistent:
 
-- Slightly more code: define a Zod schema, map state ↔ search, debounce text input writes.
-- URL gets long with many active filters (cosmetic).
-- Need to decide defaults vs. encoded values (use `stripSearchParams` to keep URL clean).
+1. `transactions.is_reimbursable` / `reimbursable_status` / counterparty / reason
+2. `transaction_reimbursements` rows linking original ↔ settling
+3. `reimbursable_writeoff_*` (manual write‑off) fields
 
----
+Editing rules we need to enforce (with a clear toast when blocked):
 
-## Option B — `localStorage` (or `sessionStorage`)
+- **Original side (the reimbursable expense/income):**
+  - Amount may change; trigger already recomputes `reimbursable_status`. OK.
+  - `is_reimbursable` may only be turned **off** if no link rows and no write‑off exist; otherwise prompt to first unlink/cancel.
+  - Source account, occurred_on, description, note, category, tags: always editable.
+  - Type change away from current (e.g. expense → transfer): block while links exist (transfers can't be reimbursable; would also break the split trigger).
+- **Settling side (the repayment row):**
+  - Amount change must be mirrored into the matching `transaction_reimbursements.amount` so the original's status stays correct. Today we don't, so paying €40 then editing to €30 leaves the original looking settled. Fix: on save, when this tx is a settler, update each link row's amount proportionally (or 1:1 when there is a single link) and re-run `recompute_reimbursable_status` for each affected original.
+  - Deleting/unflagging a settler must drop links and recompute (cascade trigger already handles delete; the UI's "edit then unflag" path needs the same treatment).
+- **Split slices:**
+  - Any slice may be reimbursable independently; per-slice counterparty/reason already supported.
+  - Replacing the whole group on save is what causes the trigger collision. See fix below.
 
-Persist the filter object under a key like `tx.filters.v1`; hydrate on mount, write on change.
+## Fix the save error (delete+insert collision)
 
-**Pros**
+Switch the split-edit save from "delete all + insert all" to a
+**diff/upsert** strategy on `add.tsx`:
 
-- Tiny change: one `useEffect` to load, one to save. No route refactor.
-- `localStorage` survives refresh and new tabs; `sessionStorage` clears with the tab.
+```text
+existing = editQ.data.group        (rows in DB now, keyed by id)
+incoming = slices                  (rows from the form, may have new ids)
 
-**Cons**
+to_update = incoming where id ∈ existing.ids
+to_insert = incoming where id is new
+to_delete = existing.ids minus incoming.ids
+```
 
-- Not shareable, not bookmarkable.
-- "Sticky" filters can confuse users — they come back tomorrow and wonder why the list looks empty.
-- Per-browser, per-device; no sync.
-- Needs a version key and migration if filter shape changes.
-- SSR-unsafe at module scope (must read inside effect).
+- `UPDATE` each existing slice in place (amount, category, description, note, is_reimbursable, counterparty, reason). No row is removed, so the cascade trigger never fires for the reimbursable slice and the "tuple already modified" error disappears.
+- `INSERT` only newly added slices with the same `split_group_id`.
+- `DELETE` removed slices one by one. If a removed slice has rows in `transaction_reimbursements`, surface a confirm dialog ("This slice is linked to a repayment. Removing it will unlink the repayment.") before deleting.
 
----
+Side benefit: edits to a single slice no longer churn IDs, so attachments,
+audit log entries, AI references, and `recurring_occurrences.transaction_id`
+keep pointing at the same rows.
 
-## Option C — In-memory store (Zustand / React context at the router level)
+## Allow splitting an existing transaction in edit mode
 
-Lift filter state into a store that lives above the route so it survives unmount/remount within the same tab session.
+Today `splitMode` is only offered for non-edit, non-transfer. We can lift the
+restriction with these guards:
 
-**Pros**
+1. **Type must not be `transfer`** (existing constraint, keep).
+2. **Not allowed when the transaction is a settler** (`transaction_reimbursements.settling_transaction_id = tx.id` exists). Splitting would make the link ambiguous. Show a hint: "Unlink the repayment first to split this transaction."
+3. **Allowed when the transaction is an original reimbursable.** On save we keep the original `tx.id` as one of the slices (preserves existing links) and add new slices in the same `split_group_id`. The kept slice retains `is_reimbursable=true`; new slices default to off but the user can toggle each.
+4. **Allowed for ordinary expenses/income.** The single tx is rewritten as slice #1 with the form's amount, and slices 2..N are inserted with a new `split_group_id` shared by all (set on the existing row too — the validation trigger accepts this because user/source/occurred_on/type stay the same).
+5. **Attachments** stay on the original slice (which keeps its id). We do not duplicate them.
+6. **Recurring linkage**: if `recurring_rule_id` is set on the source row, keep it on slice #1 only; new slices have it null.
 
-- No URL noise, no storage I/O.
-- Instant restore on back nav.
+UI: in edit mode, show the same split toggle. When toggled on for a
+previously single transaction, prefill slice #1 with the current
+amount/category/description and add an empty slice #2. The total must equal
+the header amount (existing diff indicator). When toggled off for a current
+group, require exactly one slice's worth of data and warn that this will
+delete the other slices (using the confirm flow above).
 
-**Cons**
+## Reimbursement amount drift (settler edits)
 
-- Lost on refresh and new tabs (unless combined with storage).
-- Not shareable.
-- Adds a global store just for one screen.
+Add a small helper invoked from the single-tx save path: when the saved
+transaction has rows in `transaction_reimbursements` as the settler, update
+those rows' `amount` to match the new tx amount (single-link case) or open a
+dialog asking how to redistribute when multiple links exist. Recompute via
+the existing `after_reimbursement_link_change` trigger.
 
----
+## Technical changes summary
 
-## Option D — Server-side saved filters (per user, in DB)
+- `src/routes/add.tsx`
+  - Replace split-edit "delete then insert" block (~lines 702–727) with diff/upsert logic.
+  - Drop the `!isEdit` guard on the split toggle; add the settler/transfer guards above.
+  - On edit-mode split toggle ON: convert single tx into slices with id preserved for slice #1.
+  - On edit-mode split toggle OFF / slice removal of linked slice: show confirm.
+  - On single-tx save, mirror amount changes into `transaction_reimbursements` when this tx is a settler.
+  - Block `is_reimbursable=false` while links/write-off exist (toast + keep toggle on).
+- No schema migration is required for the bug fix or for split-from-edit; existing triggers and constraints already cover the new flows.
+- Optional follow-up migration (not in this plan): add a `BEFORE UPDATE` trigger on `transactions` that raises if `is_reimbursable` flips to false while `transaction_reimbursements` rows exist, as a server-side safety net.
 
-New `transaction_filter_presets` table; persist "last used" plus optional named presets ("Groceries 2026", "Uncategorized").
+## Out of scope
 
-**Pros**
-
-- Syncs across devices.
-- Enables named presets / favorites as a real feature.
-
-**Cons**
-
-- Largest scope: migration, RLS, server fn, UI for managing presets.
-- Overkill if the goal is just "don't lose filters after editing one transaction".
-
----
-
-## Option E — Hybrid: URL + remembered last view
-
-URL is the source of truth (Option A), and on first visit with no params we hydrate from `localStorage` of the last URL used. Best UX, slightly more code than A alone.
-
----
-
-## Recommendation
-
-**Option A**. It directly fixes the back-from-edit case (the URL is preserved), adds shareability for free, and is idiomatic for TanStack Start. If you later want named presets, layer Option D on top without throwing A away.
-
-## Technical sketch (for the chosen option)
-
-For A: add `validateSearch` with Zod + `fallback`/defaults on `/transactions`, replace each `useState` with `Route.useSearch()` reads and `navigate({ search: prev => ({...prev, ...}) })` writes (debounced for the text query), and use `search: { middlewares: [stripSearchParams(defaults)] }` to keep URLs clean. Arrays (categories, accounts, tags) encode as comma-joined strings, dates as ISO `yyyy-MM-dd`.  
-  
-  
-Ok please go with option A.
+- Changing how reimbursement links are created in the Add screen.
+- Bulk re-categorisation tools.
+- Editing transfers as splits (still disallowed by trigger).
