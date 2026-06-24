@@ -310,6 +310,18 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
   // Draft attachments collected before the transaction is created.
   const [draftAttachments, setDraftAttachments] = React.useState<DraftAttachment[]>([]);
 
+  // ───────── Edit-mode reimbursement guards ─────────
+  // Links where this tx is the *original* (open reimbursable being repaid).
+  const editAsOriginalLinks = React.useMemo<ReimbursementLink[]>(() => {
+    if (!editId) return [];
+    return (reimbLinksQ.data ?? []).filter((l) => l.original_transaction_id === editId);
+  }, [editId, reimbLinksQ.data]);
+  // Links where this tx is the *settler* (repayment row).
+  const editAsSettlerLinks = React.useMemo<ReimbursementLink[]>(() => {
+    if (!editId) return [];
+    return (reimbLinksQ.data ?? []).filter((l) => l.settling_transaction_id === editId);
+  }, [editId, reimbLinksQ.data]);
+
   // ───────── Active scope ─────────
   const [activeScopeId] = useActiveScopeId();
   const scopesQ = useQuery({ queryKey: ["scopes"], queryFn: fetchScopes, enabled: !isEdit });
