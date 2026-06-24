@@ -762,6 +762,27 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
         const incomingIds = new Set(parsed.map((p) => p.id));
         const toDeleteIds = [...existingIds].filter((id) => !incomingIds.has(id));
 
+        // Per-slice guard: prevent turning off is_reimbursable on a slice
+        // that still has reimbursement links or a write-off.
+        const existingById = new Map<string, Transaction>(
+          (existingGroup.length > 0 ? existingGroup : [tx]).map((g) => [g.id, g as Transaction]),
+        );
+        for (const u of toUpdate) {
+          const prev = existingById.get(u.id);
+          if (!prev) continue;
+          const becameNotReimb = !!prev.is_reimbursable && !u.row.is_reimbursable;
+          if (!becameNotReimb) continue;
+          const hasLink = (reimbLinksQ.data ?? []).some(
+            (l) => l.original_transaction_id === u.id,
+          );
+          const hasWriteoff = !!prev.reimbursable_writeoff_transaction_id;
+          if (hasLink || hasWriteoff) {
+            setSaving(false);
+            toast.error(tr("add.reimb.cannot_unflag"));
+            return;
+          }
+        }
+
         // Confirm if removing slices that have reimbursement links.
         const allLinks = reimbLinksQ.data ?? [];
         const lostLinkIds = toDeleteIds.filter((id) =>
