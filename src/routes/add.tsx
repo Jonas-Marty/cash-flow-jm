@@ -902,8 +902,25 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
       .filter((x) => x.id && Number.isFinite(x.amount) && x.amount > 0);
     if (isEdit && editId) {
       const { error } = await supabase.from("transactions").update(payload).eq("id", editId);
+      if (error) { setSaving(false); toast.error(error.message); return; }
+      // Mirror amount changes into reimbursement link rows where this tx
+      // is the settler, so the original's settled/open status stays correct.
+      if (editAsSettlerLinks.length === 1) {
+        const link = editAsSettlerLinks[0];
+        if (Math.abs(Number(link.amount) - amt) > 0.005) {
+          const { error: lErr } = await supabase
+            .from("transaction_reimbursements")
+            .update({ amount: amt })
+            .eq("id", link.id);
+          if (lErr) toast.error(lErr.message);
+        }
+      } else if (editAsSettlerLinks.length > 1) {
+        const total = editAsSettlerLinks.reduce((s, l) => s + Number(l.amount), 0);
+        if (Math.abs(total - amt) > 0.005) {
+          toast.warning(tr("add.reimb.settler_amount_mismatch"));
+        }
+      }
       setSaving(false);
-      if (error) { toast.error(error.message); return; }
       toast.success(tr("toast.saved"));
       qc.invalidateQueries();
       navigate({ to: "/transactions" });
