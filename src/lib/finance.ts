@@ -783,13 +783,13 @@ export async function previewRecurringRule(input: {
   const { data, error } = await supabase.rpc("preview_recurring_rule", {
     p_recurrence_interval: input.recurrence_interval,
     p_execution_day_rule: input.execution_day_rule,
-    p_execution_day_of_month: input.execution_day_of_month,
+    p_execution_day_of_month: input.execution_day_of_month as number,
     p_execution_weekend_adjustment: input.execution_weekend_adjustment,
     p_period_day_rule: input.period_day_rule,
-    p_period_day_of_month: input.period_day_of_month,
+    p_period_day_of_month: input.period_day_of_month as number,
     p_period_offset: input.period_offset,
     p_starts_on: input.starts_on,
-    p_ends_on: input.ends_on,
+    p_ends_on: input.ends_on as string,
     p_from: input.from,
     p_to: input.to,
   });
