@@ -637,11 +637,7 @@ export function RecurringRulesCard() {
             </div>
             <PlaceholderPalette
               formatLocaleCode={settingsQ.data?.format_locale}
-              ruleCtx={{
-                frequency: draft.frequency,
-                startsOn: draft.starts_on,
-                reportingOffsetMonths: Number(draft.reporting_offset_months) || 0,
-              }}
+              ruleCtx={draftRuleShape(draft)}
               onInsert={(snippet) => insertPlaceholder({
                 snippet,
                 target: activeField,
@@ -663,80 +659,95 @@ export function RecurringRulesCard() {
             </div>
             </>
             )}
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <Label className="text-xs">{t("recurring.field.frequency")}</Label>
-                <Select value={draft.frequency} onValueChange={(v) => setDraft({ ...draft, frequency: v as RecurringFrequency })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="monthly">{t("recurring.freq.monthly")}</SelectItem>
-                    <SelectItem value="quarterly">{t("recurring.freq.quarterly")}</SelectItem>
-                    <SelectItem value="yearly">{t("recurring.freq.yearly")}</SelectItem>
-                  </SelectContent>
-                </Select>
-                {(draft.frequency === "quarterly" || draft.frequency === "yearly") && (
-                  <AnchorMonthHint
-                    frequency={draft.frequency}
-                    startsOn={draft.starts_on}
-                    onUseCalendarQuarter={() => {
-                      const d = parseISO(draft.starts_on);
-                      const m = d.getMonth();
-                      const calendarMonth = Math.floor(m / 3) * 3; // 0,3,6,9
-                      const next = new Date(d.getFullYear(), calendarMonth, d.getDate());
-                      setDraft({ ...draft, starts_on: format(next, "yyyy-MM-dd") });
-                    }}
-                  />
+            <div>
+              <Label className="text-xs">{t("recurring.field.interval")}</Label>
+              <Select value={String(draft.recurrence_interval)} onValueChange={(v) => setDraft({ ...draft, recurrence_interval: Number(v) })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {[1,2,3,4,5,6,7,8,9,10,11,12].map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {t("recurring.interval.item", { n })}
+                      {n === 1 ? ` — ${t("recurring.freq.monthly")}` :
+                        n === 3 ? ` — ${t("recurring.freq.quarterly")}` :
+                        n === 6 ? ` — ${t("recurring.freq.semesterly")}` :
+                        n === 12 ? ` — ${t("recurring.freq.yearly")}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="rounded-md border p-3 space-y-3">
+              <div className="text-xs font-semibold uppercase text-muted-foreground">{t("recurring.section.execution")}</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">{t("recurring.field.day_rule")}</Label>
+                  <Select value={draft.execution_day_rule} onValueChange={(v) => setDraft({ ...draft, execution_day_rule: v as DayRuleV2 })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="FixedDay">{t("recurring.day_rule.fixed_day")}</SelectItem>
+                      <SelectItem value="LastDay">{t("recurring.day_rule.end_of_month")}</SelectItem>
+                      <SelectItem value="FirstDay">{t("recurring.day_rule.first_of_month")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {draft.execution_day_rule === "FixedDay" && (
+                  <div>
+                    <Label className="text-xs">{t("recurring.field.day_of_month")}</Label>
+                    <Input inputMode="numeric" min={1} max={31} type="number" value={draft.execution_day_of_month} onChange={(e) => setDraft({ ...draft, execution_day_of_month: e.target.value })} />
+                  </div>
                 )}
               </div>
               <div>
-                <Label className="text-xs">{t("recurring.field.day_rule")}</Label>
-                <Select value={draft.day_rule} onValueChange={(v) => setDraft({ ...draft, day_rule: v as RecurringDayRule })}>
+                <Label className="text-xs">{t("recurring.field.weekend")}</Label>
+                <Select value={draft.execution_weekend_adjustment} onValueChange={(v) => setDraft({ ...draft, execution_weekend_adjustment: v as WeekendAdjustV2 })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="fixed_day">{t("recurring.day_rule.fixed_day")}</SelectItem>
-                    <SelectItem value="end_of_month">{t("recurring.day_rule.end_of_month")}</SelectItem>
-                    <SelectItem value="first_of_month">{t("recurring.day_rule.first_of_month")}</SelectItem>
+                    <SelectItem value="None">{t("recurring.weekend.none")}</SelectItem>
+                    <SelectItem value="PreviousBusinessDay">{t("recurring.weekend.before")}</SelectItem>
+                    <SelectItem value="NextBusinessDay">{t("recurring.weekend.after")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              {draft.day_rule === "fixed_day" && (
+            </div>
+            <div className="rounded-md border p-3 space-y-3">
+              <div className="text-xs font-semibold uppercase text-muted-foreground">{t("recurring.section.period")}</div>
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs">{t("recurring.field.day_of_month")}</Label>
-                  <Input inputMode="numeric" min={1} max={31} type="number" value={draft.day_of_month} onChange={(e) => setDraft({ ...draft, day_of_month: e.target.value })} />
+                  <Label className="text-xs">{t("recurring.field.period_day_rule")}</Label>
+                  <Select value={draft.period_day_rule} onValueChange={(v) => setDraft({ ...draft, period_day_rule: v as DayRuleV2 })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="FixedDay">{t("recurring.day_rule.fixed_day")}</SelectItem>
+                      <SelectItem value="LastDay">{t("recurring.day_rule.end_of_month")}</SelectItem>
+                      <SelectItem value="FirstDay">{t("recurring.day_rule.first_of_month")}</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
-            </div>
-            <div>
-              <Label className="text-xs">{t("recurring.field.reports_on")}</Label>
-              <Select
-                value={String(Number(draft.reporting_offset_months) || 0)}
-                onValueChange={(v) => setDraft({ ...draft, reporting_offset_months: v })}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">{t("recurring.reports_on.this")}</SelectItem>
-                  <SelectItem value={String(draft.frequency === "quarterly" ? 3 : draft.frequency === "yearly" ? 12 : 1)}>
-                    {t("recurring.reports_on.previous")}
-                  </SelectItem>
-                  <SelectItem value={String((draft.frequency === "quarterly" ? 3 : draft.frequency === "yearly" ? 12 : 1) * 2)}>
-                    {t("recurring.reports_on.two_back")}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="mt-1 text-[11px] text-muted-foreground">
-                {t("recurring.reports_on.hint")}
+                {draft.period_day_rule === "FixedDay" && (
+                  <div>
+                    <Label className="text-xs">{t("recurring.field.day_of_month")}</Label>
+                    <Input inputMode="numeric" min={1} max={31} type="number" value={draft.period_day_of_month} onChange={(e) => setDraft({ ...draft, period_day_of_month: e.target.value })} />
+                  </div>
+                )}
               </div>
-            </div>
-            <div>
-              <Label className="text-xs">{t("recurring.field.weekend")}</Label>
-              <Select value={draft.weekend_adjust} onValueChange={(v) => setDraft({ ...draft, weekend_adjust: v as WeekendAdjust })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">{t("recurring.weekend.none")}</SelectItem>
-                  <SelectItem value="before">{t("recurring.weekend.before")}</SelectItem>
-                  <SelectItem value="after">{t("recurring.weekend.after")}</SelectItem>
-                </SelectContent>
-              </Select>
+              <div>
+                <Label className="text-xs">{t("recurring.field.period_offset")}</Label>
+                <Select value={String(draft.period_offset)} onValueChange={(v) => setDraft({ ...draft, period_offset: Number(v) })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[-3,-2,-1,0,1,2,3].map((n) => (
+                      <SelectItem key={n} value={String(n)}>
+                        {n === 0 ? t("recurring.period_offset.zero")
+                          : n < 0 ? t("recurring.period_offset.back", { n: Math.abs(n) })
+                          : t("recurring.period_offset.forward", { n })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="mt-1 text-[11px] text-muted-foreground">
+                  {t("recurring.period_offset.hint")}
+                </div>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
