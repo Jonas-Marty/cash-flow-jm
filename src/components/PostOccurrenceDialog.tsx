@@ -12,6 +12,7 @@ import {
   type RecurringOccurrence, type RecurringRule,
 } from "@/lib/finance";
 import { interpolate, resolveFormatLocale, describeTokens } from "@/lib/placeholders";
+import { periodBoundsForDue, parseISODate, type RuleShape } from "@/lib/recurrence";
 import { toast } from "sonner";
 
 type Occ = RecurringOccurrence & { rule: RecurringRule };
@@ -65,19 +66,19 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
 
   const ctx = React.useMemo(() => {
     if (!occurrence) return null;
+    const r = occurrence.rule as unknown as RuleShape;
+    const { from, to } = periodBoundsForDue(r, parseISODate(occurrence.due_on));
     return {
       date: parseISO(date || occurrence.effective_on),
       dueDate: parseISO(occurrence.due_on),
-      prevDate: parseISO(prevDate),
-      nextDate: nextDate ? parseISO(nextDate) : null,
-      today: new Date(),
+      periodFrom: from,
+      periodTo: to,
       runNumber,
       locale: resolveFormatLocale(settingsQ.data?.format_locale),
-      frequency: occurrence.rule.frequency,
-      anchorMonth: parseISO(occurrence.rule.starts_on).getMonth() + 1,
-      reportingOffsetMonths: occurrence.rule.reporting_offset_months ?? 0,
     };
-  }, [date, occurrence, prevDate, nextDate, runNumber, settingsQ.data?.format_locale]);
+  }, [date, occurrence, runNumber, settingsQ.data?.format_locale]);
+  // prevDate/nextDate are no longer part of the placeholder context.
+  void prevDate; void nextDate;
 
   if (!occurrence || !ctx) return null;
   const r = occurrence.rule;
