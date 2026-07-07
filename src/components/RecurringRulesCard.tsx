@@ -832,11 +832,7 @@ export function RecurringRulesCard() {
                 </div>
                 <PlaceholderPalette
                   formatLocaleCode={settingsQ.data?.format_locale}
-              ruleCtx={{
-                frequency: draft.frequency,
-                startsOn: draft.starts_on,
-                reportingOffsetMonths: Number(draft.reporting_offset_months) || 0,
-              }}
+                  ruleCtx={draftRuleShape(draft)}
                   onInsert={(snippet) => insertSlicePlaceholder({
                     snippet,
                     active: activeSlice,
