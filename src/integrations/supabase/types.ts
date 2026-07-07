@@ -798,26 +798,28 @@ export type Database = {
           auto_post: boolean
           category_id: string | null
           created_at: string
-          day_of_month: number | null
-          day_rule: Database["public"]["Enums"]["recurring_day_rule"]
           description: string | null
           destination_account_id: string | null
           ends_on: string | null
           estimated_amount: number | null
-          frequency: Database["public"]["Enums"]["recurring_frequency"]
+          execution_day_of_month: number | null
+          execution_day_rule: Database["public"]["Enums"]["day_rule_v2"]
+          execution_weekend_adjustment: Database["public"]["Enums"]["weekend_adjust_v2"]
           id: string
           is_split: boolean
           is_variable_amount: boolean
           is_variable_date: boolean
           name: string
           note: string | null
-          reporting_offset_months: number
+          period_day_of_month: number | null
+          period_day_rule: Database["public"]["Enums"]["day_rule_v2"]
+          period_offset: number
+          recurrence_interval: number
           source_account_id: string
           starts_on: string
           type: Database["public"]["Enums"]["transaction_type"]
           updated_at: string
           user_id: string | null
-          weekend_adjust: Database["public"]["Enums"]["weekend_adjust"]
         }
         Insert: {
           amount?: number | null
@@ -825,26 +827,28 @@ export type Database = {
           auto_post?: boolean
           category_id?: string | null
           created_at?: string
-          day_of_month?: number | null
-          day_rule?: Database["public"]["Enums"]["recurring_day_rule"]
           description?: string | null
           destination_account_id?: string | null
           ends_on?: string | null
           estimated_amount?: number | null
-          frequency?: Database["public"]["Enums"]["recurring_frequency"]
+          execution_day_of_month?: number | null
+          execution_day_rule: Database["public"]["Enums"]["day_rule_v2"]
+          execution_weekend_adjustment?: Database["public"]["Enums"]["weekend_adjust_v2"]
           id?: string
           is_split?: boolean
           is_variable_amount?: boolean
           is_variable_date?: boolean
           name: string
           note?: string | null
-          reporting_offset_months?: number
+          period_day_of_month?: number | null
+          period_day_rule: Database["public"]["Enums"]["day_rule_v2"]
+          period_offset?: number
+          recurrence_interval: number
           source_account_id: string
           starts_on: string
           type: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string
           user_id?: string | null
-          weekend_adjust?: Database["public"]["Enums"]["weekend_adjust"]
         }
         Update: {
           amount?: number | null
@@ -852,26 +856,28 @@ export type Database = {
           auto_post?: boolean
           category_id?: string | null
           created_at?: string
-          day_of_month?: number | null
-          day_rule?: Database["public"]["Enums"]["recurring_day_rule"]
           description?: string | null
           destination_account_id?: string | null
           ends_on?: string | null
           estimated_amount?: number | null
-          frequency?: Database["public"]["Enums"]["recurring_frequency"]
+          execution_day_of_month?: number | null
+          execution_day_rule?: Database["public"]["Enums"]["day_rule_v2"]
+          execution_weekend_adjustment?: Database["public"]["Enums"]["weekend_adjust_v2"]
           id?: string
           is_split?: boolean
           is_variable_amount?: boolean
           is_variable_date?: boolean
           name?: string
           note?: string | null
-          reporting_offset_months?: number
+          period_day_of_month?: number | null
+          period_day_rule?: Database["public"]["Enums"]["day_rule_v2"]
+          period_offset?: number
+          recurrence_interval?: number
           source_account_id?: string
           starts_on?: string
           type?: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string
           user_id?: string | null
-          weekend_adjust?: Database["public"]["Enums"]["weekend_adjust"]
         }
         Relationships: []
       }
@@ -1438,22 +1444,18 @@ export type Database = {
           name: string
         }[]
       }
-      compute_due_date: {
-        Args: {
-          p_dom: number
-          p_month: string
-          p_rule: Database["public"]["Enums"]["recurring_day_rule"]
-        }
-        Returns: string
-      }
-      compute_effective_date: {
-        Args: {
-          p_adjust: Database["public"]["Enums"]["weekend_adjust"]
-          p_due: string
-        }
-        Returns: string
-      }
       ensure_month_budgets: { Args: { p_month: string }; Returns: undefined }
+      exec_index_for_due: {
+        Args: {
+          p_due: string
+          p_ends_on: string
+          p_exec_dom: number
+          p_exec_rule: Database["public"]["Enums"]["day_rule_v2"]
+          p_interval_months: number
+          p_starts_on: string
+        }
+        Returns: number
+      }
       format_date_token: {
         Args: { p_date: string; p_fmt: string; p_locale: string }
         Returns: string
@@ -1465,74 +1467,58 @@ export type Database = {
         }
         Returns: boolean
       }
-      interpolate_template:
-        | {
-            Args: {
-              p_date: string
-              p_due: string
-              p_locale: string
-              p_next: string
-              p_prev: string
-              p_run: number
-              p_template: string
-              p_today: string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              p_date: string
-              p_due: string
-              p_frequency?: string
-              p_locale: string
-              p_next: string
-              p_prev: string
-              p_reporting_offset_months?: number
-              p_run: number
-              p_starts_on?: string
-              p_template: string
-              p_today: string
-            }
-            Returns: string
-          }
+      interpolate_template: {
+        Args: {
+          p_date: string
+          p_due: string
+          p_locale: string
+          p_period_from: string
+          p_period_to: string
+          p_run: number
+          p_template: string
+        }
+        Returns: string
+      }
       log_audit_event: {
         Args: { p_action: string; p_metadata?: Json }
         Returns: number
       }
-      preview_recurring_rule:
-        | {
-            Args: {
-              p_day_of_month: number
-              p_day_rule: Database["public"]["Enums"]["recurring_day_rule"]
-              p_ends_on: string
-              p_from: string
-              p_starts_on: string
-              p_to: string
-              p_weekend_adjust: Database["public"]["Enums"]["weekend_adjust"]
-            }
-            Returns: {
-              due_on: string
-              effective_on: string
-              in_past: boolean
-            }[]
-          }
-        | {
-            Args: {
-              p_day_of_month: number
-              p_day_rule: Database["public"]["Enums"]["recurring_day_rule"]
-              p_ends_on: string
-              p_frequency?: Database["public"]["Enums"]["recurring_frequency"]
-              p_from: string
-              p_starts_on: string
-              p_to: string
-              p_weekend_adjust: Database["public"]["Enums"]["weekend_adjust"]
-            }
-            Returns: {
-              due_on: string
-              effective_on: string
-              in_past: boolean
-            }[]
-          }
+      period_bounds_for_due: {
+        Args: {
+          p_due: string
+          p_ends_on: string
+          p_exec_dom: number
+          p_exec_rule: Database["public"]["Enums"]["day_rule_v2"]
+          p_interval_months: number
+          p_period_dom: number
+          p_period_offset: number
+          p_period_rule: Database["public"]["Enums"]["day_rule_v2"]
+          p_starts_on: string
+        }
+        Returns: Record<string, unknown>
+      }
+      preview_recurring_rule: {
+        Args: {
+          p_ends_on: string
+          p_execution_day_of_month: number
+          p_execution_day_rule: Database["public"]["Enums"]["day_rule_v2"]
+          p_execution_weekend_adjustment: Database["public"]["Enums"]["weekend_adjust_v2"]
+          p_from: string
+          p_period_day_of_month: number
+          p_period_day_rule: Database["public"]["Enums"]["day_rule_v2"]
+          p_period_offset: number
+          p_recurrence_interval: number
+          p_starts_on: string
+          p_to: string
+        }
+        Returns: {
+          due_on: string
+          effective_on: string
+          in_past: boolean
+          period_from: string
+          period_to: string
+        }[]
+      }
       process_recurring_rules: { Args: { p_today: string }; Returns: undefined }
       process_recurring_rules_for_all_users: {
         Args: { p_today: string }
@@ -1552,22 +1538,34 @@ export type Database = {
           unswept_current_month: number
         }[]
       }
-      recurring_month_step: {
-        Args: { p_freq: Database["public"]["Enums"]["recurring_frequency"] }
-        Returns: number
+      series_step: {
+        Args: {
+          p_anchor: string
+          p_dom: number
+          p_interval_months: number
+          p_n: number
+          p_rule: Database["public"]["Enums"]["day_rule_v2"]
+        }
+        Returns: string
+      }
+      weekend_shift: {
+        Args: {
+          p_adj: Database["public"]["Enums"]["weekend_adjust_v2"]
+          p_date: string
+        }
+        Returns: string
       }
     }
     Enums: {
       account_type: "asset" | "liability"
       app_role: "admin" | "user"
       category_group_kind: "income" | "expense" | "savings"
+      day_rule_v2: "FixedDay" | "LastDay" | "FirstDay"
       occurrence_status: "pending" | "posted" | "skipped"
       pending_transaction_status: "pending" | "confirmed" | "rejected"
-      recurring_day_rule: "fixed_day" | "end_of_month" | "first_of_month"
-      recurring_frequency: "monthly" | "quarterly" | "yearly"
       transaction_link_kind: "purchase" | "event" | "trip" | "other"
       transaction_type: "expense" | "income" | "transfer"
-      weekend_adjust: "none" | "before" | "after"
+      weekend_adjust_v2: "None" | "PreviousBusinessDay" | "NextBusinessDay"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1698,13 +1696,12 @@ export const Constants = {
       account_type: ["asset", "liability"],
       app_role: ["admin", "user"],
       category_group_kind: ["income", "expense", "savings"],
+      day_rule_v2: ["FixedDay", "LastDay", "FirstDay"],
       occurrence_status: ["pending", "posted", "skipped"],
       pending_transaction_status: ["pending", "confirmed", "rejected"],
-      recurring_day_rule: ["fixed_day", "end_of_month", "first_of_month"],
-      recurring_frequency: ["monthly", "quarterly", "yearly"],
       transaction_link_kind: ["purchase", "event", "trip", "other"],
       transaction_type: ["expense", "income", "transfer"],
-      weekend_adjust: ["none", "before", "after"],
+      weekend_adjust_v2: ["None", "PreviousBusinessDay", "NextBusinessDay"],
     },
   },
 } as const
