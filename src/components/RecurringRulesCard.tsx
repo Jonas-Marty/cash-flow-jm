@@ -1443,49 +1443,17 @@ function PreviewPanel({
   );
 }
 
-/**
- * Tiny hint that tells the user which months a quarterly/yearly rule actually
- * fires in (the anchor is implicit in `starts_on`), with a one-click button
- * that snaps `starts_on` onto a calendar quarter (Jan/Apr/Jul/Oct).
- */
-function AnchorMonthHint({
-  frequency,
-  startsOn,
-  onUseCalendarQuarter,
-}: {
-  frequency: RecurringFrequency;
-  startsOn: string;
-  onUseCalendarQuarter: () => void;
-}) {
-  const { t, locale } = useI18n();
-  if (!startsOn) return null;
-  let d: Date;
-  try { d = parseISO(startsOn); } catch { return null; }
-  if (frequency === "yearly") {
-    return (
-      <div className="mt-1 text-[11px] text-muted-foreground">
-        {t("recurring.anchor.yearly", { month: format(d, "MMMM", { locale }) })}
-      </div>
-    );
-  }
-  // quarterly — list the four anchor months
-  const m0 = d.getMonth();
-  const months = [0, 3, 6, 9].map((step) =>
-    format(new Date(2000, (m0 + step) % 12, 1), "MMM", { locale }),
-  );
-  const isCalendar = m0 % 3 === 0;
-  return (
-    <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-      <span>{t("recurring.anchor.quarterly", { months: months.join(" · ") })}</span>
-      {!isCalendar && (
-        <button
-          type="button"
-          onClick={onUseCalendarQuarter}
-          className="underline-offset-2 hover:underline"
-        >
-          {t("recurring.anchor.use_calendar_quarter")}
-        </button>
-      )}
-    </div>
-  );
+/** Build a v2 RuleShape from the in-progress draft, for TS-side preview. */
+function draftRuleShape(draft: Draft): RuleShape {
+  return {
+    starts_on: draft.starts_on,
+    ends_on: draft.ends_on || null,
+    recurrence_interval: draft.recurrence_interval,
+    execution_day_rule: draft.execution_day_rule,
+    execution_day_of_month: draft.execution_day_rule === "FixedDay" ? Number(draft.execution_day_of_month) || 1 : null,
+    execution_weekend_adjustment: draft.execution_weekend_adjustment,
+    period_day_rule: draft.period_day_rule,
+    period_day_of_month: draft.period_day_rule === "FixedDay" ? Number(draft.period_day_of_month) || 1 : null,
+    period_offset: draft.period_offset,
+  };
 }
