@@ -250,9 +250,8 @@ export async function restorePendingTransaction(pendingId: string): Promise<void
     .eq("id", pendingId);
   if (error) throw error;
 }
-export type RecurringFrequency = "monthly" | "quarterly" | "yearly";
-export type RecurringDayRule = "fixed_day" | "end_of_month" | "first_of_month";
-export type WeekendAdjust = "none" | "before" | "after";
+export type DayRuleV2 = "FixedDay" | "LastDay" | "FirstDay";
+export type WeekendAdjustV2 = "None" | "PreviousBusinessDay" | "NextBusinessDay";
 export type OccurrenceStatus = "pending" | "posted" | "skipped";
 
 export interface RecurringRule {
@@ -267,17 +266,20 @@ export interface RecurringRule {
   category_id: string | null;
   description: string | null;
   note: string | null;
-  frequency: RecurringFrequency;
-  day_rule: RecurringDayRule;
-  day_of_month: number | null;
-  weekend_adjust: WeekendAdjust;
+  // Recurrence engine v2 fields
+  recurrence_interval: number; // 1..12 (months)
+  execution_day_rule: DayRuleV2;
+  execution_day_of_month: number | null;
+  execution_weekend_adjustment: WeekendAdjustV2;
+  period_day_rule: DayRuleV2;
+  period_day_of_month: number | null;
+  period_offset: number; // -3..3
   starts_on: string;
   ends_on: string | null;
   auto_post: boolean;
   archived: boolean;
   is_split?: boolean;
   is_variable_date?: boolean;
-  reporting_offset_months?: number;
   slices?: RecurringRuleSlice[];
 }
 
