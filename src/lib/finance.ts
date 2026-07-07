@@ -684,18 +684,22 @@ export async function postOccurrence(occ: RecurringOccurrence & { rule: Recurrin
     const runNumber = siblings.filter((d) => d <= occ.effective_on).length || 1;
     const settingsRow = await supabase.from("settings").select("format_locale").maybeSingle();
     const fmtLocale = resolveFormatLocale(settingsRow.data?.format_locale);
+    const { periodBoundsForDue, parseISODate } = await import("./recurrence");
+    const { from: periodFrom, to: periodTo } = periodBoundsForDue(
+      { ...r } as unknown as import("./recurrence").RuleShape,
+      parseISODate(occ.due_on),
+    );
     const ctx = {
       date: new Date(occurredOn),
       dueDate: new Date(occ.due_on),
-      prevDate: new Date(prevStr),
-      nextDate: nextStr ? new Date(nextStr) : null,
-      today: new Date(),
+      periodFrom,
+      periodTo,
       runNumber,
       locale: fmtLocale,
-      frequency: r.frequency,
-      anchorMonth: new Date(r.starts_on).getMonth() + 1,
-      reportingOffsetMonths: r.reporting_offset_months ?? 0,
     };
+    // siblings used only for run-number below; keep dead-simple markers to
+    // avoid unused-var lint when the block above is inlined.
+    void prevStr; void nextStr;
     const rows = slices.map((s, i) => ({
       user_id: userId,
       occurred_on: occurredOn,
@@ -758,29 +762,37 @@ export async function skipOccurrence(id: string): Promise<void> {
 export interface RecurringPreviewRow {
   due_on: string;
   effective_on: string;
+  period_from: string;
+  period_to: string;
   in_past: boolean;
 }
 
 export async function previewRecurringRule(input: {
-  day_rule: RecurringDayRule;
-  day_of_month: number | null;
-  weekend_adjust: WeekendAdjust;
+  recurrence_interval: number;
+  execution_day_rule: DayRuleV2;
+  execution_day_of_month: number | null;
+  execution_weekend_adjustment: WeekendAdjustV2;
+  period_day_rule: DayRuleV2;
+  period_day_of_month: number | null;
+  period_offset: number;
   starts_on: string;
   ends_on: string | null;
   from: string;
   to: string;
-  frequency?: RecurringFrequency;
 }): Promise<RecurringPreviewRow[]> {
   const { data, error } = await supabase.rpc("preview_recurring_rule", {
-    p_day_rule: input.day_rule,
-    p_day_of_month: input.day_of_month,
-    p_weekend_adjust: input.weekend_adjust,
+    p_recurrence_interval: input.recurrence_interval,
+    p_execution_day_rule: input.execution_day_rule,
+    p_execution_day_of_month: input.execution_day_of_month,
+    p_execution_weekend_adjustment: input.execution_weekend_adjustment,
+    p_period_day_rule: input.period_day_rule,
+    p_period_day_of_month: input.period_day_of_month,
+    p_period_offset: input.period_offset,
     p_starts_on: input.starts_on,
     p_ends_on: input.ends_on,
     p_from: input.from,
     p_to: input.to,
-    p_frequency: input.frequency ?? "monthly",
-  } as never);
+  });
   if (error) throw error;
   return (data || []) as RecurringPreviewRow[];
 }
@@ -802,18 +814,12 @@ export async function applyRecurringRuleBackfill(ruleId: string, mode: "none" | 
 
 export function describeSchedule(r: RecurringRule, t: (k: string, v?: Record<string, string | number>) => string): string {
   const parts: string[] = [];
-  parts.push(
-    r.frequency === "quarterly"
-      ? t("recurring.freq.quarterly")
-      : r.frequency === "yearly"
-        ? t("recurring.freq.yearly")
-        : t("recurring.freq.monthly")
-  );
-  if (r.day_rule === "first_of_month") parts.push(t("recurring.sched.first"));
-  else if (r.day_rule === "end_of_month") parts.push(t("recurring.sched.end"));
-  else parts.push(t("recurring.sched.day", { d: r.day_of_month ?? 1 }));
-  if (r.weekend_adjust === "before") parts.push(t("recurring.sched.weekend_before"));
-  else if (r.weekend_adjust === "after") parts.push(t("recurring.sched.weekend_after"));
+  parts.push(t("recurring.sched.every_n_months", { n: r.recurrence_interval }));
+  if (r.execution_day_rule === "FirstDay") parts.push(t("recurring.sched.first"));
+  else if (r.execution_day_rule === "LastDay") parts.push(t("recurring.sched.end"));
+  else parts.push(t("recurring.sched.day", { d: r.execution_day_of_month ?? 1 }));
+  if (r.execution_weekend_adjustment === "PreviousBusinessDay") parts.push(t("recurring.sched.weekend_before"));
+  else if (r.execution_weekend_adjustment === "NextBusinessDay") parts.push(t("recurring.sched.weekend_after"));
   return parts.join(" · ");
 }
 
