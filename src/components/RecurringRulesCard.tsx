@@ -1260,19 +1260,22 @@ function PreviewPanel({
   const fromISO = fromDate.toISOString().slice(0, 10);
   const toISO = toDate.toISOString().slice(0, 10);
 
-  const dom = draft.day_rule === "fixed_day" ? Number(draft.day_of_month) || 1 : null;
+  const shape = draftRuleShape(draft);
   const enabled = !!draft.starts_on;
   const previewQ = useRQuery({
-    queryKey: ["preview_recurring", draft.frequency, draft.day_rule, dom, draft.weekend_adjust, draft.starts_on, draft.ends_on || null, fromISO, toISO],
+    queryKey: ["preview_recurring", JSON.stringify(shape), fromISO, toISO],
     queryFn: () => previewRecurringRule({
-      day_rule: draft.day_rule,
-      day_of_month: dom,
-      weekend_adjust: draft.weekend_adjust,
-      starts_on: draft.starts_on,
-      ends_on: draft.ends_on || null,
+      recurrence_interval: shape.recurrence_interval,
+      execution_day_rule: shape.execution_day_rule,
+      execution_day_of_month: shape.execution_day_of_month,
+      execution_weekend_adjustment: shape.execution_weekend_adjustment,
+      period_day_rule: shape.period_day_rule,
+      period_day_of_month: shape.period_day_of_month,
+      period_offset: shape.period_offset,
+      starts_on: shape.starts_on,
+      ends_on: shape.ends_on,
       from: fromISO,
       to: toISO,
-      frequency: draft.frequency,
     }),
     enabled,
     staleTime: 30_000,
@@ -1334,11 +1337,11 @@ function PreviewPanel({
             {rows.map((r, i) => {
               const eff = parseISO(r.effective_on);
               const due = parseISO(r.due_on);
-              const prev = i === 0 ? startsOnDate : parseISO(rows[i - 1].effective_on);
-              const next = i < rows.length - 1 ? parseISO(rows[i + 1].effective_on) : null;
+              const pf = parseISO(r.period_from);
+              const pt = parseISO(r.period_to);
               const ctx = {
-                date: eff, dueDate: due, prevDate: prev, nextDate: next,
-                today: new Date(), runNumber: i + 1, locale: fmtLocale,
+                date: eff, dueDate: due, periodFrom: pf, periodTo: pt,
+                runNumber: i + 1, locale: fmtLocale,
               };
               const resolved = interpolate(draft.description, ctx);
               const resolvedNote = interpolate(draft.note, ctx);
