@@ -115,8 +115,8 @@ export function ProjectionTab({ symbol }: { symbol: string }) {
       if (r.archived) continue;
       if (r.type === "transfer") continue;
       const amt = Number(r.is_variable_amount ? r.estimated_amount : r.amount) || 0;
-      const monthlyFactor = r.frequency === "monthly" ? 1 : r.frequency === "quarterly" ? 1 / 3 : 1 / 12;
-      const monthly = amt * monthlyFactor;
+      const interval = Math.max(1, r.recurrence_interval ?? 1);
+      const monthly = amt / interval;
       net += r.type === "income" ? monthly : -monthly;
     }
     return net;

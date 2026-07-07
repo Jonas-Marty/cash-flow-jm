@@ -18,8 +18,9 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   fetchAccounts, fetchCategories, fetchRecurringRules,
   describeSchedule, previewRecurringRule, archiveRecurringRule, applyRecurringRuleBackfill, fetchSettings, fetchTransactions,
-  type RecurringRule, type RecurringDayRule, type WeekendAdjust, type TxType, type RecurringFrequency,
+  type RecurringRule, type DayRuleV2, type WeekendAdjustV2, type TxType,
 } from "@/lib/finance";
+import { seriesStep, weekendShift, periodBoundsForDue, parseISODate, toISODate, type RuleShape } from "@/lib/recurrence";
 import { useI18n } from "@/i18n";
 import { DateInput } from "@/components/DateInput";
 import { useQuery as useRQuery } from "@tanstack/react-query";
@@ -42,17 +43,19 @@ type Draft = {
   category_id: string;
   description: string;
   note: string;
-  day_rule: RecurringDayRule;
-  day_of_month: string;
-  weekend_adjust: WeekendAdjust;
-  frequency: RecurringFrequency;
+  recurrence_interval: number; // 1..12
+  execution_day_rule: DayRuleV2;
+  execution_day_of_month: string;
+  execution_weekend_adjustment: WeekendAdjustV2;
+  period_day_rule: DayRuleV2;
+  period_day_of_month: string;
+  period_offset: number; // -3..3
   starts_on: string;
   ends_on: string;
   auto_post: boolean;
   backfill: "none" | "post" | "pending";
   is_variable_date: boolean;
   is_split: boolean;
-  reporting_offset_months: string;
   slices: SliceDraft[];
 };
 
@@ -89,14 +92,16 @@ function emptyDraft(): Draft {
     is_variable_amount: false, estimated_amount: "",
     source_account_id: "", destination_account_id: "", category_id: "",
     description: "", note: "",
-    day_rule: "fixed_day", day_of_month: "1", weekend_adjust: "none",
-    frequency: "monthly",
+    recurrence_interval: 1,
+    execution_day_rule: "FixedDay", execution_day_of_month: "1",
+    execution_weekend_adjustment: "None",
+    period_day_rule: "FixedDay", period_day_of_month: "1",
+    period_offset: 0,
     starts_on: todayStr(), ends_on: "",
     auto_post: true,
     backfill: "none",
     is_variable_date: false,
     is_split: false,
-    reporting_offset_months: "0",
     slices: [emptySlice(), emptySlice()],
   };
 }
@@ -111,15 +116,18 @@ function ruleToDraft(r: RecurringRule): Draft {
     destination_account_id: r.destination_account_id ?? "",
     category_id: r.category_id ?? "",
     description: r.description ?? "", note: r.note ?? "",
-    day_rule: r.day_rule, day_of_month: String(r.day_of_month ?? 1),
-    weekend_adjust: r.weekend_adjust,
-    frequency: r.frequency ?? "monthly",
+    recurrence_interval: r.recurrence_interval ?? 1,
+    execution_day_rule: r.execution_day_rule,
+    execution_day_of_month: String(r.execution_day_of_month ?? 1),
+    execution_weekend_adjustment: r.execution_weekend_adjustment,
+    period_day_rule: r.period_day_rule,
+    period_day_of_month: String(r.period_day_of_month ?? 1),
+    period_offset: r.period_offset ?? 0,
     starts_on: r.starts_on, ends_on: r.ends_on ?? "",
     auto_post: r.auto_post,
     backfill: "none",
     is_variable_date: !!r.is_variable_date,
     is_split: !!r.is_split,
-    reporting_offset_months: String(r.reporting_offset_months ?? 0),
     slices: r.slices && r.slices.length >= 2
       ? r.slices.map((s) => ({
           id: s.id,
@@ -137,41 +145,16 @@ function ruleToDraft(r: RecurringRule): Draft {
 }
 
 function nextDueDate(r: RecurringRule, from = new Date()): Date | null {
-  const start = parseISO(r.starts_on);
-  const end = r.ends_on ? parseISO(r.ends_on) : null;
-  const step = r.frequency === "quarterly" ? 3 : r.frequency === "yearly" ? 12 : 1;
-  let cursor = new Date(Math.max(start.getTime(), from.getTime()));
-  // Align cursor to the start month, then advance in `step` increments to/past `from`.
-  cursor = new Date(start.getFullYear(), start.getMonth(), 1);
-  while (cursor < new Date(from.getFullYear(), from.getMonth(), 1)) {
-    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + step, 1);
-  }
-  for (let i = 0; i < 48; i++) {
-    const d = computeDue(cursor, r.day_rule, r.day_of_month ?? 1);
-    const e = adjust(d, r.weekend_adjust);
-    if (e >= from && e >= start && (!end || e <= end)) return e;
-    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + step, 1);
+  const start = parseISODate(r.starts_on);
+  const end = r.ends_on ? parseISODate(r.ends_on) : null;
+  for (let n = 0; n < 400; n++) {
+    const due = seriesStep(start, r.execution_day_rule, r.execution_day_of_month, r.recurrence_interval, n);
+    if (end && due > end) return null;
+    if (due < start) continue;
+    const eff = weekendShift(due, r.execution_weekend_adjustment);
+    if (eff >= from) return eff;
   }
   return null;
-}
-function computeDue(month: Date, rule: RecurringDayRule, dom: number): Date {
-  const last = new Date(month.getFullYear(), month.getMonth() + 1, 0);
-  if (rule === "first_of_month") return new Date(month.getFullYear(), month.getMonth(), 1);
-  if (rule === "end_of_month") return last;
-  return new Date(month.getFullYear(), month.getMonth(), Math.min(dom, last.getDate()));
-}
-function adjust(d: Date, w: WeekendAdjust): Date {
-  if (w === "none") return d;
-  const dow = d.getDay(); // 0=Sun..6=Sat
-  const r = new Date(d);
-  if (w === "before") {
-    if (dow === 6) r.setDate(d.getDate() - 1);
-    else if (dow === 0) r.setDate(d.getDate() - 2);
-  } else {
-    if (dow === 6) r.setDate(d.getDate() + 2);
-    else if (dow === 0) r.setDate(d.getDate() + 1);
-  }
-  return r;
 }
 
 export function RecurringRulesCard() {
@@ -335,16 +318,18 @@ export function RecurringRulesCard() {
       category_id: draft.type !== "transfer" && !draft.is_split && draft.category_id ? draft.category_id : null,
       description: draft.is_split ? null : (draft.description.trim() || null),
       note: draft.is_split ? null : (draft.note.trim() || null),
-      day_rule: draft.day_rule,
-      day_of_month: draft.day_rule === "fixed_day" ? Number(draft.day_of_month) || 1 : null,
-      weekend_adjust: draft.weekend_adjust,
-      frequency: draft.frequency,
+      recurrence_interval: draft.recurrence_interval,
+      execution_day_rule: draft.execution_day_rule,
+      execution_day_of_month: draft.execution_day_rule === "FixedDay" ? Number(draft.execution_day_of_month) || 1 : null,
+      execution_weekend_adjustment: draft.execution_weekend_adjustment,
+      period_day_rule: draft.period_day_rule,
+      period_day_of_month: draft.period_day_rule === "FixedDay" ? Number(draft.period_day_of_month) || 1 : null,
+      period_offset: draft.period_offset,
       starts_on: draft.starts_on,
       ends_on: draft.ends_on || null,
       auto_post: (draft.is_variable_amount || draft.is_variable_date) ? false : draft.auto_post,
       is_variable_date: draft.is_variable_date,
       is_split: draft.is_split,
-      reporting_offset_months: Number(draft.reporting_offset_months) || 0,
     };
     let savedId: string | undefined = draft.id;
     if (isNew) {
@@ -651,11 +636,7 @@ export function RecurringRulesCard() {
             </div>
             <PlaceholderPalette
               formatLocaleCode={settingsQ.data?.format_locale}
-              ruleCtx={{
-                frequency: draft.frequency,
-                startsOn: draft.starts_on,
-                reportingOffsetMonths: Number(draft.reporting_offset_months) || 0,
-              }}
+              ruleCtx={draftRuleShape(draft)}
               onInsert={(snippet) => insertPlaceholder({
                 snippet,
                 target: activeField,
@@ -677,80 +658,95 @@ export function RecurringRulesCard() {
             </div>
             </>
             )}
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <Label className="text-xs">{t("recurring.field.frequency")}</Label>
-                <Select value={draft.frequency} onValueChange={(v) => setDraft({ ...draft, frequency: v as RecurringFrequency })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="monthly">{t("recurring.freq.monthly")}</SelectItem>
-                    <SelectItem value="quarterly">{t("recurring.freq.quarterly")}</SelectItem>
-                    <SelectItem value="yearly">{t("recurring.freq.yearly")}</SelectItem>
-                  </SelectContent>
-                </Select>
-                {(draft.frequency === "quarterly" || draft.frequency === "yearly") && (
-                  <AnchorMonthHint
-                    frequency={draft.frequency}
-                    startsOn={draft.starts_on}
-                    onUseCalendarQuarter={() => {
-                      const d = parseISO(draft.starts_on);
-                      const m = d.getMonth();
-                      const calendarMonth = Math.floor(m / 3) * 3; // 0,3,6,9
-                      const next = new Date(d.getFullYear(), calendarMonth, d.getDate());
-                      setDraft({ ...draft, starts_on: format(next, "yyyy-MM-dd") });
-                    }}
-                  />
+            <div>
+              <Label className="text-xs">{t("recurring.field.interval")}</Label>
+              <Select value={String(draft.recurrence_interval)} onValueChange={(v) => setDraft({ ...draft, recurrence_interval: Number(v) })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {[1,2,3,4,5,6,7,8,9,10,11,12].map((n) => (
+                    <SelectItem key={n} value={String(n)}>
+                      {t("recurring.interval.item", { n })}
+                      {n === 1 ? ` — ${t("recurring.freq.monthly")}` :
+                        n === 3 ? ` — ${t("recurring.freq.quarterly")}` :
+                        n === 6 ? ` — ${t("recurring.freq.semesterly")}` :
+                        n === 12 ? ` — ${t("recurring.freq.yearly")}` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="rounded-md border p-3 space-y-3">
+              <div className="text-xs font-semibold uppercase text-muted-foreground">{t("recurring.section.execution")}</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-xs">{t("recurring.field.day_rule")}</Label>
+                  <Select value={draft.execution_day_rule} onValueChange={(v) => setDraft({ ...draft, execution_day_rule: v as DayRuleV2 })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="FixedDay">{t("recurring.day_rule.fixed_day")}</SelectItem>
+                      <SelectItem value="LastDay">{t("recurring.day_rule.end_of_month")}</SelectItem>
+                      <SelectItem value="FirstDay">{t("recurring.day_rule.first_of_month")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {draft.execution_day_rule === "FixedDay" && (
+                  <div>
+                    <Label className="text-xs">{t("recurring.field.day_of_month")}</Label>
+                    <Input inputMode="numeric" min={1} max={31} type="number" value={draft.execution_day_of_month} onChange={(e) => setDraft({ ...draft, execution_day_of_month: e.target.value })} />
+                  </div>
                 )}
               </div>
               <div>
-                <Label className="text-xs">{t("recurring.field.day_rule")}</Label>
-                <Select value={draft.day_rule} onValueChange={(v) => setDraft({ ...draft, day_rule: v as RecurringDayRule })}>
+                <Label className="text-xs">{t("recurring.field.weekend")}</Label>
+                <Select value={draft.execution_weekend_adjustment} onValueChange={(v) => setDraft({ ...draft, execution_weekend_adjustment: v as WeekendAdjustV2 })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="fixed_day">{t("recurring.day_rule.fixed_day")}</SelectItem>
-                    <SelectItem value="end_of_month">{t("recurring.day_rule.end_of_month")}</SelectItem>
-                    <SelectItem value="first_of_month">{t("recurring.day_rule.first_of_month")}</SelectItem>
+                    <SelectItem value="None">{t("recurring.weekend.none")}</SelectItem>
+                    <SelectItem value="PreviousBusinessDay">{t("recurring.weekend.before")}</SelectItem>
+                    <SelectItem value="NextBusinessDay">{t("recurring.weekend.after")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              {draft.day_rule === "fixed_day" && (
+            </div>
+            <div className="rounded-md border p-3 space-y-3">
+              <div className="text-xs font-semibold uppercase text-muted-foreground">{t("recurring.section.period")}</div>
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs">{t("recurring.field.day_of_month")}</Label>
-                  <Input inputMode="numeric" min={1} max={31} type="number" value={draft.day_of_month} onChange={(e) => setDraft({ ...draft, day_of_month: e.target.value })} />
+                  <Label className="text-xs">{t("recurring.field.period_day_rule")}</Label>
+                  <Select value={draft.period_day_rule} onValueChange={(v) => setDraft({ ...draft, period_day_rule: v as DayRuleV2 })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="FixedDay">{t("recurring.day_rule.fixed_day")}</SelectItem>
+                      <SelectItem value="LastDay">{t("recurring.day_rule.end_of_month")}</SelectItem>
+                      <SelectItem value="FirstDay">{t("recurring.day_rule.first_of_month")}</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              )}
-            </div>
-            <div>
-              <Label className="text-xs">{t("recurring.field.reports_on")}</Label>
-              <Select
-                value={String(Number(draft.reporting_offset_months) || 0)}
-                onValueChange={(v) => setDraft({ ...draft, reporting_offset_months: v })}
-              >
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">{t("recurring.reports_on.this")}</SelectItem>
-                  <SelectItem value={String(draft.frequency === "quarterly" ? 3 : draft.frequency === "yearly" ? 12 : 1)}>
-                    {t("recurring.reports_on.previous")}
-                  </SelectItem>
-                  <SelectItem value={String((draft.frequency === "quarterly" ? 3 : draft.frequency === "yearly" ? 12 : 1) * 2)}>
-                    {t("recurring.reports_on.two_back")}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="mt-1 text-[11px] text-muted-foreground">
-                {t("recurring.reports_on.hint")}
+                {draft.period_day_rule === "FixedDay" && (
+                  <div>
+                    <Label className="text-xs">{t("recurring.field.day_of_month")}</Label>
+                    <Input inputMode="numeric" min={1} max={31} type="number" value={draft.period_day_of_month} onChange={(e) => setDraft({ ...draft, period_day_of_month: e.target.value })} />
+                  </div>
+                )}
               </div>
-            </div>
-            <div>
-              <Label className="text-xs">{t("recurring.field.weekend")}</Label>
-              <Select value={draft.weekend_adjust} onValueChange={(v) => setDraft({ ...draft, weekend_adjust: v as WeekendAdjust })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">{t("recurring.weekend.none")}</SelectItem>
-                  <SelectItem value="before">{t("recurring.weekend.before")}</SelectItem>
-                  <SelectItem value="after">{t("recurring.weekend.after")}</SelectItem>
-                </SelectContent>
-              </Select>
+              <div>
+                <Label className="text-xs">{t("recurring.field.period_offset")}</Label>
+                <Select value={String(draft.period_offset)} onValueChange={(v) => setDraft({ ...draft, period_offset: Number(v) })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[-3,-2,-1,0,1,2,3].map((n) => (
+                      <SelectItem key={n} value={String(n)}>
+                        {n === 0 ? t("recurring.period_offset.zero")
+                          : n < 0 ? t("recurring.period_offset.back", { n: Math.abs(n) })
+                          : t("recurring.period_offset.forward", { n })}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="mt-1 text-[11px] text-muted-foreground">
+                  {t("recurring.period_offset.hint")}
+                </div>
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -835,11 +831,7 @@ export function RecurringRulesCard() {
                 </div>
                 <PlaceholderPalette
                   formatLocaleCode={settingsQ.data?.format_locale}
-              ruleCtx={{
-                frequency: draft.frequency,
-                startsOn: draft.starts_on,
-                reportingOffsetMonths: Number(draft.reporting_offset_months) || 0,
-              }}
+                  ruleCtx={draftRuleShape(draft)}
                   onInsert={(snippet) => insertSlicePlaceholder({
                     snippet,
                     active: activeSlice,
@@ -1142,25 +1134,26 @@ function PlaceholderPalette({
 }: {
   onInsert: (snippet: string) => void;
   formatLocaleCode?: string;
-  ruleCtx?: { frequency: RecurringFrequency; startsOn: string; reportingOffsetMonths: number };
+  ruleCtx?: RuleShape;
 }) {
   const { t } = useI18n();
   const fmtLocale = resolveFormatLocale(formatLocaleCode);
   const sampleCtx = React.useMemo(() => {
     const today = new Date();
-    const prev = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
-    const next = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
-    let anchorMonth: number | undefined;
-    if (ruleCtx?.startsOn) {
-      try { anchorMonth = parseISO(ruleCtx.startsOn).getMonth() + 1; } catch { /* ignore */ }
+    let periodFrom = today;
+    let periodTo = today;
+    if (ruleCtx) {
+      try {
+        const { from, to } = periodBoundsForDue(ruleCtx, today);
+        periodFrom = from; periodTo = to;
+      } catch { /* ignore */ }
     }
     return {
-      date: today, dueDate: today, prevDate: prev, nextDate: next, today, runNumber: 3, locale: fmtLocale,
-      frequency: ruleCtx?.frequency,
-      anchorMonth,
-      reportingOffsetMonths: ruleCtx?.reportingOffsetMonths ?? 0,
+      date: today, dueDate: today,
+      periodFrom, periodTo,
+      runNumber: 3, locale: fmtLocale,
     };
-  }, [fmtLocale, ruleCtx?.frequency, ruleCtx?.startsOn, ruleCtx?.reportingOffsetMonths]);
+  }, [fmtLocale, ruleCtx]);
   const [showFormatHelp, setShowFormatHelp] = React.useState(false);
   return (
     <div className="rounded-md border p-2">
@@ -1267,19 +1260,22 @@ function PreviewPanel({
   const fromISO = fromDate.toISOString().slice(0, 10);
   const toISO = toDate.toISOString().slice(0, 10);
 
-  const dom = draft.day_rule === "fixed_day" ? Number(draft.day_of_month) || 1 : null;
+  const shape = draftRuleShape(draft);
   const enabled = !!draft.starts_on;
   const previewQ = useRQuery({
-    queryKey: ["preview_recurring", draft.frequency, draft.day_rule, dom, draft.weekend_adjust, draft.starts_on, draft.ends_on || null, fromISO, toISO],
+    queryKey: ["preview_recurring", JSON.stringify(shape), fromISO, toISO],
     queryFn: () => previewRecurringRule({
-      day_rule: draft.day_rule,
-      day_of_month: dom,
-      weekend_adjust: draft.weekend_adjust,
-      starts_on: draft.starts_on,
-      ends_on: draft.ends_on || null,
+      recurrence_interval: shape.recurrence_interval,
+      execution_day_rule: shape.execution_day_rule,
+      execution_day_of_month: shape.execution_day_of_month,
+      execution_weekend_adjustment: shape.execution_weekend_adjustment,
+      period_day_rule: shape.period_day_rule,
+      period_day_of_month: shape.period_day_of_month,
+      period_offset: shape.period_offset,
+      starts_on: shape.starts_on,
+      ends_on: shape.ends_on,
       from: fromISO,
       to: toISO,
-      frequency: draft.frequency,
     }),
     enabled,
     staleTime: 30_000,
@@ -1341,11 +1337,11 @@ function PreviewPanel({
             {rows.map((r, i) => {
               const eff = parseISO(r.effective_on);
               const due = parseISO(r.due_on);
-              const prev = i === 0 ? startsOnDate : parseISO(rows[i - 1].effective_on);
-              const next = i < rows.length - 1 ? parseISO(rows[i + 1].effective_on) : null;
+              const pf = parseISO(r.period_from);
+              const pt = parseISO(r.period_to);
               const ctx = {
-                date: eff, dueDate: due, prevDate: prev, nextDate: next,
-                today: new Date(), runNumber: i + 1, locale: fmtLocale,
+                date: eff, dueDate: due, periodFrom: pf, periodTo: pt,
+                runNumber: i + 1, locale: fmtLocale,
               };
               const resolved = interpolate(draft.description, ctx);
               const resolvedNote = interpolate(draft.note, ctx);
@@ -1446,49 +1442,17 @@ function PreviewPanel({
   );
 }
 
-/**
- * Tiny hint that tells the user which months a quarterly/yearly rule actually
- * fires in (the anchor is implicit in `starts_on`), with a one-click button
- * that snaps `starts_on` onto a calendar quarter (Jan/Apr/Jul/Oct).
- */
-function AnchorMonthHint({
-  frequency,
-  startsOn,
-  onUseCalendarQuarter,
-}: {
-  frequency: RecurringFrequency;
-  startsOn: string;
-  onUseCalendarQuarter: () => void;
-}) {
-  const { t, locale } = useI18n();
-  if (!startsOn) return null;
-  let d: Date;
-  try { d = parseISO(startsOn); } catch { return null; }
-  if (frequency === "yearly") {
-    return (
-      <div className="mt-1 text-[11px] text-muted-foreground">
-        {t("recurring.anchor.yearly", { month: format(d, "MMMM", { locale }) })}
-      </div>
-    );
-  }
-  // quarterly — list the four anchor months
-  const m0 = d.getMonth();
-  const months = [0, 3, 6, 9].map((step) =>
-    format(new Date(2000, (m0 + step) % 12, 1), "MMM", { locale }),
-  );
-  const isCalendar = m0 % 3 === 0;
-  return (
-    <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-      <span>{t("recurring.anchor.quarterly", { months: months.join(" · ") })}</span>
-      {!isCalendar && (
-        <button
-          type="button"
-          onClick={onUseCalendarQuarter}
-          className="underline-offset-2 hover:underline"
-        >
-          {t("recurring.anchor.use_calendar_quarter")}
-        </button>
-      )}
-    </div>
-  );
+/** Build a v2 RuleShape from the in-progress draft, for TS-side preview. */
+function draftRuleShape(draft: Draft): RuleShape {
+  return {
+    starts_on: draft.starts_on,
+    ends_on: draft.ends_on || null,
+    recurrence_interval: draft.recurrence_interval,
+    execution_day_rule: draft.execution_day_rule,
+    execution_day_of_month: draft.execution_day_rule === "FixedDay" ? Number(draft.execution_day_of_month) || 1 : null,
+    execution_weekend_adjustment: draft.execution_weekend_adjustment,
+    period_day_rule: draft.period_day_rule,
+    period_day_of_month: draft.period_day_rule === "FixedDay" ? Number(draft.period_day_of_month) || 1 : null,
+    period_offset: draft.period_offset,
+  };
 }
