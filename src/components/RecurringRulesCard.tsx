@@ -18,8 +18,9 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   fetchAccounts, fetchCategories, fetchRecurringRules,
   describeSchedule, previewRecurringRule, archiveRecurringRule, applyRecurringRuleBackfill, fetchSettings, fetchTransactions,
-  type RecurringRule, type RecurringDayRule, type WeekendAdjust, type TxType, type RecurringFrequency,
+  type RecurringRule, type DayRuleV2, type WeekendAdjustV2, type TxType,
 } from "@/lib/finance";
+import { seriesStep, weekendShift, periodBoundsForDue, parseISODate, toISODate, type RuleShape } from "@/lib/recurrence";
 import { useI18n } from "@/i18n";
 import { DateInput } from "@/components/DateInput";
 import { useQuery as useRQuery } from "@tanstack/react-query";
@@ -42,17 +43,19 @@ type Draft = {
   category_id: string;
   description: string;
   note: string;
-  day_rule: RecurringDayRule;
-  day_of_month: string;
-  weekend_adjust: WeekendAdjust;
-  frequency: RecurringFrequency;
+  recurrence_interval: number; // 1..12
+  execution_day_rule: DayRuleV2;
+  execution_day_of_month: string;
+  execution_weekend_adjustment: WeekendAdjustV2;
+  period_day_rule: DayRuleV2;
+  period_day_of_month: string;
+  period_offset: number; // -3..3
   starts_on: string;
   ends_on: string;
   auto_post: boolean;
   backfill: "none" | "post" | "pending";
   is_variable_date: boolean;
   is_split: boolean;
-  reporting_offset_months: string;
   slices: SliceDraft[];
 };
 
@@ -89,14 +92,16 @@ function emptyDraft(): Draft {
     is_variable_amount: false, estimated_amount: "",
     source_account_id: "", destination_account_id: "", category_id: "",
     description: "", note: "",
-    day_rule: "fixed_day", day_of_month: "1", weekend_adjust: "none",
-    frequency: "monthly",
+    recurrence_interval: 1,
+    execution_day_rule: "FixedDay", execution_day_of_month: "1",
+    execution_weekend_adjustment: "None",
+    period_day_rule: "FixedDay", period_day_of_month: "1",
+    period_offset: 0,
     starts_on: todayStr(), ends_on: "",
     auto_post: true,
     backfill: "none",
     is_variable_date: false,
     is_split: false,
-    reporting_offset_months: "0",
     slices: [emptySlice(), emptySlice()],
   };
 }
@@ -111,15 +116,18 @@ function ruleToDraft(r: RecurringRule): Draft {
     destination_account_id: r.destination_account_id ?? "",
     category_id: r.category_id ?? "",
     description: r.description ?? "", note: r.note ?? "",
-    day_rule: r.day_rule, day_of_month: String(r.day_of_month ?? 1),
-    weekend_adjust: r.weekend_adjust,
-    frequency: r.frequency ?? "monthly",
+    recurrence_interval: r.recurrence_interval ?? 1,
+    execution_day_rule: r.execution_day_rule,
+    execution_day_of_month: String(r.execution_day_of_month ?? 1),
+    execution_weekend_adjustment: r.execution_weekend_adjustment,
+    period_day_rule: r.period_day_rule,
+    period_day_of_month: String(r.period_day_of_month ?? 1),
+    period_offset: r.period_offset ?? 0,
     starts_on: r.starts_on, ends_on: r.ends_on ?? "",
     auto_post: r.auto_post,
     backfill: "none",
     is_variable_date: !!r.is_variable_date,
     is_split: !!r.is_split,
-    reporting_offset_months: String(r.reporting_offset_months ?? 0),
     slices: r.slices && r.slices.length >= 2
       ? r.slices.map((s) => ({
           id: s.id,
@@ -137,41 +145,17 @@ function ruleToDraft(r: RecurringRule): Draft {
 }
 
 function nextDueDate(r: RecurringRule, from = new Date()): Date | null {
-  const start = parseISO(r.starts_on);
-  const end = r.ends_on ? parseISO(r.ends_on) : null;
-  const step = r.frequency === "quarterly" ? 3 : r.frequency === "yearly" ? 12 : 1;
-  let cursor = new Date(Math.max(start.getTime(), from.getTime()));
-  // Align cursor to the start month, then advance in `step` increments to/past `from`.
-  cursor = new Date(start.getFullYear(), start.getMonth(), 1);
-  while (cursor < new Date(from.getFullYear(), from.getMonth(), 1)) {
-    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + step, 1);
-  }
-  for (let i = 0; i < 48; i++) {
-    const d = computeDue(cursor, r.day_rule, r.day_of_month ?? 1);
-    const e = adjust(d, r.weekend_adjust);
-    if (e >= from && e >= start && (!end || e <= end)) return e;
-    cursor = new Date(cursor.getFullYear(), cursor.getMonth() + step, 1);
+function nextDueDate(r: RecurringRule, from = new Date()): Date | null {
+  const start = parseISODate(r.starts_on);
+  const end = r.ends_on ? parseISODate(r.ends_on) : null;
+  for (let n = 0; n < 400; n++) {
+    const due = seriesStep(start, r.execution_day_rule, r.execution_day_of_month, r.recurrence_interval, n);
+    if (end && due > end) return null;
+    if (due < start) continue;
+    const eff = weekendShift(due, r.execution_weekend_adjustment);
+    if (eff >= from) return eff;
   }
   return null;
-}
-function computeDue(month: Date, rule: RecurringDayRule, dom: number): Date {
-  const last = new Date(month.getFullYear(), month.getMonth() + 1, 0);
-  if (rule === "first_of_month") return new Date(month.getFullYear(), month.getMonth(), 1);
-  if (rule === "end_of_month") return last;
-  return new Date(month.getFullYear(), month.getMonth(), Math.min(dom, last.getDate()));
-}
-function adjust(d: Date, w: WeekendAdjust): Date {
-  if (w === "none") return d;
-  const dow = d.getDay(); // 0=Sun..6=Sat
-  const r = new Date(d);
-  if (w === "before") {
-    if (dow === 6) r.setDate(d.getDate() - 1);
-    else if (dow === 0) r.setDate(d.getDate() - 2);
-  } else {
-    if (dow === 6) r.setDate(d.getDate() + 2);
-    else if (dow === 0) r.setDate(d.getDate() + 1);
-  }
-  return r;
 }
 
 export function RecurringRulesCard() {
