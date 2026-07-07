@@ -145,7 +145,6 @@ function ruleToDraft(r: RecurringRule): Draft {
 }
 
 function nextDueDate(r: RecurringRule, from = new Date()): Date | null {
-function nextDueDate(r: RecurringRule, from = new Date()): Date | null {
   const start = parseISODate(r.starts_on);
   const end = r.ends_on ? parseISODate(r.ends_on) : null;
   for (let n = 0; n < 400; n++) {
