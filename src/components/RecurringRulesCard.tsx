@@ -1455,4 +1455,3 @@ function draftRuleShape(draft: Draft): RuleShape {
     period_day_of_month: draft.period_day_rule === "FixedDay" ? Number(draft.period_day_of_month) || 1 : null,
     period_offset: draft.period_offset,
   };
-}}
