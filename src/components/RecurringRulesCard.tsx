@@ -1135,25 +1135,26 @@ function PlaceholderPalette({
 }: {
   onInsert: (snippet: string) => void;
   formatLocaleCode?: string;
-  ruleCtx?: { frequency: RecurringFrequency; startsOn: string; reportingOffsetMonths: number };
+  ruleCtx?: RuleShape;
 }) {
   const { t } = useI18n();
   const fmtLocale = resolveFormatLocale(formatLocaleCode);
   const sampleCtx = React.useMemo(() => {
     const today = new Date();
-    const prev = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
-    const next = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
-    let anchorMonth: number | undefined;
-    if (ruleCtx?.startsOn) {
-      try { anchorMonth = parseISO(ruleCtx.startsOn).getMonth() + 1; } catch { /* ignore */ }
+    let periodFrom = today;
+    let periodTo = today;
+    if (ruleCtx) {
+      try {
+        const { from, to } = periodBoundsForDue(ruleCtx, today);
+        periodFrom = from; periodTo = to;
+      } catch { /* ignore */ }
     }
     return {
-      date: today, dueDate: today, prevDate: prev, nextDate: next, today, runNumber: 3, locale: fmtLocale,
-      frequency: ruleCtx?.frequency,
-      anchorMonth,
-      reportingOffsetMonths: ruleCtx?.reportingOffsetMonths ?? 0,
+      date: today, dueDate: today,
+      periodFrom, periodTo,
+      runNumber: 3, locale: fmtLocale,
     };
-  }, [fmtLocale, ruleCtx?.frequency, ruleCtx?.startsOn, ruleCtx?.reportingOffsetMonths]);
+  }, [fmtLocale, ruleCtx]);
   const [showFormatHelp, setShowFormatHelp] = React.useState(false);
   return (
     <div className="rounded-md border p-2">
