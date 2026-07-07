@@ -319,16 +319,18 @@ export function RecurringRulesCard() {
       category_id: draft.type !== "transfer" && !draft.is_split && draft.category_id ? draft.category_id : null,
       description: draft.is_split ? null : (draft.description.trim() || null),
       note: draft.is_split ? null : (draft.note.trim() || null),
-      day_rule: draft.day_rule,
-      day_of_month: draft.day_rule === "fixed_day" ? Number(draft.day_of_month) || 1 : null,
-      weekend_adjust: draft.weekend_adjust,
-      frequency: draft.frequency,
+      recurrence_interval: draft.recurrence_interval,
+      execution_day_rule: draft.execution_day_rule,
+      execution_day_of_month: draft.execution_day_rule === "FixedDay" ? Number(draft.execution_day_of_month) || 1 : null,
+      execution_weekend_adjustment: draft.execution_weekend_adjustment,
+      period_day_rule: draft.period_day_rule,
+      period_day_of_month: draft.period_day_rule === "FixedDay" ? Number(draft.period_day_of_month) || 1 : null,
+      period_offset: draft.period_offset,
       starts_on: draft.starts_on,
       ends_on: draft.ends_on || null,
       auto_post: (draft.is_variable_amount || draft.is_variable_date) ? false : draft.auto_post,
       is_variable_date: draft.is_variable_date,
       is_split: draft.is_split,
-      reporting_offset_months: Number(draft.reporting_offset_months) || 0,
     };
     let savedId: string | undefined = draft.id;
     if (isNew) {
