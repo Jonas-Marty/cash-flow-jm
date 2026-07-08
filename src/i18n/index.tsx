@@ -1459,6 +1459,7 @@ const en: Dict = {
   "recurring.interval.item": "Every {n} months",
   "recurring.section.execution": "Execution",
   "recurring.section.period": "Reporting period",
+  "recurring.dropped_tokens.warning": "This template uses tokens the new recurrence engine no longer supports and will render as empty: {list}. Replace with ${date}, ${dueDate}, ${periodFrom}, ${periodTo} or ${runNumber} (with Q/S/T/ww/w formatters).",
   "recurring.field.period_day_rule": "Period day rule",
   "recurring.field.period_offset": "Period offset",
   "recurring.period_offset.zero": "Current period",
