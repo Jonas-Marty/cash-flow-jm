@@ -74,43 +74,52 @@ describe("weekendShift", () => {
   });
 });
 
-describe("Scenario C — Option 2 (StartDate 10.05.26, Interval 3, FirstDay/FirstDay)", () => {
+describe("Scenario C — Option 2 (StartDate 10.05.26, Interval 3, FixedDay(15)/FirstDay)", () => {
   const r = rule({
     starts_on: "2026-05-10",
     recurrence_interval: 3,
-    execution_day_rule: "FirstDay",
-    execution_day_of_month: null,
+    execution_day_rule: "FixedDay",
+    execution_day_of_month: 15,
     period_day_rule: "FirstDay",
     period_day_of_month: null,
   });
 
-  it("execution series skips the pre-start anchor and yields 15.05, 15.08, 15.11 — wait FirstDay yields 01.*", () => {
+  it("execution series yields 15.05, 15.08, 15.11 (no skip; 15.05 ≥ start)", () => {
     const preview = previewOccurrences(r, 3);
     expect(preview.map((p) => iso(p.due))).toEqual([
-      "2026-08-01",
-      "2026-11-01",
-      "2027-02-01",
+      "2026-05-15",
+      "2026-08-15",
+      "2026-11-15",
     ]);
   });
 
-  it("offset 0 pairs each exec with its own-month period", () => {
-    const p1 = periodBoundsForDue(r, parseISODate("2026-08-01"));
-    expect(iso(p1.from)).toBe("2026-08-01");
-    expect(iso(p1.to)).toBe("2026-10-31");
+  it("offset 0 pairs exec #1 (15.05) with period 01.05–31.07", () => {
+    const p1 = periodBoundsForDue(r, parseISODate("2026-05-15"));
+    expect(iso(p1.from)).toBe("2026-05-01");
+    expect(iso(p1.to)).toBe("2026-07-31");
+    const p2 = periodBoundsForDue(r, parseISODate("2026-08-15"));
+    expect(iso(p2.from)).toBe("2026-08-01");
+    expect(iso(p2.to)).toBe("2026-10-31");
   });
 
   it("offset +1 shifts the period one interval forward", () => {
     const rr = { ...r, period_offset: 1 };
-    const p = periodBoundsForDue(rr, parseISODate("2026-08-01"));
-    expect(iso(p.from)).toBe("2026-11-01");
-    expect(iso(p.to)).toBe("2027-01-31");
+    const p1 = periodBoundsForDue(rr, parseISODate("2026-05-15"));
+    expect(iso(p1.from)).toBe("2026-08-01");
+    expect(iso(p1.to)).toBe("2026-10-31");
+    const p2 = periodBoundsForDue(rr, parseISODate("2026-08-15"));
+    expect(iso(p2.from)).toBe("2026-11-01");
+    expect(iso(p2.to)).toBe("2027-01-31");
   });
 
-  it("offset -2 walks back two intervals (may cross into previous year)", () => {
+  it("offset -2 walks back two intervals (crosses into previous year)", () => {
     const rr = { ...r, period_offset: -2 };
-    const p = periodBoundsForDue(rr, parseISODate("2026-08-01"));
-    expect(iso(p.from)).toBe("2026-02-01");
-    expect(iso(p.to)).toBe("2026-04-30");
+    const p1 = periodBoundsForDue(rr, parseISODate("2026-05-15"));
+    expect(iso(p1.from)).toBe("2025-11-01");
+    expect(iso(p1.to)).toBe("2026-01-31");
+    const p2 = periodBoundsForDue(rr, parseISODate("2026-08-15"));
+    expect(iso(p2.from)).toBe("2026-02-01");
+    expect(iso(p2.to)).toBe("2026-04-30");
   });
 });
 
