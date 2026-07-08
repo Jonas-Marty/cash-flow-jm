@@ -24,7 +24,7 @@ import { seriesStep, weekendShift, periodBoundsForDue, parseISODate, toISODate, 
 import { useI18n } from "@/i18n";
 import { DateInput } from "@/components/DateInput";
 import { useQuery as useRQuery } from "@tanstack/react-query";
-import { interpolate, resolveFormatLocale, describeTokens, type TokenInfo } from "@/lib/placeholders";
+import { interpolate, resolveFormatLocale, describeTokens, findDroppedTokens, type TokenInfo } from "@/lib/placeholders";
 import { TagAutocompleteTextarea } from "@/components/TagAutocompleteTextarea";
 import { validateSliceTemplate } from "@/lib/recurringSlices";
 import { computeSliceAmounts } from "@/lib/recurringSlices";
@@ -624,6 +624,18 @@ export function RecurringRulesCard() {
             )}
             {!draft.is_split && (
             <>
+            {(() => {
+              const dropped = Array.from(new Set([
+                ...findDroppedTokens(draft.description),
+                ...findDroppedTokens(draft.note),
+              ]));
+              if (dropped.length === 0) return null;
+              return (
+                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+                  {t("recurring.dropped_tokens.warning", { list: dropped.map((n) => "${" + n + "}").join(", ") })}
+                </div>
+              );
+            })()}
             <div>
               <Label className="text-xs" htmlFor="rec-description">{t("add.description")}</Label>
               <Input

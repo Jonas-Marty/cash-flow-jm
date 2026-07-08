@@ -44,12 +44,11 @@ export function seriesStep(
   const y = baseYear + Math.floor(baseMonth / 12);
   const mRaw = baseMonth % 12;
   const m = mRaw < 0 ? mRaw + 12 : mRaw;
-  const yy = mRaw < 0 ? y - 1 : y;
-  const last = lastDayOfMonth(yy, m);
-  if (rule === "FirstDay") return new Date(yy, m, 1);
-  if (rule === "LastDay") return new Date(yy, m, last);
+  const last = lastDayOfMonth(y, m);
+  if (rule === "FirstDay") return new Date(y, m, 1);
+  if (rule === "LastDay") return new Date(y, m, last);
   const d = Math.min(Math.max(1, dom ?? 1), last);
-  return new Date(yy, m, d);
+  return new Date(y, m, d);
 }
 
 export function weekendShift(date: Date, adj: WeekendAdjust): Date {
