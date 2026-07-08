@@ -493,6 +493,7 @@ const de: Dict = {
   "recurring.interval.item": "Alle {n} Monate",
   "recurring.section.execution": "Ausführung",
   "recurring.section.period": "Berichtsperiode",
+  "recurring.dropped_tokens.warning": "Diese Vorlage nutzt Tokens, die die neue Wiederkehr-Engine nicht mehr kennt und leer rendert: {list}. Bitte ersetzen durch ${date}, ${dueDate}, ${periodFrom}, ${periodTo} oder ${runNumber} (mit Q/S/T/ww/w Formatierern).",
   "recurring.field.period_day_rule": "Perioden-Tagesregel",
   "recurring.field.period_offset": "Perioden-Verschiebung",
   "recurring.period_offset.zero": "Aktuelle Periode",
