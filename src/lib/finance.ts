@@ -250,8 +250,12 @@ export async function restorePendingTransaction(pendingId: string): Promise<void
     .eq("id", pendingId);
   if (error) throw error;
 }
-export type DayRuleV2 = "FixedDay" | "LastDay" | "FirstDay";
-export type WeekendAdjustV2 = "None" | "PreviousBusinessDay" | "NextBusinessDay";
+export type DayRule = "FixedDay" | "LastDay" | "FirstDay";
+export type WeekendAdjust = "None" | "PreviousBusinessDay" | "NextBusinessDay";
+/** @deprecated use `DayRule` — kept only for backwards imports. */
+export type DayRuleV2 = DayRule;
+/** @deprecated use `WeekendAdjust` — kept only for backwards imports. */
+export type WeekendAdjustV2 = WeekendAdjust;
 export type OccurrenceStatus = "pending" | "posted" | "skipped";
 
 export interface RecurringRule {
