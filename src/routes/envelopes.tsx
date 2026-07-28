@@ -161,6 +161,39 @@ function EnvelopesPage() {
     byCategory.set(t.category_id, arr);
   });
 
+  // Reallocations that fall inside the displayed month, per category.
+  const reallocByCategory = React.useMemo(() => {
+    const from = format(startOfMonth(month), "yyyy-MM-dd");
+    const to = format(endOfMonth(month), "yyyy-MM-dd");
+    const map = new Map<string, ReallocEntry[]>();
+    const push = (catId: string, e: ReallocEntry) => {
+      const arr = map.get(catId) ?? [];
+      arr.push(e);
+      map.set(catId, arr);
+    };
+    for (const r of reallocQ.data ?? []) {
+      if (r.occurred_on < from || r.occurred_on > to) continue;
+      const amount = Number(r.amount);
+      push(r.to_category_id, {
+        id: `${r.id}-in`,
+        occurred_on: r.occurred_on,
+        amount,
+        inflow: true,
+        counterpart: categoriesById.get(r.from_category_id)?.name ?? null,
+        note: r.note ?? null,
+      });
+      push(r.from_category_id, {
+        id: `${r.id}-out`,
+        occurred_on: r.occurred_on,
+        amount,
+        inflow: false,
+        counterpart: categoriesById.get(r.to_category_id)?.name ?? null,
+        note: r.note ?? null,
+      });
+    }
+    return map;
+  }, [reallocQ.data, month, categoriesById]);
+
   // Group rows by group_id preserving sort. The RPC already returns the
   // effective per-row kind (driven by categories.is_savings, falling back to
   // category_groups.kind), so we trust it directly. Rows without a group fall
