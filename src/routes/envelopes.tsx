@@ -37,6 +37,15 @@ export const Route = createFileRoute("/envelopes")({
   component: EnvelopesPage,
 });
 
+type ReallocEntry = {
+  id: string;
+  occurred_on: string;
+  amount: number;
+  inflow: boolean;
+  counterpart: string | null;
+  note: string | null;
+};
+
 async function fetchMonthCategoryTx(monthStart: Date): Promise<Transaction[]> {
   const from = format(startOfMonth(monthStart), "yyyy-MM-dd");
   const to = format(endOfMonth(monthStart), "yyyy-MM-dd");
