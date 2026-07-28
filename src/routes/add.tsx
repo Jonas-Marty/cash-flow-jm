@@ -494,6 +494,12 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     queryKey: ["category_month_spending", impactMonth],
     queryFn: () => fetchCategoryMonthRows(impactMonth),
   });
+  // Cumulative savings envelope balances — savings categories show accumulated
+  // money in the impact preview instead of a monthly remaining figure.
+  const savingsBalancesQ = useQuery({
+    queryKey: ["savings_balances_v2"],
+    queryFn: () => fetchSavingsBalancesV2(),
+  });
 
   // Duplicate-warning: same source account + same date + same amount.
   // For splits, compare against the per-slice amount (skip — too noisy).
