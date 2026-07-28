@@ -412,10 +412,18 @@ function EnvelopesPage() {
                             <ArrowLeftRight className="h-3 w-3 mr-1" />
                             {tr("envelopes.reallocate")}
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-xs"
+                            onClick={() => setDetailCat({ id: r.category_id, name: r.name })}
+                          >
+                            {tr("env.detail.open")}
+                          </Button>
                         </div>
-                        <div className={cn("text-base font-bold tabular-nums", balance < 0 ? "text-destructive" : "text-foreground")}>
+                        <PrivacyValue className={cn("text-base font-bold tabular-nums", balance < 0 ? "text-destructive" : "text-foreground")}>
                           {fmtMoney(balance, symbol)}
-                        </div>
+                        </PrivacyValue>
                       </div>
                       {v2 && (
                         <div className="mt-1 text-xs tabular-nums text-muted-foreground flex flex-wrap gap-x-3">
