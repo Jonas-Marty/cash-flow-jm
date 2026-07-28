@@ -1345,6 +1345,9 @@ export async function createScope(input: {
     .insert({
       name: input.name,
       is_scope: true,
+      // Scopes are savings envelopes: closing one books a reallocation
+      // from the funding envelope, and both endpoints must be savings.
+      is_savings: true,
       funding_category_id: input.funding_category_id,
       allocated_budget: input.allocated_budget ?? 0,
       emoji: input.emoji ?? "🎯",
