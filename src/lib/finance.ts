@@ -836,6 +836,30 @@ export async function fetchSavingsBalancesV2(asOf?: string): Promise<CategorySav
   return (data || []) as CategorySavingsBalanceV2[];
 }
 
+export interface SavingsBalancePoint {
+  category_id: string;
+  name: string;
+  archived: boolean;
+  as_of: string;
+  cumulative_balance: number;
+}
+
+/**
+ * Month-end cumulative balances for every savings envelope between two dates.
+ * One round trip; the last point is clamped to `toISO` when it is not a month end.
+ */
+export async function fetchSavingsBalanceSeries(
+  fromISO: string,
+  toISO: string,
+): Promise<SavingsBalancePoint[]> {
+  const { data, error } = await supabase.rpc("category_savings_balance_series", {
+    p_from: fromISO,
+    p_to: toISO,
+  });
+  if (error) throw error;
+  return (data || []) as SavingsBalancePoint[];
+}
+
 export async function fetchReconciliationSummary(asOf?: string): Promise<ReconciliationSummary | null> {
   const date = asOf ?? todayISO();
   const { data, error } = await supabase.rpc("reconciliation_summary", { p_as_of: date });
