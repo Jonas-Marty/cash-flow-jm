@@ -24,6 +24,7 @@ import {
   pendingDeltaForRow,
   fetchCategoryGroups,
   fetchCategories,
+  fetchReallocations,
   type Transaction,
   type CategoryMonthRow,
 } from "@/lib/finance";
@@ -35,6 +36,15 @@ import { ReallocateDialog } from "@/components/ReallocateDialog";
 export const Route = createFileRoute("/envelopes")({
   component: EnvelopesPage,
 });
+
+type ReallocEntry = {
+  id: string;
+  occurred_on: string;
+  amount: number;
+  inflow: boolean;
+  counterpart: string | null;
+  note: string | null;
+};
 
 async function fetchMonthCategoryTx(monthStart: Date): Promise<Transaction[]> {
   const from = format(startOfMonth(monthStart), "yyyy-MM-dd");
@@ -66,6 +76,7 @@ function EnvelopesPage() {
     queryFn: () => fetchMonthCategoryTx(month),
   });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
+  const reallocQ = useQuery({ queryKey: ["reallocations"], queryFn: fetchReallocations });
 
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
   const mainCode = settingsQ.data?.currency_code ?? "CHF";
@@ -158,6 +169,39 @@ function EnvelopesPage() {
     arr.push(t);
     byCategory.set(t.category_id, arr);
   });
+
+  // Reallocations that fall inside the displayed month, per category.
+  const reallocByCategory = React.useMemo(() => {
+    const from = format(startOfMonth(month), "yyyy-MM-dd");
+    const to = format(endOfMonth(month), "yyyy-MM-dd");
+    const map = new Map<string, ReallocEntry[]>();
+    const push = (catId: string, e: ReallocEntry) => {
+      const arr = map.get(catId) ?? [];
+      arr.push(e);
+      map.set(catId, arr);
+    };
+    for (const r of reallocQ.data ?? []) {
+      if (r.occurred_on < from || r.occurred_on > to) continue;
+      const amount = Number(r.amount);
+      push(r.to_category_id, {
+        id: `${r.id}-in`,
+        occurred_on: r.occurred_on,
+        amount,
+        inflow: true,
+        counterpart: categoriesById.get(r.from_category_id)?.name ?? null,
+        note: r.note ?? null,
+      });
+      push(r.from_category_id, {
+        id: `${r.id}-out`,
+        occurred_on: r.occurred_on,
+        amount,
+        inflow: false,
+        counterpart: categoriesById.get(r.to_category_id)?.name ?? null,
+        note: r.note ?? null,
+      });
+    }
+    return map;
+  }, [reallocQ.data, month, categoriesById]);
 
   // Group rows by group_id preserving sort. The RPC already returns the
   // effective per-row kind (driven by categories.is_savings, falling back to
@@ -396,6 +440,8 @@ function EnvelopesPage() {
                 }
 
                 const isExpanded = expandedCats.has(r.category_id);
+                const reallocs = reallocByCategory.get(r.category_id) ?? [];
+                const entryCount = items.length + reallocs.length;
                 // Heatmap intensity per outflow tx, scaled to the largest outflow in this category
                 const maxOutflow = items.reduce((m, t) => {
                   if (t.type !== "expense") return m;
@@ -405,7 +451,7 @@ function EnvelopesPage() {
                 return (
                   <div key={r.category_id} className="rounded-md border p-3">
                     {header}
-                    {items.length > 0 && (
+                    {entryCount > 0 && (
                       <>
                         <button
                           type="button"
@@ -413,11 +459,37 @@ function EnvelopesPage() {
                           className="mt-2 flex w-full items-center justify-between rounded px-1 py-1 text-xs text-muted-foreground hover:bg-muted/50 transition-colors"
                           aria-expanded={isExpanded}
                         >
-                          <span>{tr("env.tx_count", { n: String(items.length) })}</span>
+                          <span>
+                            {reallocs.length > 0
+                              ? tr("env.entry_count", { n: String(entryCount) })
+                              : tr("env.tx_count", { n: String(items.length) })}
+                          </span>
                           <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
                         </button>
                         {isExpanded && (
                           <ul className="mt-1 divide-y border-t pt-1">
+                            {reallocs.map((e) => (
+                              <li
+                                key={e.id}
+                                className="flex items-center justify-between gap-3 px-2 py-2 text-sm rounded-sm bg-muted/40"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <ArrowLeftRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                    <span className="truncate">
+                                      {e.note || (e.inflow ? tr("env.realloc_in") : tr("env.realloc_out"))}
+                                    </span>
+                                  </div>
+                                  <div className="text-xs text-muted-foreground truncate">
+                                    {format(new Date(e.occurred_on), "MMM d", { locale })}
+                                    {e.counterpart ? ` · ${e.inflow ? "←" : "→"} ${e.counterpart}` : ""}
+                                  </div>
+                                </div>
+                                <div className={cn("tabular-nums font-medium", e.inflow ? "text-success" : "text-destructive")}>
+                                  {e.inflow ? "+" : "-"}{fmtMoney(e.amount, symbol).replace("-", "")}
+                                </div>
+                              </li>
+                            ))}
                             {items.map((t) => {
                               const isInflow = t.type === "income";
                               const label = rowKind === "income"
