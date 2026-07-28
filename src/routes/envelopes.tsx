@@ -290,7 +290,7 @@ function EnvelopesPage() {
             <DateInput
               value={asOfDate}
               onChange={(d) => setAsOf(d)}
-              lang={locale === undefined ? "de" : (settingsQ.data?.language ?? "de")}
+              lang={settingsQ.data?.language ?? "de"}
               locale={locale}
               className="h-9 w-[150px]"
             />
@@ -594,11 +594,21 @@ function EnvelopesPage() {
             })}
           </>
         )}
+
+        <SavingsHistoryCard symbol={symbol} />
       </div>
       <ReallocateDialog
         open={reallocOpen}
         defaultFromId={reallocFrom}
         onOpenChange={setReallocOpen}
+      />
+      <EnvelopeDetailSheet
+        categoryId={detailCat?.id ?? null}
+        categoryName={detailCat?.name ?? ""}
+        asOf={asOf}
+        symbol={symbol}
+        open={!!detailCat}
+        onOpenChange={(v) => { if (!v) setDetailCat(null); }}
       />
     </AppShell>
   );
