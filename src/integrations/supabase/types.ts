@@ -1431,6 +1431,16 @@ export type Database = {
           variance: number
         }[]
       }
+      category_savings_balance_series: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          archived: boolean
+          as_of: string
+          category_id: string
+          cumulative_balance: number
+          name: string
+        }[]
+      }
       category_savings_balance_v2: {
         Args: { p_as_of: string }
         Returns: {
