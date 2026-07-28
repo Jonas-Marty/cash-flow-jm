@@ -2459,7 +2459,19 @@ function ImpactPreview({
                   {tr("add.impact.category")} · {r.name}
                 </span>
                 <span className="tabular-nums">
-                  {hasBudget ? (
+                  {r.isSavings ? (
+                    <>
+                      {tr("add.impact.saved")}: {fmt(r.savedBefore, mainSymbol)} →{" "}
+                      <span className={cn("font-medium", r.savedAfter < 0 ? "text-destructive" : "text-foreground")}>
+                        {fmt(r.savedAfter, mainSymbol)}
+                      </span>
+                      {hasBudget && (
+                        <span className="text-muted-foreground">
+                          {" "}· {tr("add.impact.month_plan", { x: `${fmtMoney(r.after, mainSymbol)} / ${fmtMoney(r.allocated, mainSymbol)}` })}
+                        </span>
+                      )}
+                    </>
+                  ) : hasBudget ? (
                     <>
                       {tr("add.impact.remaining")}: {fmt(remBefore, mainSymbol)} →{" "}
                       <span className={cn("font-medium", remAfter < 0 ? "text-destructive" : "text-foreground")}>
