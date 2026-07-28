@@ -284,6 +284,35 @@ function EnvelopesPage() {
           </Button>
         </div>
 
+        <Card>
+          <CardContent className="flex flex-wrap items-center gap-3 py-3">
+            <div className="text-sm font-medium">{tr("env.asof.label")}</div>
+            <DateInput
+              value={asOfDate}
+              onChange={(d) => setAsOf(d)}
+              lang={locale === undefined ? "de" : (settingsQ.data?.language ?? "de")}
+              locale={locale}
+              className="h-9 w-[150px]"
+            />
+            {!isToday && (
+              <Button variant="ghost" size="sm" onClick={() => setAsOf(null)}>
+                {tr("env.asof.today")}
+              </Button>
+            )}
+            <div className="ml-auto text-right">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                {tr("env.asof.total_saved")}
+              </div>
+              <PrivacyValue className="text-lg font-bold tabular-nums">
+                {fmtMoney(
+                  (savingsV2Q.data ?? []).reduce((s, r) => s + Number(r.cumulative_balance), 0),
+                  symbol,
+                )}
+              </PrivacyValue>
+            </div>
+          </CardContent>
+        </Card>
+
         {rowsQ.isLoading ? (
           <Skeleton className="h-32 w-full" />
         ) : rows.length === 0 ? (
