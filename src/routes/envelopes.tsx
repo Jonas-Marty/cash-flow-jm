@@ -1,7 +1,9 @@
 import * as React from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { format, startOfMonth, endOfMonth, addMonths } from "date-fns";
+import { format, startOfMonth, endOfMonth, addMonths, isValid, parseISO } from "date-fns";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { ChevronLeft, ChevronRight, ArrowLeftRight, ChevronDown } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
@@ -32,8 +34,17 @@ import { StackedBudgetBar } from "@/components/StackedBudgetBar";
 import { useFxRates, convert } from "@/lib/fx";
 import { MonthBudgetSummary } from "@/components/MonthBudgetSummary";
 import { ReallocateDialog } from "@/components/ReallocateDialog";
+import { SavingsHistoryCard } from "@/components/envelopes/SavingsHistoryCard";
+import { EnvelopeDetailSheet } from "@/components/envelopes/EnvelopeDetailSheet";
+import { DateInput } from "@/components/DateInput";
+import { PrivacyValue } from "@/components/DashboardPrivacy";
+
+const searchSchema = z.object({
+  asOf: fallback(z.string(), "").default(""),
+});
 
 export const Route = createFileRoute("/envelopes")({
+  validateSearch: zodValidator(searchSchema),
   component: EnvelopesPage,
 });
 
