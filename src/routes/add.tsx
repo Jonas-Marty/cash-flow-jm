@@ -2004,6 +2004,7 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
           categoryById={categoryById}
           balances={balancesQ.data ?? null}
           categoryRows={categoryMonthQ.data ?? null}
+          savingsBalances={savingsBalancesQ.data ?? null}
           mainCode={settingsQ.data?.currency_code ?? "CHF"}
           mainSymbol={mainSymbol}
           fxRates={fxQ.data}
