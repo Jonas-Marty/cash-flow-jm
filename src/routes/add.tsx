@@ -2208,7 +2208,7 @@ function ImpactPreview({
   type, amountNum, destAmountNum, feeAmountNum, feeCategoryId,
   source, destination, category, date,
   splitMode, slices, categoryById,
-  balances, categoryRows, mainCode, mainSymbol, fxRates,
+  balances, categoryRows, savingsBalances, mainCode, mainSymbol, fxRates,
   editOriginal, tr,
 }: {
   type: TxType;
@@ -2225,6 +2225,7 @@ function ImpactPreview({
   categoryById: Map<string, { id: string; name: string; allocated_budget: number }>;
   balances: AccountBalance[] | null;
   categoryRows: CategoryMonthRow[] | null;
+  savingsBalances: CategorySavingsBalanceV2[] | null;
   mainCode: string;
   mainSymbol: string;
   fxRates: FxRates | undefined;
@@ -2327,7 +2328,10 @@ function ImpactPreview({
   // increases "remaining" (reimbursement / refund case).
   // Drift category in source currency assumed = main currency for the budget
   // view (budgets are in main currency in this app).
-  type CatItem = { id: string; name: string; allocated: number; before: number; after: number };
+  type CatItem = {
+    id: string; name: string; allocated: number; before: number; after: number;
+    isSavings: boolean; savedBefore: number; savedAfter: number;
+  };
   const catImpacts = new Map<string, number>();
   const catSign = (catId: string, txType: TxType): number => {
     const kind = rowByCat.get(catId)?.kind ?? "expense";
@@ -2354,19 +2358,29 @@ function ImpactPreview({
     return d.getFullYear() === date.getFullYear() && d.getMonth() === date.getMonth();
   };
   const ogCatImpacts = new Map<string, number>();
+  // Same as ogCatImpacts but across all months — cumulative savings balances
+  // are not month-scoped, so an edit must be backed out regardless of date.
+  const ogCatImpactsAll = new Map<string, number>();
   if (original) {
     const rows = originalGroup && originalGroup.length > 1 ? originalGroup : [original];
     for (const r of rows) {
       if (r.type === "transfer") continue;
       if (!r.category_id) continue;
+      const v = Number(r.amount) * catSign(r.category_id, r.type);
+      ogCatImpactsAll.set(r.category_id, (ogCatImpactsAll.get(r.category_id) ?? 0) + v);
       if (!sameMonth(r.occurred_on)) continue;
-      ogCatImpacts.set(r.category_id, (ogCatImpacts.get(r.category_id) ?? 0) + Number(r.amount) * catSign(r.category_id, r.type));
+      ogCatImpacts.set(r.category_id, (ogCatImpacts.get(r.category_id) ?? 0) + v);
     }
-    if (original.fee_amount != null && Number(original.fee_amount) > 0 && original.fee_category_id && sameMonth(original.occurred_on)) {
-      ogCatImpacts.set(original.fee_category_id, (ogCatImpacts.get(original.fee_category_id) ?? 0) + Number(original.fee_amount) * catSign(original.fee_category_id, "expense"));
+    if (original.fee_amount != null && Number(original.fee_amount) > 0 && original.fee_category_id) {
+      const fv = Number(original.fee_amount) * catSign(original.fee_category_id, "expense");
+      ogCatImpactsAll.set(original.fee_category_id, (ogCatImpactsAll.get(original.fee_category_id) ?? 0) + fv);
+      if (sameMonth(original.occurred_on)) {
+        ogCatImpacts.set(original.fee_category_id, (ogCatImpacts.get(original.fee_category_id) ?? 0) + fv);
+      }
     }
   }
   const catRows: CatItem[] = [];
+  const savedByCat = new Map((savingsBalances ?? []).map((s) => [s.category_id, Number(s.cumulative_balance) || 0]));
   const allCatIds = new Set<string>([...catImpacts.keys(), ...ogCatImpacts.keys()]);
   for (const id of allCatIds) {
     const meta = categoryById.get(id);
@@ -2375,7 +2389,15 @@ function ImpactPreview({
     const currentSpent = Number(row?.spent_or_received ?? 0);
     const before = currentSpent - (ogCatImpacts.get(id) ?? 0);
     const after = before + (catImpacts.get(id) ?? 0);
-    catRows.push({ id, name: meta.name, allocated: Number(row?.allocated ?? meta.allocated_budget ?? 0), before, after });
+    const isSavings = (row?.kind ?? "expense") === "savings" || savedByCat.has(id);
+    const savedNow = savedByCat.get(id) ?? 0;
+    const savedBefore = savedNow - (ogCatImpactsAll.get(id) ?? 0);
+    const savedAfter = savedBefore + (catImpacts.get(id) ?? 0);
+    catRows.push({
+      id, name: meta.name,
+      allocated: Number(row?.allocated ?? meta.allocated_budget ?? 0),
+      before, after, isSavings, savedBefore, savedAfter,
+    });
   }
 
   // Date hint
