@@ -1,7 +1,9 @@
 import * as React from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { format, startOfMonth, endOfMonth, addMonths } from "date-fns";
+import { format, startOfMonth, endOfMonth, addMonths, isValid, parseISO } from "date-fns";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { ChevronLeft, ChevronRight, ArrowLeftRight, ChevronDown } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
@@ -32,8 +34,17 @@ import { StackedBudgetBar } from "@/components/StackedBudgetBar";
 import { useFxRates, convert } from "@/lib/fx";
 import { MonthBudgetSummary } from "@/components/MonthBudgetSummary";
 import { ReallocateDialog } from "@/components/ReallocateDialog";
+import { SavingsHistoryCard } from "@/components/envelopes/SavingsHistoryCard";
+import { EnvelopeDetailSheet } from "@/components/envelopes/EnvelopeDetailSheet";
+import { DateInput } from "@/components/DateInput";
+import { PrivacyValue } from "@/components/DashboardPrivacy";
+
+const searchSchema = z.object({
+  asOf: fallback(z.string(), "").default(""),
+});
 
 export const Route = createFileRoute("/envelopes")({
+  validateSearch: zodValidator(searchSchema),
   component: EnvelopesPage,
 });
 
@@ -64,10 +75,27 @@ function EnvelopesPage() {
   const { t: tr, locale } = useI18n();
   const [month, setMonth] = React.useState(() => startOfMonth(new Date()));
   const m = monthKey(month);
+  const search = Route.useSearch();
+  const navigate = useNavigate({ from: "/envelopes" });
+  const asOfDate = React.useMemo(() => {
+    const parsed = search.asOf ? parseISO(search.asOf) : null;
+    return parsed && isValid(parsed) ? parsed : new Date();
+  }, [search.asOf]);
+  const asOf = format(asOfDate, "yyyy-MM-dd");
+  const isToday = asOf === format(new Date(), "yyyy-MM-dd");
+  const setAsOf = React.useCallback(
+    (d: Date | null) => {
+      navigate({
+        search: () => ({ asOf: d ? format(d, "yyyy-MM-dd") : "" }),
+        replace: true,
+      });
+    },
+    [navigate],
+  );
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const rowsQ = useQuery({ queryKey: ["category_month_rows", m], queryFn: () => fetchCategoryMonthRows(m) });
   const savingsQ = useQuery({ queryKey: ["savings_balance"], queryFn: fetchSavingsBalances });
-  const savingsV2Q = useQuery({ queryKey: ["savings-balances-v2"], queryFn: () => fetchSavingsBalancesV2() });
+  const savingsV2Q = useQuery({ queryKey: ["savings-balances-v2", asOf], queryFn: () => fetchSavingsBalancesV2(asOf) });
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   const groupsQ = useQuery({ queryKey: ["category_groups"], queryFn: fetchCategoryGroups });
   const pendingImpactQ = useQuery({ queryKey: ["pending_impact_month", m], queryFn: () => fetchPendingImpactsForMonth(m) });
@@ -100,6 +128,7 @@ function EnvelopesPage() {
 
   const [reallocOpen, setReallocOpen] = React.useState(false);
   const [reallocFrom, setReallocFrom] = React.useState<string | null>(null);
+  const [detailCat, setDetailCat] = React.useState<{ id: string; name: string } | null>(null);
   const [expandedCats, setExpandedCats] = React.useState<Set<string>>(() => new Set());
   const toggleExpanded = React.useCallback((id: string) => {
     setExpandedCats((prev) => {
@@ -255,6 +284,35 @@ function EnvelopesPage() {
           </Button>
         </div>
 
+        <Card>
+          <CardContent className="flex flex-wrap items-center gap-3 py-3">
+            <div className="text-sm font-medium">{tr("env.asof.label")}</div>
+            <DateInput
+              value={asOfDate}
+              onChange={(d) => setAsOf(d)}
+              lang={settingsQ.data?.language ?? "de"}
+              locale={locale}
+              className="h-9 w-[150px]"
+            />
+            {!isToday && (
+              <Button variant="ghost" size="sm" onClick={() => setAsOf(null)}>
+                {tr("env.asof.today")}
+              </Button>
+            )}
+            <div className="ml-auto text-right">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                {tr("env.asof.total_saved")}
+              </div>
+              <PrivacyValue className="text-lg font-bold tabular-nums">
+                {fmtMoney(
+                  (savingsV2Q.data ?? []).reduce((s, r) => s + Number(r.cumulative_balance), 0),
+                  symbol,
+                )}
+              </PrivacyValue>
+            </div>
+          </CardContent>
+        </Card>
+
         {rowsQ.isLoading ? (
           <Skeleton className="h-32 w-full" />
         ) : rows.length === 0 ? (
@@ -354,10 +412,18 @@ function EnvelopesPage() {
                             <ArrowLeftRight className="h-3 w-3 mr-1" />
                             {tr("envelopes.reallocate")}
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 px-2 text-xs"
+                            onClick={() => setDetailCat({ id: r.category_id, name: r.name })}
+                          >
+                            {tr("env.detail.open")}
+                          </Button>
                         </div>
-                        <div className={cn("text-base font-bold tabular-nums", balance < 0 ? "text-destructive" : "text-foreground")}>
+                        <PrivacyValue className={cn("text-base font-bold tabular-nums", balance < 0 ? "text-destructive" : "text-foreground")}>
                           {fmtMoney(balance, symbol)}
-                        </div>
+                        </PrivacyValue>
                       </div>
                       {v2 && (
                         <div className="mt-1 text-xs tabular-nums text-muted-foreground flex flex-wrap gap-x-3">
@@ -536,11 +602,21 @@ function EnvelopesPage() {
             })}
           </>
         )}
+
+        <SavingsHistoryCard symbol={symbol} />
       </div>
       <ReallocateDialog
         open={reallocOpen}
         defaultFromId={reallocFrom}
         onOpenChange={setReallocOpen}
+      />
+      <EnvelopeDetailSheet
+        categoryId={detailCat?.id ?? null}
+        categoryName={detailCat?.name ?? ""}
+        asOf={asOf}
+        symbol={symbol}
+        open={!!detailCat}
+        onOpenChange={(v) => { if (!v) setDetailCat(null); }}
       />
     </AppShell>
   );
