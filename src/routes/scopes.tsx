@@ -42,7 +42,9 @@ function ScopesRoute() {
   const sym = settingsQ.data?.currency_symbol ?? "CHF";
 
   const fundingCandidates: Category[] = React.useMemo(
-    () => (catsQ.data ?? []).filter((c) => !c.archived && !c.is_scope),
+    // Closing a scope books a reallocation, and both endpoints must be
+    // savings envelopes — so only savings categories can fund a scope.
+    () => (catsQ.data ?? []).filter((c) => !c.archived && !c.is_scope && c.is_savings),
     [catsQ.data],
   );
 

@@ -1,0 +1,1 @@
+UPDATE public.categories SET is_savings = true, updated_at = now() WHERE is_scope = true AND is_savings = false;
