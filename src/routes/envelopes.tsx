@@ -24,6 +24,7 @@ import {
   pendingDeltaForRow,
   fetchCategoryGroups,
   fetchCategories,
+  fetchReallocations,
   type Transaction,
   type CategoryMonthRow,
 } from "@/lib/finance";
@@ -66,6 +67,7 @@ function EnvelopesPage() {
     queryFn: () => fetchMonthCategoryTx(month),
   });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
+  const reallocQ = useQuery({ queryKey: ["reallocations"], queryFn: fetchReallocations });
 
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
   const mainCode = settingsQ.data?.currency_code ?? "CHF";
