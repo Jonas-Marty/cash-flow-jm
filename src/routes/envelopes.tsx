@@ -337,6 +337,12 @@ function EnvelopesPage() {
               }, 0);
               const overProjected = g.kind === "expense" && totalAlloc > 0 && totalActual + totalPending > totalAlloc;
               const remaining = totalAlloc - totalActual - totalPending;
+              // Savings groups show the sum of cumulative envelope balances,
+              // not the (usually zero) monthly allocation.
+              const totalSaved = g.rows.reduce((s, r) => {
+                const v2 = savingsV2Map.get(r.category_id);
+                return s + (v2 ? Number(v2.cumulative_balance) : Number(savingsMap.get(r.category_id)?.balance ?? 0));
+              }, 0);
               return (
           <Card key={g.name + g.kind}>
             <CardHeader className="pb-2 space-y-2">
@@ -349,7 +355,7 @@ function EnvelopesPage() {
                 </CardTitle>
                 <div className={cn("text-lg font-bold tabular-nums", overProjected && "text-destructive")}>
                   {g.kind === "savings"
-                    ? fmtMoney(totalAlloc, symbol)
+                    ? fmtMoney(totalSaved, symbol)
                     : `${fmtMoney(totalActual + totalPending, symbol)} / ${fmtMoney(totalAlloc, symbol)}`}
                 </div>
               </div>
