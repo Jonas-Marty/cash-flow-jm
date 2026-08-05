@@ -832,70 +832,93 @@ function TransactionsPage() {
                   const txSym = src?.currency_symbol ?? symbol;
                   const dstSym = dst?.currency_symbol ?? txSym;
                   const showDstAmount = t.type === "transfer" && dst && t.destination_amount != null && (src?.currency_code ?? "") !== (dst?.currency_code ?? "");
+                  const amountNode = (
+                    <div className={cn("text-sm font-semibold tabular-nums whitespace-nowrap", tone)}>
+                      {amtMatch ? (
+                        <mark className="rounded bg-yellow-200/70 px-1 dark:bg-yellow-500/30">{sign}{fmtMoney(Number(t.amount), txSym).replace("-", "")}</mark>
+                      ) : (
+                        <>{sign}{fmtMoney(Number(t.amount), txSym).replace("-", "")}</>
+                      )}
+                      {showDstAmount && (
+                        <span className="ml-1 text-xs font-normal text-muted-foreground">
+                          → {fmtMoney(Number(t.destination_amount), dstSym).replace("-", "")}
+                        </span>
+                      )}
+                    </div>
+                  );
+                  const linkId = linkByTx.get(t.id);
+                  const lnk = linkId ? linkById.get(linkId) : null;
+                  const LinkIcon = lnk ? KIND_ICON[lnk.kind] : null;
+                  const chips: React.ReactNode[] = [];
+                  if (isReimb) chips.push(<span key="reimb" className="shrink-0 whitespace-nowrap rounded bg-success/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-success">{tr("tx.reimbursement")}</span>);
+                  if (t.is_reimbursable && t.reimbursable_status) chips.push(
+                    <span
+                      key="reimb-status"
+                      className={cn(
+                        "shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase",
+                        t.reimbursable_status === "open" && "bg-warning/15 text-warning",
+                        t.reimbursable_status === "settled" && "bg-success/15 text-success",
+                        t.reimbursable_status === "cancelled" && "bg-muted text-muted-foreground",
+                      )}
+                      title={t.reimbursable_counterparty ?? ""}
+                    >
+                      {tr(`tx.reimb.status.${t.reimbursable_status}` as never)}
+                    </span>,
+                  );
+                  if (t.recurring_rule_id) chips.push(
+                    <span key="rule" className="shrink-0 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground" title={ruleById.get(t.recurring_rule_id)?.name ?? ""}>
+                      {tr("tx.from_rule")}{ruleById.get(t.recurring_rule_id) ? `: ${ruleById.get(t.recurring_rule_id)!.name}` : ""}
+                    </span>,
+                  );
+                  if (t.occurred_on > new Date().toISOString().slice(0, 10)) chips.push(
+                    <span key="upcoming" className="shrink-0 whitespace-nowrap rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-warning">
+                      {tr("dashboard.top_month.upcoming")}
+                    </span>,
+                  );
+                  if (lnk && LinkIcon) chips.push(
+                    <button
+                      key="link"
+                      type="button"
+                      onClick={(ev) => { ev.preventDefault(); setOpenLinkId(lnk.id); }}
+                      className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-primary hover:bg-primary/20"
+                      title={lnk.title}
+                    >
+                      <LinkIcon className="h-3 w-3" /> {lnk.title}
+                    </button>,
+                  );
+                  const actionsNode = (
+                    <>
+                      <Button asChild variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label={tr("common.edit")}>
+                        <Link to="/edit/$id" params={{ id: t.id }}><Pencil className="h-4 w-4" /></Link>
+                      </Button>
+                      <TransactionLinkPicker
+                        transactionId={t.id}
+                        currentLinkId={linkByTx.get(t.id) ?? null}
+                        compact
+                      />
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => del(t.id)} aria-label={tr("common.delete")}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  );
                   return (
                     <div key={t.id} className="flex items-start gap-3 px-4 py-3">
                       <RowVisual entity={primary} typeIcon={<Icon className="h-3 w-3" />} tone={tone} />
                       <div className="min-w-0 flex-1">
-                         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
-                           <div className="min-w-0 break-words text-sm font-medium">
+                        <div className="grid grid-cols-1 items-start gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-2">
+                          <div className="min-w-0 break-words text-sm font-medium">
                             {highlightTokens(
                               t.description || (t.type === "transfer" ? tr("tx.transfer_label") : t.type === "income" ? tr("add.income") : tr("add.expense")),
                               tokens,
                             )}
-                            {isReimb && <span className="ml-2 rounded bg-success/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-success">{tr("tx.reimbursement")}</span>}
-                            {t.is_reimbursable && t.reimbursable_status && (
-                              <span
-                                className={cn(
-                                  "ml-2 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase",
-                                  t.reimbursable_status === "open" && "bg-warning/15 text-warning",
-                                  t.reimbursable_status === "settled" && "bg-success/15 text-success",
-                                  t.reimbursable_status === "cancelled" && "bg-muted text-muted-foreground",
-                                )}
-                                title={t.reimbursable_counterparty ?? ""}
-                              >
-                                {tr(`tx.reimb.status.${t.reimbursable_status}` as never)}
-                              </span>
-                            )}
-                            {t.recurring_rule_id && (
-                              <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground" title={ruleById.get(t.recurring_rule_id)?.name ?? ""}>
-                                {tr("tx.from_rule")}{ruleById.get(t.recurring_rule_id) ? `: ${ruleById.get(t.recurring_rule_id)!.name}` : ""}
-                              </span>
-                            )}
-                            {t.occurred_on > new Date().toISOString().slice(0, 10) && (
-                              <span className="ml-2 rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-warning">
-                                {tr("dashboard.top_month.upcoming")}
-                              </span>
-                            )}
-                            {(() => {
-                              const lid = linkByTx.get(t.id);
-                              const lnk = lid ? linkById.get(lid) : null;
-                              if (!lnk) return null;
-                              const Icon = KIND_ICON[lnk.kind];
-                              return (
-                                <button
-                                  type="button"
-                                  onClick={(ev) => { ev.preventDefault(); setOpenLinkId(lnk.id); }}
-                                  className="ml-2 inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-primary hover:bg-primary/20"
-                                  title={lnk.title}
-                                >
-                                  <Icon className="h-3 w-3" /> {lnk.title}
-                                </button>
-                              );
-                            })()}
                           </div>
-                          <div className={cn("text-sm font-semibold tabular-nums whitespace-nowrap", tone)}>
-                            {amtMatch ? (
-                              <mark className="rounded bg-yellow-200/70 px-1 dark:bg-yellow-500/30">{sign}{fmtMoney(Number(t.amount), txSym).replace("-", "")}</mark>
-                            ) : (
-                              <>{sign}{fmtMoney(Number(t.amount), txSym).replace("-", "")}</>
-                            )}
-                            {showDstAmount && (
-                              <span className="ml-1 text-xs font-normal text-muted-foreground">
-                                → {fmtMoney(Number(t.destination_amount), dstSym).replace("-", "")}
-                              </span>
-                            )}
-                          </div>
+                          <div className="hidden sm:block">{amountNode}</div>
                         </div>
+                        {chips.length > 0 && (
+                          <div className="-mx-1 mt-1 flex items-center gap-1.5 overflow-x-auto px-1 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                            {chips}
+                          </div>
+                        )}
                         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                           {/* account / transfer chain */}
                           <span className="inline-flex items-center gap-1">
@@ -932,18 +955,12 @@ function TransactionsPage() {
                             {renderNoteWithTags(t.note, tokens)}
                           </div>
                         )}
+                        <div className="mt-1.5 flex items-center justify-between gap-2 sm:hidden">
+                          {amountNode}
+                          <div className="flex items-center">{actionsNode}</div>
+                        </div>
                       </div>
-                      <Button asChild variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" aria-label={tr("common.edit")}>
-                        <Link to="/edit/$id" params={{ id: t.id }}><Pencil className="h-4 w-4" /></Link>
-                      </Button>
-                      <TransactionLinkPicker
-                        transactionId={t.id}
-                        currentLinkId={linkByTx.get(t.id) ?? null}
-                        compact
-                      />
-                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => del(t.id)} aria-label={tr("common.delete")}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="hidden shrink-0 items-center sm:flex">{actionsNode}</div>
                     </div>
                   );
                 });
