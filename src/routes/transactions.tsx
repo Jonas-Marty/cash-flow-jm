@@ -752,25 +752,20 @@ function TransactionsPage() {
                       : [];
                     return (
                       <div key={`g-${row.groupId}`} className="bg-muted/20">
-                        <div className="flex w-full flex-wrap items-start gap-x-3 gap-y-1 px-4 py-3 hover:bg-muted/40 sm:flex-nowrap">
+                        <div className="flex w-full items-start gap-3 px-4 py-3 hover:bg-muted/40">
                           <button
                             type="button"
                             onClick={() => toggleGroup(row.groupId)}
-                            className="flex min-w-0 basis-full items-start gap-3 text-left sm:basis-auto sm:flex-1"
+                            className="flex min-w-0 flex-1 items-start gap-3 text-left"
                           >
                           <RowVisual entity={src ?? null} typeIcon={<Icon className="h-3 w-3" />} tone={tone} />
                           <div className="min-w-0 flex-1">
-                             <div className="grid min-w-0 grid-cols-1 items-start gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-2">
-                               <div className="min-w-0">
-                                <div className="flex min-w-0 items-start gap-1.5">
-                                <ChevIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                 <span className="min-w-0 break-words text-sm font-medium">{highlightTokens(headerLabel, tokens)}</span>
-                                </div>
-                                <span className="ml-5 mt-1 inline-flex items-center gap-1 rounded bg-accent px-1.5 py-0.5 text-[10px] font-semibold uppercase text-accent-foreground sm:ml-5">
-                                  <Layers className="h-3 w-3" /> {tr("tx.split.label")}
-                                 </span>
+                            <div className="grid min-w-0 grid-cols-1 items-start gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-2">
+                              <div className="flex min-w-0 items-start gap-1.5">
+                                <ChevIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                <span className="min-w-0 break-words text-sm font-medium">{highlightTokens(headerLabel, tokens)}</span>
                               </div>
-                               <div className={cn("ml-5 text-sm font-semibold tabular-nums whitespace-nowrap sm:ml-0 sm:text-right", tone)}>
+                              <div className={cn("hidden text-sm font-semibold tabular-nums whitespace-nowrap sm:block sm:text-right", tone)}>
                                 {amtMatch ? (
                                   <mark className="rounded bg-yellow-200/70 px-1 dark:bg-yellow-500/30">{sign}{fmtMoney(total, grpSym).replace("-", "")}</mark>
                                 ) : (
@@ -778,17 +773,29 @@ function TransactionsPage() {
                                 )}
                               </div>
                             </div>
-                            <div className="text-xs text-muted-foreground">
+                            <div className="mt-1 flex items-center gap-1.5">
+                              <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded bg-accent px-1.5 py-0.5 text-[10px] font-semibold uppercase text-accent-foreground">
+                                <Layers className="h-3 w-3" /> {tr("tx.split.label")}
+                              </span>
+                            </div>
+                            <div className="mt-1 text-xs text-muted-foreground">
                               {highlightTokens(src?.name ?? "?", tokens)} · {open ? tr("tx.split.collapse") : tr("tx.split.expand", { n: row.txs.length })}
                             </div>
                             <TagBadges tags={open ? sharedTags : unionTags} tokens={tokens} />
+                            <div className={cn("mt-1.5 text-sm font-semibold tabular-nums whitespace-nowrap sm:hidden", tone)}>
+                              {amtMatch ? (
+                                <mark className="rounded bg-yellow-200/70 px-1 dark:bg-yellow-500/30">{sign}{fmtMoney(total, grpSym).replace("-", "")}</mark>
+                              ) : (
+                                <>{sign}{fmtMoney(total, grpSym).replace("-", "")}</>
+                              )}
+                            </div>
                           </div>
                           </button>
-                          <div className="ml-auto flex items-center">
-                            <Button asChild variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" aria-label={tr("common.edit")}>
+                          <div className="flex shrink-0 items-center self-center">
+                            <Button asChild variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label={tr("common.edit")}>
                               <Link to="/edit/$id" params={{ id: first.id }}><Pencil className="h-4 w-4" /></Link>
                             </Button>
-                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" aria-label={tr("common.delete")} onClick={() => delGroup(row.groupId)}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" aria-label={tr("common.delete")} onClick={() => delGroup(row.groupId)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
