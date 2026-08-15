@@ -1143,6 +1143,16 @@ export function RecurringRulesCard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <PostOccurrenceDialog
+        occurrence={postTarget?.occ ?? null}
+        runNumber={postTarget?.runNumber ?? 1}
+        prevDate={postTarget?.occ.effective_on ?? ""}
+        nextDate={null}
+        initialDescription={postTarget?.description ?? undefined}
+        initialNote={postTarget?.note ?? undefined}
+        onClose={() => { void closePostDialog(); }}
+        onPosted={() => { setPostTarget(null); qc.invalidateQueries(); }}
+      />
     </Card>
   );
 }
