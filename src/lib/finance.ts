@@ -657,6 +657,54 @@ export async function fetchPendingOccurrences(): Promise<(RecurringOccurrence & 
   return rows;
 }
 
+/** All occurrences of one rule (any status), with the rule + slices joined. */
+export async function fetchOccurrencesForRule(
+  ruleId: string,
+): Promise<(RecurringOccurrence & { rule: RecurringRule })[]> {
+  const { data, error } = await supabase
+    .from("recurring_occurrences")
+    .select("*, rule:recurring_rules(*, slices:recurring_rule_slices(*))")
+    .eq("rule_id", ruleId)
+    .order("effective_on", { ascending: true });
+  if (error) throw error;
+  const rows = (data || []) as (RecurringOccurrence & { rule: RecurringRule })[];
+  for (const o of rows) {
+    if (o.rule?.slices) o.rule.slices.sort((a, b) => a.sort_order - b.sort_order);
+  }
+  return rows;
+}
+
+/**
+ * Create a single pending occurrence for a rule/date pair (used by the "create
+ * this missing entry" action in the rule preview) and return it with the rule
+ * joined so it can be fed straight into PostOccurrenceDialog.
+ */
+export async function createPendingOccurrence(
+  ruleId: string,
+  dueOn: string,
+  effectiveOn: string,
+): Promise<RecurringOccurrence & { rule: RecurringRule }> {
+  const { data, error } = await supabase
+    .from("recurring_occurrences")
+    .insert({ rule_id: ruleId, due_on: dueOn, effective_on: effectiveOn, status: "pending" })
+    .select("*, rule:recurring_rules(*, slices:recurring_rule_slices(*))")
+    .single();
+  if (error) throw error;
+  const row = data as RecurringOccurrence & { rule: RecurringRule };
+  if (row.rule?.slices) row.rule.slices.sort((a, b) => a.sort_order - b.sort_order);
+  return row;
+}
+
+/** Delete a still-pending occurrence (e.g. a placeholder the user cancelled). */
+export async function deletePendingOccurrence(id: string): Promise<void> {
+  const { error } = await supabase
+    .from("recurring_occurrences")
+    .delete()
+    .eq("id", id)
+    .eq("status", "pending");
+  if (error) throw error;
+}
+
 export async function postOccurrence(occ: RecurringOccurrence & { rule: RecurringRule }, overrides?: { amount?: number; description?: string | null; note?: string | null; occurred_on?: string }): Promise<void> {
   const r = occ.rule;
   // Determine final amount

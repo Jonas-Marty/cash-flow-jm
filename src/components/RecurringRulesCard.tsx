@@ -19,8 +19,11 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   fetchAccounts, fetchCategories, fetchRecurringRules,
   describeSchedule, previewRecurringRule, archiveRecurringRule, applyRecurringRuleBackfill, fetchSettings, fetchTransactions,
-  type RecurringRule, type DayRuleV2, type WeekendAdjustV2, type TxType,
+  fetchOccurrencesForRule, createPendingOccurrence, deletePendingOccurrence,
+  type RecurringRule, type RecurringOccurrence, type DayRuleV2, type WeekendAdjustV2, type TxType,
 } from "@/lib/finance";
+import { PostOccurrenceDialog } from "@/components/PostOccurrenceDialog";
+import { Link } from "@tanstack/react-router";
 import { seriesStep, weekendShift, periodBoundsForDue, parseISODate, toISODate, type RuleShape } from "@/lib/recurrence";
 import { useI18n } from "@/i18n";
 import { DateInput } from "@/components/DateInput";
@@ -178,15 +181,9 @@ export function RecurringRulesCard() {
   const occStatsQ = useQuery({
     queryKey: ["recurring_occurrences_for_rule", draft.id],
     enabled: !!draft.id && open,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("recurring_occurrences")
-        .select("status, effective_on")
-        .eq("rule_id", draft.id!);
-      if (error) throw error;
-      return (data ?? []) as Array<{ status: string; effective_on: string }>;
-    },
+    queryFn: () => fetchOccurrencesForRule(draft.id!),
   });
+  const ruleOccurrences = React.useMemo(() => occStatsQ.data ?? [], [occStatsQ.data]);
   const occStats = React.useMemo(() => {
     const all = occStatsQ.data ?? [];
     const posted = all.filter((o) => o.status === "posted");
@@ -199,6 +196,70 @@ export function RecurringRulesCard() {
 
   const isNew = !draft.id;
   const startsPast = !!draft.starts_on && draft.starts_on < todayStr();
+  // Per-row actions in the preview only make sense when the listed dates match
+  // what the *saved* rule produces. While the draft schedule differs, hide them.
+  const savedRule = React.useMemo(
+    () => (draft.id ? (rulesQ.data ?? []).find((r) => r.id === draft.id) ?? null : null),
+    [rulesQ.data, draft.id],
+  );
+  const scheduleDirty = React.useMemo(() => {
+    if (!savedRule) return true;
+    const saved: RuleShape = {
+      starts_on: savedRule.starts_on,
+      ends_on: savedRule.ends_on || null,
+      recurrence_interval: savedRule.recurrence_interval,
+      execution_day_rule: savedRule.execution_day_rule,
+      execution_day_of_month: savedRule.execution_day_of_month ?? null,
+      execution_weekend_adjustment: savedRule.execution_weekend_adjustment,
+      period_day_rule: savedRule.period_day_rule,
+      period_day_of_month: savedRule.period_day_of_month ?? null,
+      period_offset: savedRule.period_offset,
+    };
+    return JSON.stringify(saved) !== JSON.stringify(draftRuleShape(draft));
+  }, [savedRule, draft]);
+
+  // Single-occurrence post dialog opened from a preview row. `placeholder`
+  // marks occurrences we created on the fly so we can clean them up on cancel.
+  const [postTarget, setPostTarget] = React.useState<{
+    occ: RecurringOccurrence & { rule: RecurringRule };
+    runNumber: number;
+    description: string | null;
+    note: string | null;
+    placeholder: boolean;
+  } | null>(null);
+
+  const openPostForRow = async (row: {
+    occurrence: (RecurringOccurrence & { rule: RecurringRule }) | null;
+    due_on: string;
+    effective_on: string;
+    runNumber: number;
+    description: string | null;
+    note: string | null;
+  }) => {
+    if (!draft.id) return;
+    try {
+      const occ = row.occurrence
+        ?? (await createPendingOccurrence(draft.id, row.due_on, row.effective_on));
+      setPostTarget({
+        occ,
+        runNumber: row.runNumber,
+        description: row.description,
+        note: row.note,
+        placeholder: !row.occurrence,
+      });
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
+  const closePostDialog = async () => {
+    const target = postTarget;
+    setPostTarget(null);
+    if (target?.placeholder) {
+      try { await deletePendingOccurrence(target.occ.id); } catch { /* ignore */ }
+    }
+    qc.invalidateQueries({ queryKey: ["recurring_occurrences_for_rule", draft.id] });
+  };
   // "Fresh" past start: new rule, or editing a rule that has nothing posted yet.
   // User picks from 3 backfill modes (none / post / pending).
   const freshPastMode = startsPast && (isNew || occStats.postedCount === 0);
@@ -1051,6 +1112,10 @@ export function RecurringRulesCard() {
               lastPostedEffOn={occStats.lastPostedEffOn}
               showBackfillBlock={showBackfill}
               deterministicAuto={deterministicAuto}
+              occurrences={ruleOccurrences}
+              actionsEnabled={!isNew && !scheduleDirty}
+              showSaveFirstHint={!isNew && scheduleDirty}
+              onPostRow={openPostForRow}
             />
           </div>
           <DialogFooter>
@@ -1078,6 +1143,16 @@ export function RecurringRulesCard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <PostOccurrenceDialog
+        occurrence={postTarget?.occ ?? null}
+        runNumber={postTarget?.runNumber ?? 1}
+        prevDate={postTarget?.occ.effective_on ?? ""}
+        nextDate={null}
+        initialDescription={postTarget?.description ?? undefined}
+        initialNote={postTarget?.note ?? undefined}
+        onClose={() => { void closePostDialog(); }}
+        onPosted={() => { setPostTarget(null); qc.invalidateQueries(); }}
+      />
     </Card>
   );
 }
@@ -1260,6 +1335,7 @@ function PreviewPanel({
   draft, formatLocaleCode,
   isNew, postedCount, pendingCount, lastPostedEffOn,
   showBackfillBlock, deterministicAuto,
+  occurrences, actionsEnabled, showSaveFirstHint, onPostRow,
 }: {
   draft: Draft;
   formatLocaleCode?: string;
@@ -1269,6 +1345,17 @@ function PreviewPanel({
   lastPostedEffOn: string | null;
   showBackfillBlock: boolean;
   deterministicAuto: boolean;
+  occurrences: (RecurringOccurrence & { rule: RecurringRule })[];
+  actionsEnabled: boolean;
+  showSaveFirstHint: boolean;
+  onPostRow: (row: {
+    occurrence: (RecurringOccurrence & { rule: RecurringRule }) | null;
+    due_on: string;
+    effective_on: string;
+    runNumber: number;
+    description: string | null;
+    note: string | null;
+  }) => void;
 }) {
   const { t, locale } = useI18n();
   const today = todayStr();
@@ -1312,6 +1399,12 @@ function PreviewPanel({
 
   const rows = previewQ.data ?? [];
   const fmtLocale = resolveFormatLocale(formatLocaleCode);
+  // Map real occurrences by due date so each preview row knows its state.
+  const occByDue = React.useMemo(() => {
+    const m = new Map<string, RecurringOccurrence & { rule: RecurringRule }>();
+    for (const o of occurrences) m.set(o.due_on, o);
+    return m;
+  }, [occurrences]);
   const startsOnDate = draft.starts_on ? parseISO(draft.starts_on) : new Date();
   // Past rows = preview rows scheduled before today. For edits with existing
   // posted history, only count those beyond the last posted occurrence (the
@@ -1361,7 +1454,7 @@ function PreviewPanel({
       {!enabled || rows.length === 0 ? (
         <div className="text-xs text-muted-foreground">{t("recurring.preview.empty")}</div>
       ) : (
-        <div className="max-h-40 overflow-y-auto pr-1">
+        <div className="max-h-56 overflow-y-auto pr-1">
           <ul className="space-y-1">
             {rows.map((r, i) => {
               const eff = parseISO(r.effective_on);
@@ -1374,15 +1467,55 @@ function PreviewPanel({
               };
               const resolved = interpolate(draft.description, ctx);
               const resolvedNote = interpolate(draft.note, ctx);
+              const occ = occByDue.get(r.due_on) ?? null;
+              const status: "posted" | "pending" | "missing" | "future" =
+                occ?.status === "posted" ? "posted"
+                  : occ?.status === "pending" ? "pending"
+                    : r.in_past ? "missing" : "future";
+              const label =
+                status === "posted" ? t("recurring.preview.posted")
+                  : status === "pending" ? t("recurring.preview.pending")
+                    : status === "missing" ? t("recurring.preview.missing")
+                      : t("recurring.preview.future");
               return (
                 <li key={i} className="text-xs">
                   <div className="flex items-center justify-between gap-2">
                     <span className={r.in_past ? "text-muted-foreground" : ""}>
                       {format(eff, "PP", { locale })}
                     </span>
-                    <Badge variant="outline" className="text-[10px]">
-                      {r.in_past ? t("recurring.preview.past") : t("recurring.preview.future")}
-                    </Badge>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Badge
+                        variant={status === "missing" ? "destructive" : "outline"}
+                        className="text-[10px]"
+                      >
+                        {label}
+                      </Badge>
+                      {actionsEnabled && status === "posted" && occ?.transaction_id && (
+                        <Button asChild variant="ghost" size="icon" className="h-6 w-6"
+                          aria-label={t("recurring.preview.open_tx")}>
+                          <Link to="/edit/$id" params={{ id: occ.transaction_id }}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Link>
+                        </Button>
+                      )}
+                      {actionsEnabled && (status === "pending" || status === "missing") && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2 text-[10px]"
+                          onClick={() => onPostRow({
+                            occurrence: occ,
+                            due_on: r.due_on,
+                            effective_on: r.effective_on,
+                            runNumber: i + 1,
+                            description: draft.is_split ? null : (draft.description || null),
+                            note: draft.is_split ? null : (draft.note || null),
+                          })}
+                        >
+                          {status === "pending" ? t("recurring.preview.post_now") : t("recurring.preview.create_entry")}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   {!draft.is_split && resolved && draft.description && (
                     <div className="truncate font-mono text-[11px] text-muted-foreground" title={resolved}>
@@ -1423,6 +1556,11 @@ function PreviewPanel({
       {draft.starts_on < today && showBackfillBlock && (
         <div className="mt-2 text-[11px] text-muted-foreground">
           {t("recurring.preview.note_past")}
+        </div>
+      )}
+      {showSaveFirstHint && (
+        <div className="mt-2 text-[11px] text-muted-foreground">
+          {t("recurring.preview.save_first")}
         </div>
       )}
       <div className="mt-3 rounded-md border bg-muted/30 p-2 text-[11px]">
