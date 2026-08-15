@@ -12,7 +12,7 @@ import { useI18n, type Lang } from "@/i18n";
 import {
   BookOpen, Compass, LayoutDashboard, ListOrdered, Plus, PiggyBank,
   LineChart, Inbox, Scale, Settings as SettingsIcon, Users, HelpCircle,
-  Sparkles, Search, Shield, Github, Webhook, Link2,
+  Sparkles, Search, Shield, Github, Webhook, Link2, FileText,
 } from "lucide-react";
 export const Route = createFileRoute("/help")({
   head: () => ({
@@ -293,7 +293,7 @@ const EN: Content = {
         },
         {
           q: "What can it do?",
-          a: "Prefill the Add-Transaction form from a sentence like *\"I spent 50 at Coop on groceries, paid by credit card\"*; answer questions about your data (*\"where did I spend most last month?\"*) by calling read-only tools; and explain app features and the privacy notice. It will refuse any other topic.",
+          a: "Prefill the Add-Transaction form from a sentence like *\"I spent 50 at Coop on groceries, paid by credit card\"*; answer questions about your data (*\"where did I spend most last month?\"*) by calling read-only tools; read bank and credit-card statements you upload on the **Statements** screen (PDF or a photo/screenshot) and turn them into comparable rows; and explain app features and the privacy notice. It will refuse any other topic.",
         },
         {
           q: "Does it write to my data?",
