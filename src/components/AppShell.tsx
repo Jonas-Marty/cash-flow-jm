@@ -8,7 +8,7 @@ import { useI18n, LANGUAGES, type Lang } from "@/i18n";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { fetchPendingTransactions, fetchSettings } from "@/lib/finance";
+import { fetchPendingTransactions, fetchSettings, processRecurringRulesIfStale } from "@/lib/finance";
 import { supabase } from "@/integrations/supabase/client";
 import {
   DropdownMenu,
