@@ -36,6 +36,11 @@ services:
       args:
         VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
         VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
+        # Version stamp shown in Settings -> About and at /api/public/version.
+        # APP_VERSION defaults to package.json version; set APP_COMMIT in
+        # Dokploy (e.g. to the deployed commit SHA) to see the exact build.
+        APP_VERSION: ${APP_VERSION:-}
+        APP_COMMIT: ${APP_COMMIT:-}
     image: cash-flow-app:latest
     restart: unless-stopped
     depends_on:
