@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TransactionsRouteImport } from './routes/transactions'
+import { Route as StatementsRouteImport } from './routes/statements'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as ScopesRouteImport } from './routes/scopes'
 import { Route as ReconcileRouteImport } from './routes/reconcile'
@@ -39,6 +40,11 @@ import { Route as ApiNextcloudCallbackRouteImport } from './routes/api.nextcloud
 const TransactionsRoute = TransactionsRouteImport.update({
   id: '/transactions',
   path: '/transactions',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StatementsRoute = StatementsRouteImport.update({
+  id: '/statements',
+  path: '/statements',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SettingsRoute = SettingsRouteImport.update({
@@ -183,6 +189,7 @@ export interface FileRoutesByFullPath {
   '/reconcile': typeof ReconcileRoute
   '/scopes': typeof ScopesRoute
   '/settings': typeof SettingsRoute
+  '/statements': typeof StatementsRoute
   '/transactions': typeof TransactionsRoute
   '/edit/$id': typeof EditIdRoute
   '/api/nextcloud/callback': typeof ApiNextcloudCallbackRoute
@@ -211,6 +218,7 @@ export interface FileRoutesByTo {
   '/reconcile': typeof ReconcileRoute
   '/scopes': typeof ScopesRoute
   '/settings': typeof SettingsRoute
+  '/statements': typeof StatementsRoute
   '/transactions': typeof TransactionsRoute
   '/edit/$id': typeof EditIdRoute
   '/api/nextcloud/callback': typeof ApiNextcloudCallbackRoute
@@ -240,6 +248,7 @@ export interface FileRoutesById {
   '/reconcile': typeof ReconcileRoute
   '/scopes': typeof ScopesRoute
   '/settings': typeof SettingsRoute
+  '/statements': typeof StatementsRoute
   '/transactions': typeof TransactionsRoute
   '/edit/$id': typeof EditIdRoute
   '/api/nextcloud/callback': typeof ApiNextcloudCallbackRoute
@@ -270,6 +279,7 @@ export interface FileRouteTypes {
     | '/reconcile'
     | '/scopes'
     | '/settings'
+    | '/statements'
     | '/transactions'
     | '/edit/$id'
     | '/api/nextcloud/callback'
@@ -298,6 +308,7 @@ export interface FileRouteTypes {
     | '/reconcile'
     | '/scopes'
     | '/settings'
+    | '/statements'
     | '/transactions'
     | '/edit/$id'
     | '/api/nextcloud/callback'
@@ -326,6 +337,7 @@ export interface FileRouteTypes {
     | '/reconcile'
     | '/scopes'
     | '/settings'
+    | '/statements'
     | '/transactions'
     | '/edit/$id'
     | '/api/nextcloud/callback'
@@ -355,6 +367,7 @@ export interface RootRouteChildren {
   ReconcileRoute: typeof ReconcileRoute
   ScopesRoute: typeof ScopesRoute
   SettingsRoute: typeof SettingsRoute
+  StatementsRoute: typeof StatementsRoute
   TransactionsRoute: typeof TransactionsRoute
   EditIdRoute: typeof EditIdRoute
   ApiNextcloudCallbackRoute: typeof ApiNextcloudCallbackRoute
@@ -378,6 +391,13 @@ declare module '@tanstack/react-router' {
       path: '/transactions'
       fullPath: '/transactions'
       preLoaderRoute: typeof TransactionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/statements': {
+      id: '/statements'
+      path: '/statements'
+      fullPath: '/statements'
+      preLoaderRoute: typeof StatementsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings': {
@@ -571,6 +591,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReconcileRoute: ReconcileRoute,
   ScopesRoute: ScopesRoute,
   SettingsRoute: SettingsRoute,
+  StatementsRoute: StatementsRoute,
   TransactionsRoute: TransactionsRoute,
   EditIdRoute: EditIdRoute,
   ApiNextcloudCallbackRoute: ApiNextcloudCallbackRoute,
