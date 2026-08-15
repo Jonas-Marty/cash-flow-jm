@@ -310,6 +310,35 @@ const EN: Content = {
       ],
     },
     {
+      id: "statements",
+      icon: FileText,
+      title: "Statement import",
+      intro:
+        "Upload a bank or credit-card statement on the Statements screen and let the AI read it, then compare every row against your ledger to find missing, duplicate or wrongly booked transactions.",
+      items: [
+        {
+          q: "Which file types can I upload?",
+          a: "- **PDF** — the digital statement from your bank. The text layer is extracted locally and only the text is sent to your AI endpoint.\n- **Images** — PNG, JPEG, WebP or GIF, e.g. a **photo or screenshot** of a paper statement or a banking app. The image is sent to your AI endpoint as an image, so the connection you use for *Statement extraction* must support vision.\n\nA scanned PDF without a text layer cannot be read — take a photo/screenshot of it instead and upload that as an image.",
+        },
+        {
+          q: "How do I import one?",
+          a: "1. Open **Statements**, pick the **account** the statement belongs to.\n2. Choose the file (PDF or image).\n3. Set the **date tolerance** (default 3 days) — booking dates in the app and at the bank rarely match exactly.\n4. Enable **invert amounts** if the statement shows expenses as positive numbers (common on credit-card statements).\n5. Start the import. The AI extracts the rows, then a deterministic matcher compares them with your transactions.",
+        },
+        {
+          q: "How does matching work?",
+          a: "Matching is done in code, not by the AI:\n- **Amount must agree to the cent.** Split transactions are summed per split group first.\n- **Date** must be inside your tolerance window.\n- **Description similarity** only ranks candidates and decides *exact* vs *probable* — it never creates a match on its own.\n- Each app transaction can be consumed by **at most one** statement line, so repeated identical amounts are never double-matched.",
+        },
+        {
+          q: "What do the result groups mean?",
+          a: "- **Missing** — on the statement, but not in the app. Create the transaction with one click (the Add form is prefilled).\n- **Probable** — a likely match; confirm or reset it.\n- **Matched** — exact matches, nothing to do.\n- **Ignored** — rows you marked irrelevant (fees you don't track, carry-forwards).\n- **Not on the statement** — transactions in the app inside the statement period that the statement does not contain: typically a duplicate, a wrong date, or a booking on the wrong account.",
+        },
+        {
+          q: "What is sent to my AI provider?",
+          a: "The statement text (PDF) or the image itself, plus the account currency and today's date — nothing else from your ledger. Matching happens afterwards on the server without any AI call. Choose the connection under **Settings → AI Assistant → Statement extraction**; the usual fallback to the next enabled connection applies.",
+        },
+      ],
+    },
+    {
       id: "webhooks",
       icon: Webhook,
       title: "Webhooks",
@@ -547,6 +576,35 @@ const DE: Content = {
         { q: "Schreibt er in meine Daten?", a: "Nein. Er **bereitet nur einen Entwurf** für das Add-Formular vor — speichern musst du selbst. Alle anderen Tools lesen nur." },
         { q: "Was wird an den Provider gesendet?", a: "Deine Nachrichten plus die Ergebnisse der Lesetools, die das Modell aufruft (Buchungen, Kontostände, Kategoriesummen). Siehe [Datenschutzseite](/privacy) für den vollständigen Datenfluss." },
         { q: "Wo wird mein API Token gespeichert?", a: "Serverseitig in der Tabelle `ai_credentials`. Er wird **nicht** an den Browser zurückgegeben, aber der Server-Betreiber kann ihn lesen — behandle ihn wie andere Zugangsdaten auf dieser Instanz." },
+      ],
+    },
+    {
+      id: "statements",
+      icon: FileText,
+      title: "Auszüge importieren",
+      intro:
+        "Lade unter „Auszüge" einen Konto- oder Kreditkartenauszug hoch. Die KI liest die Zeilen aus, danach vergleicht die App sie mit deinen Buchungen und zeigt Fehlendes, Doppeltes oder falsch Gebuchtes.",
+      items: [
+        {
+          q: "Welche Dateitypen kann ich hochladen?",
+          a: "- **PDF** — der digitale Auszug der Bank. Der Text wird lokal extrahiert, nur der Text geht an deinen KI-Endpoint.\n- **Bilder** — PNG, JPEG, WebP oder GIF, z. B. ein **Foto oder Screenshot** eines Papierauszugs oder der Banking-App. Das Bild wird als Bild an den KI-Endpoint geschickt — die Verbindung für *Auszug auslesen* muss also Vision unterstützen.\n\nEin gescanntes PDF ohne Textebene kann nicht gelesen werden — mach stattdessen ein Foto/Screenshot davon und lade dieses als Bild hoch.",
+        },
+        {
+          q: "Wie importiere ich einen Auszug?",
+          a: "1. **Auszüge** öffnen und das passende **Konto** wählen.\n2. Datei wählen (PDF oder Bild).\n3. **Datumstoleranz** setzen (Standard 3 Tage) — Buchungsdaten in App und Bank stimmen selten exakt überein.\n4. **Beträge invertieren** aktivieren, wenn der Auszug Ausgaben positiv darstellt (bei Kreditkarten üblich).\n5. Import starten: Die KI extrahiert die Zeilen, danach vergleicht ein deterministischer Abgleich sie mit deinen Buchungen.",
+        },
+        {
+          q: "Wie funktioniert der Abgleich?",
+          a: "Der Abgleich passiert im Code, nicht in der KI:\n- **Betrag muss auf den Rappen stimmen.** Splits werden vorher pro Split-Gruppe summiert.\n- **Datum** muss im Toleranzfenster liegen.\n- **Textähnlichkeit** sortiert nur die Kandidaten und entscheidet *exakt* vs. *wahrscheinlich* — sie erzeugt nie allein einen Treffer.\n- Jede Buchung kann **höchstens einmal** zugeordnet werden, gleiche Beträge werden also nie doppelt gematcht.",
+        },
+        {
+          q: "Was bedeuten die Gruppen im Ergebnis?",
+          a: "- **Fehlend** — steht im Auszug, fehlt in der App. Mit einem Klick anlegen (Add-Formular ist vorausgefüllt).\n- **Wahrscheinlich** — vermuteter Treffer; bestätigen oder zurücksetzen.\n- **Zugeordnet** — exakte Treffer, nichts zu tun.\n- **Ignoriert** — Zeilen, die du als irrelevant markiert hast (Gebühren, Saldovorträge).\n- **Nicht im Auszug** — Buchungen in der App im Auszugszeitraum, die der Auszug nicht enthält: meist Duplikat, falsches Datum oder falsches Konto.",
+        },
+        {
+          q: "Was wird an den KI-Provider gesendet?",
+          a: "Der Auszugstext (PDF) bzw. das Bild, dazu Kontowährung und heutiges Datum — sonst nichts aus deinen Daten. Der Abgleich läuft danach ohne KI auf dem Server. Verbindung wählst du unter **Einstellungen → KI-Assistent → Auszug auslesen**; der übliche Fallback auf die nächste aktive Verbindung gilt.",
+        },
       ],
     },
     {
