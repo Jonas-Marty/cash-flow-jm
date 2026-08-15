@@ -544,13 +544,13 @@ function SettingsPage() {
         <section id="envelopes">
         <Card>
           <CardHeader><CardTitle className="text-base">{tr("settings.envelopes")}</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="@container/env space-y-4">
             <BudgetBalanceCard
               categories={categoriesQ.data ?? []}
               groups={groupsQ.data ?? []}
               symbol={settingsQ.data?.currency_symbol ?? "CHF"}
             />
-            <div className="grid gap-2 md:grid-cols-[1fr_180px_180px_auto]">
+            <div className="grid gap-2 @2xl/env:grid-cols-[minmax(0,1fr)_180px_180px_auto]">
               <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label><Input value={cName} onChange={(e) => setCName(e.target.value)} placeholder="Groceries" /></div>
               <div>
                 <Label className="mb-1 block text-xs text-muted-foreground">{tr("common.group")}</Label>
