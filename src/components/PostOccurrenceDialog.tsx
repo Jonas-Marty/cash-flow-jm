@@ -27,11 +27,14 @@ interface Props {
   nextDate: string | null;
   /** initial amount override (e.g. value typed on the dashboard for variable-amount rules) */
   initialAmount?: string;
+  /** optional description/note template overrides (e.g. the resolved row from the rule preview) */
+  initialDescription?: string | null;
+  initialNote?: string | null;
   onClose: () => void;
   onPosted: () => void;
 }
 
-export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate, initialAmount, onClose, onPosted }: Props) {
+export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate, initialAmount, initialDescription, initialNote, onClose, onPosted }: Props) {
   const { t, lang } = useI18n();
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
 
@@ -48,8 +51,8 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
   React.useEffect(() => {
     if (!occurrence) return;
     setDate(occurrence.effective_on);
-    setDescription(occurrence.rule.description ?? "");
-    setNote(occurrence.rule.note ?? "");
+    setDescription(initialDescription ?? occurrence.rule.description ?? "");
+    setNote(initialNote ?? occurrence.rule.note ?? "");
     if (occurrence.rule.is_variable_amount) {
       if (initialAmount && initialAmount.trim() !== "") {
         setAmount(initialAmount);
@@ -62,7 +65,7 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
       setAmount("");
     }
     setBusy(false);
-  }, [occurrence, initialAmount]);
+  }, [occurrence, initialAmount, initialDescription, initialNote]);
 
   const ctx = React.useMemo(() => {
     if (!occurrence) return null;
