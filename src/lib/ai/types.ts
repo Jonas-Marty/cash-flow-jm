@@ -35,7 +35,7 @@ export interface AIConversationSummary {
 }
 
 /** AI actions that can be bound to a specific connection. */
-export const AI_ACTIONS = ["chat"] as const;
+export const AI_ACTIONS = ["chat", "statement_extract"] as const;
 export type AIAction = (typeof AI_ACTIONS)[number];
 
 export interface AIEndpoint {
