@@ -38,9 +38,6 @@ import { AISettingsCard } from "@/components/AISettingsCard";
 import { AIAuditLogCard } from "@/components/AIAuditLogCard";
 
 export const Route = createFileRoute("/settings")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    rule: typeof search.rule === "string" ? search.rule : undefined,
-  }),
   component: SettingsPage,
 });
 
