@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { LayoutDashboard, Plus, ListOrdered, Settings as SettingsIcon, Wallet, PiggyBank, LogOut, LineChart, Inbox, MoreHorizontal, Scale, Sun, Moon, Monitor, Languages, Check, HelpCircle, Sparkles, Link2 } from "lucide-react";
+import { LayoutDashboard, Plus, ListOrdered, Settings as SettingsIcon, Wallet, PiggyBank, LogOut, LineChart, Inbox, MoreHorizontal, Scale, Sun, Moon, Monitor, Languages, Check, HelpCircle, Sparkles, Link2, FileText } from "lucide-react";
 import { AssistantBubble } from "@/components/AssistantBubble";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
