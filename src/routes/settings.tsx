@@ -329,7 +329,7 @@ function SettingsPage() {
   };
 
   return (
-    <AppShell>
+    <AppShell wide>
       <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_220px] xl:gap-8">
         <SettingsSectionNav
           title={tr("settings.nav.on_this_page")}
