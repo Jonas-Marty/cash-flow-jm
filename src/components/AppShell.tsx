@@ -64,7 +64,7 @@ const mobileTabs: MobileTab[] = [
   { kind: "more", labelKey: "nav.more", icon: MoreHorizontal },
 ];
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children, wide = false }: { children: React.ReactNode; wide?: boolean }) {
   const loc = useLocation();
   const { t } = useI18n();
   const { user } = useAuth();
@@ -151,7 +151,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
       </header>
 
-      <main className="app-main mx-auto w-full max-w-3xl overflow-x-clip px-4 pb-28 pt-4 md:pb-10 md:pt-6">
+      <main
+        className={cn(
+          "app-main mx-auto w-full overflow-x-clip px-4 pb-28 pt-4 md:pb-10 md:pt-6",
+          // Dense admin-style pages (Settings) need more horizontal room than
+          // the reading-width default used everywhere else.
+          wide ? "max-w-3xl xl:max-w-[1100px]" : "max-w-3xl",
+        )}
+      >
         {/* Mobile-visible active-scope chip (header is hidden on mobile). */}
         <div className="mb-2 flex justify-end md:hidden">
           <ActiveScopeChip compact />
