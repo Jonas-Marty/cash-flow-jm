@@ -659,7 +659,6 @@ export async function fetchPendingOccurrences(): Promise<(RecurringOccurrence & 
 
 export async function postOccurrence(occ: RecurringOccurrence & { rule: RecurringRule }, overrides?: { amount?: number; description?: string | null; note?: string | null; occurred_on?: string }): Promise<void> {
   const r = occ.rule;
-  void 0;
   // Determine final amount
   let finalAmount: number;
   if (overrides?.amount !== undefined) {
