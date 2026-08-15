@@ -181,15 +181,9 @@ export function RecurringRulesCard() {
   const occStatsQ = useQuery({
     queryKey: ["recurring_occurrences_for_rule", draft.id],
     enabled: !!draft.id && open,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("recurring_occurrences")
-        .select("status, effective_on")
-        .eq("rule_id", draft.id!);
-      if (error) throw error;
-      return (data ?? []) as Array<{ status: string; effective_on: string }>;
-    },
+    queryFn: () => fetchOccurrencesForRule(draft.id!),
   });
+  const ruleOccurrences = React.useMemo(() => occStatsQ.data ?? [], [occStatsQ.data]);
   const occStats = React.useMemo(() => {
     const all = occStatsQ.data ?? [];
     const posted = all.filter((o) => o.status === "posted");
