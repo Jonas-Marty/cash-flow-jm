@@ -4,9 +4,11 @@
  * The VITE_* values are injected at build time (see Dockerfile build args).
  * When they are missing (local dev), we fall back to a "dev" marker.
  */
+import pkg from "../../package.json";
+
 const env = import.meta.env as Record<string, string | undefined>;
 
-export const APP_VERSION = env.VITE_APP_VERSION || "dev";
+export const APP_VERSION = env.VITE_APP_VERSION || (pkg as { version?: string }).version || "dev";
 export const APP_COMMIT = env.VITE_APP_COMMIT || "";
 export const APP_BUILD_TIME = env.VITE_APP_BUILD_TIME || "";
 
