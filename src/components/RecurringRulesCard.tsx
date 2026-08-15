@@ -196,6 +196,70 @@ export function RecurringRulesCard() {
 
   const isNew = !draft.id;
   const startsPast = !!draft.starts_on && draft.starts_on < todayStr();
+  // Per-row actions in the preview only make sense when the listed dates match
+  // what the *saved* rule produces. While the draft schedule differs, hide them.
+  const savedRule = React.useMemo(
+    () => (draft.id ? (rulesQ.data ?? []).find((r) => r.id === draft.id) ?? null : null),
+    [rulesQ.data, draft.id],
+  );
+  const scheduleDirty = React.useMemo(() => {
+    if (!savedRule) return true;
+    const saved: RuleShape = {
+      starts_on: savedRule.starts_on,
+      ends_on: savedRule.ends_on || null,
+      recurrence_interval: savedRule.recurrence_interval,
+      execution_day_rule: savedRule.execution_day_rule,
+      execution_day_of_month: savedRule.execution_day_of_month ?? null,
+      execution_weekend_adjustment: savedRule.execution_weekend_adjustment,
+      period_day_rule: savedRule.period_day_rule,
+      period_day_of_month: savedRule.period_day_of_month ?? null,
+      period_offset: savedRule.period_offset,
+    };
+    return JSON.stringify(saved) !== JSON.stringify(draftRuleShape(draft));
+  }, [savedRule, draft]);
+
+  // Single-occurrence post dialog opened from a preview row. `placeholder`
+  // marks occurrences we created on the fly so we can clean them up on cancel.
+  const [postTarget, setPostTarget] = React.useState<{
+    occ: RecurringOccurrence & { rule: RecurringRule };
+    runNumber: number;
+    description: string | null;
+    note: string | null;
+    placeholder: boolean;
+  } | null>(null);
+
+  const openPostForRow = async (row: {
+    occurrence: (RecurringOccurrence & { rule: RecurringRule }) | null;
+    due_on: string;
+    effective_on: string;
+    runNumber: number;
+    description: string | null;
+    note: string | null;
+  }) => {
+    if (!draft.id) return;
+    try {
+      const occ = row.occurrence
+        ?? (await createPendingOccurrence(draft.id, row.due_on, row.effective_on));
+      setPostTarget({
+        occ,
+        runNumber: row.runNumber,
+        description: row.description,
+        note: row.note,
+        placeholder: !row.occurrence,
+      });
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
+  };
+
+  const closePostDialog = async () => {
+    const target = postTarget;
+    setPostTarget(null);
+    if (target?.placeholder) {
+      try { await deletePendingOccurrence(target.occ.id); } catch { /* ignore */ }
+    }
+    qc.invalidateQueries({ queryKey: ["recurring_occurrences_for_rule", draft.id] });
+  };
   // "Fresh" past start: new rule, or editing a rule that has nothing posted yet.
   // User picks from 3 backfill modes (none / post / pending).
   const freshPastMode = startsPast && (isNew || occStats.postedCount === 0);
