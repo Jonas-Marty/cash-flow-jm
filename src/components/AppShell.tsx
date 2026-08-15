@@ -76,6 +76,37 @@ export function AppShell({ children, wide = false }: { children: React.ReactNode
   });
   const pendingCount = pendingCountQ.data ?? 0;
   const [moreOpen, setMoreOpen] = useState(false);
+  const qc = useQueryClient();
+  // Catch-up sweep: runs on any page, at most once per day per user (the RPC
+  // claims the day server-side, so extra tabs/devices are no-ops). This is the
+  // fallback for setups without an external scheduler hitting
+  // /api/public/process-recurring.
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    const sweep = async () => {
+      try {
+        const did = await processRecurringRulesIfStale();
+        if (did && !cancelled) {
+          qc.invalidateQueries({ queryKey: ["transactions"] });
+          qc.invalidateQueries({ queryKey: ["pending_transactions"] });
+          qc.invalidateQueries({ queryKey: ["recurring_rules"] });
+          qc.invalidateQueries({ queryKey: ["account_balances"] });
+          qc.invalidateQueries({ queryKey: ["category_month_rows"] });
+        }
+      } catch {
+        /* non-fatal: the scheduler (or the next load) will retry */
+      }
+    };
+    void sweep();
+    // Long-lived tabs: re-check when the tab regains focus (day may have rolled over).
+    const onVisible = () => { if (document.visibilityState === "visible") void sweep(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [user, qc]);
   useEffect(() => {
     const viewport = window.visualViewport;
     if (!viewport) return;
