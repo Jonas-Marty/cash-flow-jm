@@ -330,7 +330,7 @@ function SettingsPage() {
 
   return (
     <AppShell>
-      <div className="xl:grid xl:grid-cols-[1fr_220px] xl:gap-8">
+      <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_220px] xl:gap-8">
         <SettingsSectionNav
           title={tr("settings.nav.on_this_page")}
           sections={[
@@ -351,7 +351,7 @@ function SettingsPage() {
             { id: "account", label: tr("settings.account") },
           ] satisfies SettingsSection[]}
         />
-        <div className="space-y-6 xl:col-start-1 xl:row-start-1 [&>section]:scroll-mt-24">
+        <div className="min-w-0 space-y-6 xl:col-start-1 xl:row-start-1 [&>section]:scroll-mt-24">
         <h1 className="text-2xl font-semibold tracking-tight">{tr("settings.title")}</h1>
 
         {/* Preferences (merged: Localization · Appearance · Money) */}
