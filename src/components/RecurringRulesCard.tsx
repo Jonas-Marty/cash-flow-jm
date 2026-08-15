@@ -1325,6 +1325,7 @@ function PreviewPanel({
   draft, formatLocaleCode,
   isNew, postedCount, pendingCount, lastPostedEffOn,
   showBackfillBlock, deterministicAuto,
+  occurrences, actionsEnabled, showSaveFirstHint, onPostRow,
 }: {
   draft: Draft;
   formatLocaleCode?: string;
@@ -1334,6 +1335,17 @@ function PreviewPanel({
   lastPostedEffOn: string | null;
   showBackfillBlock: boolean;
   deterministicAuto: boolean;
+  occurrences: (RecurringOccurrence & { rule: RecurringRule })[];
+  actionsEnabled: boolean;
+  showSaveFirstHint: boolean;
+  onPostRow: (row: {
+    occurrence: (RecurringOccurrence & { rule: RecurringRule }) | null;
+    due_on: string;
+    effective_on: string;
+    runNumber: number;
+    description: string | null;
+    note: string | null;
+  }) => void;
 }) {
   const { t, locale } = useI18n();
   const today = todayStr();
