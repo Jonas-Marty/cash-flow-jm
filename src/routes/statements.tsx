@@ -27,6 +27,9 @@ import type { StatementLine } from "@/lib/ai/statementTypes";
 
 export const Route = createFileRoute("/statements")({
   component: StatementsPage,
+  validateSearch: (search: Record<string, unknown>): { import?: string } => ({
+    import: typeof search.import === "string" ? search.import : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Statement import · Cashflow" },
