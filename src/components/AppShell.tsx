@@ -25,7 +25,7 @@ import {
 import { ActiveScopeChip } from "@/components/ActiveScopeChip";
 
 type Tab = {
-  to: "/" | "/transactions" | "/add" | "/envelopes" | "/insights" | "/settings" | "/pending" | "/reconcile" | "/help" | "/assistant" | "/links";
+  to: "/" | "/transactions" | "/add" | "/envelopes" | "/insights" | "/settings" | "/pending" | "/reconcile" | "/statements" | "/help" | "/assistant" | "/links";
   labelKey: string;
   icon: typeof LayoutDashboard;
   exact?: boolean;
@@ -50,6 +50,7 @@ const mobileMoreItems: Tab[] = [
   { to: "/insights", labelKey: "nav.insights", icon: LineChart },
   { to: "/pending", labelKey: "nav.pending", icon: Inbox },
   { to: "/reconcile", labelKey: "nav.reconcile", icon: Scale },
+  { to: "/statements", labelKey: "nav.statements", icon: FileText },
   { to: "/links", labelKey: "nav.links", icon: Link2 },
   { to: "/assistant", labelKey: "nav.assistant", icon: Sparkles },
   { to: "/help", labelKey: "nav.help", icon: HelpCircle },
