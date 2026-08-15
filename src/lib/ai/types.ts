@@ -33,3 +33,31 @@ export interface AIConversationSummary {
   title: string;
   updated_at: string;
 }
+
+/** AI actions that can be bound to a specific connection. */
+export const AI_ACTIONS = ["chat"] as const;
+export type AIAction = (typeof AI_ACTIONS)[number];
+
+export interface AIEndpoint {
+  id: string;
+  name: string;
+  base_url: string;
+  model: string;
+  enabled: boolean;
+  priority: number;
+  /** Whether a token is stored. The token itself never leaves the server. */
+  has_token: boolean;
+}
+
+export interface AIActionBinding {
+  action: AIAction;
+  endpoint_id: string | null;
+  allow_fallback: boolean;
+}
+
+export interface AIEndpointHealth {
+  id: string;
+  ok: boolean;
+  latency_ms: number | null;
+  error?: string | null;
+}
