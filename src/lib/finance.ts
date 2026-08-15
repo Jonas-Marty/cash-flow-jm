@@ -629,6 +629,20 @@ export async function processRecurringRules(today?: string): Promise<void> {
   if (error) throw error;
 }
 
+/**
+ * Catch-up sweep (fallback for when no external scheduler runs).
+ *
+ * Server-side claim: the RPC only processes when `settings.last_recurring_sweep_on`
+ * is older than today, so multiple tabs/devices can call it freely — exactly one
+ * per day does the work. Returns true when this call performed the sweep.
+ */
+export async function processRecurringRulesIfStale(today?: string): Promise<boolean> {
+  const t = today ?? new Date().toISOString().slice(0, 10);
+  const { data, error } = await supabase.rpc("process_recurring_rules_if_stale", { p_today: t });
+  if (error) throw error;
+  return data === true;
+}
+
 export async function fetchRecurringRules(): Promise<RecurringRule[]> {
   const { data, error } = await supabase
     .from("recurring_rules")

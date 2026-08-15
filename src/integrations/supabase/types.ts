@@ -893,6 +893,7 @@ export type Database = {
           format_locale: string
           id: string
           language: string
+          last_recurring_sweep_on: string | null
           net_worth_show_converted: boolean
           theme: string
           updated_at: string
@@ -909,6 +910,7 @@ export type Database = {
           format_locale?: string
           id?: string
           language?: string
+          last_recurring_sweep_on?: string | null
           net_worth_show_converted?: boolean
           theme?: string
           updated_at?: string
@@ -925,6 +927,7 @@ export type Database = {
           format_locale?: string
           id?: string
           language?: string
+          last_recurring_sweep_on?: string | null
           net_worth_show_converted?: boolean
           theme?: string
           updated_at?: string
@@ -1533,6 +1536,10 @@ export type Database = {
       process_recurring_rules_for_all_users: {
         Args: { p_today: string }
         Returns: number
+      }
+      process_recurring_rules_if_stale: {
+        Args: { p_today: string }
+        Returns: boolean
       }
       prune_audit_logs: { Args: { p_keep_days: number }; Returns: number }
       recompute_reimbursable_status: {

@@ -23,7 +23,6 @@ import {
   fetchTransactions,
   fetchAccounts,
   fetchRecurringRules,
-  processRecurringRules,
   fetchPendingImpactsForMonth,
   buildPendingMap,
   fmtMoney,
@@ -70,11 +69,8 @@ function DashboardContent() {
   });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const rulesQ = useQuery({ queryKey: ["recurring_rules"], queryFn: fetchRecurringRules });
-  // Run the recurring processor once when the dashboard mounts.
-  // Idempotent — safe even if the user reloads many times.
-  React.useEffect(() => {
-    processRecurringRules().catch(() => {});
-  }, []);
+  // The daily catch-up sweep lives in AppShell (once per day per user, claimed
+  // server-side) so it also runs when the dashboard isn't the entry page.
 
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
   const mainCode = settingsQ.data?.currency_code ?? "CHF";
