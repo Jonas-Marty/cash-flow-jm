@@ -34,6 +34,7 @@ import { Switch } from "@/components/ui/switch";
 import { useQuery as useRQ } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
 import { SettingsSectionNav, type SettingsSection } from "@/components/SettingsSectionNav";
+import { formatVersion } from "@/lib/version";
 import { AISettingsCard } from "@/components/AISettingsCard";
 import { AIAuditLogCard } from "@/components/AIAuditLogCard";
 
