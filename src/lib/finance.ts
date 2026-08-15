@@ -388,6 +388,7 @@ export async function fetchSettings(): Promise<Settings> {
   const { data, error } = await supabase
     .from("settings")
     .select("*")
+    .order("created_at", { ascending: true })
     .limit(1)
     .maybeSingle();
   if (error) throw error;
@@ -397,7 +398,17 @@ export async function fetchSettings(): Promise<Settings> {
       .insert({ currency_code: "CHF", currency_symbol: "CHF", day_heatmap_threshold: 100, date_format: "dd.MM.yyyy", net_worth_show_converted: false, format_locale: "de" })
       .select()
       .single();
-    if (cErr) throw cErr;
+    if (cErr) {
+      // Another tab may have created the row concurrently (unique on user_id).
+      const { data: existing, error: rErr } = await supabase
+        .from("settings")
+        .select("*")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (rErr || !existing) throw cErr;
+      return existing as Settings;
+    }
     return created as Settings;
   }
   return data as Settings;
