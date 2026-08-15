@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouterState } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import { Plus, Pencil, Trash2 } from "lucide-react";
@@ -246,6 +247,22 @@ export function RecurringRulesCard() {
 
   const openAdd = () => { setDraft(emptyDraft()); setOpen(true); };
   const openEdit = (r: RecurringRule) => { setDraft(ruleToDraft(r)); setOpen(true); };
+
+  // Deep link: /settings#rule-<id> scrolls to this card and opens the rule editor.
+  const hash = useRouterState({ select: (s) => s.location.hash });
+  const handledHash = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    const id = (hash ?? "").replace(/^#/, "").startsWith("rule-")
+      ? (hash ?? "").replace(/^#/, "").slice(5)
+      : null;
+    if (!id || handledHash.current === id) return;
+    const rule = (rulesQ.data ?? []).find((r) => r.id === id);
+    if (!rule) return;
+    handledHash.current = id;
+    document.getElementById("recurring")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    openEdit(rule);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hash, rulesQ.data]);
 
   const save = async (opts: { confirmedPastPost?: boolean } = {}) => {
     if (!draft.name.trim()) { toast.error(t("toast.name_required")); return; }

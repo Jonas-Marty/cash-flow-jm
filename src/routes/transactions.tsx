@@ -873,9 +873,16 @@ function TransactionsPage() {
                     </span>,
                   );
                   if (t.recurring_rule_id) chips.push(
-                    <span key="rule" className="shrink-0 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground" title={ruleById.get(t.recurring_rule_id)?.name ?? ""}>
+                    <Link
+                      key="rule"
+                      to="/settings"
+                      hash={`rule-${t.recurring_rule_id}`}
+                      onClick={(ev) => ev.stopPropagation()}
+                      className="shrink-0 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground hover:bg-accent hover:text-foreground"
+                      title={ruleById.get(t.recurring_rule_id)?.name ?? ""}
+                    >
                       {tr("tx.from_rule")}{ruleById.get(t.recurring_rule_id) ? `: ${ruleById.get(t.recurring_rule_id)!.name}` : ""}
-                    </span>,
+                    </Link>,
                   );
                   if (t.occurred_on > new Date().toISOString().slice(0, 10)) chips.push(
                     <span key="upcoming" className="shrink-0 whitespace-nowrap rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-warning">
