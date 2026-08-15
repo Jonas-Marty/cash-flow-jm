@@ -15,7 +15,9 @@ export interface FxRates {
 const TWELVE_HOURS = 12 * 60 * 60 * 1000;
 
 async function fetchRates(base: string): Promise<FxRates> {
-  const res = await fetch(`https://api.frankfurter.app/latest?from=${encodeURIComponent(base)}`);
+  // api.frankfurter.app now 301-redirects to api.frankfurter.dev/v1; the redirect
+  // response carries no CORS headers, so call the new host directly.
+  const res = await fetch(`https://api.frankfurter.dev/v1/latest?base=${encodeURIComponent(base)}`);
   if (!res.ok) throw new Error(`FX request failed: ${res.status}`);
   const json = (await res.json()) as { base: string; date: string; rates: Record<string, number> };
   return { base: json.base, date: json.date, rates: { ...json.rates, [json.base]: 1 } };
