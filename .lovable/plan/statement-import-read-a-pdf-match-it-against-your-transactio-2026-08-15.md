@@ -67,4 +67,6 @@ Statement totals also feed the existing Reconcile feature: the closing balance f
 
 ## Suggested combination
 
-A1 + B1 + D2, with the AI second pass for category suggestions, and B3/A2/D3 as later increments.
+A1 + B1 + D2, with the AI second pass for category suggestions, and B3/A2/D3 as later increments.  
+  
+Suggestions sounds nice, while implementing, keep in mind that it is not that unusual to have multiple same amounts per day or in successif days. E.g. at a music festival i often purchased beer for 5 CHF multiple times per day with Twint on multiple following days.
