@@ -137,6 +137,9 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
     const rem = remaining(tx);
     const dir = directionOf(tx);
     const origName = (tx.description || tx.reimbursable_counterparty || tr("add.expense")).trim();
+    // Note: localized "Reimbursement for: X" line, keeping any original note below it.
+    const noteLead = tr("iou.repayment.prefill_note", { name: origName });
+    const note = tx.note?.trim() ? `${noteLead}\n${tx.note.trim()}` : noteLead;
     const params = new URLSearchParams({
       reimburse_for: tx.id,
       // owed_to_me: original was expense → repayment is income.
@@ -144,7 +147,7 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
       type: dir === "owed_to_me" ? "income" : "expense",
       amount: rem.toFixed(2),
       description: tr("iou.repayment.prefill_description", { name: origName }),
-      note: tx.note || "",
+      note,
     });
     if (tx.reimbursable_counterparty) params.set("counterparty", tx.reimbursable_counterparty);
     return `/add?${params.toString()}`;
