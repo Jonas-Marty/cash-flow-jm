@@ -8,7 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Markdown } from "@/components/Markdown";
 import { cn } from "@/lib/utils";
-import { chat, getAISettings, getConversation } from "@/utils/ai.functions";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { chat, listAIEndpoints, getConversation } from "@/utils/ai.functions";
 import type { AssistantAction, ChatMessage } from "@/lib/ai/types";
 import { useI18n } from "@/i18n";
 
@@ -35,10 +36,10 @@ export function AssistantChat({
   const { t } = useI18n();
   const navigate = useNavigate();
   const chatFn = useServerFn(chat);
-  const settingsFn = useServerFn(getAISettings);
+  const listFn = useServerFn(listAIEndpoints);
   const convFn = useServerFn(getConversation);
 
-  const settingsQ = useQuery({ queryKey: ["ai_settings"], queryFn: () => settingsFn() });
+  const settingsQ = useQuery({ queryKey: ["ai_endpoints"], queryFn: () => listFn() });
   const historyQ = useQuery({
     queryKey: ["ai_conv", conversationId],
     queryFn: () => (conversationId ? convFn({ data: { id: conversationId } }) : Promise.resolve({ messages: [] as ChatMessage[] })),
@@ -48,6 +49,7 @@ export function AssistantChat({
   const [messages, setMessages] = React.useState<LocalMsg[]>([]);
   const [input, setInput] = React.useState("");
   const [busy, setBusy] = React.useState(false);
+  const [endpointId, setEndpointId] = React.useState<string>("auto");
   const scrollerRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
@@ -60,7 +62,11 @@ export function AssistantChat({
     if (scrollerRef.current) scrollerRef.current.scrollTop = scrollerRef.current.scrollHeight;
   }, [messages, busy]);
 
-  const enabled = settingsQ.data?.enabled && settingsQ.data?.has_token;
+  const endpoints = React.useMemo(
+    () => (settingsQ.data?.endpoints ?? []).filter((e) => e.enabled),
+    [settingsQ.data?.endpoints],
+  );
+  const enabled = endpoints.length > 0;
 
   const send = async (text: string) => {
     if (!text.trim() || busy) return;
@@ -72,8 +78,16 @@ export function AssistantChat({
     setInput("");
     setBusy(true);
     try {
-      const r = await chatFn({ data: { conversation_id: conversationId ?? null, message: text, persist } });
+      const r = await chatFn({
+        data: {
+          conversation_id: conversationId ?? null,
+          message: text,
+          persist,
+          endpoint_id: endpointId === "auto" ? null : endpointId,
+        },
+      });
       setMessages((prev) => [...prev, { role: "assistant", text: r.message.text, action: r.message.action }]);
+      if (r.endpoint?.fell_back) toast.info(t("ai.conn.fell_back", { name: r.endpoint.name }));
       if (r.conversation_id && r.conversation_id !== conversationId) onConversationChange?.(r.conversation_id);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -91,6 +105,24 @@ export function AssistantChat({
 
   return (
     <div className={cn("flex flex-col", compact ? "h-[70vh]" : "h-[calc(100vh-8rem)]")}>
+      {endpoints.length > 1 && (
+        <div className="mb-2 flex items-center gap-2">
+          <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
+          <Select value={endpointId} onValueChange={setEndpointId}>
+            <SelectTrigger className="h-8 w-[220px] text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="auto">{t("ai.conn.auto")}</SelectItem>
+              {endpoints.map((e) => (
+                <SelectItem key={e.id} value={e.id}>
+                  {e.name} · {e.model}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       <div ref={scrollerRef} className="flex-1 space-y-3 overflow-y-auto px-1 py-2">
         {messages.length === 0 && (
           <div className="space-y-3 p-2">
