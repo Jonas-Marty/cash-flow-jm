@@ -23,7 +23,6 @@ import {
   fetchTransactions,
   fetchAccounts,
   fetchRecurringRules,
-  processRecurringRules,
   fetchPendingImpactsForMonth,
   buildPendingMap,
   fmtMoney,
