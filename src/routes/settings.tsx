@@ -349,6 +349,7 @@ function SettingsPage() {
             { id: "integrations", label: tr("settings.integrations") },
             { id: "audit", label: tr("audit.title") },
             { id: "account", label: tr("settings.account") },
+            { id: "about", label: tr("settings.about") },
           ] satisfies SettingsSection[]}
         />
         <div className="min-w-0 space-y-6 xl:col-start-1 xl:row-start-1 [&>section]:scroll-mt-24">
@@ -850,9 +851,63 @@ function SettingsPage() {
         <section id="integrations"><IntegrationsCard /></section>
         <section id="audit"><AuditLogCard /></section>
         <section id="account"><AccountCard /></section>
+        <section id="about"><AboutCard /></section>
         </div>
       </div>
     </AppShell>
+  );
+}
+
+function AboutCard() {
+  const { t } = useI18n();
+  const serverQ = useRQ({
+    queryKey: ["app-version"],
+    staleTime: 60_000,
+    queryFn: async () => {
+      const res = await fetch("/api/public/version");
+      if (!res.ok) throw new Error("version unavailable");
+      return (await res.json()) as {
+        version: string; commit: string; commitShort: string; builtAt: string | null;
+      };
+    },
+  });
+  const server = serverQ.data;
+  const rows: Array<[string, string]> = [
+    [t("settings.about.client"), formatVersion()],
+    [
+      t("settings.about.server"),
+      server ? formatVersion(server.version, server.commitShort) : serverQ.isError ? "—" : "…",
+    ],
+  ];
+  if (server?.builtAt) rows.push([t("settings.about.built_at"), server.builtAt]);
+  const copyText = `client ${formatVersion()}${server ? ` · server ${formatVersion(server.version, server.commitShort)}` : ""}`;
+  return (
+    <Card>
+      <CardHeader><CardTitle className="text-base">{t("settings.about")}</CardTitle></CardHeader>
+      <CardContent className="space-y-3">
+        <dl className="space-y-1 text-sm">
+          {rows.map(([k, v]) => (
+            <div key={k} className="flex flex-wrap items-baseline justify-between gap-2">
+              <dt className="text-muted-foreground">{k}</dt>
+              <dd className="font-mono">{v}</dd>
+            </div>
+          ))}
+        </dl>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              navigator.clipboard?.writeText(copyText);
+              toast.success(t("toast.copied"));
+            }}
+          >
+            {t("settings.about.copy")}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">{t("settings.about.hint")}</p>
+      </CardContent>
+    </Card>
   );
 }
 

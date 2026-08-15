@@ -24,6 +24,7 @@ import { Route as AssistantRouteImport } from './routes/assistant'
 import { Route as AddRouteImport } from './routes/add'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EditIdRouteImport } from './routes/edit.$id'
+import { Route as ApiPublicVersionRouteImport } from './routes/api.public.version'
 import { Route as ApiPublicTransactionsRouteImport } from './routes/api.public.transactions'
 import { Route as ApiPublicPruneAuditRouteImport } from './routes/api.public.prune-audit'
 import { Route as ApiPublicProcessRecurringRouteImport } from './routes/api.public.process-recurring'
@@ -110,6 +111,11 @@ const IndexRoute = IndexRouteImport.update({
 const EditIdRoute = EditIdRouteImport.update({
   id: '/edit/$id',
   path: '/edit/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicVersionRoute = ApiPublicVersionRouteImport.update({
+  id: '/api/public/version',
+  path: '/api/public/version',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicTransactionsRoute = ApiPublicTransactionsRouteImport.update({
@@ -204,6 +210,7 @@ export interface FileRoutesByFullPath {
   '/api/public/process-recurring': typeof ApiPublicProcessRecurringRoute
   '/api/public/prune-audit': typeof ApiPublicPruneAuditRoute
   '/api/public/transactions': typeof ApiPublicTransactionsRoute
+  '/api/public/version': typeof ApiPublicVersionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -233,6 +240,7 @@ export interface FileRoutesByTo {
   '/api/public/process-recurring': typeof ApiPublicProcessRecurringRoute
   '/api/public/prune-audit': typeof ApiPublicPruneAuditRoute
   '/api/public/transactions': typeof ApiPublicTransactionsRoute
+  '/api/public/version': typeof ApiPublicVersionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -263,6 +271,7 @@ export interface FileRoutesById {
   '/api/public/process-recurring': typeof ApiPublicProcessRecurringRoute
   '/api/public/prune-audit': typeof ApiPublicPruneAuditRoute
   '/api/public/transactions': typeof ApiPublicTransactionsRoute
+  '/api/public/version': typeof ApiPublicVersionRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -294,6 +303,7 @@ export interface FileRouteTypes {
     | '/api/public/process-recurring'
     | '/api/public/prune-audit'
     | '/api/public/transactions'
+    | '/api/public/version'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -323,6 +333,7 @@ export interface FileRouteTypes {
     | '/api/public/process-recurring'
     | '/api/public/prune-audit'
     | '/api/public/transactions'
+    | '/api/public/version'
   id:
     | '__root__'
     | '/'
@@ -352,6 +363,7 @@ export interface FileRouteTypes {
     | '/api/public/process-recurring'
     | '/api/public/prune-audit'
     | '/api/public/transactions'
+    | '/api/public/version'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -382,6 +394,7 @@ export interface RootRouteChildren {
   ApiPublicProcessRecurringRoute: typeof ApiPublicProcessRecurringRoute
   ApiPublicPruneAuditRoute: typeof ApiPublicPruneAuditRoute
   ApiPublicTransactionsRoute: typeof ApiPublicTransactionsRoute
+  ApiPublicVersionRoute: typeof ApiPublicVersionRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -489,6 +502,13 @@ declare module '@tanstack/react-router' {
       path: '/edit/$id'
       fullPath: '/edit/$id'
       preLoaderRoute: typeof EditIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/version': {
+      id: '/api/public/version'
+      path: '/api/public/version'
+      fullPath: '/api/public/version'
+      preLoaderRoute: typeof ApiPublicVersionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/transactions': {
@@ -606,6 +626,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicProcessRecurringRoute: ApiPublicProcessRecurringRoute,
   ApiPublicPruneAuditRoute: ApiPublicPruneAuditRoute,
   ApiPublicTransactionsRoute: ApiPublicTransactionsRoute,
+  ApiPublicVersionRoute: ApiPublicVersionRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
