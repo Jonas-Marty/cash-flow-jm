@@ -93,6 +93,11 @@ function StatementsPage() {
   const [windowDays, setWindowDays] = React.useState(3);
   const [file, setFile] = React.useState<File | null>(null);
   const [activeId, setActiveId] = React.useState<string | null>(null);
+  const search = Route.useSearch();
+
+  React.useEffect(() => {
+    if (search.import) setActiveId(search.import);
+  }, [search.import]);
 
   React.useEffect(() => {
     if (!accountId && accounts.length > 0) setAccountId(accounts[0].id);
