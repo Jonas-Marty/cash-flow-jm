@@ -19,8 +19,11 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   fetchAccounts, fetchCategories, fetchRecurringRules,
   describeSchedule, previewRecurringRule, archiveRecurringRule, applyRecurringRuleBackfill, fetchSettings, fetchTransactions,
-  type RecurringRule, type DayRuleV2, type WeekendAdjustV2, type TxType,
+  fetchOccurrencesForRule, createPendingOccurrence, deletePendingOccurrence,
+  type RecurringRule, type RecurringOccurrence, type DayRuleV2, type WeekendAdjustV2, type TxType,
 } from "@/lib/finance";
+import { PostOccurrenceDialog } from "@/components/PostOccurrenceDialog";
+import { Link } from "@tanstack/react-router";
 import { seriesStep, weekendShift, periodBoundsForDue, parseISODate, toISODate, type RuleShape } from "@/lib/recurrence";
 import { useI18n } from "@/i18n";
 import { DateInput } from "@/components/DateInput";
