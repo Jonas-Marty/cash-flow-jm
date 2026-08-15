@@ -223,15 +223,17 @@ const chatSchema = z.object({
   conversation_id: z.string().uuid().nullable().optional(),
   message: z.string().trim().min(1).max(4000),
   persist: z.boolean().optional(),
+  endpoint_id: z.string().uuid().nullable().optional(),
 });
 
 export const chat = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => chatSchema.parse(d))
   .handler(async ({ data, context }) => {
-    const { loadCredentials, runChat } = await import("./ai.server");
+    const { resolveEndpoint, runChat } = await import("./ai.server");
     const { userId, supabase } = context;
-    const creds = await loadCredentials(userId);
+    const resolved = await resolveEndpoint(userId, "chat", data.endpoint_id ?? null);
+    const creds = resolved.creds;
 
     // Settings for system prompt context.
     const { data: settings } = await supabase.from("settings").select("currency_code, currency_symbol, language").maybeSingle();
@@ -289,5 +291,6 @@ export const chat = createServerFn({ method: "POST" })
     return {
       conversation_id: conversationId,
       message: { role: "assistant" as const, text: result.text, action: result.action },
+      endpoint: { id: resolved.endpoint.id, name: resolved.endpoint.name, fell_back: resolved.fell_back },
     };
   });
