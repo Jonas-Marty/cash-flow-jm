@@ -1021,6 +1021,138 @@ export type Database = {
           },
         ]
       }
+      statement_import_lines: {
+        Row: {
+          amount: number
+          booking_date: string | null
+          created_at: string
+          decision: string | null
+          description: string
+          id: string
+          import_id: string
+          line_no: number
+          match_score: number | null
+          match_status: string
+          matched_transaction_id: string | null
+          raw_text: string | null
+          updated_at: string
+          user_id: string
+          value_date: string | null
+        }
+        Insert: {
+          amount: number
+          booking_date?: string | null
+          created_at?: string
+          decision?: string | null
+          description?: string
+          id?: string
+          import_id: string
+          line_no?: number
+          match_score?: number | null
+          match_status?: string
+          matched_transaction_id?: string | null
+          raw_text?: string | null
+          updated_at?: string
+          user_id: string
+          value_date?: string | null
+        }
+        Update: {
+          amount?: number
+          booking_date?: string | null
+          created_at?: string
+          decision?: string | null
+          description?: string
+          id?: string
+          import_id?: string
+          line_no?: number
+          match_score?: number | null
+          match_status?: string
+          matched_transaction_id?: string | null
+          raw_text?: string | null
+          updated_at?: string
+          user_id?: string
+          value_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "statement_import_lines_import_id_fkey"
+            columns: ["import_id"]
+            isOneToOne: false
+            referencedRelation: "statement_imports"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "statement_import_lines_matched_transaction_id_fkey"
+            columns: ["matched_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      statement_imports: {
+        Row: {
+          account_id: string
+          closing_balance: number | null
+          created_at: string
+          currency_code: string | null
+          file_name: string
+          id: string
+          match_window_days: number
+          model: string | null
+          period_from: string | null
+          period_to: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          closing_balance?: number | null
+          created_at?: string
+          currency_code?: string | null
+          file_name?: string
+          id?: string
+          match_window_days?: number
+          model?: string | null
+          period_from?: string | null
+          period_to?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          closing_balance?: number | null
+          created_at?: string
+          currency_code?: string | null
+          file_name?: string
+          id?: string
+          match_window_days?: number
+          model?: string | null
+          period_from?: string | null
+          period_to?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "statement_imports_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "account_balances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "statement_imports_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transaction_attachments: {
         Row: {
           added_at: string
