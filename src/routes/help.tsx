@@ -318,9 +318,6 @@ const EN: Content = {
       items: [
         {
           q: "What triggers a webhook?",
-      items: [
-        {
-          q: "What triggers a webhook?",
           a: "A webhook is fired for every newly created transaction, from any of these sources:\n- **`transaction.created.manual`** — you saved it via the Add screen.\n- **`transaction.created.recurring`** — a recurring rule auto-posted it.\n- **`transaction.created.api`** — it came in through the public REST API.\n\nEdits, deletes and reallocations do **not** fire a webhook (by design — keeps the contract simple).",
         },
         {
