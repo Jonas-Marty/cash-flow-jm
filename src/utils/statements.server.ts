@@ -103,7 +103,7 @@ function normAmount(v: unknown): number | null {
   return null;
 }
 
-async function callJsonModel(creds: FullAICreds, system: string, user: string): Promise<any> {
+async function callJsonModel(creds: FullAICreds, system: string, user: string | unknown[]): Promise<any> {
   const resp = await fetch(`${creds.base_url}/chat/completions`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${creds.api_token}` },
@@ -163,6 +163,51 @@ ${chunk}`;
         raw_text: typeof r?.raw_text === "string" ? r.raw_text.slice(0, 500) : null,
       });
     }
+  }
+  return out;
+}
+
+/**
+ * Extract statement rows from a photo/scan (PNG, JPEG, WebP, …) using a
+ * vision-capable model. The image is passed inline as a base64 data URL.
+ */
+export async function extractStatementFromImagesWithAI(
+  creds: FullAICreds,
+  images: { mime: string; base64: string }[],
+  hint: { currency_code: string; today: string },
+): Promise<ExtractedStatement> {
+  const content = [
+    {
+      type: "text",
+      text: `Account currency: ${hint.currency_code}. Today: ${hint.today}.
+Read every transaction row from this statement image and return the JSON described in the system prompt.`,
+    },
+    ...images.map((img) => ({
+      type: "image_url",
+      image_url: { url: `data:${img.mime};base64,${img.base64}` },
+    })),
+  ];
+  const parsed = await callJsonModel(creds, EXTRACT_SYSTEM, content);
+  const out: ExtractedStatement = {
+    lines: [],
+    period_from: normDate(parsed?.period_from),
+    period_to: normDate(parsed?.period_to),
+    closing_balance: normAmount(parsed?.closing_balance),
+    currency_code:
+      typeof parsed?.currency_code === "string"
+        ? parsed.currency_code.trim().toUpperCase().slice(0, 8) || null
+        : null,
+  };
+  for (const r of Array.isArray(parsed?.lines) ? parsed.lines : []) {
+    const amount = normAmount(r?.amount);
+    if (amount === null || amount === 0) continue;
+    out.lines.push({
+      booking_date: normDate(r?.booking_date) ?? normDate(r?.date),
+      value_date: normDate(r?.value_date),
+      description: String(r?.description ?? "").trim().slice(0, 300),
+      amount,
+      raw_text: typeof r?.raw_text === "string" ? r.raw_text.slice(0, 500) : null,
+    });
   }
   return out;
 }

@@ -11,6 +11,7 @@ import { resolveEndpoint } from "./ai.server";
 import {
   base64ToBytes,
   extractPdfText,
+  extractStatementFromImagesWithAI,
   extractStatementWithAI,
   loadAppEntries,
   matchLines,
@@ -90,6 +91,7 @@ export async function runStatementExtraction(
     account_id: string;
     file_name: string;
     file_base64: string;
+    file_type?: string | null;
     invert_amounts?: boolean;
     window_days?: number;
     endpoint_id?: string | null;
@@ -102,19 +104,32 @@ export async function runStatementExtraction(
     .single();
   if (accErr) throw new Error(accErr.message);
 
-  const { text } = await extractPdfText(base64ToBytes(input.file_base64));
-  if (text.replace(/--- page \d+ ---/g, "").trim().length < 40) {
-    throw new Error(
-      "This PDF has no readable text layer (it looks scanned). Please use the digital statement from your bank.",
-    );
+  const mime = (input.file_type || "").toLowerCase();
+  const isImage = mime.startsWith("image/") || /\.(png|jpe?g|webp|gif|heic|heif)$/i.test(input.file_name);
+  const hint = {
+    currency_code: account.currency_code || "CHF",
+    today: new Date().toISOString().slice(0, 10),
+  };
+
+  let text = "";
+  if (!isImage) {
+    text = (await extractPdfText(base64ToBytes(input.file_base64))).text;
+    if (text.replace(/--- page \d+ ---/g, "").trim().length < 40) {
+      throw new Error(
+        "This PDF has no readable text layer (it looks scanned). Upload a photo/screenshot of it instead, or use the digital statement from your bank.",
+      );
+    }
   }
 
   const resolved = await resolveEndpoint(userId, "statement_extract", input.endpoint_id ?? null);
-  const extracted = await extractStatementWithAI(resolved.creds, text, {
-    currency_code: account.currency_code || "CHF",
-    today: new Date().toISOString().slice(0, 10),
-  });
-  if (extracted.lines.length === 0) throw new Error("The AI could not find any transaction rows in this PDF.");
+  const extracted = isImage
+    ? await extractStatementFromImagesWithAI(
+        resolved.creds,
+        [{ mime: mime || "image/png", base64: input.file_base64 }],
+        hint,
+      )
+    : await extractStatementWithAI(resolved.creds, text, hint);
+  if (extracted.lines.length === 0) throw new Error("The AI could not find any transaction rows in this file.");
 
   const sign = input.invert_amounts ? -1 : 1;
   const windowDays = input.window_days ?? 3;

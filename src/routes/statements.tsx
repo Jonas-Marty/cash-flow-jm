@@ -107,7 +107,14 @@ function StatementsPage() {
       if (!accountId) throw new Error(t("statements.err.no_account"));
       const file_base64 = await readFileAsBase64(file);
       return extractFn({
-        data: { account_id: accountId, file_name: file.name, file_base64, invert_amounts: invert, window_days: windowDays },
+        data: {
+          account_id: accountId,
+          file_name: file.name,
+          file_base64,
+          file_type: file.type || null,
+          invert_amounts: invert,
+          window_days: windowDays,
+        },
       });
     },
     onSuccess: (res) => {
@@ -244,7 +251,7 @@ function StatementsPage() {
               <Label className="text-xs">{t("statements.field.file")}</Label>
               <Input
                 type="file"
-                accept="application/pdf"
+                accept="application/pdf,image/png,image/jpeg,image/webp,image/gif"
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                 className="h-9"
               />
