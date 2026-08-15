@@ -1548,6 +1548,11 @@ function PreviewPanel({
           {t("recurring.preview.note_past")}
         </div>
       )}
+      {showSaveFirstHint && (
+        <div className="mt-2 text-[11px] text-muted-foreground">
+          {t("recurring.preview.save_first")}
+        </div>
+      )}
       <div className="mt-3 rounded-md border bg-muted/30 p-2 text-[11px]">
         <div className="mb-1 font-semibold uppercase text-muted-foreground">
           {t("recurring.impact.title")}
