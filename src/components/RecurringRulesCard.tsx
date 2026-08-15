@@ -1389,6 +1389,12 @@ function PreviewPanel({
 
   const rows = previewQ.data ?? [];
   const fmtLocale = resolveFormatLocale(formatLocaleCode);
+  // Map real occurrences by due date so each preview row knows its state.
+  const occByDue = React.useMemo(() => {
+    const m = new Map<string, RecurringOccurrence & { rule: RecurringRule }>();
+    for (const o of occurrences) m.set(o.due_on, o);
+    return m;
+  }, [occurrences]);
   const startsOnDate = draft.starts_on ? parseISO(draft.starts_on) : new Date();
   // Past rows = preview rows scheduled before today. For edits with existing
   // posted history, only count those beyond the last posted occurrence (the
@@ -1438,7 +1444,7 @@ function PreviewPanel({
       {!enabled || rows.length === 0 ? (
         <div className="text-xs text-muted-foreground">{t("recurring.preview.empty")}</div>
       ) : (
-        <div className="max-h-40 overflow-y-auto pr-1">
+        <div className="max-h-56 overflow-y-auto pr-1">
           <ul className="space-y-1">
             {rows.map((r, i) => {
               const eff = parseISO(r.effective_on);
@@ -1451,15 +1457,55 @@ function PreviewPanel({
               };
               const resolved = interpolate(draft.description, ctx);
               const resolvedNote = interpolate(draft.note, ctx);
+              const occ = occByDue.get(r.due_on) ?? null;
+              const status: "posted" | "pending" | "missing" | "future" =
+                occ?.status === "posted" ? "posted"
+                  : occ?.status === "pending" ? "pending"
+                    : r.in_past ? "missing" : "future";
+              const label =
+                status === "posted" ? t("recurring.preview.posted")
+                  : status === "pending" ? t("recurring.preview.pending")
+                    : status === "missing" ? t("recurring.preview.missing")
+                      : t("recurring.preview.future");
               return (
                 <li key={i} className="text-xs">
                   <div className="flex items-center justify-between gap-2">
                     <span className={r.in_past ? "text-muted-foreground" : ""}>
                       {format(eff, "PP", { locale })}
                     </span>
-                    <Badge variant="outline" className="text-[10px]">
-                      {r.in_past ? t("recurring.preview.past") : t("recurring.preview.future")}
-                    </Badge>
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Badge
+                        variant={status === "missing" ? "destructive" : "outline"}
+                        className="text-[10px]"
+                      >
+                        {label}
+                      </Badge>
+                      {actionsEnabled && status === "posted" && occ?.transaction_id && (
+                        <Button asChild variant="ghost" size="icon" className="h-6 w-6"
+                          aria-label={t("recurring.preview.open_tx")}>
+                          <Link to="/edit/$id" params={{ id: occ.transaction_id }}>
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Link>
+                        </Button>
+                      )}
+                      {actionsEnabled && (status === "pending" || status === "missing") && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2 text-[10px]"
+                          onClick={() => onPostRow({
+                            occurrence: occ,
+                            due_on: r.due_on,
+                            effective_on: r.effective_on,
+                            runNumber: i + 1,
+                            description: draft.is_split ? null : (draft.description || null),
+                            note: draft.is_split ? null : (draft.note || null),
+                          })}
+                        >
+                          {status === "pending" ? t("recurring.preview.post_now") : t("recurring.preview.create_entry")}
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   {!draft.is_split && resolved && draft.description && (
                     <div className="truncate font-mono text-[11px] text-muted-foreground" title={resolved}>
