@@ -19,9 +19,20 @@
  */
 import { createServer } from "node:http";
 import { readFile, stat } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { extname, join, normalize, resolve } from "node:path";
 import { Readable } from "node:stream";
+
+// Build stamp written by the Dockerfile (VITE_APP_VERSION / _COMMIT / _BUILD_TIME).
+// Exposed to the SSR bundle as APP_VERSION / APP_COMMIT / APP_BUILD_TIME.
+try {
+  if (existsSync("./.env.build")) {
+    for (const line of readFileSync("./.env.build", "utf8").split("\n")) {
+      const m = /^VITE_APP_(VERSION|COMMIT|BUILD_TIME)=(.*)$/.exec(line.trim());
+      if (m && !process.env[`APP_${m[1]}`]) process.env[`APP_${m[1]}`] = m[2];
+    }
+  }
+} catch {}
 
 const PORT = parseInt(process.env.PORT ?? "3000", 10);
 const HOST = process.env.HOST ?? "0.0.0.0";

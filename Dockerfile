@@ -20,8 +20,22 @@ ARG VITE_SUPABASE_PUBLISHABLE_KEY
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
 ENV VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
 
+# Version stamp: semver from package.json unless APP_VERSION is passed,
+# plus the git commit hash and build timestamp.
+ARG APP_VERSION
+ARG APP_COMMIT
+ARG APP_BUILD_TIME
+RUN APP_VERSION="${APP_VERSION:-$(node -p "require('./package.json').version")}" \
+ && APP_COMMIT="${APP_COMMIT:-$( [ -d .git ] && git rev-parse HEAD 2>/dev/null || echo '' )}" \
+ && APP_BUILD_TIME="${APP_BUILD_TIME:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}" \
+ && printf 'VITE_APP_VERSION=%s\nVITE_APP_COMMIT=%s\nVITE_APP_BUILD_TIME=%s\n' \
+      "$APP_VERSION" "$APP_COMMIT" "$APP_BUILD_TIME" > .env.build \
+ && cat .env.build
+
 # Build SSR + client assets targeting Node
-RUN npx vite build --config vite.config.node.ts
+RUN set -a && . ./.env.build && set +a \
+ && APP_VERSION="$VITE_APP_VERSION" APP_COMMIT="$VITE_APP_COMMIT" APP_BUILD_TIME="$VITE_APP_BUILD_TIME" \
+    npx vite build --config vite.config.node.ts
 
 # ---------- 3. runtime ----------
 FROM node:22-alpine AS runtime
@@ -51,6 +65,7 @@ RUN npm install --omit=dev \
 
 # Copy build artifacts with correct ownership
 COPY --chown=app:app --from=build /app/dist ./dist
+COPY --chown=app:app --from=build /app/.env.build ./.env.build
 COPY --chown=app:app server/node-server.mjs ./server/node-server.mjs
 
 EXPOSE 3000
