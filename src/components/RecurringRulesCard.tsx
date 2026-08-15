@@ -1112,6 +1112,10 @@ export function RecurringRulesCard() {
               lastPostedEffOn={occStats.lastPostedEffOn}
               showBackfillBlock={showBackfill}
               deterministicAuto={deterministicAuto}
+              occurrences={ruleOccurrences}
+              actionsEnabled={!isNew && !scheduleDirty}
+              showSaveFirstHint={!isNew && scheduleDirty}
+              onPostRow={openPostForRow}
             />
           </div>
           <DialogFooter>
