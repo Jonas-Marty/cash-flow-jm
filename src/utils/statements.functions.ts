@@ -33,6 +33,7 @@ export const extractStatement = createServerFn({ method: "POST" })
         account_id: z.string().uuid(),
         file_name: z.string().max(200).default("statement.pdf"),
         file_base64: z.string().min(100),
+        file_type: z.string().max(100).nullable().optional(),
         invert_amounts: z.boolean().optional(),
         window_days: z.number().int().min(0).max(30).optional(),
         endpoint_id: z.string().uuid().nullable().optional(),
