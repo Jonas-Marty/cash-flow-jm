@@ -11,6 +11,7 @@ import { resolveEndpoint } from "./ai.server";
 import {
   base64ToBytes,
   extractPdfText,
+  extractStatementFromImagesWithAI,
   extractStatementWithAI,
   loadAppEntries,
   matchLines,
