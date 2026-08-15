@@ -124,6 +124,38 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_action_endpoints: {
+        Row: {
+          action: string
+          allow_fallback: boolean
+          endpoint_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          allow_fallback?: boolean
+          endpoint_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          allow_fallback?: boolean
+          endpoint_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_action_endpoints_endpoint_id_fkey"
+            columns: ["endpoint_id"]
+            isOneToOne: false
+            referencedRelation: "ai_endpoints"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_audit_logs: {
         Row: {
           conversation_id: string | null
@@ -218,6 +250,45 @@ export type Database = {
           created_at?: string
           enabled?: boolean
           model?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_endpoints: {
+        Row: {
+          api_token: string | null
+          base_url: string
+          created_at: string
+          enabled: boolean
+          id: string
+          model: string
+          name: string
+          priority: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          api_token?: string | null
+          base_url: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          model: string
+          name: string
+          priority?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          api_token?: string | null
+          base_url?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          model?: string
+          name?: string
+          priority?: number
           updated_at?: string
           user_id?: string
         }

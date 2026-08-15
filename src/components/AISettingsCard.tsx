@@ -7,45 +7,105 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Sparkles } from "lucide-react";
-import { getAISettings, saveAISettings, testAIConnection } from "@/utils/ai.functions";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Sparkles, Plus, Trash2, RefreshCw, Loader2 } from "lucide-react";
+import {
+  listAIEndpoints,
+  saveAIEndpoint,
+  deleteAIEndpoint,
+  saveAIActionBinding,
+  checkAIEndpoints,
+  testAIConnection,
+} from "@/utils/ai.functions";
+import type { AIEndpoint, AIEndpointHealth } from "@/lib/ai/types";
+import { AI_ACTIONS } from "@/lib/ai/types";
 import { useI18n } from "@/i18n";
+import { cn } from "@/lib/utils";
+
+type Draft = {
+  id: string | null;
+  name: string;
+  base_url: string;
+  model: string;
+  enabled: boolean;
+  priority: number;
+  token: string;
+  has_token: boolean;
+};
+
+const emptyDraft = (priority: number): Draft => ({
+  id: null,
+  name: "",
+  base_url: "",
+  model: "",
+  enabled: true,
+  priority,
+  token: "",
+  has_token: false,
+});
+
+const toDraft = (e: AIEndpoint): Draft => ({
+  id: e.id,
+  name: e.name,
+  base_url: e.base_url,
+  model: e.model,
+  enabled: e.enabled,
+  priority: e.priority,
+  token: "",
+  has_token: e.has_token,
+});
 
 export function AISettingsCard() {
   const { t } = useI18n();
   const qc = useQueryClient();
-  const getFn = useServerFn(getAISettings);
-  const saveFn = useServerFn(saveAISettings);
+  const listFn = useServerFn(listAIEndpoints);
+  const saveFn = useServerFn(saveAIEndpoint);
+  const delFn = useServerFn(deleteAIEndpoint);
+  const bindFn = useServerFn(saveAIActionBinding);
+  const checkFn = useServerFn(checkAIEndpoints);
   const testFn = useServerFn(testAIConnection);
-  const q = useQuery({ queryKey: ["ai_settings"], queryFn: () => getFn() });
 
-  const [enabled, setEnabled] = React.useState(false);
-  const [baseUrl, setBaseUrl] = React.useState("");
-  const [model, setModel] = React.useState("");
-  const [token, setToken] = React.useState("");
+  const q = useQuery({ queryKey: ["ai_endpoints"], queryFn: () => listFn() });
+  const endpoints = q.data?.endpoints ?? [];
+  const bindings = q.data?.bindings ?? [];
+
+  const [drafts, setDrafts] = React.useState<Record<string, Draft>>({});
+  const [newDraft, setNewDraft] = React.useState<Draft | null>(null);
+  const [health, setHealth] = React.useState<Record<string, AIEndpointHealth>>({});
   const [busy, setBusy] = React.useState(false);
+  const [checking, setChecking] = React.useState(false);
 
   React.useEffect(() => {
-    if (q.data) {
-      setEnabled(q.data.enabled);
-      setBaseUrl(q.data.base_url ?? "");
-      setModel(q.data.model ?? "");
-    }
-  }, [q.data]);
+    setDrafts(Object.fromEntries(endpoints.map((e) => [e.id, toDraft(e)])));
+  }, [q.data?.endpoints]);
 
-  const onSave = async () => {
+  const patch = (id: string, p: Partial<Draft>) =>
+    setDrafts((prev) => ({ ...prev, [id]: { ...prev[id], ...p } }));
+
+  const save = async (d: Draft) => {
     setBusy(true);
     try {
       await saveFn({
         data: {
-          enabled,
-          base_url: baseUrl.trim() || null,
-          model: model.trim() || null,
-          api_token: token === "" ? undefined : token,
+          id: d.id,
+          name: d.name.trim(),
+          base_url: d.base_url.trim(),
+          model: d.model.trim(),
+          enabled: d.enabled,
+          priority: d.priority,
+          ...(d.token === "" ? {} : { api_token: d.token }),
         } as never,
       });
       toast.success(t("toast.saved"));
-      setToken("");
+      setNewDraft(null);
+      qc.invalidateQueries({ queryKey: ["ai_endpoints"] });
       qc.invalidateQueries({ queryKey: ["ai_settings"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
@@ -54,15 +114,34 @@ export function AISettingsCard() {
     }
   };
 
-  const onTest = async () => {
+  const remove = async (id: string) => {
+    if (!confirm(t("ai.conn.delete_confirm"))) return;
+    try {
+      await delFn({ data: { id } });
+      qc.invalidateQueries({ queryKey: ["ai_endpoints"] });
+      qc.invalidateQueries({ queryKey: ["ai_settings"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const checkAll = async () => {
+    setChecking(true);
+    try {
+      const r = await checkFn({ data: {} } as never);
+      setHealth(Object.fromEntries(r.health.map((h) => [h.id, h])));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setChecking(false);
+    }
+  };
+
+  const test = async (d: Draft) => {
     setBusy(true);
     try {
       const r = await testFn({
-        data: {
-          base_url: baseUrl.trim(),
-          model: model.trim(),
-          api_token: token || undefined,
-        },
+        data: { id: d.id, base_url: d.base_url.trim(), model: d.model.trim(), api_token: d.token || undefined },
       });
       if (r.ok) toast.success(t("ai.test.ok"));
       else toast.error(r.error || t("ai.test.fail"));
@@ -73,60 +152,192 @@ export function AISettingsCard() {
     }
   };
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <Sparkles className="h-4 w-4" /> {t("ai.settings.title")}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-xs text-muted-foreground">{t("ai.settings.intro")}</p>
-        <div className="flex items-center justify-between rounded-md border p-3">
-          <div>
-            <Label className="text-sm">{t("ai.settings.enabled")}</Label>
-            <p className="text-xs text-muted-foreground">{t("ai.settings.enabled_hint")}</p>
-          </div>
-          <Switch checked={enabled} onCheckedChange={setEnabled} />
+  const setBinding = async (action: string, endpoint_id: string | null, allow_fallback: boolean) => {
+    try {
+      await bindFn({ data: { action, endpoint_id, allow_fallback } as never });
+      qc.invalidateQueries({ queryKey: ["ai_endpoints"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const statusBadge = (d: Draft) => {
+    if (!d.enabled) return <Badge variant="outline">{t("ai.conn.disabled")}</Badge>;
+    const h = d.id ? health[d.id] : undefined;
+    if (!h) return <Badge variant="outline">{t("ai.conn.unknown")}</Badge>;
+    return (
+      <Badge
+        variant="outline"
+        className={cn(h.ok ? "border-emerald-500/50 text-emerald-600" : "border-destructive/50 text-destructive")}
+        title={h.error ?? undefined}
+      >
+        <span className={cn("mr-1 inline-block h-2 w-2 rounded-full", h.ok ? "bg-emerald-500" : "bg-destructive")} />
+        {h.ok ? `${t("ai.conn.online")} · ${h.latency_ms}ms` : t("ai.conn.offline")}
+      </Badge>
+    );
+  };
+
+  const row = (d: Draft, isNew = false) => (
+    <div key={d.id ?? "new"} className="space-y-3 rounded-md border p-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          {statusBadge(d)}
+          <Switch
+            checked={d.enabled}
+            onCheckedChange={(v) => (isNew ? setNewDraft({ ...d, enabled: v }) : patch(d.id!, { enabled: v }))}
+          />
+        </div>
+        {!isNew && (
+          <Button variant="ghost" size="icon" onClick={() => remove(d.id!)} aria-label={t("common.remove")}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div>
+          <Label className="text-sm">{t("ai.conn.name")}</Label>
+          <Input
+            value={d.name}
+            onChange={(e) => (isNew ? setNewDraft({ ...d, name: e.target.value }) : patch(d.id!, { name: e.target.value }))}
+            placeholder="Local Ollama"
+            className="mt-1"
+          />
         </div>
         <div>
-          <Label htmlFor="ai-base-url" className="text-sm">{t("ai.settings.base_url")}</Label>
+          <Label className="text-sm">{t("ai.settings.model")}</Label>
           <Input
-            id="ai-base-url"
-            value={baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
+            value={d.model}
+            onChange={(e) => (isNew ? setNewDraft({ ...d, model: e.target.value }) : patch(d.id!, { model: e.target.value }))}
+            placeholder="gpt-4o-mini"
+            className="mt-1"
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <Label className="text-sm">{t("ai.settings.base_url")}</Label>
+          <Input
+            value={d.base_url}
+            onChange={(e) =>
+              isNew ? setNewDraft({ ...d, base_url: e.target.value }) : patch(d.id!, { base_url: e.target.value })
+            }
             placeholder="https://api.openai.com/v1"
             className="mt-1"
           />
           <p className="mt-1 text-xs text-muted-foreground">{t("ai.settings.base_url_hint")}</p>
         </div>
         <div>
-          <Label htmlFor="ai-model" className="text-sm">{t("ai.settings.model")}</Label>
+          <Label className="text-sm">{t("ai.settings.token")}</Label>
           <Input
-            id="ai-model"
-            value={model}
-            onChange={(e) => setModel(e.target.value)}
-            placeholder="gpt-4o-mini"
+            type="password"
+            autoComplete="off"
+            value={d.token}
+            onChange={(e) => (isNew ? setNewDraft({ ...d, token: e.target.value }) : patch(d.id!, { token: e.target.value }))}
+            placeholder={d.has_token ? "••••••••  " + t("ai.settings.token_stored") : ""}
             className="mt-1"
           />
         </div>
         <div>
-          <Label htmlFor="ai-token" className="text-sm">{t("ai.settings.token")}</Label>
+          <Label className="text-sm">{t("ai.conn.priority")}</Label>
           <Input
-            id="ai-token"
-            type="password"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-            placeholder={q.data?.has_token ? "••••••••  " + t("ai.settings.token_stored") : ""}
+            type="number"
+            value={d.priority}
+            onChange={(e) => {
+              const v = Number(e.target.value) || 0;
+              isNew ? setNewDraft({ ...d, priority: v }) : patch(d.id!, { priority: v });
+            }}
             className="mt-1"
-            autoComplete="off"
           />
-          <p className="mt-1 text-xs text-muted-foreground">{t("ai.settings.token_hint")}</p>
+          <p className="mt-1 text-xs text-muted-foreground">{t("ai.conn.priority_hint")}</p>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={onSave} disabled={busy}>{t("common.save")}</Button>
-          <Button variant="outline" onClick={onTest} disabled={busy || !baseUrl || !model}>{t("ai.settings.test")}</Button>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" onClick={() => save(d)} disabled={busy || !d.name || !d.base_url || !d.model}>
+          {t("common.save")}
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => test(d)} disabled={busy || !d.base_url || !d.model}>
+          {t("ai.settings.test")}
+        </Button>
+        {isNew && (
+          <Button size="sm" variant="ghost" onClick={() => setNewDraft(null)}>
+            {t("common.cancel")}
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Sparkles className="h-4 w-4" /> {t("ai.conn.title")}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-xs text-muted-foreground">{t("ai.conn.intro")}</p>
+        <p className="text-xs text-muted-foreground">{t("ai.settings.token_hint")}</p>
+
+        <div className="flex flex-wrap gap-2">
+          <Button size="sm" variant="outline" onClick={checkAll} disabled={checking || endpoints.length === 0}>
+            {checking ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1 h-3 w-3" />}
+            {t("ai.conn.check")}
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => setNewDraft(emptyDraft((endpoints.at(-1)?.priority ?? 0) + 10))}
+            disabled={!!newDraft}
+          >
+            <Plus className="mr-1 h-3 w-3" />
+            {t("ai.conn.add")}
+          </Button>
         </div>
+
+        {endpoints.length === 0 && !newDraft && (
+          <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">{t("ai.conn.none")}</p>
+        )}
+
+        <div className="space-y-3">
+          {endpoints.map((e) => drafts[e.id] && row(drafts[e.id]))}
+          {newDraft && row(newDraft, true)}
+        </div>
+
+        {endpoints.length > 0 && (
+          <div className="space-y-3 rounded-md border p-3">
+            <Label className="text-sm font-medium">{t("ai.conn.actions_title")}</Label>
+            {AI_ACTIONS.map((action) => {
+              const b = bindings.find((x) => x.action === action);
+              return (
+                <div key={action} className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">{t(`ai.conn.action.${action}`)}</Label>
+                  <Select
+                    value={b?.endpoint_id ?? "auto"}
+                    onValueChange={(v) => setBinding(action, v === "auto" ? null : v, b?.allow_fallback !== false)}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="auto">{t("ai.conn.auto")}</SelectItem>
+                      {endpoints.map((e) => (
+                        <SelectItem key={e.id} value={e.id}>
+                          {e.name} · {e.model}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">{t("ai.conn.fallback")}</span>
+                    <Switch
+                      checked={b?.allow_fallback !== false}
+                      onCheckedChange={(v) => setBinding(action, b?.endpoint_id ?? null, v)}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </CardContent>
     </Card>
   );

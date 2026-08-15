@@ -93,6 +93,128 @@ export interface FullAICreds {
   api_token: string;
 }
 
+// ---------------------------------------------------------------------------
+// Endpoints (multiple connections per user)
+// ---------------------------------------------------------------------------
+
+export interface EndpointRow {
+  id: string;
+  name: string;
+  base_url: string;
+  model: string;
+  api_token: string | null;
+  enabled: boolean;
+  priority: number;
+}
+
+export async function loadEndpointRows(userId: string): Promise<EndpointRow[]> {
+  const { data, error } = await supabaseAdmin
+    .from("ai_endpoints")
+    .select("id, name, base_url, model, api_token, enabled, priority, created_at")
+    .eq("user_id", userId)
+    .order("priority", { ascending: true })
+    .order("created_at", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data || []).map((r: any) => ({
+    id: r.id,
+    name: r.name,
+    base_url: (r.base_url || "").trim().replace(/\/+$/, ""),
+    model: r.model,
+    api_token: r.api_token,
+    enabled: !!r.enabled,
+    priority: r.priority ?? 100,
+  }));
+}
+
+function toCreds(row: EndpointRow): FullAICreds {
+  return { enabled: true, base_url: row.base_url, model: row.model, api_token: row.api_token || "" };
+}
+
+/** Quick availability probe: /models, falling back to a 1-token chat ping. */
+export async function pingEndpoint(
+  baseUrl: string,
+  token: string | null,
+  model: string,
+  timeoutMs = 6000,
+): Promise<{ ok: boolean; latency_ms: number; error?: string }> {
+  const base = baseUrl.trim().replace(/\/+$/, "");
+  const started = Date.now();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const withTimeout = async (fn: (signal: AbortSignal) => Promise<Response>) => {
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), timeoutMs);
+    try {
+      return await fn(ac.signal);
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+  try {
+    const resp = await withTimeout((signal) => fetch(`${base}/models`, { headers, signal }));
+    if (resp.ok) return { ok: true, latency_ms: Date.now() - started };
+    if (resp.status === 401 || resp.status === 403) {
+      return { ok: false, latency_ms: Date.now() - started, error: `${resp.status} unauthorized` };
+    }
+  } catch {
+    // fall through to the chat ping
+  }
+  try {
+    const resp = await withTimeout((signal) =>
+      fetch(`${base}/chat/completions`, {
+        method: "POST",
+        headers,
+        signal,
+        body: JSON.stringify({ model, messages: [{ role: "user", content: "ping" }], max_tokens: 1 }),
+      }),
+    );
+    if (!resp.ok) {
+      const body = await resp.text();
+      return { ok: false, latency_ms: Date.now() - started, error: `${resp.status} ${body.slice(0, 160)}` };
+    }
+    return { ok: true, latency_ms: Date.now() - started };
+  } catch (e) {
+    return { ok: false, latency_ms: Date.now() - started, error: e instanceof Error ? e.message : String(e) };
+  }
+}
+
+/**
+ * Pick the connection for an action:
+ *   explicit id → action binding → highest-priority enabled connection.
+ * When the preferred one is offline and fallback is allowed, walk the
+ * remaining enabled connections by priority and use the first that answers.
+ */
+export async function resolveEndpoint(
+  userId: string,
+  action: string,
+  explicitId?: string | null,
+): Promise<{ creds: FullAICreds; endpoint: EndpointRow; fell_back: boolean }> {
+  const rows = (await loadEndpointRows(userId)).filter((r) => r.enabled && r.base_url && r.model);
+  if (rows.length === 0) throw new Error("No AI connection configured. Add one in Settings.");
+
+  const { data: binding } = await supabaseAdmin
+    .from("ai_action_endpoints")
+    .select("endpoint_id, allow_fallback")
+    .eq("user_id", userId)
+    .eq("action", action)
+    .maybeSingle();
+
+  const preferredId = explicitId || binding?.endpoint_id || null;
+  const allowFallback = explicitId ? true : binding?.allow_fallback !== false;
+  const preferred = preferredId ? rows.find((r) => r.id === preferredId) : rows[0];
+
+  if (preferred && !allowFallback) return { creds: toCreds(preferred), endpoint: preferred, fell_back: false };
+
+  const ordered = preferred ? [preferred, ...rows.filter((r) => r.id !== preferred.id)] : rows;
+  let lastError = "";
+  for (const [i, row] of ordered.entries()) {
+    const health = await pingEndpoint(row.base_url, row.api_token, row.model);
+    if (health.ok) return { creds: toCreds(row), endpoint: row, fell_back: i > 0 };
+    lastError = health.error || "unavailable";
+  }
+  throw new Error(`No AI connection is reachable right now (last error: ${lastError}).`);
+}
+
 export async function loadCredentials(userId: string): Promise<FullAICreds> {
   const { data, error } = await supabaseAdmin
     .from("ai_credentials")
