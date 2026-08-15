@@ -583,7 +583,7 @@ const DE: Content = {
       icon: FileText,
       title: "Auszüge importieren",
       intro:
-        "Lade unter „Auszüge" einen Konto- oder Kreditkartenauszug hoch. Die KI liest die Zeilen aus, danach vergleicht die App sie mit deinen Buchungen und zeigt Fehlendes, Doppeltes oder falsch Gebuchtes.",
+        "Lade unter „Auszüge“ einen Konto- oder Kreditkartenauszug hoch. Die KI liest die Zeilen aus, danach vergleicht die App sie mit deinen Buchungen und zeigt Fehlendes, Doppeltes oder falsch Gebuchtes.",
       items: [
         {
           q: "Welche Dateitypen kann ich hochladen?",
