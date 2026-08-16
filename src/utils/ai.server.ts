@@ -11,7 +11,7 @@ import type { AssistantAction } from "@/lib/ai/types";
 // Audit log
 // ---------------------------------------------------------------------------
 
-function providerHost(url: string): string | null {
+export function providerHost(url: string): string | null {
   try {
     return new URL(url).host;
   } catch {
@@ -19,7 +19,7 @@ function providerHost(url: string): string | null {
   }
 }
 
-function preview(v: unknown, max = 1000): string {
+export function preview(v: unknown, max = 1000): string {
   let s: string;
   try {
     s = typeof v === "string" ? v : JSON.stringify(v);
@@ -30,9 +30,9 @@ function preview(v: unknown, max = 1000): string {
   return s;
 }
 
-async function writeAudit(row: {
+export async function writeAudit(row: {
   user_id: string;
-  kind: "chat_request" | "tool_call";
+  kind: "chat_request" | "tool_call" | "document_extract";
   model?: string | null;
   provider_host?: string | null;
   tool_name?: string | null;
@@ -40,6 +40,9 @@ async function writeAudit(row: {
   duration_ms?: number | null;
   ok?: boolean | null;
   error_message?: string | null;
+  prompt_tokens?: number | null;
+  completion_tokens?: number | null;
+  total_tokens?: number | null;
   payload: Record<string, unknown>;
 }): Promise<void> {
   try {
@@ -56,6 +59,9 @@ async function writeAudit(row: {
       duration_ms: row.duration_ms ?? null,
       ok: row.ok ?? null,
       error_message: row.error_message ?? null,
+      prompt_tokens: row.prompt_tokens ?? null,
+      completion_tokens: row.completion_tokens ?? null,
+      total_tokens: row.total_tokens ?? null,
       payload: safe,
     });
   } catch {
