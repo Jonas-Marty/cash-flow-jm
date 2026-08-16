@@ -80,6 +80,23 @@ export function AssistantChat({
   const [accountId, setAccountId] = React.useState<string>("");
   const [dragging, setDragging] = React.useState(false);
 
+  const isAccepted = React.useCallback(
+    (f: File) => ACCEPT.split(",").includes(f.type),
+    [],
+  );
+
+  const onPaste = React.useCallback(
+    (e: React.ClipboardEvent) => {
+      const items = Array.from(e.clipboardData?.files ?? []);
+      const f = items.find(isAccepted);
+      if (f) {
+        e.preventDefault();
+        setFile(f);
+      }
+    },
+    [isAccepted],
+  );
+
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts, enabled: !!file });
   const accounts = React.useMemo(
     () => (accountsQ.data ?? []).filter((a) => !a.archived),
@@ -192,6 +209,7 @@ export function AssistantChat({
         setDragging(true);
       }}
       onDragLeave={() => setDragging(false)}
+      onPaste={onPaste}
       onDrop={(e) => {
         e.preventDefault();
         setDragging(false);
