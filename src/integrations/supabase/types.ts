@@ -275,6 +275,7 @@ export type Database = {
           model: string
           name: string
           priority: number
+          transcribe_model: string | null
           updated_at: string
           user_id: string
         }
@@ -288,6 +289,7 @@ export type Database = {
           model: string
           name: string
           priority?: number
+          transcribe_model?: string | null
           updated_at?: string
           user_id: string
         }
@@ -301,6 +303,7 @@ export type Database = {
           model?: string
           name?: string
           priority?: number
+          transcribe_model?: string | null
           updated_at?: string
           user_id?: string
         }
