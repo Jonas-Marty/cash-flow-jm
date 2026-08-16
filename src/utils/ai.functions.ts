@@ -240,11 +240,26 @@ export const chat = createServerFn({ method: "POST" })
 
     // Settings for system prompt context.
     const { data: settings } = await supabase.from("settings").select("currency_code, currency_symbol, language").maybeSingle();
+
+    // Context briefing: real accounts/categories/recent activity, sized per connection.
+    let briefing = "";
+    try {
+      const { buildBriefingForUser } = await import("./aiContext.server");
+      briefing = await buildBriefingForUser(
+        supabase as never,
+        resolved.endpoint.context_level ?? "compact",
+        settings?.currency_code || "CHF",
+      );
+    } catch {
+      briefing = "";
+    }
+
     const sys = {
       currencyCode: settings?.currency_code || "CHF",
       currencySymbol: settings?.currency_symbol || "CHF",
       todayISO: new Date().toISOString().slice(0, 10),
       language: settings?.language || "de",
+      briefing,
     };
 
     // Load existing history if persistent.
