@@ -24,7 +24,7 @@ import {
   checkAIEndpoints,
   testAIConnection,
 } from "@/utils/ai.functions";
-import type { AIEndpoint, AIEndpointHealth } from "@/lib/ai/types";
+import type { AIContextLevel, AIEndpoint, AIEndpointHealth } from "@/lib/ai/types";
 import { AI_ACTIONS } from "@/lib/ai/types";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
@@ -36,6 +36,7 @@ type Draft = {
   model: string;
   enabled: boolean;
   priority: number;
+  context_level: AIContextLevel;
   token: string;
   has_token: boolean;
 };
@@ -47,6 +48,7 @@ const emptyDraft = (priority: number): Draft => ({
   model: "",
   enabled: true,
   priority,
+  context_level: "compact",
   token: "",
   has_token: false,
 });
@@ -58,6 +60,7 @@ const toDraft = (e: AIEndpoint): Draft => ({
   model: e.model,
   enabled: e.enabled,
   priority: e.priority,
+  context_level: e.context_level ?? "compact",
   token: "",
   has_token: e.has_token,
 });
@@ -100,6 +103,7 @@ export function AISettingsCard() {
           model: d.model.trim(),
           enabled: d.enabled,
           priority: d.priority,
+          context_level: d.context_level,
           ...(d.token === "" ? {} : { api_token: d.token }),
         } as never,
       });
@@ -248,6 +252,27 @@ export function AISettingsCard() {
             className="mt-1"
           />
           <p className="mt-1 text-xs text-muted-foreground">{t("ai.conn.priority_hint")}</p>
+        </div>
+        <div className="sm:col-span-2">
+          <Label className="text-sm">{t("ai.conn.context")}</Label>
+          <Select
+            value={d.context_level}
+            onValueChange={(v) =>
+              isNew
+                ? setNewDraft({ ...d, context_level: v as AIContextLevel })
+                : patch(d.id!, { context_level: v as AIContextLevel })
+            }
+          >
+            <SelectTrigger className="mt-1 h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="off">{t("ai.conn.context.off")}</SelectItem>
+              <SelectItem value="compact">{t("ai.conn.context.compact")}</SelectItem>
+              <SelectItem value="full">{t("ai.conn.context.full")}</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="mt-1 text-xs text-muted-foreground">{t("ai.conn.context_hint")}</p>
         </div>
       </div>
 

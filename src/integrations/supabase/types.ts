@@ -259,6 +259,7 @@ export type Database = {
         Row: {
           api_token: string | null
           base_url: string
+          context_level: string
           created_at: string
           enabled: boolean
           id: string
@@ -271,6 +272,7 @@ export type Database = {
         Insert: {
           api_token?: string | null
           base_url: string
+          context_level?: string
           created_at?: string
           enabled?: boolean
           id?: string
@@ -283,6 +285,7 @@ export type Database = {
         Update: {
           api_token?: string | null
           base_url?: string
+          context_level?: string
           created_at?: string
           enabled?: boolean
           id?: string

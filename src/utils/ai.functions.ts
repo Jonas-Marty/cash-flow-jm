@@ -20,7 +20,7 @@ const actionSchema = z.enum(AI_ACTIONS as unknown as [AIAction, ...AIAction[]]);
 async function readEndpoints(userId: string): Promise<AIEndpoint[]> {
   const { data, error } = await supabaseAdmin
     .from("ai_endpoints")
-    .select("id, name, base_url, model, enabled, priority, api_token, created_at")
+    .select("id, name, base_url, model, enabled, priority, api_token, context_level, created_at")
     .eq("user_id", userId)
     .order("priority", { ascending: true })
     .order("created_at", { ascending: true });
@@ -32,6 +32,7 @@ async function readEndpoints(userId: string): Promise<AIEndpoint[]> {
     model: r.model,
     enabled: !!r.enabled,
     priority: r.priority ?? 100,
+    context_level: (r.context_level ?? "compact") as AIEndpoint["context_level"],
     has_token: !!r.api_token,
   }));
 }
@@ -67,6 +68,7 @@ const endpointSchema = z.object({
   model: z.string().trim().min(1).max(120),
   enabled: z.boolean(),
   priority: z.number().int().min(0).max(1000).optional(),
+  context_level: z.enum(["off", "compact", "full"]).optional(),
   // undefined = keep existing, "" = clear
   api_token: z.string().max(1000).optional(),
 });
@@ -82,6 +84,7 @@ export const saveAIEndpoint = createServerFn({ method: "POST" })
       model: data.model,
       enabled: data.enabled,
       priority: data.priority ?? 100,
+      context_level: data.context_level ?? "compact",
       updated_at: new Date().toISOString(),
       ...(data.api_token === undefined ? {} : { api_token: data.api_token === "" ? null : data.api_token }),
     };
@@ -237,11 +240,26 @@ export const chat = createServerFn({ method: "POST" })
 
     // Settings for system prompt context.
     const { data: settings } = await supabase.from("settings").select("currency_code, currency_symbol, language").maybeSingle();
+
+    // Context briefing: real accounts/categories/recent activity, sized per connection.
+    let briefing = "";
+    try {
+      const { buildBriefingForUser } = await import("./aiContext.server");
+      briefing = await buildBriefingForUser(
+        supabase as never,
+        resolved.endpoint.context_level ?? "compact",
+        settings?.currency_code || "CHF",
+      );
+    } catch {
+      briefing = "";
+    }
+
     const sys = {
       currencyCode: settings?.currency_code || "CHF",
       currencySymbol: settings?.currency_symbol || "CHF",
       todayISO: new Date().toISOString().slice(0, 10),
       language: settings?.language || "de",
+      briefing,
     };
 
     // Load existing history if persistent.

@@ -12,9 +12,9 @@ Assembled fresh per chat request from the database (never invented, never cached
 2. **Categories** — id, name, group, kind (expense / income / savings envelope), monthly budget, and this month's actual.
 3. **Tags** — the tags you actually used in the last 6 months, with usage counts, capped to the top ~40.
 4. **Recent activity (last 30 days, summarised — not raw dumps)**:
-   - Per account: how many transactions, which categories dominate, typical amount range.
-   - Per category: count, median amount, the tags most often used with it.
-   - The most frequent descriptions (e.g. "Migros", "Coop") with their usual category, account and tag.
+  - Per account: how many transactions, which categories dominate, typical amount range.
+  - Per category: count, median amount, the tags most often used with it.
+  - The most frequent descriptions (e.g. "Migros", "Coop") with their usual category, account and tag.
 5. **A short list of the ~15 most recent transactions** verbatim (date, description, amount, account, category, tags) so the model can pattern-match on wording.
 
 All of it rendered as terse plain text / small tables — target under ~2,000 tokens so it works with local models too.
@@ -44,3 +44,5 @@ The existing read tools stay — they're still the right way to answer "what did
 - Briefing detail level stored in the existing `settings` row (new small column or reuse the AI settings JSON, whichever the schema already offers).
 - Attachment/statement flows are untouched.
 - Bump `package.json` patch version.
+
+Make the "Include recent activity in prompt": Off / Compact / Full configurable per AI Connection, i might like different settings per model.

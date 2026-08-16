@@ -105,12 +105,13 @@ export interface EndpointRow {
   api_token: string | null;
   enabled: boolean;
   priority: number;
+  context_level: "off" | "compact" | "full";
 }
 
 export async function loadEndpointRows(userId: string): Promise<EndpointRow[]> {
   const { data, error } = await supabaseAdmin
     .from("ai_endpoints")
-    .select("id, name, base_url, model, api_token, enabled, priority, created_at")
+    .select("id, name, base_url, model, api_token, enabled, priority, context_level, created_at")
     .eq("user_id", userId)
     .order("priority", { ascending: true })
     .order("created_at", { ascending: true });
@@ -123,6 +124,7 @@ export async function loadEndpointRows(userId: string): Promise<EndpointRow[]> {
     api_token: r.api_token,
     enabled: !!r.enabled,
     priority: r.priority ?? 100,
+    context_level: (r.context_level ?? "compact") as EndpointRow["context_level"],
   }));
 }
 
