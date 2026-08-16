@@ -38,6 +38,9 @@ export interface AIConversationSummary {
 export const AI_ACTIONS = ["chat", "statement_extract"] as const;
 export type AIAction = (typeof AI_ACTIONS)[number];
 
+/** How much real finance data is pasted into the assistant's system prompt. */
+export type AIContextLevel = "off" | "compact" | "full";
+
 export interface AIEndpoint {
   id: string;
   name: string;
@@ -45,6 +48,8 @@ export interface AIEndpoint {
   model: string;
   enabled: boolean;
   priority: number;
+  /** Amount of recent-activity context sent to this connection. */
+  context_level: AIContextLevel;
   /** Whether a token is stored. The token itself never leaves the server. */
   has_token: boolean;
 }
