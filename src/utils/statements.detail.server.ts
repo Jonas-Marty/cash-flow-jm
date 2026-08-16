@@ -166,7 +166,7 @@ export async function runStatementExtraction(
       period_to: extracted.period_to,
       closing_balance: extracted.closing_balance,
       currency_code: extracted.currency_code || account.currency_code,
-      model: resolved.endpoint.model,
+      model: resolved ? resolved.endpoint.model : "csv-parser",
       match_window_days: windowDays,
       status: "extracted",
     })
