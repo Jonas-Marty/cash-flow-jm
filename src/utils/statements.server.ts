@@ -353,7 +353,7 @@ const RESPONSE_FORMATS: (Record<string, unknown> | null)[] = [
 export interface ExtractAudit {
   userId: string;
   fileName?: string | null;
-  source: "pdf" | "image";
+  source: "pdf" | "image" | "csv";
   part?: string | null;
 }
 
