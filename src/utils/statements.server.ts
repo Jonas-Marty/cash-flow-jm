@@ -103,27 +103,44 @@ function normAmount(v: unknown): number | null {
   return null;
 }
 
+/** Response-format variants, tried in order until the provider accepts one. */
+const RESPONSE_FORMATS: (Record<string, unknown> | null)[] = [
+  { type: "json_object" },
+  {
+    type: "json_schema",
+    json_schema: { name: "statement", strict: false, schema: { type: "object", additionalProperties: true } },
+  },
+  null,
+];
+
 async function callJsonModel(creds: FullAICreds, system: string, user: string | unknown[]): Promise<any> {
-  const resp = await fetch(`${creds.base_url}/chat/completions`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${creds.api_token}` },
-    body: JSON.stringify({
-      model: creds.model,
-      temperature: 0,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: user },
-      ],
-    }),
-  });
-  if (!resp.ok) {
+  let lastError = "";
+  for (const format of RESPONSE_FORMATS) {
+    const resp = await fetch(`${creds.base_url}/chat/completions`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${creds.api_token}` },
+      body: JSON.stringify({
+        model: creds.model,
+        temperature: 0,
+        ...(format ? { response_format: format } : {}),
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+      }),
+    });
+    if (resp.ok) {
+      const json = (await resp.json()) as { choices?: { message?: { content?: string } }[] };
+      const content = json.choices?.[0]?.message?.content ?? "";
+      return parseJsonLoose(content);
+    }
     const body = await resp.text();
-    throw new Error(`AI provider error (${resp.status}): ${body.slice(0, 400)}`);
+    lastError = `AI provider error (${resp.status}): ${body.slice(0, 800)}`;
+    // Only a rejected response_format is worth retrying with another variant.
+    const retryable = resp.status === 400 && /response_format|json_object|json_schema/i.test(body);
+    if (!retryable) throw new Error(lastError);
   }
-  const json = (await resp.json()) as { choices?: { message?: { content?: string } }[] };
-  const content = json.choices?.[0]?.message?.content ?? "";
-  return parseJsonLoose(content);
+  throw new Error(lastError);
 }
 
 export async function extractStatementWithAI(
