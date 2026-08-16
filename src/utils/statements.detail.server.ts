@@ -133,17 +133,20 @@ export async function runStatementExtraction(
     }
   }
 
-  const resolved = await resolveEndpoint(userId, "statement_extract", input.endpoint_id ?? null);
+  // A recognised CSV needs no AI at all.
+  const resolved = csvParsed
+    ? null
+    : await resolveEndpoint(userId, "statement_extract", input.endpoint_id ?? null);
   const extracted = csvParsed
     ? csvParsed
     : isImage
     ? await extractStatementFromImagesWithAI(
-        resolved.creds,
+        resolved!.creds,
         [{ mime: mime || "image/png", base64: input.file_base64 }],
         hint,
         { userId, fileName: input.file_name, source: "image" },
       )
-    : await extractStatementWithAI(resolved.creds, text, hint, {
+    : await extractStatementWithAI(resolved!.creds, text, hint, {
         userId,
         fileName: input.file_name,
         source: isCsv ? "csv" : "pdf",
