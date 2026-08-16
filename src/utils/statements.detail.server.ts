@@ -10,11 +10,13 @@ import type {
 import { resolveEndpoint } from "./ai.server";
 import {
   base64ToBytes,
+  decodeTextFile,
   extractPdfText,
   extractStatementFromImagesWithAI,
   extractStatementWithAI,
   loadAppEntries,
   matchLines,
+  parseCsvStatement,
 } from "./statements.server";
 
 const IMPORT_COLS =
@@ -106,13 +108,23 @@ export async function runStatementExtraction(
 
   const mime = (input.file_type || "").toLowerCase();
   const isImage = mime.startsWith("image/") || /\.(png|jpe?g|webp|gif|heic|heif)$/i.test(input.file_name);
+  const isCsv =
+    mime.includes("csv") ||
+    mime === "text/plain" ||
+    mime === "text/tab-separated-values" ||
+    /\.(csv|tsv|txt)$/i.test(input.file_name);
   const hint = {
     currency_code: account.currency_code || "CHF",
     today: new Date().toISOString().slice(0, 10),
   };
 
   let text = "";
-  if (!isImage) {
+  let csvParsed: Awaited<ReturnType<typeof extractStatementWithAI>> | null = null;
+  if (isCsv && !isImage) {
+    text = decodeTextFile(base64ToBytes(input.file_base64));
+    if (text.trim().length < 10) throw new Error("This CSV file appears to be empty.");
+    csvParsed = parseCsvStatement(text);
+  } else if (!isImage) {
     text = (await extractPdfText(base64ToBytes(input.file_base64))).text;
     if (text.replace(/--- page \d+ ---/g, "").trim().length < 40) {
       throw new Error(
@@ -122,7 +134,9 @@ export async function runStatementExtraction(
   }
 
   const resolved = await resolveEndpoint(userId, "statement_extract", input.endpoint_id ?? null);
-  const extracted = isImage
+  const extracted = csvParsed
+    ? csvParsed
+    : isImage
     ? await extractStatementFromImagesWithAI(
         resolved.creds,
         [{ mime: mime || "image/png", base64: input.file_base64 }],
@@ -132,7 +146,7 @@ export async function runStatementExtraction(
     : await extractStatementWithAI(resolved.creds, text, hint, {
         userId,
         fileName: input.file_name,
-        source: "pdf",
+        source: isCsv ? "csv" : "pdf",
       });
   if (extracted.lines.length === 0) throw new Error("The AI could not find any transaction rows in this file.");
 
