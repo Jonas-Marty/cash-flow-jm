@@ -677,6 +677,11 @@ export async function runChat(
     const msg = json.choices?.[0]?.message;
     if (!msg) throw new Error("AI provider returned no message");
     addUsage(json.usage);
+    const u = json.usage ?? {};
+    const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+    const stepPrompt = num(u["prompt_tokens"] ?? u["input_tokens"]);
+    const stepCompletion = num(u["completion_tokens"] ?? u["output_tokens"]);
+    const stepTotal = num(u["total_tokens"]) ?? ((stepPrompt ?? 0) + (stepCompletion ?? 0) || null);
 
     await writeAudit({
       user_id: userId,
@@ -686,6 +691,9 @@ export async function runChat(
       conversation_id: conversationId ?? null,
       duration_ms: Date.now() - reqStarted,
       ok: true,
+      prompt_tokens: stepPrompt,
+      completion_tokens: stepCompletion,
+      total_tokens: stepTotal,
       payload: {
         step,
         message_count: messages.length,
