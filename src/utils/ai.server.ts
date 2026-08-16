@@ -32,7 +32,7 @@ export function preview(v: unknown, max = 1000): string {
 
 export async function writeAudit(row: {
   user_id: string;
-  kind: "chat_request" | "tool_call" | "document_extract";
+  kind: "chat_request" | "tool_call" | "document_extract" | "transcribe";
   model?: string | null;
   provider_host?: string | null;
   tool_name?: string | null;
@@ -199,8 +199,11 @@ export async function resolveEndpoint(
   userId: string,
   action: string,
   explicitId?: string | null,
+  filter?: (row: EndpointRow) => boolean,
 ): Promise<{ creds: FullAICreds; endpoint: EndpointRow; fell_back: boolean }> {
-  const rows = (await loadEndpointRows(userId)).filter((r) => r.enabled && r.base_url && r.model);
+  const rows = (await loadEndpointRows(userId)).filter(
+    (r) => r.enabled && r.base_url && r.model && (!filter || filter(r)),
+  );
   if (rows.length === 0) throw new Error("No AI connection configured. Add one in Settings.");
 
   const { data: binding } = await supabaseAdmin
