@@ -259,7 +259,7 @@ function StatementsPage() {
               <Label className="text-xs">{t("statements.field.file")}</Label>
               <Input
                 type="file"
-                accept="application/pdf,image/png,image/jpeg,image/webp,image/gif"
+                accept="application/pdf,text/csv,text/plain,.csv,.tsv,image/png,image/jpeg,image/webp,image/gif"
                 onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                 className="h-9"
               />
