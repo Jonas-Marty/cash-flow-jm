@@ -11,7 +11,7 @@ import { useI18n } from "@/i18n";
 type Row = {
   id: string;
   occurred_at: string;
-  kind: "chat_request" | "tool_call" | "document_extract";
+  kind: "chat_request" | "tool_call" | "document_extract" | "transcribe";
   model: string | null;
   provider_host: string | null;
   tool_name: string | null;
@@ -30,7 +30,7 @@ export function AIAuditLogCard() {
   const qc = useQueryClient();
   const [limit, setLimit] = React.useState(50);
   const [kindFilter, setKindFilter] = React.useState<
-    "all" | "chat_request" | "tool_call" | "document_extract"
+    "all" | "chat_request" | "tool_call" | "document_extract" | "transcribe"
   >("all");
 
   const q = useQuery({
@@ -71,7 +71,7 @@ export function AIAuditLogCard() {
       <CardContent className="space-y-3">
         <p className="text-xs text-muted-foreground">{t("ai.audit.intro")}</p>
         <div className="flex flex-wrap items-center gap-2">
-          {(["all", "chat_request", "tool_call", "document_extract"] as const).map((k) => (
+          {(["all", "chat_request", "tool_call", "document_extract", "transcribe"] as const).map((k) => (
             <Button
               key={k}
               size="sm"

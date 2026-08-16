@@ -35,7 +35,7 @@ export interface AIConversationSummary {
 }
 
 /** AI actions that can be bound to a specific connection. */
-export const AI_ACTIONS = ["chat", "statement_extract"] as const;
+export const AI_ACTIONS = ["chat", "statement_extract", "transcribe"] as const;
 export type AIAction = (typeof AI_ACTIONS)[number];
 
 /** How much real finance data is pasted into the assistant's system prompt. */
@@ -50,6 +50,8 @@ export interface AIEndpoint {
   priority: number;
   /** Amount of recent-activity context sent to this connection. */
   context_level: AIContextLevel;
+  /** Model used for speech-to-text (/audio/transcriptions). Empty = no voice. */
+  transcribe_model: string | null;
   /** Whether a token is stored. The token itself never leaves the server. */
   has_token: boolean;
 }

@@ -20,7 +20,7 @@ const actionSchema = z.enum(AI_ACTIONS as unknown as [AIAction, ...AIAction[]]);
 async function readEndpoints(userId: string): Promise<AIEndpoint[]> {
   const { data, error } = await supabaseAdmin
     .from("ai_endpoints")
-    .select("id, name, base_url, model, enabled, priority, api_token, context_level, created_at")
+    .select("id, name, base_url, model, enabled, priority, api_token, context_level, transcribe_model, created_at")
     .eq("user_id", userId)
     .order("priority", { ascending: true })
     .order("created_at", { ascending: true });
@@ -33,6 +33,7 @@ async function readEndpoints(userId: string): Promise<AIEndpoint[]> {
     enabled: !!r.enabled,
     priority: r.priority ?? 100,
     context_level: (r.context_level ?? "compact") as AIEndpoint["context_level"],
+    transcribe_model: r.transcribe_model ?? null,
     has_token: !!r.api_token,
   }));
 }
@@ -69,6 +70,7 @@ const endpointSchema = z.object({
   enabled: z.boolean(),
   priority: z.number().int().min(0).max(1000).optional(),
   context_level: z.enum(["off", "compact", "full"]).optional(),
+  transcribe_model: z.string().trim().max(120).nullable().optional(),
   // undefined = keep existing, "" = clear
   api_token: z.string().max(1000).optional(),
 });
@@ -85,6 +87,7 @@ export const saveAIEndpoint = createServerFn({ method: "POST" })
       enabled: data.enabled,
       priority: data.priority ?? 100,
       context_level: data.context_level ?? "compact",
+      transcribe_model: data.transcribe_model ? data.transcribe_model : null,
       updated_at: new Date().toISOString(),
       ...(data.api_token === undefined ? {} : { api_token: data.api_token === "" ? null : data.api_token }),
     };
@@ -311,4 +314,32 @@ export const chat = createServerFn({ method: "POST" })
       message: { role: "assistant" as const, text: result.text, action: result.action, usage: result.usage ?? null },
       endpoint: { id: resolved.endpoint.id, name: resolved.endpoint.name, fell_back: resolved.fell_back },
     };
+  });
+// ---------- Voice input (speech-to-text) ----------
+
+export const transcribeAudio = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        audio_base64: z.string().min(16).max(20_000_000),
+        mime_type: z.string().max(120).optional(),
+        file_name: z.string().max(200).optional(),
+        language: z.string().trim().min(2).max(5).nullable().optional(),
+        duration_ms: z.number().int().nonnegative().nullable().optional(),
+        endpoint_id: z.string().uuid().nullable().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }): Promise<{ text: string; endpoint: { id: string; name: string; fell_back: boolean } }> => {
+    const { runTranscription } = await import("./ai.server");
+    const binary = Uint8Array.from(atob(data.audio_base64), (c) => c.charCodeAt(0));
+    const r = await runTranscription(context.userId, binary, {
+      file_name: data.file_name,
+      mime_type: data.mime_type,
+      language: data.language ?? null,
+      duration_ms: data.duration_ms ?? null,
+      endpoint_id: data.endpoint_id ?? null,
+    });
+    return { text: r.text, endpoint: r.endpoint };
   });

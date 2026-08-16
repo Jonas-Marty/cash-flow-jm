@@ -37,6 +37,7 @@ type Draft = {
   enabled: boolean;
   priority: number;
   context_level: AIContextLevel;
+  transcribe_model: string;
   token: string;
   has_token: boolean;
 };
@@ -49,6 +50,7 @@ const emptyDraft = (priority: number): Draft => ({
   enabled: true,
   priority,
   context_level: "compact",
+  transcribe_model: "",
   token: "",
   has_token: false,
 });
@@ -61,6 +63,7 @@ const toDraft = (e: AIEndpoint): Draft => ({
   enabled: e.enabled,
   priority: e.priority,
   context_level: e.context_level ?? "compact",
+  transcribe_model: e.transcribe_model ?? "",
   token: "",
   has_token: e.has_token,
 });
@@ -104,6 +107,7 @@ export function AISettingsCard() {
           enabled: d.enabled,
           priority: d.priority,
           context_level: d.context_level,
+          transcribe_model: d.transcribe_model.trim() || null,
           ...(d.token === "" ? {} : { api_token: d.token }),
         } as never,
       });
@@ -273,6 +277,20 @@ export function AISettingsCard() {
             </SelectContent>
           </Select>
           <p className="mt-1 text-xs text-muted-foreground">{t("ai.conn.context_hint")}</p>
+        </div>
+        <div className="sm:col-span-2">
+          <Label className="text-sm">{t("ai.conn.transcribe_model")}</Label>
+          <Input
+            value={d.transcribe_model}
+            onChange={(e) =>
+              isNew
+                ? setNewDraft({ ...d, transcribe_model: e.target.value })
+                : patch(d.id!, { transcribe_model: e.target.value })
+            }
+            placeholder="whisper-1"
+            className="mt-1"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">{t("ai.conn.transcribe_model_hint")}</p>
         </div>
       </div>
 

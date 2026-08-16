@@ -296,6 +296,10 @@ const EN: Content = {
           a: "Prefill the Add-Transaction form from a sentence like *\"I spent 50 at Coop on groceries, paid by credit card\"*; answer questions about your data (*\"where did I spend most last month?\"*) by calling read-only tools; read bank and credit-card statements you upload on the **Statements** screen (PDF or a photo/screenshot) and turn them into comparable rows; and explain app features and the privacy notice. It will refuse any other topic.",
         },
         {
+          q: "Can I talk to it instead of typing?",
+          a: "Yes, if one of your AI connections has a **transcription model** set (Settings → AI Assistant, e.g. `whisper-1` or a local `faster-whisper` model). A microphone button then appears in the chat: record, stop, and the text lands in the input box for you to review before sending. Audio is recorded as a 16 kHz mono WAV, sent to that provider only, and never stored — the activity log keeps only the transcript preview.",
+        },
+        {
           q: "Does it write to my data?",
           a: "No. It only **prepares a draft** for the Add screen — you always review and save manually. All other tools are read-only.",
         },
@@ -573,6 +577,7 @@ const DE: Content = {
         { q: "Wie aktiviere ich ihn?", a: "**Einstellungen → KI-Assistent**: einschalten, **API Base URL** (z. B. `https://api.openai.com/v1`), **Modellname** (z. B. `gpt-4o-mini`) und **API Token** eintragen. *Verbindung testen*, dann *Speichern*." },
         { q: "Welche Provider funktionieren?", a: "Alles, was die OpenAI-Chat-Completions-API spricht: OpenAI, OpenRouter, Groq, Together, lokal **Ollama** (`http://host:11434/v1`), **LM Studio**, **vLLM**, **llama.cpp**-Server usw." },
         { q: "Was kann er?", a: "Add-Formular vorausfüllen aus Sätzen wie *„Ich habe 50 im Coop bezahlt für Lebensmittel, Kreditkarte\"*; Fragen zu deinen Daten beantworten (*„Wo habe ich letzten Monat am meisten ausgegeben?\"*) via Lesetools; App-Funktionen und Datenschutz erklären. Alles andere lehnt er ab." },
+        { q: "Kann ich sprechen statt tippen?", a: "Ja, wenn bei einer KI-Verbindung ein **Transkriptions-Modell** hinterlegt ist (Einstellungen → KI-Assistent, z. B. `whisper-1` oder ein lokales `faster-whisper`-Modell). Im Chat erscheint dann ein Mikrofon-Button: aufnehmen, stoppen — der Text landet im Eingabefeld und kann vor dem Senden korrigiert werden. Die Aufnahme wird als 16-kHz-Mono-WAV nur an diesen Provider gesendet und nicht gespeichert; im Aktivitätsprotokoll steht lediglich eine Textvorschau." },
         { q: "Schreibt er in meine Daten?", a: "Nein. Er **bereitet nur einen Entwurf** für das Add-Formular vor — speichern musst du selbst. Alle anderen Tools lesen nur." },
         { q: "Was wird an den Provider gesendet?", a: "Deine Nachrichten plus die Ergebnisse der Lesetools, die das Modell aufruft (Buchungen, Kontostände, Kategoriesummen). Siehe [Datenschutzseite](/privacy) für den vollständigen Datenfluss." },
         { q: "Wo wird mein API Token gespeichert?", a: "Serverseitig in der Tabelle `ai_credentials`. Er wird **nicht** an den Browser zurückgegeben, aber der Server-Betreiber kann ihn lesen — behandle ihn wie andere Zugangsdaten auf dieser Instanz." },

@@ -32,7 +32,7 @@ export function preview(v: unknown, max = 1000): string {
 
 export async function writeAudit(row: {
   user_id: string;
-  kind: "chat_request" | "tool_call" | "document_extract";
+  kind: "chat_request" | "tool_call" | "document_extract" | "transcribe";
   model?: string | null;
   provider_host?: string | null;
   tool_name?: string | null;
@@ -112,12 +112,14 @@ export interface EndpointRow {
   enabled: boolean;
   priority: number;
   context_level: "off" | "compact" | "full";
+  /** Speech-to-text model for /audio/transcriptions. Null = voice unsupported. */
+  transcribe_model: string | null;
 }
 
 export async function loadEndpointRows(userId: string): Promise<EndpointRow[]> {
   const { data, error } = await supabaseAdmin
     .from("ai_endpoints")
-    .select("id, name, base_url, model, api_token, enabled, priority, context_level, created_at")
+    .select("id, name, base_url, model, api_token, enabled, priority, context_level, transcribe_model, created_at")
     .eq("user_id", userId)
     .order("priority", { ascending: true })
     .order("created_at", { ascending: true });
@@ -131,6 +133,7 @@ export async function loadEndpointRows(userId: string): Promise<EndpointRow[]> {
     enabled: !!r.enabled,
     priority: r.priority ?? 100,
     context_level: (r.context_level ?? "compact") as EndpointRow["context_level"],
+    transcribe_model: (r.transcribe_model || "").trim() || null,
   }));
 }
 
@@ -196,8 +199,11 @@ export async function resolveEndpoint(
   userId: string,
   action: string,
   explicitId?: string | null,
+  filter?: (row: EndpointRow) => boolean,
 ): Promise<{ creds: FullAICreds; endpoint: EndpointRow; fell_back: boolean }> {
-  const rows = (await loadEndpointRows(userId)).filter((r) => r.enabled && r.base_url && r.model);
+  const rows = (await loadEndpointRows(userId)).filter(
+    (r) => r.enabled && r.base_url && r.model && (!filter || filter(r)),
+  );
   if (rows.length === 0) throw new Error("No AI connection configured. Add one in Settings.");
 
   const { data: binding } = await supabaseAdmin
@@ -797,4 +803,110 @@ export async function testConnection(baseUrl: string, token: string, model: stri
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };
   }
+}
+// ---------------------------------------------------------------------------
+// Speech-to-text
+// ---------------------------------------------------------------------------
+
+/** Max accepted upload for a single recording. */
+export const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Transcribe a recording through an OpenAI-compatible /audio/transcriptions
+ * endpoint (Whisper, faster-whisper, commercial providers).
+ */
+export async function runTranscription(
+  userId: string,
+  audio: Uint8Array,
+  opts: { file_name?: string; mime_type?: string; language?: string | null; endpoint_id?: string | null; duration_ms?: number | null },
+): Promise<{ text: string; endpoint: { id: string; name: string; fell_back: boolean }; model: string }> {
+  if (audio.byteLength === 0) throw new Error("The recording is empty. Please try again.");
+  if (audio.byteLength > MAX_AUDIO_BYTES) throw new Error("The recording is too large (max 10 MB).");
+
+  const resolved = await resolveEndpoint(userId, "transcribe", opts.endpoint_id ?? null, (r) => !!r.transcribe_model);
+  const row = resolved.endpoint;
+  const model = row.transcribe_model!;
+  const host = providerHost(row.base_url);
+  const started = Date.now();
+
+  const form = new FormData();
+  form.append("model", model);
+  form.append(
+    "file",
+    new Blob([audio.slice().buffer as ArrayBuffer], { type: opts.mime_type || "audio/wav" }),
+    opts.file_name || "recording.wav",
+  );
+  if (opts.language) form.append("language", opts.language);
+
+  const headers: Record<string, string> = {};
+  if (row.api_token) headers["Authorization"] = `Bearer ${row.api_token}`;
+
+  let resp: Response;
+  try {
+    resp = await fetch(`${row.base_url}/audio/transcriptions`, { method: "POST", headers, body: form });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    await writeAudit({
+      user_id: userId,
+      kind: "transcribe",
+      model,
+      provider_host: host,
+      duration_ms: Date.now() - started,
+      ok: false,
+      error_message: message,
+      payload: { bytes: audio.byteLength, audio_duration_ms: opts.duration_ms ?? null },
+    });
+    throw new Error(`Transcription failed: ${message}`);
+  }
+
+  const raw = await resp.text();
+  if (!resp.ok) {
+    await writeAudit({
+      user_id: userId,
+      kind: "transcribe",
+      model,
+      provider_host: host,
+      duration_ms: Date.now() - started,
+      ok: false,
+      error_message: `${resp.status} ${raw.slice(0, 200)}`,
+      payload: { bytes: audio.byteLength, audio_duration_ms: opts.duration_ms ?? null, status: resp.status },
+    });
+    throw new Error(`Transcription error (${resp.status}): ${raw.slice(0, 500)}`);
+  }
+
+  let text = "";
+  let usage: Record<string, unknown> | null = null;
+  try {
+    const json = JSON.parse(raw) as { text?: string; usage?: Record<string, unknown> };
+    text = (json.text || "").trim();
+    usage = json.usage ?? null;
+  } catch {
+    text = raw.trim();
+  }
+
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+  const promptTokens = n(usage?.["prompt_tokens"] ?? usage?.["input_tokens"]);
+  const completionTokens = n(usage?.["completion_tokens"] ?? usage?.["output_tokens"]);
+
+  await writeAudit({
+    user_id: userId,
+    kind: "transcribe",
+    model,
+    provider_host: host,
+    duration_ms: Date.now() - started,
+    ok: true,
+    prompt_tokens: promptTokens,
+    completion_tokens: completionTokens,
+    total_tokens: n(usage?.["total_tokens"]) ?? ((promptTokens ?? 0) + (completionTokens ?? 0) || null),
+    payload: {
+      bytes: audio.byteLength,
+      audio_duration_ms: opts.duration_ms ?? null,
+      language: opts.language ?? null,
+      transcript_preview: preview(text, 500),
+      usage,
+    },
+  });
+
+  if (!text) throw new Error("The provider returned an empty transcript.");
+  return { text, endpoint: { id: row.id, name: row.name, fell_back: resolved.fell_back }, model };
 }
