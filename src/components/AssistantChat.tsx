@@ -21,6 +21,8 @@ type LocalMsg = {
   action?: AssistantAction | null;
   /** Link to a statement import result, if this message reports one. */
   importId?: string;
+  /** Token usage reported by the provider for this reply. */
+  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number; steps: number } | null;
 };
 
 const ACCEPT = "application/pdf,image/png,image/jpeg,image/webp,image/gif";
@@ -184,7 +186,10 @@ export function AssistantChat({
           endpoint_id: endpointId === "auto" ? null : endpointId,
         },
       });
-      setMessages((prev) => [...prev, { role: "assistant", text: r.message.text, action: r.message.action }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", text: r.message.text, action: r.message.action, usage: (r.message as any).usage ?? null },
+      ]);
       if (r.endpoint?.fell_back) toast.info(t("ai.conn.fell_back", { name: r.endpoint.name }));
       if (r.conversation_id && r.conversation_id !== conversationId) onConversationChange?.(r.conversation_id);
     } catch (e) {
@@ -292,6 +297,16 @@ export function AssistantChat({
                       {t("ai.attach.open")}
                     </Link>
                   </Button>
+                </div>
+              )}
+              {m.role === "assistant" && m.usage && (
+                <div className="mt-1.5 text-[11px] text-muted-foreground">
+                  {t("ai.usage.tokens", {
+                    total: String(m.usage.total_tokens),
+                    prompt: String(m.usage.prompt_tokens),
+                    completion: String(m.usage.completion_tokens),
+                  })}
+                  {m.usage.steps > 1 ? ` · ${t("ai.usage.steps", { n: String(m.usage.steps) })}` : ""}
                 </div>
               )}
             </div>
