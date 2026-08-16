@@ -278,6 +278,20 @@ export function AISettingsCard() {
           </Select>
           <p className="mt-1 text-xs text-muted-foreground">{t("ai.conn.context_hint")}</p>
         </div>
+        <div className="sm:col-span-2">
+          <Label className="text-sm">{t("ai.conn.transcribe_model")}</Label>
+          <Input
+            value={d.transcribe_model}
+            onChange={(e) =>
+              isNew
+                ? setNewDraft({ ...d, transcribe_model: e.target.value })
+                : patch(d.id!, { transcribe_model: e.target.value })
+            }
+            placeholder="whisper-1"
+            className="mt-1"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">{t("ai.conn.transcribe_model_hint")}</p>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
