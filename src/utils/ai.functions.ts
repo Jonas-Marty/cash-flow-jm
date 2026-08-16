@@ -20,7 +20,7 @@ const actionSchema = z.enum(AI_ACTIONS as unknown as [AIAction, ...AIAction[]]);
 async function readEndpoints(userId: string): Promise<AIEndpoint[]> {
   const { data, error } = await supabaseAdmin
     .from("ai_endpoints")
-    .select("id, name, base_url, model, enabled, priority, api_token, context_level, created_at")
+    .select("id, name, base_url, model, enabled, priority, api_token, context_level, transcribe_model, created_at")
     .eq("user_id", userId)
     .order("priority", { ascending: true })
     .order("created_at", { ascending: true });
@@ -33,6 +33,7 @@ async function readEndpoints(userId: string): Promise<AIEndpoint[]> {
     enabled: !!r.enabled,
     priority: r.priority ?? 100,
     context_level: (r.context_level ?? "compact") as AIEndpoint["context_level"],
+    transcribe_model: r.transcribe_model ?? null,
     has_token: !!r.api_token,
   }));
 }
@@ -69,6 +70,7 @@ const endpointSchema = z.object({
   enabled: z.boolean(),
   priority: z.number().int().min(0).max(1000).optional(),
   context_level: z.enum(["off", "compact", "full"]).optional(),
+  transcribe_model: z.string().trim().max(120).nullable().optional(),
   // undefined = keep existing, "" = clear
   api_token: z.string().max(1000).optional(),
 });
@@ -85,6 +87,7 @@ export const saveAIEndpoint = createServerFn({ method: "POST" })
       enabled: data.enabled,
       priority: data.priority ?? 100,
       context_level: data.context_level ?? "compact",
+      transcribe_model: data.transcribe_model ? data.transcribe_model : null,
       updated_at: new Date().toISOString(),
       ...(data.api_token === undefined ? {} : { api_token: data.api_token === "" ? null : data.api_token }),
     };
