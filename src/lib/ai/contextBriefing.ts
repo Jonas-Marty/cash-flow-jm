@@ -122,14 +122,14 @@ export function buildContextBriefing(input: BriefingInput): string {
   for (const t of transactions) {
     for (const tag of t.tags) bump(tagCounts, tag);
 
-    const a = perAccount.get(t.account_id) ?? { count: 0, cats: new Map(), amounts: [] };
+    const a = perAccount.get(t.account_id) ?? { count: 0, cats: new Map<string, number>(), amounts: [] as number[] };
     a.count += 1;
     a.amounts.push(Math.abs(t.amount));
     if (t.category_id) bump(a.cats, t.category_id);
     perAccount.set(t.account_id, a);
 
     if (t.category_id) {
-      const c = perCategory.get(t.category_id) ?? { count: 0, amounts: [], tags: new Map() };
+      const c = perCategory.get(t.category_id) ?? { count: 0, amounts: [] as number[], tags: new Map<string, number>() };
       c.count += 1;
       c.amounts.push(Math.abs(t.amount));
       for (const tag of t.tags) bump(c.tags, tag);
@@ -138,7 +138,7 @@ export function buildContextBriefing(input: BriefingInput): string {
 
     const key = normDesc(t.description).toLowerCase();
     if (key) {
-      const d = perDesc.get(key) ?? { count: 0, amounts: [], cats: new Map(), accs: new Map(), tags: new Map() };
+      const d = perDesc.get(key) ?? { count: 0, amounts: [] as number[], cats: new Map<string, number>(), accs: new Map<string, number>(), tags: new Map<string, number>() };
       d.count += 1;
       d.amounts.push(Math.abs(t.amount));
       if (t.category_id) bump(d.cats, t.category_id);
