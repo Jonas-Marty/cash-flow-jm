@@ -585,6 +585,8 @@ interface OAIMessage {
 export interface ChatResult {
   text: string;
   action: AssistantAction | null;
+  /** Summed token usage across all provider round-trips of this reply. */
+  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number; steps: number } | null;
 }
 
 export async function runChat(
