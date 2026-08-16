@@ -74,7 +74,7 @@ function AddTransactionRoute() {
     return {
       reimburse_for: sp.get("reimburse_for") ?? undefined,
       type: t === "income" || t === "expense" || t === "transfer" ? t : undefined,
-      amount: sp.get("amount") ?? undefined,
+      amount: cleanAmountParam(sp.get("amount")),
       source: sp.get("source") ?? undefined,
       counterparty: sp.get("counterparty") ?? undefined,
       account_name: sp.get("account_name") ?? undefined,
@@ -84,11 +84,18 @@ function AddTransactionRoute() {
       note: sp.get("note") ?? undefined,
       occurred_on: sp.get("occurred_on") ?? undefined,
       iou_with: sp.get("iou_with") ?? undefined,
-      iou_amount: sp.get("iou_amount") ?? undefined,
+      iou_amount: cleanAmountParam(sp.get("iou_amount")),
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return <TransactionForm editId={null} prefill={prefill} />;
+}
+
+/** Strip quotes/currency noise from an amount passed via URL (e.g. AI prefill). */
+function cleanAmountParam(v: string | null): string | undefined {
+  if (v == null) return undefined;
+  const s = v.trim().replace(/^["'`]+|["'`]+$/g, "").replace(/[^\d.,-]/g, "").replace(",", ".").trim();
+  return s === "" ? undefined : s;
 }
 
 export interface AddPrefill {
