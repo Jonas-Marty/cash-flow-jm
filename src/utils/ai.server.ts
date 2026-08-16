@@ -614,6 +614,18 @@ export async function runChat(
 
   let lastAction: AssistantAction | null = null;
   const host = providerHost(creds.base_url);
+  const usageTotals = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0, steps: 0 };
+  const addUsage = (u: Record<string, unknown> | undefined | null) => {
+    if (!u) return;
+    const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+    const p = n(u["prompt_tokens"] ?? u["input_tokens"]);
+    const c = n(u["completion_tokens"] ?? u["output_tokens"]);
+    const t = n(u["total_tokens"]) || p + c;
+    usageTotals.prompt_tokens += p;
+    usageTotals.completion_tokens += c;
+    usageTotals.total_tokens += t;
+    usageTotals.steps += 1;
+  };
   const lastUser = [...history].reverse().find((m) => m.role === "user")?.content ?? "";
 
   for (let step = 0; step < 6; step++) {
@@ -658,6 +670,7 @@ export async function runChat(
     };
     const msg = json.choices?.[0]?.message;
     if (!msg) throw new Error("AI provider returned no message");
+    addUsage(json.usage);
 
     await writeAudit({
       user_id: userId,
@@ -686,7 +699,11 @@ export async function runChat(
     });
 
     if (!msg.tool_calls || msg.tool_calls.length === 0) {
-      return { text: msg.content || "", action: lastAction };
+      return {
+        text: msg.content || "",
+        action: lastAction,
+        usage: usageTotals.steps > 0 && usageTotals.total_tokens > 0 ? usageTotals : null,
+      };
     }
 
     // Execute tool calls in order.
@@ -736,7 +753,11 @@ export async function runChat(
     }
   }
 
-  return { text: "(stopped: too many tool-call iterations)", action: lastAction };
+  return {
+    text: "(stopped: too many tool-call iterations)",
+    action: lastAction,
+    usage: usageTotals.steps > 0 && usageTotals.total_tokens > 0 ? usageTotals : null,
+  };
 }
 
 export async function testConnection(baseUrl: string, token: string, model: string): Promise<{ ok: boolean; error?: string }> {
