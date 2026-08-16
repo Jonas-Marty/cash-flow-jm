@@ -25,7 +25,13 @@ type LocalMsg = {
   usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number; steps: number } | null;
 };
 
-const ACCEPT = "application/pdf,image/png,image/jpeg,image/webp,image/gif";
+const ACCEPT =
+  "application/pdf,text/csv,text/plain,.csv,.tsv,image/png,image/jpeg,image/webp,image/gif";
+const ACCEPT_MIME = ACCEPT.split(",").filter((x) => !x.startsWith("."));
+const isSupportedFile = (f: File) =>
+  ACCEPT_MIME.includes(f.type) ||
+  /\.(csv|tsv)$/i.test(f.name) ||
+  (f.type === "" && /\.(csv|tsv|pdf)$/i.test(f.name));
 
 function readFileAsBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -83,7 +89,7 @@ export function AssistantChat({
   const [dragging, setDragging] = React.useState(false);
 
   const isAccepted = React.useCallback(
-    (f: File) => ACCEPT.split(",").includes(f.type),
+    isSupportedFile,
     [],
   );
 

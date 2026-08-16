@@ -28,6 +28,241 @@ export function base64ToBytes(b64: string): Uint8Array {
 }
 
 // ---------------------------------------------------------------------------
+// CSV statements (e-banking exports) — deterministic parsing, no AI needed
+// ---------------------------------------------------------------------------
+
+export function decodeTextFile(bytes: Uint8Array): string {
+  // Strip a UTF-8 BOM, and fall back to latin1 when the file is not valid UTF-8.
+  const utf8 = new TextDecoder("utf-8", { fatal: false }).decode(bytes).replace(/^\uFEFF/, "");
+  if (utf8.includes("\uFFFD")) {
+    return new TextDecoder("windows-1252").decode(bytes).replace(/^\uFEFF/, "");
+  }
+  return utf8;
+}
+
+function sniffDelimiter(sample: string): string {
+  const candidates = [";", ",", "\t", "|"];
+  let best = ";";
+  let bestScore = -1;
+  for (const d of candidates) {
+    const counts = sample
+      .split(/\r?\n/)
+      .filter((l) => l.trim())
+      .slice(0, 20)
+      .map((l) => l.split(d).length - 1);
+    if (counts.length === 0) continue;
+    const avg = counts.reduce((a, b) => a + b, 0) / counts.length;
+    if (avg > bestScore) {
+      bestScore = avg;
+      best = d;
+    }
+  }
+  return bestScore > 0 ? best : ";";
+}
+
+/** RFC4180-ish parser with quote support. */
+export function parseCsvRows(text: string, delimiter?: string): string[][] {
+  const d = delimiter ?? sniffDelimiter(text.slice(0, 8000));
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let cell = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') {
+          cell += '"';
+          i++;
+        } else inQuotes = false;
+      } else cell += ch;
+      continue;
+    }
+    if (ch === '"') inQuotes = true;
+    else if (ch === d) {
+      row.push(cell);
+      cell = "";
+    } else if (ch === "\n") {
+      row.push(cell);
+      cell = "";
+      rows.push(row);
+      row = [];
+    } else if (ch === "\r") {
+      // ignore
+    } else cell += ch;
+  }
+  if (cell || row.length) {
+    row.push(cell);
+    rows.push(row);
+  }
+  return rows.filter((r) => r.some((c) => c.trim() !== ""));
+}
+
+function parseCsvDate(v: string): string | null {
+  const s = (v || "").trim();
+  if (!s) return null;
+  let m = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (m) return `${m[1]}-${m[2]!.padStart(2, "0")}-${m[3]!.padStart(2, "0")}`;
+  m = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{2,4})/);
+  if (m) {
+    let y = m[3]!;
+    if (y.length === 2) y = Number(y) > 70 ? `19${y}` : `20${y}`;
+    return `${y}-${m[2]!.padStart(2, "0")}-${m[1]!.padStart(2, "0")}`;
+  }
+  const d = new Date(s);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+}
+
+/** Parse amounts in both "1'234.56" / "1,234.56" and "1.234,56" notations. */
+export function parseCsvAmount(v: string): number | null {
+  let s = (v || "").trim();
+  if (!s) return null;
+  let negative = false;
+  if (/^\(.*\)$/.test(s)) {
+    negative = true;
+    s = s.slice(1, -1);
+  }
+  if (/-\s*$/.test(s)) {
+    negative = true;
+    s = s.replace(/-\s*$/, "");
+  }
+  s = s.replace(/[^\d,.\-]/g, "");
+  if (!s) return null;
+  const lastComma = s.lastIndexOf(",");
+  const lastDot = s.lastIndexOf(".");
+  if (lastComma > lastDot) s = s.replace(/\./g, "").replace(",", ".");
+  else s = s.replace(/,/g, "");
+  const n = Number(s);
+  if (!Number.isFinite(n)) return null;
+  return negative ? -Math.abs(n) : n;
+}
+
+const HEADER_HINTS = {
+  bookingDate: ["buchungsdatum", "booking date", "buchung", "datum", "date", "valutadatum ", "transaction date", "data"],
+  valueDate: ["valuta", "value date", "valutadatum", "wertstellung"],
+  description: [
+    "beschreibung",
+    "buchungstext",
+    "text",
+    "description",
+    "verwendungszweck",
+    "details",
+    "zahlungsempfänger",
+    "empfänger",
+    "payee",
+    "merchant",
+    "narrative",
+    "mitteilung",
+    "purpose",
+  ],
+  amount: ["betrag", "amount", "montant", "importo", "umsatz"],
+  debit: ["belastung", "debit", "soll", "ausgang", "withdrawal", "abgang"],
+  credit: ["gutschrift", "credit", "haben", "eingang", "deposit", "zugang"],
+  currency: ["währung", "waehrung", "currency", "wä", "ccy"],
+};
+
+function findHeaderRow(rows: string[][]): number {
+  for (let i = 0; i < Math.min(rows.length, 25); i++) {
+    const cells = rows[i]!.map((c) => c.trim().toLowerCase());
+    const hasDate = cells.some((c) => HEADER_HINTS.bookingDate.some((h) => c.includes(h.trim())));
+    const hasAmount = cells.some((c) =>
+      [...HEADER_HINTS.amount, ...HEADER_HINTS.debit, ...HEADER_HINTS.credit].some((h) => c.includes(h)),
+    );
+    if (hasDate && hasAmount) return i;
+  }
+  return -1;
+}
+
+function pickColumn(header: string[], hints: string[]): number {
+  for (const [i, raw] of header.entries()) {
+    const c = raw.trim().toLowerCase();
+    if (!c) continue;
+    if (hints.some((h) => c === h.trim())) return i;
+  }
+  for (const [i, raw] of header.entries()) {
+    const c = raw.trim().toLowerCase();
+    if (!c) continue;
+    if (hints.some((h) => c.includes(h.trim()))) return i;
+  }
+  return -1;
+}
+
+/**
+ * Parse an e-banking CSV export into the same shape the AI extractor returns.
+ * Returns null when the file has no recognisable header — the caller can then
+ * fall back to the AI text extractor.
+ */
+export function parseCsvStatement(text: string): ExtractedStatement | null {
+  const rows = parseCsvRows(text);
+  if (rows.length < 2) return null;
+  const headerIdx = findHeaderRow(rows);
+  if (headerIdx < 0) return null;
+  const header = rows[headerIdx]!;
+
+  const cBooking = pickColumn(header, HEADER_HINTS.bookingDate);
+  const cValue = pickColumn(header, HEADER_HINTS.valueDate);
+  const cDesc = pickColumn(header, HEADER_HINTS.description);
+  const cAmount = pickColumn(header, HEADER_HINTS.amount);
+  const cDebit = pickColumn(header, HEADER_HINTS.debit);
+  const cCredit = pickColumn(header, HEADER_HINTS.credit);
+  const cCurrency = pickColumn(header, HEADER_HINTS.currency);
+  if (cBooking < 0 && cValue < 0) return null;
+  if (cAmount < 0 && cDebit < 0 && cCredit < 0) return null;
+
+  const out: ExtractedStatement = {
+    lines: [],
+    period_from: null,
+    period_to: null,
+    closing_balance: null,
+    currency_code: null,
+  };
+
+  for (const r of rows.slice(headerIdx + 1)) {
+    const at = (i: number) => (i >= 0 && i < r.length ? r[i]! : "");
+    const booking = parseCsvDate(at(cBooking)) ?? parseCsvDate(at(cValue));
+    if (!booking) continue;
+
+    let amount: number | null = null;
+    if (cAmount >= 0) amount = parseCsvAmount(at(cAmount));
+    if (amount === null || amount === 0) {
+      const debit = cDebit >= 0 ? parseCsvAmount(at(cDebit)) : null;
+      const credit = cCredit >= 0 ? parseCsvAmount(at(cCredit)) : null;
+      if (debit !== null && debit !== 0) amount = -Math.abs(debit);
+      else if (credit !== null && credit !== 0) amount = Math.abs(credit);
+    }
+    if (amount === null || amount === 0) continue;
+
+    const description =
+      cDesc >= 0
+        ? at(cDesc).trim()
+        : r
+            .filter((_, i) => i !== cBooking && i !== cValue && i !== cAmount && i !== cDebit && i !== cCredit)
+            .map((c) => c.trim())
+            .filter(Boolean)
+            .join(" ");
+
+    if (!out.currency_code && cCurrency >= 0) {
+      const cur = at(cCurrency).trim().toUpperCase();
+      if (/^[A-Z]{3}$/.test(cur)) out.currency_code = cur;
+    }
+
+    out.lines.push({
+      booking_date: booking,
+      value_date: parseCsvDate(at(cValue)),
+      description: description.slice(0, 300),
+      amount,
+      raw_text: r.join(" | ").slice(0, 500),
+    });
+  }
+
+  if (out.lines.length === 0) return null;
+  const dates = out.lines.map((l) => l.booking_date!).filter(Boolean).sort();
+  out.period_from = dates[0] ?? null;
+  out.period_to = dates[dates.length - 1] ?? null;
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // AI extraction
 // ---------------------------------------------------------------------------
 
@@ -118,7 +353,7 @@ const RESPONSE_FORMATS: (Record<string, unknown> | null)[] = [
 export interface ExtractAudit {
   userId: string;
   fileName?: string | null;
-  source: "pdf" | "image";
+  source: "pdf" | "image" | "csv";
   part?: string | null;
 }
 
