@@ -308,7 +308,7 @@ export const chat = createServerFn({ method: "POST" })
 
     return {
       conversation_id: conversationId,
-      message: { role: "assistant" as const, text: result.text, action: result.action },
+      message: { role: "assistant" as const, text: result.text, action: result.action, usage: result.usage ?? null },
       endpoint: { id: resolved.endpoint.id, name: resolved.endpoint.name, fell_back: resolved.fell_back },
     };
   });
