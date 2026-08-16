@@ -3,13 +3,14 @@ import { useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { SendHorizonal, Sparkles, Loader2, ExternalLink, Paperclip, X, FileText } from "lucide-react";
+import { SendHorizonal, Sparkles, Loader2, ExternalLink, Paperclip, X, FileText, Mic, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Markdown } from "@/components/Markdown";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { chat, listAIEndpoints, getConversation } from "@/utils/ai.functions";
+import { chat, listAIEndpoints, getConversation, transcribeAudio } from "@/utils/ai.functions";
+import { startVoiceRecording, blobToBase64, type VoiceRecorderHandle } from "@/lib/voiceRecorder";
 import { extractStatement, getStatementImport } from "@/utils/statements.functions";
 import { fetchAccounts } from "@/lib/finance";
 import type { AssistantAction, ChatMessage } from "@/lib/ai/types";
@@ -63,13 +64,14 @@ export function AssistantChat({
   persist?: boolean;
   compact?: boolean;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const navigate = useNavigate();
   const chatFn = useServerFn(chat);
   const listFn = useServerFn(listAIEndpoints);
   const convFn = useServerFn(getConversation);
   const extractFn = useServerFn(extractStatement);
   const importFn = useServerFn(getStatementImport);
+  const transcribeFn = useServerFn(transcribeAudio);
 
   const settingsQ = useQuery({ queryKey: ["ai_endpoints"], queryFn: () => listFn() });
   const historyQ = useQuery({
@@ -87,6 +89,10 @@ export function AssistantChat({
   const [file, setFile] = React.useState<File | null>(null);
   const [accountId, setAccountId] = React.useState<string>("");
   const [dragging, setDragging] = React.useState(false);
+  const recorderRef = React.useRef<VoiceRecorderHandle | null>(null);
+  const [recording, setRecording] = React.useState(false);
+  const [elapsed, setElapsed] = React.useState(0);
+  const [transcribing, setTranscribing] = React.useState(false);
 
   const isAccepted = React.useCallback(
     isSupportedFile,
@@ -129,6 +135,67 @@ export function AssistantChat({
     [settingsQ.data?.endpoints],
   );
   const enabled = endpoints.length > 0;
+  const voiceAvailable = endpoints.some((e) => !!e.transcribe_model);
+
+  const stopRecording = React.useCallback(
+    async (send: boolean) => {
+      const rec = recorderRef.current;
+      recorderRef.current = null;
+      setRecording(false);
+      if (!rec) return;
+      if (!send) {
+        rec.cancel();
+        return;
+      }
+      const clip = await rec.stop();
+      if (clip.durationMs < 400 || clip.peak < 0.01) {
+        toast.error(t("ai.voice.empty"));
+        return;
+      }
+      setTranscribing(true);
+      try {
+        const audio_base64 = await blobToBase64(clip.blob);
+        const r = await transcribeFn({
+          data: {
+            audio_base64,
+            mime_type: "audio/wav",
+            file_name: "recording.wav",
+            language: lang,
+            duration_ms: clip.durationMs,
+            endpoint_id: endpointId === "auto" ? null : endpointId,
+          },
+        });
+        setInput((prev) => (prev.trim() ? `${prev.trim()} ${r.text}` : r.text));
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+      } finally {
+        setTranscribing(false);
+      }
+    },
+    [endpointId, lang, t, transcribeFn],
+  );
+
+  const startRecording = React.useCallback(async () => {
+    if (recorderRef.current) return;
+    try {
+      recorderRef.current = await startVoiceRecording();
+      setElapsed(0);
+      setRecording(true);
+    } catch {
+      toast.error(t("ai.voice.denied"));
+    }
+  }, [t]);
+
+  // Live timer + hard stop after two minutes.
+  React.useEffect(() => {
+    if (!recording) return;
+    const id = setInterval(() => setElapsed((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, [recording]);
+  React.useEffect(() => {
+    if (recording && elapsed >= 120) void stopRecording(true);
+  }, [recording, elapsed, stopRecording]);
+  React.useEffect(() => () => recorderRef.current?.cancel(), []);
 
   const analyseFile = async (f: File) => {
     if (!accountId) {
@@ -380,10 +447,37 @@ export function AssistantChat({
         >
           <Paperclip className="h-4 w-4" />
         </Button>
+        {voiceAvailable && (
+          <Button
+            type="button"
+            size="icon"
+            variant={recording ? "destructive" : "ghost"}
+            disabled={busy || transcribing}
+            title={recording ? t("ai.voice.stop") : t("ai.voice.start")}
+            aria-label={recording ? t("ai.voice.stop") : t("ai.voice.start")}
+            onClick={() => (recording ? void stopRecording(true) : void startRecording())}
+          >
+            {transcribing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : recording ? (
+              <Square className="h-4 w-4" />
+            ) : (
+              <Mic className="h-4 w-4" />
+            )}
+          </Button>
+        )}
         <Textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={enabled ? t("ai.input.placeholder") : t("ai.input.placeholder_disabled")}
+          placeholder={
+            recording
+              ? t("ai.voice.recording", { time: `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}` })
+              : transcribing
+                ? t("ai.voice.transcribing")
+                : enabled
+                  ? t("ai.input.placeholder")
+                  : t("ai.input.placeholder_disabled")
+          }
           rows={2}
           className="resize-none"
           onKeyDown={(e) => {
@@ -392,7 +486,7 @@ export function AssistantChat({
               send(input);
             }
           }}
-          disabled={!enabled || busy}
+          disabled={!enabled || busy || recording || transcribing}
         />
         <Button type="submit" size="icon" disabled={!enabled || busy || !input.trim()}>
           <SendHorizonal className="h-4 w-4" />
