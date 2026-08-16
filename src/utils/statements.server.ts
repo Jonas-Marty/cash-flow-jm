@@ -2,6 +2,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { FullAICreds } from "./ai.server";
+import { preview, providerHost, writeAudit } from "./ai.server";
 
 // ---------------------------------------------------------------------------
 // PDF text extraction (pure JS, worker-safe)
@@ -113,9 +114,23 @@ const RESPONSE_FORMATS: (Record<string, unknown> | null)[] = [
   null,
 ];
 
-async function callJsonModel(creds: FullAICreds, system: string, user: string | unknown[]): Promise<any> {
+/** Audit context so document analysis shows up in the AI activity log. */
+export interface ExtractAudit {
+  userId: string;
+  fileName?: string | null;
+  source: "pdf" | "image";
+  part?: string | null;
+}
+
+async function callJsonModel(
+  creds: FullAICreds,
+  system: string,
+  user: string | unknown[],
+  audit?: ExtractAudit | null,
+): Promise<any> {
   let lastError = "";
   for (const format of RESPONSE_FORMATS) {
+    const started = Date.now();
     const resp = await fetch(`${creds.base_url}/chat/completions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${creds.api_token}` },
@@ -130,14 +145,61 @@ async function callJsonModel(creds: FullAICreds, system: string, user: string | 
       }),
     });
     if (resp.ok) {
-      const json = (await resp.json()) as { choices?: { message?: { content?: string } }[] };
+      const json = (await resp.json()) as {
+        choices?: { message?: { content?: string } }[];
+        usage?: Record<string, unknown>;
+      };
       const content = json.choices?.[0]?.message?.content ?? "";
+      if (audit) {
+        const u = json.usage ?? {};
+        const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
+        const p = num(u["prompt_tokens"] ?? u["input_tokens"]);
+        const c = num(u["completion_tokens"] ?? u["output_tokens"]);
+        await writeAudit({
+          user_id: audit.userId,
+          kind: "document_extract",
+          model: creds.model,
+          provider_host: providerHost(creds.base_url),
+          duration_ms: Date.now() - started,
+          ok: true,
+          prompt_tokens: p,
+          completion_tokens: c,
+          total_tokens: num(u["total_tokens"]) ?? ((p ?? 0) + (c ?? 0) || null),
+          payload: {
+            file_name: audit.fileName ?? null,
+            source: audit.source,
+            part: audit.part ?? null,
+            response_format: format ? (format as any).type : "none",
+            usage: json.usage ?? null,
+            content_preview: preview(content, 1000),
+          },
+        });
+      }
       return parseJsonLoose(content);
     }
     const body = await resp.text();
     lastError = `AI provider error (${resp.status}): ${body.slice(0, 800)}`;
     // Only a rejected response_format is worth retrying with another variant.
     const retryable = resp.status === 400 && /response_format|json_object|json_schema/i.test(body);
+    if (audit) {
+      await writeAudit({
+        user_id: audit.userId,
+        kind: "document_extract",
+        model: creds.model,
+        provider_host: providerHost(creds.base_url),
+        duration_ms: Date.now() - started,
+        ok: false,
+        error_message: lastError.slice(0, 500),
+        payload: {
+          file_name: audit.fileName ?? null,
+          source: audit.source,
+          part: audit.part ?? null,
+          response_format: format ? (format as any).type : "none",
+          status: resp.status,
+          response_body_preview: preview(body, 1000),
+        },
+      });
+    }
     if (!retryable) throw new Error(lastError);
   }
   throw new Error(lastError);
@@ -147,6 +209,7 @@ export async function extractStatementWithAI(
   creds: FullAICreds,
   text: string,
   hint: { currency_code: string; today: string },
+  audit?: ExtractAudit | null,
 ): Promise<ExtractedStatement> {
   const chunks = chunkText(text);
   const out: ExtractedStatement = {
@@ -161,7 +224,12 @@ export async function extractStatementWithAI(
 Statement text part ${i + 1} of ${chunks.length}:
 
 ${chunk}`;
-    const parsed = await callJsonModel(creds, EXTRACT_SYSTEM, user);
+    const parsed = await callJsonModel(
+      creds,
+      EXTRACT_SYSTEM,
+      user,
+      audit ? { ...audit, part: `${i + 1}/${chunks.length}` } : null,
+    );
     out.period_from = out.period_from ?? normDate(parsed?.period_from);
     out.period_to = normDate(parsed?.period_to) ?? out.period_to;
     const bal = normAmount(parsed?.closing_balance);
@@ -192,6 +260,7 @@ export async function extractStatementFromImagesWithAI(
   creds: FullAICreds,
   images: { mime: string; base64: string }[],
   hint: { currency_code: string; today: string },
+  audit?: ExtractAudit | null,
 ): Promise<ExtractedStatement> {
   const content = [
     {
@@ -204,7 +273,7 @@ Read every transaction row from this statement image and return the JSON describ
       image_url: { url: `data:${img.mime};base64,${img.base64}` },
     })),
   ];
-  const parsed = await callJsonModel(creds, EXTRACT_SYSTEM, content);
+  const parsed = await callJsonModel(creds, EXTRACT_SYSTEM, content, audit ?? null);
   const out: ExtractedStatement = {
     lines: [],
     period_from: normDate(parsed?.period_from),

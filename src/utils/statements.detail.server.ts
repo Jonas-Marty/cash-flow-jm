@@ -127,8 +127,13 @@ export async function runStatementExtraction(
         resolved.creds,
         [{ mime: mime || "image/png", base64: input.file_base64 }],
         hint,
+        { userId, fileName: input.file_name, source: "image" },
       )
-    : await extractStatementWithAI(resolved.creds, text, hint);
+    : await extractStatementWithAI(resolved.creds, text, hint, {
+        userId,
+        fileName: input.file_name,
+        source: "pdf",
+      });
   if (extracted.lines.length === 0) throw new Error("The AI could not find any transaction rows in this file.");
 
   const sign = input.invert_amounts ? -1 : 1;

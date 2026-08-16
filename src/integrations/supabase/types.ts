@@ -158,6 +158,7 @@ export type Database = {
       }
       ai_audit_logs: {
         Row: {
+          completion_tokens: number | null
           conversation_id: string | null
           duration_ms: number | null
           error_message: string | null
@@ -167,11 +168,14 @@ export type Database = {
           occurred_at: string
           ok: boolean | null
           payload: Json
+          prompt_tokens: number | null
           provider_host: string | null
           tool_name: string | null
+          total_tokens: number | null
           user_id: string
         }
         Insert: {
+          completion_tokens?: number | null
           conversation_id?: string | null
           duration_ms?: number | null
           error_message?: string | null
@@ -181,11 +185,14 @@ export type Database = {
           occurred_at?: string
           ok?: boolean | null
           payload?: Json
+          prompt_tokens?: number | null
           provider_host?: string | null
           tool_name?: string | null
+          total_tokens?: number | null
           user_id: string
         }
         Update: {
+          completion_tokens?: number | null
           conversation_id?: string | null
           duration_ms?: number | null
           error_message?: string | null
@@ -195,8 +202,10 @@ export type Database = {
           occurred_at?: string
           ok?: boolean | null
           payload?: Json
+          prompt_tokens?: number | null
           provider_host?: string | null
           tool_name?: string | null
+          total_tokens?: number | null
           user_id?: string
         }
         Relationships: []
