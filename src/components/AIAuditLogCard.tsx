@@ -11,7 +11,7 @@ import { useI18n } from "@/i18n";
 type Row = {
   id: string;
   occurred_at: string;
-  kind: "chat_request" | "tool_call";
+  kind: "chat_request" | "tool_call" | "document_extract";
   model: string | null;
   provider_host: string | null;
   tool_name: string | null;
@@ -19,6 +19,9 @@ type Row = {
   duration_ms: number | null;
   ok: boolean | null;
   error_message: string | null;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  total_tokens: number | null;
   payload: Record<string, unknown> | null;
 };
 
@@ -26,14 +29,18 @@ export function AIAuditLogCard() {
   const { t } = useI18n();
   const qc = useQueryClient();
   const [limit, setLimit] = React.useState(50);
-  const [kindFilter, setKindFilter] = React.useState<"all" | "chat_request" | "tool_call">("all");
+  const [kindFilter, setKindFilter] = React.useState<
+    "all" | "chat_request" | "tool_call" | "document_extract"
+  >("all");
 
   const q = useQuery({
     queryKey: ["ai_audit_logs", kindFilter, limit],
     queryFn: async (): Promise<Row[]> => {
       let query = supabase
         .from("ai_audit_logs")
-        .select("id, occurred_at, kind, model, provider_host, tool_name, conversation_id, duration_ms, ok, error_message, payload")
+        .select(
+          "id, occurred_at, kind, model, provider_host, tool_name, conversation_id, duration_ms, ok, error_message, prompt_tokens, completion_tokens, total_tokens, payload",
+        )
         .order("occurred_at", { ascending: false })
         .limit(limit);
       if (kindFilter !== "all") query = query.eq("kind", kindFilter);
@@ -64,7 +71,7 @@ export function AIAuditLogCard() {
       <CardContent className="space-y-3">
         <p className="text-xs text-muted-foreground">{t("ai.audit.intro")}</p>
         <div className="flex flex-wrap items-center gap-2">
-          {(["all", "chat_request", "tool_call"] as const).map((k) => (
+          {(["all", "chat_request", "tool_call", "document_extract"] as const).map((k) => (
             <Button
               key={k}
               size="sm"
@@ -95,6 +102,7 @@ export function AIAuditLogCard() {
                 <th className="px-2 py-1 font-medium">{t("ai.audit.col.kind")}</th>
                 <th className="px-2 py-1 font-medium">{t("ai.audit.col.detail")}</th>
                 <th className="px-2 py-1 font-medium">{t("ai.audit.col.duration")}</th>
+                <th className="px-2 py-1 font-medium">{t("ai.audit.col.tokens")}</th>
                 <th className="px-2 py-1 font-medium">{t("ai.audit.col.status")}</th>
                 <th className="px-2 py-1 font-medium">{t("ai.audit.col.payload")}</th>
               </tr>
@@ -118,6 +126,18 @@ export function AIAuditLogCard() {
                   <td className="px-2 py-1 text-muted-foreground">
                     {row.duration_ms != null ? `${row.duration_ms} ms` : "—"}
                   </td>
+                  <td className="px-2 py-1 whitespace-nowrap text-muted-foreground">
+                    {row.total_tokens != null ? (
+                      <span title={`in ${row.prompt_tokens ?? "?"} / out ${row.completion_tokens ?? "?"}`}>
+                        {row.total_tokens.toLocaleString()}
+                        <span className="ml-1 text-[10px] opacity-70">
+                          ({row.prompt_tokens ?? "?"}/{row.completion_tokens ?? "?"})
+                        </span>
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                   <td className="px-2 py-1">
                     {row.ok == null ? (
                       <span className="text-muted-foreground">—</span>
@@ -136,7 +156,7 @@ export function AIAuditLogCard() {
               ))}
               {(q.data ?? []).length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-2 py-3 text-center text-muted-foreground">
+                  <td colSpan={7} className="px-2 py-3 text-center text-muted-foreground">
                     {q.isLoading ? t("common.loading") : t("ai.audit.empty")}
                   </td>
                 </tr>
