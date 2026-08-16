@@ -278,7 +278,18 @@ export type ToolResult =
 
 function num(v: unknown): number | undefined {
   if (typeof v === "number" && Number.isFinite(v)) return v;
-  if (typeof v === "string" && v.trim() !== "" && !Number.isNaN(Number(v))) return Number(v);
+  if (typeof v === "string") {
+    // Some models return numbers as quoted strings ("\"1.8\"") or with
+    // currency symbols / thousand separators. Normalize before parsing.
+    const s = v
+      .trim()
+      .replace(/^["'`]+|["'`]+$/g, "")
+      .replace(/[^\d.,-]/g, "")
+      .replace(/,(?=\d{3}\b)/g, "")
+      .replace(",", ".")
+      .trim();
+    if (s !== "" && !Number.isNaN(Number(s))) return Number(s);
+  }
   return undefined;
 }
 function str(v: unknown): string | undefined {
