@@ -15,7 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sparkles, Plus, Trash2, RefreshCw, Loader2 } from "lucide-react";
+import { Sparkles, Plus, Trash2, RefreshCw, Loader2, ChevronsUpDown, Check } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import {
   listAIEndpoints,
   saveAIEndpoint,
@@ -23,6 +25,7 @@ import {
   saveAIActionBinding,
   checkAIEndpoints,
   testAIConnection,
+  listAIModels,
 } from "@/utils/ai.functions";
 import type { AIContextLevel, AIEndpoint, AIEndpointHealth } from "@/lib/ai/types";
 import { AI_ACTIONS } from "@/lib/ai/types";
@@ -77,6 +80,32 @@ export function AISettingsCard() {
   const bindFn = useServerFn(saveAIActionBinding);
   const checkFn = useServerFn(checkAIEndpoints);
   const testFn = useServerFn(testAIConnection);
+  const modelsFn = useServerFn(listAIModels);
+
+  const [models, setModels] = React.useState<Record<string, string[]>>({});
+  const [loadingModels, setLoadingModels] = React.useState<string | null>(null);
+
+  const draftKey = (d: Draft) => d.id ?? "new";
+
+  const loadModels = async (d: Draft) => {
+    const key = draftKey(d);
+    setLoadingModels(key);
+    try {
+      const r = await modelsFn({
+        data: { id: d.id, base_url: d.base_url.trim(), api_token: d.token || undefined },
+      });
+      if (!r.ok) {
+        toast.error(r.error || t("ai.conn.models_failed"));
+        return;
+      }
+      setModels((prev) => ({ ...prev, [key]: r.models }));
+      if (r.models.length === 0) toast.info(t("ai.conn.models_none"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoadingModels(null);
+    }
+  };
 
   const q = useQuery({ queryKey: ["ai_endpoints"], queryFn: () => listFn() });
   const endpoints = q.data?.endpoints ?? [];
