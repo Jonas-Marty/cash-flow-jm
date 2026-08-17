@@ -147,6 +147,10 @@ function StatementsPage() {
     };
   }, [detail]);
 
+  const [rematching, setRematching] = React.useState(false);
+  // "Open" = still needs a decision: missing rows and unconfirmed probable rows.
+  const openCount = groups.missing.length + groups.probable.length;
+
   async function decide(lineId: string, decision: "ignore" | "confirm" | "reset") {
     try {
       await resolveFn({ data: { line_id: lineId, decision } });
