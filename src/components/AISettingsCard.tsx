@@ -15,7 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sparkles, Plus, Trash2, RefreshCw, Loader2 } from "lucide-react";
+import { Sparkles, Plus, Trash2, RefreshCw, Loader2, ChevronsUpDown, Check } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import {
   listAIEndpoints,
   saveAIEndpoint,
@@ -23,6 +25,7 @@ import {
   saveAIActionBinding,
   checkAIEndpoints,
   testAIConnection,
+  listAIModels,
 } from "@/utils/ai.functions";
 import type { AIContextLevel, AIEndpoint, AIEndpointHealth } from "@/lib/ai/types";
 import { AI_ACTIONS } from "@/lib/ai/types";
@@ -69,6 +72,84 @@ const toDraft = (e: AIEndpoint): Draft => ({
 });
 
 export function AISettingsCard() {
+  return <AISettingsCardInner />;
+}
+
+function ModelField({
+  value,
+  onChange,
+  options,
+  loading,
+  disabled,
+  onLoad,
+  placeholder,
+  t,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+  loading: boolean;
+  disabled: boolean;
+  onLoad: () => void;
+  placeholder: string;
+  t: (k: string) => string;
+}) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div className="mt-1 flex gap-2">
+      <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="flex-1" />
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            disabled={disabled || loading}
+            title={t("ai.conn.models_load")}
+            aria-label={t("ai.conn.models_load")}
+            onClick={() => {
+              if (options.length === 0) onLoad();
+            }}
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronsUpDown className="h-4 w-4" />}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[280px] p-0" align="end">
+          <Command>
+            <CommandInput placeholder={t("ai.conn.models_search")} />
+            <CommandList>
+              <CommandEmpty>{t("ai.conn.models_none")}</CommandEmpty>
+              <CommandGroup>
+                {options.map((m) => (
+                  <CommandItem
+                    key={m}
+                    value={m}
+                    onSelect={() => {
+                      onChange(m);
+                      setOpen(false);
+                    }}
+                    className="gap-2"
+                  >
+                    <Check className={cn("h-4 w-4", value === m ? "opacity-100" : "opacity-0")} />
+                    <span className="truncate">{m}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+          <div className="border-t p-1">
+            <Button variant="ghost" size="sm" className="w-full justify-start" disabled={loading} onClick={onLoad}>
+              {loading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1 h-3 w-3" />}
+              {t("ai.conn.models_reload")}
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+function AISettingsCardInner() {
   const { t } = useI18n();
   const qc = useQueryClient();
   const listFn = useServerFn(listAIEndpoints);
@@ -77,6 +158,32 @@ export function AISettingsCard() {
   const bindFn = useServerFn(saveAIActionBinding);
   const checkFn = useServerFn(checkAIEndpoints);
   const testFn = useServerFn(testAIConnection);
+  const modelsFn = useServerFn(listAIModels);
+
+  const [models, setModels] = React.useState<Record<string, string[]>>({});
+  const [loadingModels, setLoadingModels] = React.useState<string | null>(null);
+
+  const draftKey = (d: Draft) => d.id ?? "new";
+
+  const loadModels = async (d: Draft) => {
+    const key = draftKey(d);
+    setLoadingModels(key);
+    try {
+      const r = await modelsFn({
+        data: { id: d.id, base_url: d.base_url.trim(), api_token: d.token || undefined },
+      });
+      if (!r.ok) {
+        toast.error(r.error || t("ai.conn.models_failed"));
+        return;
+      }
+      setModels((prev) => ({ ...prev, [key]: r.models }));
+      if (r.models.length === 0) toast.info(t("ai.conn.models_none"));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoadingModels(null);
+    }
+  };
 
   const q = useQuery({ queryKey: ["ai_endpoints"], queryFn: () => listFn() });
   const endpoints = q.data?.endpoints ?? [];
@@ -186,6 +293,7 @@ export function AISettingsCard() {
   };
 
   const row = (d: Draft, isNew = false) => (
+    // eslint-disable-next-line
     <div key={d.id ?? "new"} className="space-y-3 rounded-md border p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -214,11 +322,15 @@ export function AISettingsCard() {
         </div>
         <div>
           <Label className="text-sm">{t("ai.settings.model")}</Label>
-          <Input
+          <ModelField
             value={d.model}
-            onChange={(e) => (isNew ? setNewDraft({ ...d, model: e.target.value }) : patch(d.id!, { model: e.target.value }))}
             placeholder="gpt-4o-mini"
-            className="mt-1"
+            options={models[draftKey(d)] ?? []}
+            loading={loadingModels === draftKey(d)}
+            disabled={!d.base_url.trim()}
+            onLoad={() => loadModels(d)}
+            onChange={(v) => (isNew ? setNewDraft({ ...d, model: v }) : patch(d.id!, { model: v }))}
+            t={t}
           />
         </div>
         <div className="sm:col-span-2">
@@ -280,15 +392,17 @@ export function AISettingsCard() {
         </div>
         <div className="sm:col-span-2">
           <Label className="text-sm">{t("ai.conn.transcribe_model")}</Label>
-          <Input
+          <ModelField
             value={d.transcribe_model}
-            onChange={(e) =>
-              isNew
-                ? setNewDraft({ ...d, transcribe_model: e.target.value })
-                : patch(d.id!, { transcribe_model: e.target.value })
-            }
             placeholder="whisper-1"
-            className="mt-1"
+            options={models[draftKey(d)] ?? []}
+            loading={loadingModels === draftKey(d)}
+            disabled={!d.base_url.trim()}
+            onLoad={() => loadModels(d)}
+            onChange={(v) =>
+              isNew ? setNewDraft({ ...d, transcribe_model: v }) : patch(d.id!, { transcribe_model: v })
+            }
+            t={t}
           />
           <p className="mt-1 text-xs text-muted-foreground">{t("ai.conn.transcribe_model_hint")}</p>
         </div>

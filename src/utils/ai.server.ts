@@ -780,6 +780,41 @@ export async function runChat(
   };
 }
 
+/** List models offered by an OpenAI-compatible endpoint (GET /models). */
+export async function listModels(
+  baseUrl: string,
+  token: string | null,
+  timeoutMs = 10000,
+): Promise<{ ok: boolean; models: string[]; error?: string }> {
+  const base = baseUrl.trim().replace(/\/+$/, "");
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), timeoutMs);
+  try {
+    const resp = await fetch(`${base}/models`, { headers, signal: ac.signal });
+    if (!resp.ok) {
+      const body = await resp.text();
+      return { ok: false, models: [], error: `${resp.status} ${body.slice(0, 200)}` };
+    }
+    const json = (await resp.json()) as any;
+    const raw: any[] = Array.isArray(json?.data) ? json.data : Array.isArray(json?.models) ? json.models : [];
+    const models = Array.from(
+      new Set(
+        raw
+          .map((m) => (typeof m === "string" ? m : (m?.id ?? m?.name ?? m?.model)))
+          .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+          .map((v) => v.trim()),
+      ),
+    ).sort((a, b) => a.localeCompare(b));
+    return { ok: true, models };
+  } catch (e) {
+    return { ok: false, models: [], error: e instanceof Error ? e.message : String(e) };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function testConnection(baseUrl: string, token: string, model: string): Promise<{ ok: boolean; error?: string }> {
   const url = baseUrl.trim().replace(/\/+$/, "") + "/chat/completions";
   try {
