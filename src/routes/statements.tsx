@@ -161,7 +161,9 @@ function StatementsPage() {
       amount: String(Math.abs(line.amount)),
       type: line.amount < 0 ? "expense" : "income",
       description: line.description,
-      source_account_id: detail?.import.account_id ?? "",
+      source: detail?.import.account_id ?? "",
+      statement_line: line.id,
+      statement_import: detail?.import.id ?? "",
     };
     if (line.booking_date) search.occurred_on = line.booking_date;
     return search;
