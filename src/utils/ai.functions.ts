@@ -180,6 +180,7 @@ export const testAIConnection = createServerFn({ method: "POST" })
 
 // ---------- Conversations ----------
 
+
 export const listConversations = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ conversations: AIConversationSummary[] }> => {
