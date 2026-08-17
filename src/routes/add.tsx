@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useServerFn } from "@tanstack/react-start";
 import { notifyTransactionCreated } from "@/utils/webhooks.functions";
+import { resolveStatementLine } from "@/utils/statements.functions";
 import {
   fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings, fetchTransactions,
   fetchOpenReimbursables, fetchReimbursementLinks, fetchReimbursementCounterparties,
@@ -85,6 +86,8 @@ function AddTransactionRoute() {
       occurred_on: sp.get("occurred_on") ?? undefined,
       iou_with: sp.get("iou_with") ?? undefined,
       iou_amount: cleanAmountParam(sp.get("iou_amount")),
+      statement_line: sp.get("statement_line") ?? undefined,
+      statement_import: sp.get("statement_import") ?? undefined,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -113,6 +116,9 @@ export interface AddPrefill {
   occurred_on?: string;
   iou_with?: string;
   iou_amount?: string;
+  /** Statement import line this entry closes; linked back after save. */
+  statement_line?: string;
+  statement_import?: string;
 }
 
 export function TransactionForm({ editId, prefill }: { editId: string | null; prefill?: AddPrefill }) {
@@ -120,6 +126,28 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
   const navigate = useNavigate();
   const qc = useQueryClient();
   const notifyCreated = useServerFn(notifyTransactionCreated);
+  const linkStatementLineFn = useServerFn(resolveStatementLine);
+  // When the form was opened from a statement line ("create missing entry"),
+  // link the created transaction back so the statement can be worked through.
+  const linkStatementLine = React.useCallback(
+    async (txId: string): Promise<boolean> => {
+      const lineId = prefill?.statement_line;
+      if (!lineId) return false;
+      try {
+        await linkStatementLineFn({ data: { line_id: lineId, decision: "link", transaction_id: txId } });
+        toast.success(tr("statements.toast.linked"));
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+      }
+      navigate({
+        to: "/statements",
+        search: prefill?.statement_import ? ({ import: prefill.statement_import } as never) : undefined,
+      });
+      return true;
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [prefill?.statement_line, prefill?.statement_import],
+  );
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
@@ -866,6 +894,7 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
       }
       toast.success(tr("toast.saved"));
       qc.invalidateQueries();
+      if (newIds.length > 0 && (await linkStatementLine(newIds[0]))) return;
       if (andNew) { setSplitMode(false); setSlices([newSlice(), newSlice()]); reset(); }
       else navigate({ to: "/" });
       return;
@@ -1013,6 +1042,7 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     setSaving(false);
     toast.success(tr("toast.saved"));
     qc.invalidateQueries();
+    if (newTxId && (await linkStatementLine(newTxId))) return;
     if (andNew) reset(); else navigate({ to: "/" });
   };
 
@@ -2038,6 +2068,10 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
               </div>
             </div>
           </div>
+        )}
+
+        {prefill?.statement_line && (
+          <div className="pt-2 text-xs text-muted-foreground">{tr("statements.linking_hint")}</div>
         )}
 
         <div className="flex gap-2 pt-2">

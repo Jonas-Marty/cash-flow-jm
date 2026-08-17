@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Trash2, Upload, CheckCircle2, AlertTriangle, HelpCircle, EyeOff } from "lucide-react";
+import { Loader2, Trash2, Upload, CheckCircle2, AlertTriangle, HelpCircle, EyeOff, RefreshCw } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -147,6 +147,10 @@ function StatementsPage() {
     };
   }, [detail]);
 
+  const [rematching, setRematching] = React.useState(false);
+  // "Open" = still needs a decision: missing rows and unconfirmed probable rows.
+  const openCount = groups.missing.length + groups.probable.length;
+
   async function decide(lineId: string, decision: "ignore" | "confirm" | "reset") {
     try {
       await resolveFn({ data: { line_id: lineId, decision } });
@@ -161,7 +165,9 @@ function StatementsPage() {
       amount: String(Math.abs(line.amount)),
       type: line.amount < 0 ? "expense" : "income",
       description: line.description,
-      source_account_id: detail?.import.account_id ?? "",
+      source: detail?.import.account_id ?? "",
+      statement_line: line.id,
+      statement_import: detail?.import.id ?? "",
     };
     if (line.booking_date) search.occurred_on = line.booking_date;
     return search;
@@ -368,7 +374,45 @@ function StatementsPage() {
                         qc.invalidateQueries({ queryKey: ["statement_import", detail.import.id] });
                       }}
                     />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={rematching}
+                      onClick={async () => {
+                        setRematching(true);
+                        try {
+                          await rematchFn({
+                            data: { id: detail.import.id, window_days: detail.import.match_window_days },
+                          });
+                          await qc.invalidateQueries({ queryKey: ["statement_import", detail.import.id] });
+                          toast.success(t("statements.toast.rematched"));
+                        } catch (err) {
+                          toast.error(err instanceof Error ? err.message : String(err));
+                        } finally {
+                          setRematching(false);
+                        }
+                      }}
+                    >
+                      {rematching ? (
+                        <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                      )}
+                      {t("statements.action.reanalyze")}
+                    </Button>
                   </div>
+                </div>
+
+                <div
+                  className={
+                    openCount === 0
+                      ? "rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700"
+                      : "rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground"
+                  }
+                >
+                  {openCount === 0
+                    ? t("statements.progress.done", { total: String(detail.lines.length) })
+                    : t("statements.progress", { open: String(openCount), total: String(detail.lines.length) })}
                 </div>
 
                 {section(
