@@ -178,8 +178,28 @@ export const testAIConnection = createServerFn({ method: "POST" })
     return testConnection(data.base_url, token ?? "", data.model);
   });
 
-// ---------- Conversations ----------
+/** List the models an OpenAI-compatible connection offers. */
+export const listAIModels = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        id: z.string().uuid().nullable().optional(),
+        base_url: z.string().url(),
+        api_token: z.string().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }): Promise<{ ok: boolean; models: string[]; error?: string }> => {
+    const { listModels, loadEndpointRows } = await import("./ai.server");
+    let token = data.api_token && data.api_token.length > 0 ? data.api_token : null;
+    if (!token && data.id) {
+      token = (await loadEndpointRows(context.userId)).find((r) => r.id === data.id)?.api_token ?? null;
+    }
+    return listModels(data.base_url, token);
+  });
 
+// ---------- Conversations ----------
 
 export const listConversations = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
