@@ -370,7 +370,45 @@ function StatementsPage() {
                         qc.invalidateQueries({ queryKey: ["statement_import", detail.import.id] });
                       }}
                     />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={rematching}
+                      onClick={async () => {
+                        setRematching(true);
+                        try {
+                          await rematchFn({
+                            data: { id: detail.import.id, window_days: detail.import.match_window_days },
+                          });
+                          await qc.invalidateQueries({ queryKey: ["statement_import", detail.import.id] });
+                          toast.success(t("statements.toast.rematched"));
+                        } catch (err) {
+                          toast.error(err instanceof Error ? err.message : String(err));
+                        } finally {
+                          setRematching(false);
+                        }
+                      }}
+                    >
+                      {rematching ? (
+                        <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <RefreshCw className="mr-1 h-3.5 w-3.5" />
+                      )}
+                      {t("statements.action.reanalyze")}
+                    </Button>
                   </div>
+                </div>
+
+                <div
+                  className={
+                    openCount === 0
+                      ? "rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-700"
+                      : "rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground"
+                  }
+                >
+                  {openCount === 0
+                    ? t("statements.progress.done", { total: String(detail.lines.length) })
+                    : t("statements.progress", { open: String(openCount), total: String(detail.lines.length) })}
                 </div>
 
                 {section(
