@@ -2071,6 +2071,9 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
         )}
 
         <div className="flex gap-2 pt-2">
+          {prefill?.statement_line && (
+            <div className="w-full pb-1 text-xs text-muted-foreground">{tr("statements.linking_hint")}</div>
+          )}
           {isEdit ? (
             <>
               <Button variant="outline" className="flex-1" disabled={saving} onClick={() => navigate({ to: "/transactions" })}>{tr("common.cancel")}</Button>
