@@ -85,6 +85,8 @@ function AddTransactionRoute() {
       occurred_on: sp.get("occurred_on") ?? undefined,
       iou_with: sp.get("iou_with") ?? undefined,
       iou_amount: cleanAmountParam(sp.get("iou_amount")),
+      statement_line: sp.get("statement_line") ?? undefined,
+      statement_import: sp.get("statement_import") ?? undefined,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -113,6 +115,9 @@ export interface AddPrefill {
   occurred_on?: string;
   iou_with?: string;
   iou_amount?: string;
+  /** Statement import line this entry closes; linked back after save. */
+  statement_line?: string;
+  statement_import?: string;
 }
 
 export function TransactionForm({ editId, prefill }: { editId: string | null; prefill?: AddPrefill }) {
