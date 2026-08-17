@@ -72,6 +72,84 @@ const toDraft = (e: AIEndpoint): Draft => ({
 });
 
 export function AISettingsCard() {
+  return <AISettingsCardInner />;
+}
+
+function ModelField({
+  value,
+  onChange,
+  options,
+  loading,
+  disabled,
+  onLoad,
+  placeholder,
+  t,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  options: string[];
+  loading: boolean;
+  disabled: boolean;
+  onLoad: () => void;
+  placeholder: string;
+  t: (k: string) => string;
+}) {
+  const [open, setOpen] = React.useState(false);
+  return (
+    <div className="mt-1 flex gap-2">
+      <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="flex-1" />
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon"
+            disabled={disabled || loading}
+            title={t("ai.conn.models_load")}
+            aria-label={t("ai.conn.models_load")}
+            onClick={() => {
+              if (options.length === 0) onLoad();
+            }}
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronsUpDown className="h-4 w-4" />}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[280px] p-0" align="end">
+          <Command>
+            <CommandInput placeholder={t("ai.conn.models_search")} />
+            <CommandList>
+              <CommandEmpty>{t("ai.conn.models_none")}</CommandEmpty>
+              <CommandGroup>
+                {options.map((m) => (
+                  <CommandItem
+                    key={m}
+                    value={m}
+                    onSelect={() => {
+                      onChange(m);
+                      setOpen(false);
+                    }}
+                    className="gap-2"
+                  >
+                    <Check className={cn("h-4 w-4", value === m ? "opacity-100" : "opacity-0")} />
+                    <span className="truncate">{m}</span>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+          <div className="border-t p-1">
+            <Button variant="ghost" size="sm" className="w-full justify-start" disabled={loading} onClick={onLoad}>
+              {loading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1 h-3 w-3" />}
+              {t("ai.conn.models_reload")}
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
+function AISettingsCardInner() {
   const { t } = useI18n();
   const qc = useQueryClient();
   const listFn = useServerFn(listAIEndpoints);
