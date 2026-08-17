@@ -3,7 +3,7 @@ import { useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { SendHorizonal, Sparkles, Loader2, ExternalLink, Paperclip, X, FileText, Mic, Square } from "lucide-react";
+import { SendHorizonal, Sparkles, Loader2, ExternalLink, Paperclip, X, FileText, Mic, Square, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Markdown } from "@/components/Markdown";
@@ -13,6 +13,7 @@ import { chat, listAIEndpoints, getConversation, transcribeAudio } from "@/utils
 import { startVoiceRecording, blobToBase64, type VoiceRecorderHandle } from "@/lib/voiceRecorder";
 import { extractStatement, getStatementImport } from "@/utils/statements.functions";
 import { fetchAccounts } from "@/lib/finance";
+import { getChatDraft, setChatDraft, resetChatDraft } from "@/lib/ai/chatDraft";
 import type { AssistantAction, ChatMessage } from "@/lib/ai/types";
 import { useI18n } from "@/i18n";
 
@@ -80,19 +81,50 @@ export function AssistantChat({
     enabled: !!conversationId,
   });
 
-  const [messages, setMessages] = React.useState<LocalMsg[]>([]);
-  const [input, setInput] = React.useState("");
+  // Non-persisted chats (sidebar) keep their draft in a module store so closing
+  // the sheet does not throw away messages, input or the pending attachment.
+  const draft = getChatDraft();
+  const keepDraft = !persist;
+  const [messages, setMessages] = React.useState<LocalMsg[]>(() =>
+    keepDraft ? (draft.messages as LocalMsg[]) : [],
+  );
+  const [input, setInput] = React.useState(() => (keepDraft ? draft.input : ""));
   const [busy, setBusy] = React.useState(false);
-  const [endpointId, setEndpointId] = React.useState<string>("auto");
+  const [endpointId, setEndpointId] = React.useState<string>(() => (keepDraft ? draft.endpointId : "auto"));
   const scrollerRef = React.useRef<HTMLDivElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const [file, setFile] = React.useState<File | null>(null);
-  const [accountId, setAccountId] = React.useState<string>("");
+  const [file, setFile] = React.useState<File | null>(() => (keepDraft ? draft.file : null));
+  const [accountId, setAccountId] = React.useState<string>(() => (keepDraft ? draft.accountId : ""));
   const [dragging, setDragging] = React.useState(false);
   const recorderRef = React.useRef<VoiceRecorderHandle | null>(null);
   const [recording, setRecording] = React.useState(false);
   const [elapsed, setElapsed] = React.useState(0);
   const [transcribing, setTranscribing] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!keepDraft) return;
+    setChatDraft("messages", messages as never);
+  }, [keepDraft, messages]);
+  React.useEffect(() => {
+    if (keepDraft) setChatDraft("input", input);
+  }, [keepDraft, input]);
+  React.useEffect(() => {
+    if (keepDraft) setChatDraft("file", file);
+  }, [keepDraft, file]);
+  React.useEffect(() => {
+    if (keepDraft) setChatDraft("endpointId", endpointId);
+  }, [keepDraft, endpointId]);
+  React.useEffect(() => {
+    if (keepDraft) setChatDraft("accountId", accountId);
+  }, [keepDraft, accountId]);
+
+  const clearChat = React.useCallback(() => {
+    setMessages([]);
+    setInput("");
+    setFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (keepDraft) resetChatDraft();
+  }, [keepDraft]);
 
   const isAccepted = React.useCallback(
     isSupportedFile,
@@ -300,24 +332,37 @@ export function AssistantChat({
           {t("ai.attach.drop")}
         </div>
       )}
-      {endpoints.length > 1 && (
-        <div className="mb-2 flex items-center gap-2">
-          <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
-          <Select value={endpointId} onValueChange={setEndpointId}>
-            <SelectTrigger className="h-8 w-[220px] text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="auto">{t("ai.conn.auto")}</SelectItem>
-              {endpoints.map((e) => (
-                <SelectItem key={e.id} value={e.id}>
-                  {e.name} · {e.model}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      )}
+      <div className="mb-2 flex items-center gap-2">
+        {endpoints.length > 1 && (
+          <>
+            <Sparkles className="h-3.5 w-3.5 text-muted-foreground" />
+            <Select value={endpointId} onValueChange={setEndpointId}>
+              <SelectTrigger className="h-8 w-[220px] text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="auto">{t("ai.conn.auto")}</SelectItem>
+                {endpoints.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.name} · {e.model}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </>
+        )}
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="ml-auto h-8 text-xs"
+          disabled={busy || (messages.length === 0 && !input && !file)}
+          onClick={clearChat}
+        >
+          <Plus className="mr-1 h-3 w-3" />
+          {t("ai.new_chat")}
+        </Button>
+      </div>
       <div ref={scrollerRef} className="flex-1 space-y-3 overflow-y-auto px-1 py-2">
         {messages.length === 0 && (
           <div className="space-y-3 p-2">
