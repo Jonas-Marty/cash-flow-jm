@@ -215,6 +215,7 @@ export function AISettingsCard() {
   };
 
   const row = (d: Draft, isNew = false) => (
+    // eslint-disable-next-line
     <div key={d.id ?? "new"} className="space-y-3 rounded-md border p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -243,11 +244,15 @@ export function AISettingsCard() {
         </div>
         <div>
           <Label className="text-sm">{t("ai.settings.model")}</Label>
-          <Input
+          <ModelField
             value={d.model}
-            onChange={(e) => (isNew ? setNewDraft({ ...d, model: e.target.value }) : patch(d.id!, { model: e.target.value }))}
             placeholder="gpt-4o-mini"
-            className="mt-1"
+            options={models[draftKey(d)] ?? []}
+            loading={loadingModels === draftKey(d)}
+            disabled={!d.base_url.trim()}
+            onLoad={() => loadModels(d)}
+            onChange={(v) => (isNew ? setNewDraft({ ...d, model: v }) : patch(d.id!, { model: v }))}
+            t={t}
           />
         </div>
         <div className="sm:col-span-2">
@@ -309,15 +314,17 @@ export function AISettingsCard() {
         </div>
         <div className="sm:col-span-2">
           <Label className="text-sm">{t("ai.conn.transcribe_model")}</Label>
-          <Input
+          <ModelField
             value={d.transcribe_model}
-            onChange={(e) =>
-              isNew
-                ? setNewDraft({ ...d, transcribe_model: e.target.value })
-                : patch(d.id!, { transcribe_model: e.target.value })
-            }
             placeholder="whisper-1"
-            className="mt-1"
+            options={models[draftKey(d)] ?? []}
+            loading={loadingModels === draftKey(d)}
+            disabled={!d.base_url.trim()}
+            onLoad={() => loadModels(d)}
+            onChange={(v) =>
+              isNew ? setNewDraft({ ...d, transcribe_model: v }) : patch(d.id!, { transcribe_model: v })
+            }
+            t={t}
           />
           <p className="mt-1 text-xs text-muted-foreground">{t("ai.conn.transcribe_model_hint")}</p>
         </div>
