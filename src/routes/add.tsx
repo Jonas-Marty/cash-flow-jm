@@ -126,6 +126,28 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
   const navigate = useNavigate();
   const qc = useQueryClient();
   const notifyCreated = useServerFn(notifyTransactionCreated);
+  const linkStatementLineFn = useServerFn(resolveStatementLine);
+  // When the form was opened from a statement line ("create missing entry"),
+  // link the created transaction back so the statement can be worked through.
+  const linkStatementLine = React.useCallback(
+    async (txId: string): Promise<boolean> => {
+      const lineId = prefill?.statement_line;
+      if (!lineId) return false;
+      try {
+        await linkStatementLineFn({ data: { line_id: lineId, decision: "link", transaction_id: txId } });
+        toast.success(tr("statements.toast.linked"));
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+      }
+      navigate({
+        to: "/statements",
+        search: prefill?.statement_import ? ({ import: prefill.statement_import } as never) : undefined,
+      });
+      return true;
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [prefill?.statement_line, prefill?.statement_import],
+  );
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
