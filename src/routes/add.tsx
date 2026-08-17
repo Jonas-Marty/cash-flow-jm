@@ -894,6 +894,7 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
       }
       toast.success(tr("toast.saved"));
       qc.invalidateQueries();
+      if (newIds.length > 0 && (await linkStatementLine(newIds[0]))) return;
       if (andNew) { setSplitMode(false); setSlices([newSlice(), newSlice()]); reset(); }
       else navigate({ to: "/" });
       return;
@@ -1041,6 +1042,7 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
     setSaving(false);
     toast.success(tr("toast.saved"));
     qc.invalidateQueries();
+    if (newTxId && (await linkStatementLine(newTxId))) return;
     if (andNew) reset(); else navigate({ to: "/" });
   };
 
