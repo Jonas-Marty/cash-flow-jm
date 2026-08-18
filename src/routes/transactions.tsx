@@ -28,7 +28,7 @@ import {
   fmtMoney, type TxType, type Transaction,
 } from "@/lib/finance";
 import { MultiSelectCombobox, type MSCOption } from "@/components/MultiSelectCombobox";
-import { DateInput } from "@/components/DateInput";
+import { DatePicker } from "@/components/DatePicker";
 import { EntityVisual } from "@/components/EntityVisual";
 import { highlightTokens, tokenize, normalize, parseLooseNumber } from "@/lib/highlight";
 import { matchesAmount, type AmountOp } from "@/lib/amountFilter";
