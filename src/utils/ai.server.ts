@@ -119,7 +119,7 @@ export interface EndpointRow {
   api_token: string | null;
   enabled: boolean;
   priority: number;
-  context_level: "off" | "compact" | "full";
+  context_level: "off" | "compact" | "full" | "xl";
   /** Speech-to-text model for /audio/transcriptions. Null = voice unsupported. */
   transcribe_model: string | null;
   /** How thoroughly availability is probed. */
