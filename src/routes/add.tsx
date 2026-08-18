@@ -2374,6 +2374,11 @@ function ImpactPreview({
     isSavings: boolean; savedBefore: number; savedAfter: number;
   };
   const catImpacts = new Map<string, number>();
+  // Savings envelopes follow the DB convention in category_savings_balance_v2:
+  // income credits the envelope (+), expense withdraws from it (−) — the
+  // opposite sign of the month "spent" convention above.
+  const savImpacts = new Map<string, number>();
+  const savSign = (txType: TxType): number => (txType === "income" ? 1 : -1);
   const catSign = (catId: string, txType: TxType): number => {
     const kind = rowByCat.get(catId)?.kind ?? "expense";
     if (kind === "income") return txType === "income" ? 1 : -1;
@@ -2384,14 +2389,17 @@ function ImpactPreview({
       for (const s of slices) {
         if (!s.categoryId || s.amount <= 0) continue;
         catImpacts.set(s.categoryId, (catImpacts.get(s.categoryId) ?? 0) + s.amount * catSign(s.categoryId, type));
+        savImpacts.set(s.categoryId, (savImpacts.get(s.categoryId) ?? 0) + s.amount * savSign(type));
       }
     } else if (category) {
       catImpacts.set(category.id, amountNum * catSign(category.id, type));
+      savImpacts.set(category.id, amountNum * savSign(type));
     }
   }
   // Fee creates an extra expense in feeCategory on transfers.
   if (feeAmountNum != null && feeCategoryId) {
     catImpacts.set(feeCategoryId, (catImpacts.get(feeCategoryId) ?? 0) + feeAmountNum * catSign(feeCategoryId, "expense"));
+    savImpacts.set(feeCategoryId, (savImpacts.get(feeCategoryId) ?? 0) + feeAmountNum * savSign("expense"));
   }
   // Back out original category spent for same month
   const sameMonth = (iso: string) => {
@@ -2402,6 +2410,7 @@ function ImpactPreview({
   // Same as ogCatImpacts but across all months — cumulative savings balances
   // are not month-scoped, so an edit must be backed out regardless of date.
   const ogCatImpactsAll = new Map<string, number>();
+  const ogSavImpactsAll = new Map<string, number>();
   if (original) {
     const rows = originalGroup && originalGroup.length > 1 ? originalGroup : [original];
     for (const r of rows) {
@@ -2409,12 +2418,20 @@ function ImpactPreview({
       if (!r.category_id) continue;
       const v = Number(r.amount) * catSign(r.category_id, r.type);
       ogCatImpactsAll.set(r.category_id, (ogCatImpactsAll.get(r.category_id) ?? 0) + v);
+      ogSavImpactsAll.set(
+        r.category_id,
+        (ogSavImpactsAll.get(r.category_id) ?? 0) + Number(r.amount) * savSign(r.type),
+      );
       if (!sameMonth(r.occurred_on)) continue;
       ogCatImpacts.set(r.category_id, (ogCatImpacts.get(r.category_id) ?? 0) + v);
     }
     if (original.fee_amount != null && Number(original.fee_amount) > 0 && original.fee_category_id) {
       const fv = Number(original.fee_amount) * catSign(original.fee_category_id, "expense");
       ogCatImpactsAll.set(original.fee_category_id, (ogCatImpactsAll.get(original.fee_category_id) ?? 0) + fv);
+      ogSavImpactsAll.set(
+        original.fee_category_id,
+        (ogSavImpactsAll.get(original.fee_category_id) ?? 0) + Number(original.fee_amount) * savSign("expense"),
+      );
       if (sameMonth(original.occurred_on)) {
         ogCatImpacts.set(original.fee_category_id, (ogCatImpacts.get(original.fee_category_id) ?? 0) + fv);
       }
@@ -2432,8 +2449,8 @@ function ImpactPreview({
     const after = before + (catImpacts.get(id) ?? 0);
     const isSavings = (row?.kind ?? "expense") === "savings" || savedByCat.has(id);
     const savedNow = savedByCat.get(id) ?? 0;
-    const savedBefore = savedNow - (ogCatImpactsAll.get(id) ?? 0);
-    const savedAfter = savedBefore + (catImpacts.get(id) ?? 0);
+    const savedBefore = savedNow - (ogSavImpactsAll.get(id) ?? 0);
+    const savedAfter = savedBefore + (savImpacts.get(id) ?? 0);
     catRows.push({
       id, name: meta.name,
       allocated: Number(row?.allocated ?? meta.allocated_budget ?? 0),
@@ -2506,11 +2523,6 @@ function ImpactPreview({
                       <span className={cn("font-medium", r.savedAfter < 0 ? "text-destructive" : "text-foreground")}>
                         {fmt(r.savedAfter, mainSymbol)}
                       </span>
-                      {hasBudget && (
-                        <span className="text-muted-foreground">
-                          {" "}· {tr("add.impact.month_plan", { x: `${fmtMoney(r.after, mainSymbol)} / ${fmtMoney(r.allocated, mainSymbol)}` })}
-                        </span>
-                      )}
                     </>
                   ) : hasBudget ? (
                     <>
