@@ -310,19 +310,36 @@ function AISettingsCardInner() {
     }
   };
 
-  const statusBadge = (d: Draft) => {
-    if (!d.enabled) return <Badge variant="outline">{t("ai.conn.disabled")}</Badge>;
+  const StatusBadge = ({ d }: { d: Draft }) => {
     const h = d.id ? health[d.id] : undefined;
+    const ago = useRelativeTime(h?.checked_at, t);
+    if (!d.enabled) return <Badge variant="outline">{t("ai.conn.disabled")}</Badge>;
+    if (checking && !h) {
+      return (
+        <Badge variant="outline">
+          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+          {t("ai.conn.checking")}
+        </Badge>
+      );
+    }
     if (!h) return <Badge variant="outline">{t("ai.conn.unknown")}</Badge>;
+    const degraded = !h.ok && h.degraded;
+    const tone = h.ok
+      ? "border-emerald-500/50 text-emerald-600"
+      : degraded
+        ? "border-amber-500/50 text-amber-600"
+        : "border-destructive/50 text-destructive";
+    const dot = h.ok ? "bg-emerald-500" : degraded ? "bg-amber-500" : "bg-destructive";
+    const label = h.ok ? `${t("ai.conn.online")} · ${h.latency_ms}ms` : degraded ? t("ai.conn.degraded") : t("ai.conn.offline");
+    const probe = h.probe ? t(`ai.conn.probe.${h.probe}`) : "";
     return (
-      <Badge
-        variant="outline"
-        className={cn(h.ok ? "border-emerald-500/50 text-emerald-600" : "border-destructive/50 text-destructive")}
-        title={h.error ?? undefined}
-      >
-        <span className={cn("mr-1 inline-block h-2 w-2 rounded-full", h.ok ? "bg-emerald-500" : "bg-destructive")} />
-        {h.ok ? `${t("ai.conn.online")} · ${h.latency_ms}ms` : t("ai.conn.offline")}
-      </Badge>
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="outline" className={cn(tone)} title={[probe, h.error ?? ""].filter(Boolean).join(" · ")}>
+          <span className={cn("mr-1 inline-block h-2 w-2 rounded-full", dot)} />
+          {label}
+        </Badge>
+        {ago && <span className="text-xs text-muted-foreground">{ago}</span>}
+      </div>
     );
   };
 
@@ -331,7 +348,7 @@ function AISettingsCardInner() {
     <div key={d.id ?? "new"} className="space-y-3 rounded-md border p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          {statusBadge(d)}
+          <StatusBadge d={d} />
           <Switch
             checked={d.enabled}
             onCheckedChange={(v) => (isNew ? setNewDraft({ ...d, enabled: v }) : patch(d.id!, { enabled: v }))}
