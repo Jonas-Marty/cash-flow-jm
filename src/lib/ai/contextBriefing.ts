@@ -1,7 +1,7 @@
 // Client-safe formatter that turns raw finance rows into a compact
 // "context briefing" text block for the assistant's system prompt.
 
-export type AIContextLevel = "off" | "compact" | "full";
+export type AIContextLevel = "off" | "compact" | "full" | "xl";
 
 export interface BriefingAccount {
   id: string;
@@ -40,8 +40,9 @@ export interface BriefingInput {
 }
 
 const CAPS = {
-  compact: { tags: 25, descriptions: 15, recent: 10, perAccountCats: 3 },
-  full: { tags: 40, descriptions: 25, recent: 15, perAccountCats: 5 },
+  compact: { tags: 25, descriptions: 15, recent: 10, perAccountCats: 3, descExamples: 0 },
+  full: { tags: 40, descriptions: 25, recent: 15, perAccountCats: 5, descExamples: 0 },
+  xl: { tags: 80, descriptions: 60, recent: 60, perAccountCats: 6, descExamples: 3 },
 };
 
 function round(n: number): string {
