@@ -138,6 +138,7 @@ export async function loadEndpointRows(userId: string): Promise<EndpointRow[]> {
     priority: r.priority ?? 100,
     context_level: (r.context_level ?? "compact") as EndpointRow["context_level"],
     transcribe_model: (r.transcribe_model || "").trim() || null,
+    health_mode: (r.health_mode ?? "real") as AIHealthMode,
   }));
 }
 
@@ -145,15 +146,24 @@ function toCreds(row: EndpointRow): FullAICreds {
   return { enabled: true, base_url: row.base_url, model: row.model, api_token: row.api_token || "" };
 }
 
-/** Quick availability probe: /models, falling back to a 1-token chat ping. */
+/**
+ * Availability probe.
+ *
+ * - `fast`         → GET /models only (a proxy answers even when its upstream is down).
+ * - `model_listed` → GET /models and require the configured model id in the list.
+ * - `real`         → LiteLLM-style GET /health for the model when available, otherwise a
+ *                    1-token chat request. This is the only mode that reaches the upstream.
+ */
 export async function pingEndpoint(
   baseUrl: string,
   token: string | null,
   model: string,
-  timeoutMs = 6000,
-): Promise<{ ok: boolean; latency_ms: number; error?: string }> {
+  mode: AIHealthMode = "real",
+  timeoutMs = 8000,
+): Promise<PingResult> {
   const base = baseUrl.trim().replace(/\/+$/, "");
   const started = Date.now();
+  const el = () => Date.now() - started;
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers["Authorization"] = `Bearer ${token}`;
   const withTimeout = async (fn: (signal: AbortSignal) => Promise<Response>) => {
@@ -165,15 +175,81 @@ export async function pingEndpoint(
       clearTimeout(timer);
     }
   };
+
+  // Step 1: the models list — cheap, and tells us whether the endpoint itself answers.
+  let listOk = false;
+  let listError: string | null = null;
+  let listed: string[] = [];
   try {
     const resp = await withTimeout((signal) => fetch(`${base}/models`, { headers, signal }));
-    if (resp.ok) return { ok: true, latency_ms: Date.now() - started };
-    if (resp.status === 401 || resp.status === 403) {
-      return { ok: false, latency_ms: Date.now() - started, error: `${resp.status} unauthorized` };
+    if (resp.ok) {
+      listOk = true;
+      try {
+        const json = (await resp.json()) as any;
+        const raw: any[] = Array.isArray(json?.data) ? json.data : Array.isArray(json?.models) ? json.models : [];
+        listed = raw
+          .map((m) => (typeof m === "string" ? m : (m?.id ?? m?.name ?? m?.model)))
+          .filter((v): v is string => typeof v === "string")
+          .map((v) => v.trim());
+      } catch {
+        listed = [];
+      }
+    } else if (resp.status === 401 || resp.status === 403) {
+      return { ok: false, latency_ms: el(), probe: "models", error: `${resp.status} unauthorized` };
+    } else {
+      listError = `${resp.status}`;
+    }
+  } catch (e) {
+    listError = e instanceof Error ? e.message : String(e);
+  }
+
+  if (mode === "fast") {
+    return listOk
+      ? { ok: true, latency_ms: el(), probe: "models" }
+      : { ok: false, latency_ms: el(), probe: "models", error: listError ?? "unreachable" };
+  }
+
+  if (mode === "model_listed") {
+    if (!listOk) return { ok: false, latency_ms: el(), probe: "models", error: listError ?? "unreachable" };
+    if (listed.length > 0 && !listed.includes(model)) {
+      return {
+        ok: false,
+        latency_ms: el(),
+        probe: "models",
+        degraded: true,
+        error: `model "${model}" is not offered by this endpoint`,
+      };
+    }
+    return { ok: true, latency_ms: el(), probe: "models" };
+  }
+
+  // mode === "real": try a provider health endpoint first (LiteLLM), then a real request.
+  try {
+    const resp = await withTimeout((signal) =>
+      fetch(`${base}/health?model=${encodeURIComponent(model)}`, { headers, signal }),
+    );
+    if (resp.ok) {
+      const json = (await resp.json().catch(() => null)) as any;
+      const healthy = Array.isArray(json?.healthy_endpoints) ? json.healthy_endpoints.length : null;
+      const unhealthy = Array.isArray(json?.unhealthy_endpoints) ? json.unhealthy_endpoints : [];
+      if (healthy !== null || unhealthy.length > 0) {
+        if (healthy === 0 || unhealthy.length > 0) {
+          const detail = JSON.stringify(unhealthy).slice(0, 160);
+          return {
+            ok: false,
+            latency_ms: el(),
+            probe: "health",
+            degraded: listOk,
+            error: `upstream unhealthy ${detail}`,
+          };
+        }
+        return { ok: true, latency_ms: el(), probe: "health" };
+      }
     }
   } catch {
-    // fall through to the chat ping
+    // no usable /health — fall through to the real chat request
   }
+
   try {
     const resp = await withTimeout((signal) =>
       fetch(`${base}/chat/completions`, {
@@ -185,11 +261,23 @@ export async function pingEndpoint(
     );
     if (!resp.ok) {
       const body = await resp.text();
-      return { ok: false, latency_ms: Date.now() - started, error: `${resp.status} ${body.slice(0, 160)}` };
+      return {
+        ok: false,
+        latency_ms: el(),
+        probe: "chat",
+        degraded: listOk,
+        error: `${resp.status} ${body.slice(0, 160)}`,
+      };
     }
-    return { ok: true, latency_ms: Date.now() - started };
+    return { ok: true, latency_ms: el(), probe: "chat" };
   } catch (e) {
-    return { ok: false, latency_ms: Date.now() - started, error: e instanceof Error ? e.message : String(e) };
+    return {
+      ok: false,
+      latency_ms: el(),
+      probe: "chat",
+      degraded: listOk,
+      error: e instanceof Error ? e.message : String(e),
+    };
   }
 }
 
