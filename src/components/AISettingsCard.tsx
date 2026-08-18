@@ -269,6 +269,23 @@ function AISettingsCardInner() {
     }
   };
 
+  // Auto-check when the card mounts and then quietly every 5 minutes while the
+  // tab is visible — long enough that a forgotten open tab stays harmless.
+  const checkRef = React.useRef(checkAll);
+  checkRef.current = checkAll;
+  const autoRan = React.useRef(false);
+  React.useEffect(() => {
+    if (endpoints.length === 0) return;
+    if (!autoRan.current) {
+      autoRan.current = true;
+      void checkRef.current();
+    }
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") void checkRef.current();
+    }, 300_000);
+    return () => clearInterval(id);
+  }, [endpoints.length]);
+
   const test = async (d: Draft) => {
     setBusy(true);
     try {
