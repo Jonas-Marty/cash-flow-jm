@@ -34,7 +34,7 @@ instead of red, with the upstream error text.
 - Settings runs a check automatically when the AI section becomes visible (once per mount, with a
   short client cache so navigating back and forth doesn't hammer the endpoints).
 - Each badge gets a live relative timestamp: "checked 12s ago", updating every few seconds.
-- A quiet auto-refresh every 60s while the Settings AI card is on screen; pauses when the tab is
+- A quiet auto-refresh every 5min while the Settings AI card is on screen; pauses when the tab is
   hidden.
 - Manual "Check" button stays and forces an immediate re-check.
 - Per-connection spinner while its own probe is in flight (checks run in parallel, as now).
