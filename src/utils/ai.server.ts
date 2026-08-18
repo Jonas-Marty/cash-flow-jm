@@ -322,7 +322,7 @@ export async function resolveEndpoint(
   const ordered = preferred ? [preferred, ...rows.filter((r) => r.id !== preferred.id)] : rows;
   let lastError = "";
   for (const [i, row] of ordered.entries()) {
-    const health = await pingEndpoint(row.base_url, row.api_token, row.model);
+    const health = await pingEndpoint(row.base_url, row.api_token, row.model, row.health_mode);
     if (health.ok) return { creds: toCreds(row), endpoint: row, fell_back: i > 0 };
     lastError = health.error || "unavailable";
   }
