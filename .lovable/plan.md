@@ -4,7 +4,7 @@ Three related improvements to how the assistant sees your data.
 
 ## 1. New "X-large" context size
 
-Today each AI connection can send Off / Compact / Full context. A fourth level **X-large** is added:
+Today each AI connection can send Off / Compact / Full context. A fourth level **X-large** is added. Its main difference is that it sends more complete past transactions as examples, not just aggregated descriptions. The LLM sees each example in context (date, description, amount, account, category, tags), so it can pattern-match wording and classification decisions more accurately.
 
 | Level | Window | Tags | Frequent descriptions | Recent rows verbatim |
 |---|---|---|---|---|
