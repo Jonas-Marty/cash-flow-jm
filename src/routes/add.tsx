@@ -2263,7 +2263,7 @@ function ImpactPreview({
   date: Date;
   splitMode: boolean;
   slices: Array<{ amount: number; categoryId: string | null }> | null;
-  categoryById: Map<string, { id: string; name: string; allocated_budget: number }>;
+  categoryById: Map<string, { id: string; name: string; allocated_budget: number; is_scope?: boolean }>;
   balances: AccountBalance[] | null;
   categoryRows: CategoryMonthRow[] | null;
   savingsBalances: CategorySavingsBalanceV2[] | null;
@@ -2371,7 +2371,7 @@ function ImpactPreview({
   // view (budgets are in main currency in this app).
   type CatItem = {
     id: string; name: string; allocated: number; before: number; after: number;
-    isSavings: boolean; savedBefore: number; savedAfter: number;
+    isSavings: boolean; savedBefore: number; savedAfter: number; isScope: boolean;
   };
   const catImpacts = new Map<string, number>();
   // Savings envelopes follow the DB convention in category_savings_balance_v2:
@@ -2455,6 +2455,7 @@ function ImpactPreview({
       id, name: meta.name,
       allocated: Number(row?.allocated ?? meta.allocated_budget ?? 0),
       before, after, isSavings, savedBefore, savedAfter,
+      isScope: Boolean(meta.is_scope),
     });
   }
 
@@ -2511,13 +2512,26 @@ function ImpactPreview({
             const hasBudget = r.allocated > 0;
             const remBefore = r.allocated - r.before;
             const remAfter = r.allocated - r.after;
+            // Scopes (trips/projects) are savings envelopes that mostly only
+            // get spent from. Show budget left instead of a negative balance:
+            // saved balance is ≤ 0 for pure spending, so allocated + saved.
+            const scopeRemBefore = r.allocated + r.savedBefore;
+            const scopeRemAfter = r.allocated + r.savedAfter;
             return (
               <li key={"cat-" + r.id} className="flex items-baseline justify-between gap-3">
                 <span className="truncate text-muted-foreground">
                   {tr("add.impact.category")} · {r.name}
                 </span>
                 <span className="tabular-nums">
-                  {r.isSavings ? (
+                  {r.isScope && hasBudget ? (
+                    <>
+                      {tr("add.impact.remaining")}: {fmt(scopeRemBefore, mainSymbol)} →{" "}
+                      <span className={cn("font-medium", scopeRemAfter < 0 ? "text-destructive" : "text-foreground")}>
+                        {fmt(scopeRemAfter, mainSymbol)}
+                      </span>{" "}
+                      <span className="text-muted-foreground">{tr("add.impact.of", { x: fmtMoney(r.allocated, mainSymbol) })}</span>
+                    </>
+                  ) : r.isSavings ? (
                     <>
                       {tr("add.impact.saved")}: {fmt(r.savedBefore, mainSymbol)} →{" "}
                       <span className={cn("font-medium", r.savedAfter < 0 ? "text-destructive" : "text-foreground")}>
