@@ -294,6 +294,120 @@ function initials(email: string | undefined | null) {
   return name.slice(0, 2).toUpperCase() || "?";
 }
 
+/**
+ * Desktop navigation that keeps every entry reachable: items that no longer
+ * fit the header width collapse into a trailing "More" dropdown.
+ */
+function DesktopTabs({ pendingCount }: { pendingCount: number }) {
+  const loc = useLocation();
+  const { t } = useI18n();
+  const containerRef = useState<HTMLDivElement | null>(null);
+  const [el, setEl] = useState<HTMLDivElement | null>(null);
+  const [visible, setVisible] = useState(tabs.length);
+  void containerRef;
+
+  useEffect(() => {
+    if (!el) return;
+    const measure = () => {
+      const items = Array.from(el.querySelectorAll<HTMLElement>("[data-measure-item]"));
+      const available = el.clientWidth;
+      const moreWidth = 96;
+      let used = 0;
+      let count = 0;
+      for (let i = 0; i < items.length; i++) {
+        const w = items[i]!.offsetWidth + 4;
+        const needsMore = i < items.length - 1;
+        if (used + w + (needsMore ? moreWidth : 0) > available) break;
+        used += w;
+        count++;
+      }
+      setVisible(Math.max(1, count));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [el, t]);
+
+  const shown = tabs.slice(0, visible);
+  const overflow = tabs.slice(visible);
+  const overflowActive = overflow.some((tab) =>
+    tab.exact ? loc.pathname === tab.to : loc.pathname.startsWith(tab.to),
+  );
+
+  const itemClass = (active: boolean) =>
+    cn(
+      "inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+      active
+        ? "bg-primary text-primary-foreground"
+        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+    );
+
+  return (
+    <div ref={setEl} className="relative flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
+      {/* Hidden measuring row: always renders every tab at natural width. */}
+      <div aria-hidden className="pointer-events-none invisible absolute left-0 top-0 flex gap-1">
+        {tabs.map((tab) => (
+          <span key={tab.to} data-measure-item className={itemClass(false)}>
+            <tab.icon className="h-4 w-4" />
+            {t(tab.labelKey)}
+          </span>
+        ))}
+      </div>
+      {shown.map((tab) => {
+        const active = tab.exact ? loc.pathname === tab.to : loc.pathname.startsWith(tab.to);
+        const showBadge = tab.to === "/pending" && pendingCount > 0;
+        return (
+          <Link key={tab.to} to={tab.to} className={itemClass(active)}>
+            <tab.icon className="h-4 w-4" />
+            {t(tab.labelKey)}
+            {showBadge && (
+              <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-semibold text-warning-foreground">
+                {pendingCount}
+              </span>
+            )}
+          </Link>
+        );
+      })}
+      {overflow.length > 0 && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" className={itemClass(overflowActive)}>
+              <MoreHorizontal className="h-4 w-4" />
+              {t("nav.more")}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            {overflow.map((tab) => {
+              const active = tab.exact ? loc.pathname === tab.to : loc.pathname.startsWith(tab.to);
+              const showBadge = tab.to === "/pending" && pendingCount > 0;
+              return (
+                <DropdownMenuItem key={tab.to} asChild>
+                  <Link to={tab.to} className={cn("cursor-pointer", active && "bg-accent")}>
+                    <tab.icon className="h-4 w-4" />
+                    <span className="flex-1">{t(tab.labelKey)}</span>
+                    {showBadge && (
+                      <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-semibold text-warning-foreground">
+                        {pendingCount}
+                      </span>
+                    )}
+                  </Link>
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+    </div>
+  );
+}
+
+function initialsUnused(email: string | undefined | null) {
+  if (!email) return "?";
+  const name = email.split("@")[0] ?? "";
+  return name.slice(0, 2).toUpperCase() || "?";
+}
+
 function AccountMenu() {
   const { t, lang, setLang } = useI18n();
   const { user, signOut } = useAuth();
