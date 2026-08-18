@@ -3,7 +3,7 @@ import { useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { SendHorizonal, Sparkles, Loader2, ExternalLink, Paperclip, X, FileText, Mic, Square, Plus } from "lucide-react";
+import { SendHorizonal, Sparkles, Loader2, ExternalLink, Paperclip, X, FileText, Mic, Square, Plus, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Markdown } from "@/components/Markdown";
@@ -93,6 +93,7 @@ export function AssistantChat({
   const [endpointId, setEndpointId] = React.useState<string>(() => (keepDraft ? draft.endpointId : "auto"));
   const scrollerRef = React.useRef<HTMLDivElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const cameraInputRef = React.useRef<HTMLInputElement>(null);
   const [file, setFile] = React.useState<File | null>(() => (keepDraft ? draft.file : null));
   const [accountId, setAccountId] = React.useState<string>(() => (keepDraft ? draft.accountId : ""));
   const [dragging, setDragging] = React.useState(false);
@@ -123,6 +124,7 @@ export function AssistantChat({
     setInput("");
     setFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
     if (keepDraft) resetChatDraft();
   }, [keepDraft]);
 
@@ -482,6 +484,14 @@ export function AssistantChat({
           className="hidden"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         />
+        <input
+          ref={cameraInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+        />
         <Button
           type="button"
           size="icon"
@@ -491,6 +501,17 @@ export function AssistantChat({
           onClick={() => fileInputRef.current?.click()}
         >
           <Paperclip className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          disabled={busy}
+          title={t("ai.attach.camera")}
+          aria-label={t("ai.attach.camera")}
+          onClick={() => cameraInputRef.current?.click()}
+        >
+          <Camera className="h-4 w-4" />
         </Button>
         {voiceAvailable && (
           <Button
