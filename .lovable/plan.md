@@ -4,7 +4,19 @@ Three related improvements to how the assistant sees your data.
 
 ## 1. New "X-large" context size
 
-Today each AI connection can send Off / Compact / Full context. A fourth level **X-large** is added. Its main difference is that it sends more complete past transactions as examples, not just aggregated descriptions. The LLM sees each example in context (date, description, amount, account, category, tags), so it can pattern-match wording and classification decisions more accurately.
+Today each AI connection can send Off / Compact / Full context. A fourth level **X-large** is added.
+
+At every level (Compact, Full, X-large) the model gets **complete transaction examples** — each one row with date, description, amount, type, account, category and tags together — so it always sees the data in context instead of only aggregated description statistics. The levels differ only in how many examples and how far back.
+
+Token estimate against your actual data (9 accounts, 15 categories, 40 tags, 8 transactions in 30 days, 96 in 180 days; measured row lengths ~100 characters, estimated at ~3.3 characters per token):
+
+| Level | Fixed part (accounts, categories, tags, habits) | Examples | Total estimate |
+|---|---|---|---|
+| Compact | ~700 tokens | 10 rows ≈ 300 | **~1,000 tokens** |
+| Full | ~750 tokens | 15 rows ≈ 450 | **~1,200 tokens** |
+| X-large | ~900 tokens | 60 rows ≈ 1,800 | **~2,700 tokens** |
+
+So even X-large stays well under ~3k tokens today; with a busier history (60 usable examples always present) it would sit around 3-3.5k.
 
 | Level | Window | Tags | Frequent descriptions | Recent rows verbatim |
 |---|---|---|---|---|
