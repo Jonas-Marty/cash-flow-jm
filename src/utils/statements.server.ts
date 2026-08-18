@@ -357,7 +357,7 @@ export interface ExtractAudit {
   part?: string | null;
 }
 
-async function callJsonModel(
+export async function callJsonModel(
   creds: FullAICreds,
   system: string,
   user: string | unknown[],
