@@ -3,12 +3,10 @@ import { TransactionForm } from "./add";
 
 export const Route = createFileRoute("/edit/$id")({
   // `back` carries the transaction-list filters so they survive the round trip.
-  validateSearch: (search: Record<string, unknown>) => ({
-    back:
-      search.back && typeof search.back === "object"
-        ? (search.back as Record<string, unknown>)
-        : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>) =>
+    search.back && typeof search.back === "object"
+      ? { back: search.back as Record<string, unknown> }
+      : {},
   component: EditTransactionRoute,
 });
 
