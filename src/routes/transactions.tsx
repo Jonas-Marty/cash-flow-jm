@@ -28,7 +28,7 @@ import {
   fmtMoney, type TxType, type Transaction,
 } from "@/lib/finance";
 import { MultiSelectCombobox, type MSCOption } from "@/components/MultiSelectCombobox";
-import { DateInput } from "@/components/DateInput";
+import { DatePicker } from "@/components/DatePicker";
 import { EntityVisual } from "@/components/EntityVisual";
 import { highlightTokens, tokenize, normalize, parseLooseNumber } from "@/lib/highlight";
 import { matchesAmount, type AmountOp } from "@/lib/amountFilter";
@@ -498,37 +498,27 @@ function TransactionsPage() {
           <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
             <div>
               <Label className="text-xs text-muted-foreground">{tr("common.from")}</Label>
-              <div className="flex items-center gap-1">
-                {from ? (
-                  <DateInput value={from} onChange={(d) => setFrom(d)} formatStr={dateFmt} lang={lang} locale={locale} />
-                ) : (
-                  <Button type="button" variant="outline" className="h-9 w-full justify-start font-normal text-muted-foreground" onClick={() => setFrom(new Date())}>
-                    {tr("common.set")}
-                  </Button>
-                )}
-                {from && (
-                  <Button type="button" variant="ghost" size="icon" onClick={() => setFrom(null)} aria-label={tr("common.clear")}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
+              <DatePicker
+                value={from}
+                onChange={setFrom}
+                formatStr={dateFmt}
+                lang={lang}
+                locale={locale}
+                placeholder={tr("common.set")}
+                clearLabel={tr("common.clear")}
+              />
             </div>
             <div>
               <Label className="text-xs text-muted-foreground">{tr("common.to")}</Label>
-              <div className="flex items-center gap-1">
-                {to ? (
-                  <DateInput value={to} onChange={(d) => setTo(d)} formatStr={dateFmt} lang={lang} locale={locale} />
-                ) : (
-                  <Button type="button" variant="outline" className="h-9 w-full justify-start font-normal text-muted-foreground" onClick={() => setTo(new Date())}>
-                    {tr("common.set")}
-                  </Button>
-                )}
-                {to && (
-                  <Button type="button" variant="ghost" size="icon" onClick={() => setTo(null)} aria-label={tr("common.clear")}>
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
+              <DatePicker
+                value={to}
+                onChange={setTo}
+                formatStr={dateFmt}
+                lang={lang}
+                locale={locale}
+                placeholder={tr("common.set")}
+                clearLabel={tr("common.clear")}
+              />
             </div>
           </div>
 
