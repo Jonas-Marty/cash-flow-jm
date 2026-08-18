@@ -161,14 +161,17 @@ function StatementsPage() {
   }
 
   function addLink(line: StatementLine) {
+    const tags = (line.suggested_tags ?? []).map((x) => `#${x}`).join(" ");
     const search: Record<string, string> = {
       amount: String(Math.abs(line.amount)),
       type: line.amount < 0 ? "expense" : "income",
-      description: line.description,
+      description: line.suggested_description || line.description,
       source: detail?.import.account_id ?? "",
       statement_line: line.id,
       statement_import: detail?.import.id ?? "",
     };
+    if (line.suggested_category_id) search.category = line.suggested_category_id;
+    if (tags) search.note = tags;
     if (line.booking_date) search.occurred_on = line.booking_date;
     return search;
   }
@@ -183,6 +186,11 @@ function StatementsPage() {
             <StatusBadge line={l} t={t} />
           </div>
           <div className="break-words text-sm font-medium">{l.description || "—"}</div>
+          {l.match_status === "unmatched" && (l.suggested_description || l.suggested_category_id || (l.suggested_tags?.length ?? 0) > 0) && (
+            <div className="text-xs text-muted-foreground">
+              {t("statements.suggested")}: {[l.suggested_description, (l.suggested_tags ?? []).map((x) => `#${x}`).join(" ")].filter(Boolean).join(" · ")}
+            </div>
+          )}
           {m && (
             <div className="truncate text-xs text-muted-foreground">
               ↔ {m.occurred_on} · {m.description || "—"} · {fmtMoney(m.amount, symbol)}

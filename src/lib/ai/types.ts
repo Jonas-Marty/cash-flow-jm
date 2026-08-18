@@ -39,7 +39,7 @@ export const AI_ACTIONS = ["chat", "statement_extract", "transcribe"] as const;
 export type AIAction = (typeof AI_ACTIONS)[number];
 
 /** How much real finance data is pasted into the assistant's system prompt. */
-export type AIContextLevel = "off" | "compact" | "full";
+export type AIContextLevel = "off" | "compact" | "full" | "xl";
 
 /** How thoroughly a connection's availability is probed. */
 export type AIHealthMode = "fast" | "model_listed" | "real";

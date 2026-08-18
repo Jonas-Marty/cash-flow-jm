@@ -42,7 +42,14 @@ export const extractStatement = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }): Promise<{ import_id: string }> => {
     const { runStatementExtraction } = await import("./statements.detail.server");
-    return runStatementExtraction(context.supabase, context.userId, data);
+    const res = await runStatementExtraction(context.supabase, context.userId, data);
+    try {
+      const { classifyOpenStatementLines } = await import("./statements.classify.server");
+      await classifyOpenStatementLines(context.supabase, context.userId, res.import_id);
+    } catch {
+      // Field guessing is best effort; the import itself already succeeded.
+    }
+    return res;
   });
 
 export const rematchStatementImport = createServerFn({ method: "POST" })
@@ -52,7 +59,18 @@ export const rematchStatementImport = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }): Promise<StatementImportDetail> => {
     const { rematchImport } = await import("./statements.detail.server");
-    return rematchImport(context.supabase, data.id, data.window_days);
+    const detail = await rematchImport(context.supabase, data.id, data.window_days);
+    try {
+      const { classifyOpenStatementLines } = await import("./statements.classify.server");
+      const { classified } = await classifyOpenStatementLines(context.supabase, context.userId, data.id);
+      if (classified > 0) {
+        const { buildImportDetail } = await import("./statements.detail.server");
+        return buildImportDetail(context.supabase, data.id);
+      }
+    } catch {
+      // ignore: re-analysis of matches already happened
+    }
+    return detail;
   });
 
 export const resolveStatementLine = createServerFn({ method: "POST" })

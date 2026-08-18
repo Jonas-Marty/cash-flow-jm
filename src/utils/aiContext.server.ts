@@ -9,7 +9,7 @@ import {
 
 type Sb = { from: (t: string) => any; rpc: (fn: string, args?: Record<string, unknown>) => any };
 
-const WINDOW_DAYS = 30;
+const WINDOW_DAYS: Record<string, number> = { compact: 30, full: 30, xl: 180 };
 
 function isoDaysAgo(days: number): string {
   const d = new Date();
@@ -28,7 +28,8 @@ export async function buildBriefingForUser(sb: Sb, level: AIContextLevel, curren
   const monthStart = new Date();
   monthStart.setUTCDate(1);
   const monthISO = monthStart.toISOString().slice(0, 10);
-  const since = isoDaysAgo(WINDOW_DAYS);
+  const windowDays = WINDOW_DAYS[level] ?? 30;
+  const since = isoDaysAgo(windowDays);
 
   const [accRes, catRes, spendRes, txRes] = await Promise.all([
     sb.from("accounts").select("id, name, currency_code, archived").order("name"),
@@ -39,7 +40,7 @@ export async function buildBriefingForUser(sb: Sb, level: AIContextLevel, curren
       .select("id, occurred_on, description, amount, type, source_account_id, category_id")
       .gte("occurred_on", since)
       .order("occurred_on", { ascending: false })
-      .limit(400),
+      .limit(level === "xl" ? 1200 : 400),
   ]);
 
   const accounts: BriefingAccount[] = (accRes.data || []).map((a: any) => ({
@@ -95,7 +96,7 @@ export async function buildBriefingForUser(sb: Sb, level: AIContextLevel, curren
   return buildContextBriefing({
     level,
     currencyCode,
-    windowDays: WINDOW_DAYS,
+    windowDays,
     accounts,
     categories,
     transactions,

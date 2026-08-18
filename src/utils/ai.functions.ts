@@ -72,7 +72,7 @@ const endpointSchema = z.object({
   model: z.string().trim().min(1).max(120),
   enabled: z.boolean(),
   priority: z.number().int().min(0).max(1000).optional(),
-  context_level: z.enum(["off", "compact", "full"]).optional(),
+  context_level: z.enum(["off", "compact", "full", "xl"]).optional(),
   transcribe_model: z.string().trim().max(120).nullable().optional(),
   health_mode: z.enum(["fast", "model_listed", "real"]).optional(),
   // undefined = keep existing, "" = clear

@@ -22,7 +22,7 @@ import {
 const IMPORT_COLS =
   "id, account_id, file_name, period_from, period_to, closing_balance, currency_code, status, model, match_window_days, created_at";
 const LINE_COLS =
-  "id, line_no, booking_date, value_date, description, amount, raw_text, match_status, matched_transaction_id, match_score, decision";
+  "id, line_no, booking_date, value_date, description, amount, raw_text, match_status, matched_transaction_id, match_score, decision, suggested_description, suggested_category_id, suggested_tags";
 
 function addDays(iso: string, days: number): string {
   const d = new Date(iso + "T00:00:00Z");

@@ -1053,6 +1053,9 @@ export type Database = {
           match_status: string
           matched_transaction_id: string | null
           raw_text: string | null
+          suggested_category_id: string | null
+          suggested_description: string | null
+          suggested_tags: string[]
           updated_at: string
           user_id: string
           value_date: string | null
@@ -1070,6 +1073,9 @@ export type Database = {
           match_status?: string
           matched_transaction_id?: string | null
           raw_text?: string | null
+          suggested_category_id?: string | null
+          suggested_description?: string | null
+          suggested_tags?: string[]
           updated_at?: string
           user_id: string
           value_date?: string | null
@@ -1087,6 +1093,9 @@ export type Database = {
           match_status?: string
           matched_transaction_id?: string | null
           raw_text?: string | null
+          suggested_category_id?: string | null
+          suggested_description?: string | null
+          suggested_tags?: string[]
           updated_at?: string
           user_id?: string
           value_date?: string | null
@@ -1105,6 +1114,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "transactions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "statement_import_lines_suggested_category_id_fkey"
+            columns: ["suggested_category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "statement_import_lines_suggested_category_id_fkey"
+            columns: ["suggested_category_id"]
+            isOneToOne: false
+            referencedRelation: "category_savings_balance"
+            referencedColumns: ["category_id"]
           },
         ]
       }

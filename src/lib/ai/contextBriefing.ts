@@ -1,7 +1,7 @@
 // Client-safe formatter that turns raw finance rows into a compact
 // "context briefing" text block for the assistant's system prompt.
 
-export type AIContextLevel = "off" | "compact" | "full";
+export type AIContextLevel = "off" | "compact" | "full" | "xl";
 
 export interface BriefingAccount {
   id: string;
@@ -40,8 +40,9 @@ export interface BriefingInput {
 }
 
 const CAPS = {
-  compact: { tags: 25, descriptions: 15, recent: 10, perAccountCats: 3 },
-  full: { tags: 40, descriptions: 25, recent: 15, perAccountCats: 5 },
+  compact: { tags: 25, descriptions: 15, recent: 10, perAccountCats: 3, descExamples: 0 },
+  full: { tags: 40, descriptions: 25, recent: 15, perAccountCats: 5, descExamples: 0 },
+  xl: { tags: 80, descriptions: 60, recent: 60, perAccountCats: 6, descExamples: 3 },
 };
 
 function round(n: number): string {
@@ -191,19 +192,32 @@ export function buildContextBriefing(input: BriefingInput): string {
           median(d.amounts),
         )}`,
       );
+      if (caps.descExamples > 0) {
+        const examples = [...transactions]
+          .filter((t) => normDesc(t.description).toLowerCase() === key)
+          .sort((a, b) => (a.occurred_on < b.occurred_on ? 1 : -1))
+          .slice(0, caps.descExamples);
+        for (const t of examples) out.push(`   e.g. ${rowLine(t, accName, catName)}`);
+      }
     }
   }
 
   // --- Most recent raw rows ---
   const recent = [...transactions].sort((a, b) => (a.occurred_on < b.occurred_on ? 1 : -1)).slice(0, caps.recent);
-  out.push(`\n### Most recent transactions (date | description | amount | type | account | category | tags)`);
-  for (const t of recent) {
-    out.push(
-      `${t.occurred_on} | ${normDesc(t.description) || "-"} | ${round(t.amount)} | ${t.type} | ${accName(
-        t.account_id,
-      )} | ${t.category_id ? catName(t.category_id) : "-"} | ${t.tags.map((x) => `#${x}`).join(" ") || "-"}`,
-    );
-  }
+  out.push(
+    `\n### Most recent transactions, complete rows (date | description | amount | type | account | category | tags)`,
+  );
+  for (const t of recent) out.push(rowLine(t, accName, catName));
 
   return out.join("\n");
+}
+
+function rowLine(
+  t: BriefingTx,
+  accName: (id: string) => string,
+  catName: (id: string) => string,
+): string {
+  return `${t.occurred_on} | ${normDesc(t.description) || "-"} | ${round(t.amount)} | ${t.type} | ${accName(
+    t.account_id,
+  )} | ${t.category_id ? catName(t.category_id) : "-"} | ${t.tags.map((x) => `#${x}`).join(" ") || "-"}`;
 }
