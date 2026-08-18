@@ -466,6 +466,23 @@ export async function callJsonModel(
     }
     if (!retryable) throw new Error(lastError);
   }
+  if (audit) {
+    await writeAudit({
+      user_id: audit.userId,
+      kind: "document_extract",
+      model: creds.model,
+      provider_host: providerHost(creds.base_url),
+      duration_ms: 0,
+      ok: false,
+      error_message: lastError.slice(0, 500),
+      payload: {
+        file_name: audit.fileName ?? null,
+        source: audit.source,
+        part: audit.part ?? null,
+        response_format: "all_variants_rejected",
+      },
+    });
+  }
   throw new Error(lastError);
 }
 
