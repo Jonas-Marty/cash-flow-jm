@@ -27,7 +27,7 @@ import {
   testAIConnection,
   listAIModels,
 } from "@/utils/ai.functions";
-import type { AIContextLevel, AIEndpoint, AIEndpointHealth } from "@/lib/ai/types";
+import type { AIContextLevel, AIEndpoint, AIEndpointHealth, AIHealthMode } from "@/lib/ai/types";
 import { AI_ACTIONS } from "@/lib/ai/types";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
@@ -41,6 +41,7 @@ type Draft = {
   priority: number;
   context_level: AIContextLevel;
   transcribe_model: string;
+  health_mode: AIHealthMode;
   token: string;
   has_token: boolean;
 };
@@ -54,6 +55,7 @@ const emptyDraft = (priority: number): Draft => ({
   priority,
   context_level: "compact",
   transcribe_model: "",
+  health_mode: "real",
   token: "",
   has_token: false,
 });
@@ -67,9 +69,24 @@ const toDraft = (e: AIEndpoint): Draft => ({
   priority: e.priority,
   context_level: e.context_level ?? "compact",
   transcribe_model: e.transcribe_model ?? "",
+  health_mode: e.health_mode ?? "real",
   token: "",
   has_token: e.has_token,
 });
+
+/** "checked 12s ago" style label. */
+function useRelativeTime(iso: string | undefined, t: (k: string, p?: Record<string, string | number>) => string) {
+  const [, force] = React.useReducer((x: number) => x + 1, 0);
+  React.useEffect(() => {
+    if (!iso) return;
+    const id = setInterval(force, 5000);
+    return () => clearInterval(id);
+  }, [iso]);
+  if (!iso) return null;
+  const secs = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (secs < 60) return t("ai.conn.checked_seconds", { n: secs });
+  return t("ai.conn.checked_minutes", { n: Math.round(secs / 60) });
+}
 
 export function AISettingsCard() {
   return <AISettingsCardInner />;
@@ -215,6 +232,7 @@ function AISettingsCardInner() {
           priority: d.priority,
           context_level: d.context_level,
           transcribe_model: d.transcribe_model.trim() || null,
+          health_mode: d.health_mode,
           ...(d.token === "" ? {} : { api_token: d.token }),
         } as never,
       });
@@ -252,6 +270,23 @@ function AISettingsCardInner() {
     }
   };
 
+  // Auto-check when the card mounts and then quietly every 5 minutes while the
+  // tab is visible — long enough that a forgotten open tab stays harmless.
+  const checkRef = React.useRef(checkAll);
+  checkRef.current = checkAll;
+  const autoRan = React.useRef(false);
+  React.useEffect(() => {
+    if (endpoints.length === 0) return;
+    if (!autoRan.current) {
+      autoRan.current = true;
+      void checkRef.current();
+    }
+    const id = setInterval(() => {
+      if (document.visibilityState === "visible") void checkRef.current();
+    }, 300_000);
+    return () => clearInterval(id);
+  }, [endpoints.length]);
+
   const test = async (d: Draft) => {
     setBusy(true);
     try {
@@ -276,19 +311,36 @@ function AISettingsCardInner() {
     }
   };
 
-  const statusBadge = (d: Draft) => {
-    if (!d.enabled) return <Badge variant="outline">{t("ai.conn.disabled")}</Badge>;
+  const StatusBadge = ({ d }: { d: Draft }) => {
     const h = d.id ? health[d.id] : undefined;
+    const ago = useRelativeTime(h?.checked_at, t);
+    if (!d.enabled) return <Badge variant="outline">{t("ai.conn.disabled")}</Badge>;
+    if (checking && !h) {
+      return (
+        <Badge variant="outline">
+          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+          {t("ai.conn.checking")}
+        </Badge>
+      );
+    }
     if (!h) return <Badge variant="outline">{t("ai.conn.unknown")}</Badge>;
+    const degraded = !h.ok && h.degraded;
+    const tone = h.ok
+      ? "border-emerald-500/50 text-emerald-600"
+      : degraded
+        ? "border-amber-500/50 text-amber-600"
+        : "border-destructive/50 text-destructive";
+    const dot = h.ok ? "bg-emerald-500" : degraded ? "bg-amber-500" : "bg-destructive";
+    const label = h.ok ? `${t("ai.conn.online")} · ${h.latency_ms}ms` : degraded ? t("ai.conn.degraded") : t("ai.conn.offline");
+    const probe = h.probe ? t(`ai.conn.probe.${h.probe}`) : "";
     return (
-      <Badge
-        variant="outline"
-        className={cn(h.ok ? "border-emerald-500/50 text-emerald-600" : "border-destructive/50 text-destructive")}
-        title={h.error ?? undefined}
-      >
-        <span className={cn("mr-1 inline-block h-2 w-2 rounded-full", h.ok ? "bg-emerald-500" : "bg-destructive")} />
-        {h.ok ? `${t("ai.conn.online")} · ${h.latency_ms}ms` : t("ai.conn.offline")}
-      </Badge>
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="outline" className={cn(tone)} title={[probe, h.error ?? ""].filter(Boolean).join(" · ")}>
+          <span className={cn("mr-1 inline-block h-2 w-2 rounded-full", dot)} />
+          {label}
+        </Badge>
+        {ago && <span className="text-xs text-muted-foreground">{ago}</span>}
+      </div>
     );
   };
 
@@ -297,7 +349,7 @@ function AISettingsCardInner() {
     <div key={d.id ?? "new"} className="space-y-3 rounded-md border p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          {statusBadge(d)}
+          <StatusBadge d={d} />
           <Switch
             checked={d.enabled}
             onCheckedChange={(v) => (isNew ? setNewDraft({ ...d, enabled: v }) : patch(d.id!, { enabled: v }))}
@@ -389,6 +441,27 @@ function AISettingsCardInner() {
             </SelectContent>
           </Select>
           <p className="mt-1 text-xs text-muted-foreground">{t("ai.conn.context_hint")}</p>
+        </div>
+        <div className="sm:col-span-2">
+          <Label className="text-sm">{t("ai.conn.health_mode")}</Label>
+          <Select
+            value={d.health_mode}
+            onValueChange={(v) =>
+              isNew
+                ? setNewDraft({ ...d, health_mode: v as AIHealthMode })
+                : patch(d.id!, { health_mode: v as AIHealthMode })
+            }
+          >
+            <SelectTrigger className="mt-1 h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="fast">{t("ai.conn.health_mode.fast")}</SelectItem>
+              <SelectItem value="model_listed">{t("ai.conn.health_mode.model_listed")}</SelectItem>
+              <SelectItem value="real">{t("ai.conn.health_mode.real")}</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="mt-1 text-xs text-muted-foreground">{t("ai.conn.health_mode_hint")}</p>
         </div>
         <div className="sm:col-span-2">
           <Label className="text-sm">{t("ai.conn.transcribe_model")}</Label>

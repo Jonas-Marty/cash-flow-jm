@@ -20,7 +20,9 @@ const actionSchema = z.enum(AI_ACTIONS as unknown as [AIAction, ...AIAction[]]);
 async function readEndpoints(userId: string): Promise<AIEndpoint[]> {
   const { data, error } = await supabaseAdmin
     .from("ai_endpoints")
-    .select("id, name, base_url, model, enabled, priority, api_token, context_level, transcribe_model, created_at")
+    .select(
+      "id, name, base_url, model, enabled, priority, api_token, context_level, transcribe_model, health_mode, created_at",
+    )
     .eq("user_id", userId)
     .order("priority", { ascending: true })
     .order("created_at", { ascending: true });
@@ -34,6 +36,7 @@ async function readEndpoints(userId: string): Promise<AIEndpoint[]> {
     priority: r.priority ?? 100,
     context_level: (r.context_level ?? "compact") as AIEndpoint["context_level"],
     transcribe_model: r.transcribe_model ?? null,
+    health_mode: (r.health_mode ?? "real") as AIEndpoint["health_mode"],
     has_token: !!r.api_token,
   }));
 }
@@ -71,6 +74,7 @@ const endpointSchema = z.object({
   priority: z.number().int().min(0).max(1000).optional(),
   context_level: z.enum(["off", "compact", "full"]).optional(),
   transcribe_model: z.string().trim().max(120).nullable().optional(),
+  health_mode: z.enum(["fast", "model_listed", "real"]).optional(),
   // undefined = keep existing, "" = clear
   api_token: z.string().max(1000).optional(),
 });
@@ -88,6 +92,7 @@ export const saveAIEndpoint = createServerFn({ method: "POST" })
       priority: data.priority ?? 100,
       context_level: data.context_level ?? "compact",
       transcribe_model: data.transcribe_model ? data.transcribe_model : null,
+      health_mode: data.health_mode ?? "real",
       updated_at: new Date().toISOString(),
       ...(data.api_token === undefined ? {} : { api_token: data.api_token === "" ? null : data.api_token }),
     };
@@ -149,8 +154,16 @@ export const checkAIEndpoints = createServerFn({ method: "POST" })
     const rows = (await loadEndpointRows(context.userId)).filter((r) => !data?.id || r.id === data.id);
     const health = await Promise.all(
       rows.map(async (r): Promise<AIEndpointHealth> => {
-        const res = await pingEndpoint(r.base_url, r.api_token, r.model);
-        return { id: r.id, ok: res.ok, latency_ms: res.latency_ms, error: res.error ?? null };
+        const res = await pingEndpoint(r.base_url, r.api_token, r.model, r.health_mode);
+        return {
+          id: r.id,
+          ok: res.ok,
+          latency_ms: res.latency_ms,
+          error: res.error ?? null,
+          probe: res.probe,
+          degraded: !!res.degraded,
+          checked_at: new Date().toISOString(),
+        };
       }),
     );
     return { health };

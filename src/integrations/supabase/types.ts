@@ -271,6 +271,7 @@ export type Database = {
           context_level: string
           created_at: string
           enabled: boolean
+          health_mode: string
           id: string
           model: string
           name: string
@@ -285,6 +286,7 @@ export type Database = {
           context_level?: string
           created_at?: string
           enabled?: boolean
+          health_mode?: string
           id?: string
           model: string
           name: string
@@ -299,6 +301,7 @@ export type Database = {
           context_level?: string
           created_at?: string
           enabled?: boolean
+          health_mode?: string
           id?: string
           model?: string
           name?: string

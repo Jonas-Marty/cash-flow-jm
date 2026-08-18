@@ -292,6 +292,10 @@ const EN: Content = {
           a: "Anything that speaks the OpenAI Chat-Completions API: OpenAI, OpenRouter, Groq, Together, local **Ollama** (`http://host:11434/v1`), **LM Studio**, **vLLM**, **llama.cpp** server, etc.",
         },
         {
+          q: "How is a connection's availability checked?",
+          a: "Each connection has an **Availability check** setting. *Fast* only calls `/models` — quick, but a proxy such as **LiteLLM** answers even when the model behind it is offline. *Model listed* additionally requires your model id to appear in that list. *Real request* (default) asks the provider's `/health` for the model and otherwise sends a 1-token request, so a downed backend shows up. If the proxy answers but the model does not, the badge turns amber **Degraded**. Settings checks all connections when you open it and then quietly every 5 minutes while the tab is visible; each badge shows when it was last checked.",
+        },
+        {
           q: "What can it do?",
           a: "Prefill the Add-Transaction form from a sentence like *\"I spent 50 at Coop on groceries, paid by credit card\"*; answer questions about your data (*\"where did I spend most last month?\"*) by calling read-only tools; read bank and credit-card statements you upload on the **Statements** screen (PDF or a photo/screenshot) and turn them into comparable rows; and explain app features and the privacy notice. It will refuse any other topic.",
         },
@@ -576,6 +580,7 @@ const DE: Content = {
       items: [
         { q: "Wie aktiviere ich ihn?", a: "**Einstellungen → KI-Assistent**: einschalten, **API Base URL** (z. B. `https://api.openai.com/v1`), **Modellname** (z. B. `gpt-4o-mini`) und **API Token** eintragen. *Verbindung testen*, dann *Speichern*." },
         { q: "Welche Provider funktionieren?", a: "Alles, was die OpenAI-Chat-Completions-API spricht: OpenAI, OpenRouter, Groq, Together, lokal **Ollama** (`http://host:11434/v1`), **LM Studio**, **vLLM**, **llama.cpp**-Server usw." },
+        { q: "Wie wird die Verfügbarkeit geprüft?", a: "Pro Verbindung gibt es die **Verfügbarkeitsprüfung**. *Schnell* ruft nur `/models` auf — flott, aber ein Proxy wie **LiteLLM** antwortet auch dann, wenn das Modell dahinter offline ist. *Modell gelistet* verlangt zusätzlich, dass dein Modell in dieser Liste steht. *Echte Anfrage* (Standard) fragt zuerst `/health` für das Modell und schickt sonst eine 1-Token-Anfrage — so fällt ein ausgefallenes Backend auf. Antwortet der Proxy, das Modell aber nicht, wird das Abzeichen orange **Eingeschränkt**. Beim Öffnen der Einstellungen werden alle Verbindungen geprüft, danach still alle 5 Minuten, solange der Tab sichtbar ist; jedes Abzeichen zeigt, wann zuletzt geprüft wurde." },
         { q: "Was kann er?", a: "Add-Formular vorausfüllen aus Sätzen wie *„Ich habe 50 im Coop bezahlt für Lebensmittel, Kreditkarte\"*; Fragen zu deinen Daten beantworten (*„Wo habe ich letzten Monat am meisten ausgegeben?\"*) via Lesetools; App-Funktionen und Datenschutz erklären. Alles andere lehnt er ab." },
         { q: "Kann ich sprechen statt tippen?", a: "Ja, wenn bei einer KI-Verbindung ein **Transkriptions-Modell** hinterlegt ist (Einstellungen → KI-Assistent, z. B. `whisper-1` oder ein lokales `faster-whisper`-Modell). Im Chat erscheint dann ein Mikrofon-Button: aufnehmen, stoppen — der Text landet im Eingabefeld und kann vor dem Senden korrigiert werden. Die Aufnahme wird als 16-kHz-Mono-WAV nur an diesen Provider gesendet und nicht gespeichert; im Aktivitätsprotokoll steht lediglich eine Textvorschau." },
         { q: "Schreibt er in meine Daten?", a: "Nein. Er **bereitet nur einen Entwurf** für das Add-Formular vor — speichern musst du selbst. Alle anderen Tools lesen nur." },
