@@ -121,7 +121,7 @@ export interface AddPrefill {
   statement_import?: string;
 }
 
-export function TransactionForm({ editId, prefill }: { editId: string | null; prefill?: AddPrefill }) {
+export function TransactionForm({ editId, prefill, backSearch }: { editId: string | null; prefill?: AddPrefill; backSearch?: Record<string, unknown> }) {
   const { t: tr, locale, lang } = useI18n();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -864,7 +864,7 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
         setSaving(false);
         toast.success(tr("toast.saved"));
         qc.invalidateQueries();
-        navigate({ to: "/transactions" });
+        navigate({ to: "/transactions", search: (backSearch ?? {}) as never });
         return;
       }
       const groupId = (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
@@ -1000,7 +1000,7 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
       setSaving(false);
       toast.success(tr("toast.saved"));
       qc.invalidateQueries();
-      navigate({ to: "/transactions" });
+      navigate({ to: "/transactions", search: (backSearch ?? {}) as never });
       return;
     }
     const { data: inserted, error } = await supabase
@@ -2077,7 +2077,7 @@ export function TransactionForm({ editId, prefill }: { editId: string | null; pr
         <div className="flex gap-2 pt-2">
           {isEdit ? (
             <>
-              <Button variant="outline" className="flex-1" disabled={saving} onClick={() => navigate({ to: "/transactions" })}>{tr("common.cancel")}</Button>
+              <Button variant="outline" className="flex-1" disabled={saving} onClick={() => navigate({ to: "/transactions", search: (backSearch ?? {}) as never })}>{tr("common.cancel")}</Button>
               <Button className="flex-1" disabled={saving} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("edit.save_changes")}</Button>
             </>
           ) : (

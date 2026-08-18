@@ -783,7 +783,7 @@ function TransactionsPage() {
                           </button>
                           <div className="flex shrink-0 items-center self-center">
                             <Button asChild variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label={tr("common.edit")}>
-                              <Link to="/edit/$id" params={{ id: first.id }}><Pencil className="h-4 w-4" /></Link>
+                              <Link to="/edit/$id" params={{ id: first.id }} search={{ back: s as Record<string, unknown> }}><Pencil className="h-4 w-4" /></Link>
                             </Button>
                             <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" aria-label={tr("common.delete")} onClick={() => delGroup(row.groupId)}>
                               <Trash2 className="h-4 w-4" />
@@ -893,7 +893,7 @@ function TransactionsPage() {
                   const actionsNode = (
                     <>
                       <Button asChild variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label={tr("common.edit")}>
-                        <Link to="/edit/$id" params={{ id: t.id }}><Pencil className="h-4 w-4" /></Link>
+                        <Link to="/edit/$id" params={{ id: t.id }} search={{ back: s as Record<string, unknown> }}><Pencil className="h-4 w-4" /></Link>
                       </Button>
                       <TransactionLinkPicker
                         transactionId={t.id}

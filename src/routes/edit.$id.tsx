@@ -2,10 +2,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { TransactionForm } from "./add";
 
 export const Route = createFileRoute("/edit/$id")({
+  // `back` carries the transaction-list filters so they survive the round trip.
+  validateSearch: (search: Record<string, unknown>) =>
+    search.back && typeof search.back === "object"
+      ? { back: search.back as Record<string, unknown> }
+      : {},
   component: EditTransactionRoute,
 });
 
 function EditTransactionRoute() {
   const { id } = Route.useParams();
-  return <TransactionForm editId={id} />;
+  const { back } = Route.useSearch();
+  return <TransactionForm editId={id} backSearch={back} />;
 }
