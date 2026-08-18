@@ -39,6 +39,8 @@ const tabs: Tab[] = [
   { to: "/insights", labelKey: "nav.insights", icon: LineChart },
   { to: "/pending", labelKey: "nav.pending", icon: Inbox },
   { to: "/reconcile", labelKey: "nav.reconcile", icon: Scale },
+  { to: "/statements", labelKey: "nav.statements", icon: FileText },
+  { to: "/links", labelKey: "nav.links", icon: Link2 },
   { to: "/settings", labelKey: "nav.settings", icon: SettingsIcon },
 ];
 
