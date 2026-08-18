@@ -139,31 +139,8 @@ export function AppShell({ children, wide = false }: { children: React.ReactNode
             <Wallet className="h-5 w-5" />
             <span>{t("app.name")}</span>
           </Link>
-          <nav className="flex items-center gap-1">
-            {tabs.map((tab) => {
-              const active = tab.exact ? loc.pathname === tab.to : loc.pathname.startsWith(tab.to);
-              const showBadge = tab.to === "/pending" && pendingCount > 0;
-              return (
-                <Link
-                  key={tab.to}
-                  to={tab.to}
-                  className={cn(
-                    "inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-                    active
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-                  )}
-                >
-                  <tab.icon className="h-4 w-4" />
-                  {t(tab.labelKey)}
-                  {showBadge && (
-                    <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-semibold text-warning-foreground">
-                      {pendingCount}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
+          <nav className="flex min-w-0 flex-1 items-center justify-end gap-1">
+            <DesktopTabs pendingCount={pendingCount} />
             {user && (
               <div className="ml-3 flex items-center gap-2 border-l pl-3">
                 <ActiveScopeChip />
