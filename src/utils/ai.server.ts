@@ -114,12 +114,16 @@ export interface EndpointRow {
   context_level: "off" | "compact" | "full";
   /** Speech-to-text model for /audio/transcriptions. Null = voice unsupported. */
   transcribe_model: string | null;
+  /** How thoroughly availability is probed. */
+  health_mode: AIHealthMode;
 }
 
 export async function loadEndpointRows(userId: string): Promise<EndpointRow[]> {
   const { data, error } = await supabaseAdmin
     .from("ai_endpoints")
-    .select("id, name, base_url, model, api_token, enabled, priority, context_level, transcribe_model, created_at")
+    .select(
+      "id, name, base_url, model, api_token, enabled, priority, context_level, transcribe_model, health_mode, created_at",
+    )
     .eq("user_id", userId)
     .order("priority", { ascending: true })
     .order("created_at", { ascending: true });
