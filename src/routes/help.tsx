@@ -292,6 +292,10 @@ const EN: Content = {
           a: "Anything that speaks the OpenAI Chat-Completions API: OpenAI, OpenRouter, Groq, Together, local **Ollama** (`http://host:11434/v1`), **LM Studio**, **vLLM**, **llama.cpp** server, etc.",
         },
         {
+          q: "How is a connection's availability checked?",
+          a: "Each connection has an **Availability check** setting. *Fast* only calls `/models` — quick, but a proxy such as **LiteLLM** answers even when the model behind it is offline. *Model listed* additionally requires your model id to appear in that list. *Real request* (default) asks the provider's `/health` for the model and otherwise sends a 1-token request, so a downed backend shows up. If the proxy answers but the model does not, the badge turns amber **Degraded**. Settings checks all connections when you open it and then quietly every 5 minutes while the tab is visible; each badge shows when it was last checked.",
+        },
+        {
           q: "What can it do?",
           a: "Prefill the Add-Transaction form from a sentence like *\"I spent 50 at Coop on groceries, paid by credit card\"*; answer questions about your data (*\"where did I spend most last month?\"*) by calling read-only tools; read bank and credit-card statements you upload on the **Statements** screen (PDF or a photo/screenshot) and turn them into comparable rows; and explain app features and the privacy notice. It will refuse any other topic.",
         },
