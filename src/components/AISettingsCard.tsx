@@ -438,6 +438,7 @@ function AISettingsCardInner() {
               <SelectItem value="off">{t("ai.conn.context.off")}</SelectItem>
               <SelectItem value="compact">{t("ai.conn.context.compact")}</SelectItem>
               <SelectItem value="full">{t("ai.conn.context.full")}</SelectItem>
+              <SelectItem value="xl">{t("ai.conn.context.xl")}</SelectItem>
             </SelectContent>
           </Select>
           <p className="mt-1 text-xs text-muted-foreground">{t("ai.conn.context_hint")}</p>
