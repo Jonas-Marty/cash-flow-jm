@@ -344,10 +344,29 @@ const RESPONSE_FORMATS: (Record<string, unknown> | null)[] = [
   { type: "json_object" },
   {
     type: "json_schema",
-    json_schema: { name: "statement", strict: false, schema: { type: "object", additionalProperties: true } },
+    json_schema: {
+      name: "extraction",
+      strict: false,
+      schema: {
+        type: "object",
+        properties: { result: { type: "string", description: "JSON encoded result" } },
+        additionalProperties: true,
+      },
+    },
+  },
+  {
+    type: "json_schema",
+    json_schema: { name: "extraction", schema: { type: "object", additionalProperties: true } },
   },
   null,
 ];
+
+/**
+ * Providers differ in which response_format variants they accept (e.g. Infomaniak
+ * rejects `json_object`). Remember the first variant a host accepted so later calls
+ * don't burn a failing request each time.
+ */
+const FORMAT_CACHE = new Map<string, number>();
 
 /** Audit context so document analysis shows up in the AI activity log. */
 export interface ExtractAudit {
@@ -364,7 +383,13 @@ export async function callJsonModel(
   audit?: ExtractAudit | null,
 ): Promise<any> {
   let lastError = "";
-  for (const format of RESPONSE_FORMATS) {
+  const cacheKey = `${providerHost(creds.base_url)}|${creds.model}`;
+  const preferred = FORMAT_CACHE.get(cacheKey) ?? 0;
+  const order = [
+    ...RESPONSE_FORMATS.slice(preferred),
+    ...RESPONSE_FORMATS.slice(0, preferred),
+  ];
+  for (const format of order) {
     const started = Date.now();
     const resp = await fetch(`${creds.base_url}/chat/completions`, {
       method: "POST",
@@ -380,6 +405,7 @@ export async function callJsonModel(
       }),
     });
     if (resp.ok) {
+      FORMAT_CACHE.set(cacheKey, RESPONSE_FORMATS.indexOf(format));
       const json = (await resp.json()) as {
         choices?: { message?: { content?: string } }[];
         usage?: Record<string, unknown>;
@@ -415,8 +441,11 @@ export async function callJsonModel(
     const body = await resp.text();
     lastError = `AI provider error (${resp.status}): ${body.slice(0, 800)}`;
     // Only a rejected response_format is worth retrying with another variant.
-    const retryable = resp.status === 400 && /response_format|json_object|json_schema/i.test(body);
-    if (audit) {
+    const retryable =
+      (resp.status === 400 || resp.status === 422) &&
+      /response_format|json_object|json_schema|structured output/i.test(body);
+    // Don't spam the activity log with attempts that are just format probing.
+    if (audit && !retryable) {
       await writeAudit({
         user_id: audit.userId,
         kind: "document_extract",
