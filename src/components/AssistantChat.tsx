@@ -596,6 +596,13 @@ export function AssistantChat({
           <SendHorizonal className="h-4 w-4" />
         </Button>
       </form>
+      {nextcloudReady && (
+        <NextcloudFilePicker
+          open={ncOpen}
+          onOpenChange={setNcOpen}
+          onPick={(f) => void pickFromNextcloud(f)}
+        />
+      )}
     </div>
   );
 }
