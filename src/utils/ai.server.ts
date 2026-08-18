@@ -5,7 +5,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildSystemPrompt } from "@/lib/ai/systemPrompt";
-import type { AssistantAction } from "@/lib/ai/types";
+import type { AIHealthMode, AIHealthProbe, AssistantAction } from "@/lib/ai/types";
+
+export interface PingResult {
+  ok: boolean;
+  latency_ms: number;
+  probe: AIHealthProbe;
+  degraded?: boolean;
+  error?: string;
+}
 
 // ---------------------------------------------------------------------------
 // Audit log
