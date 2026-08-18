@@ -41,6 +41,12 @@ export type AIAction = (typeof AI_ACTIONS)[number];
 /** How much real finance data is pasted into the assistant's system prompt. */
 export type AIContextLevel = "off" | "compact" | "full";
 
+/** How thoroughly a connection's availability is probed. */
+export type AIHealthMode = "fast" | "model_listed" | "real";
+
+/** Which probe produced a health result. */
+export type AIHealthProbe = "models" | "health" | "chat";
+
 export interface AIEndpoint {
   id: string;
   name: string;
@@ -52,6 +58,8 @@ export interface AIEndpoint {
   context_level: AIContextLevel;
   /** Model used for speech-to-text (/audio/transcriptions). Empty = no voice. */
   transcribe_model: string | null;
+  /** How thoroughly availability is checked for this connection. */
+  health_mode: AIHealthMode;
   /** Whether a token is stored. The token itself never leaves the server. */
   has_token: boolean;
 }
@@ -67,4 +75,10 @@ export interface AIEndpointHealth {
   ok: boolean;
   latency_ms: number | null;
   error?: string | null;
+  /** Which probe answered. */
+  probe?: AIHealthProbe;
+  /** Endpoint answered but the model/upstream did not. */
+  degraded?: boolean;
+  /** ISO timestamp of the check (server clock). */
+  checked_at?: string;
 }
