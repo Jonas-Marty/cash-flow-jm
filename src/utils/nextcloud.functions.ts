@@ -3,7 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { attachSupabaseAuth } from "@/integrations/supabase/client-auth-middleware";
 import { getRequestHost } from "@tanstack/react-start/server";
-import { getValidConnection, searchFiles, trimBaseUrl } from "./nextcloud.server";
+import { downloadFile, getValidConnection, searchFiles, trimBaseUrl } from "./nextcloud.server";
 
 const urlSchema = z.string().url().max(500);
 
@@ -94,4 +94,13 @@ export const searchNextcloud = createServerFn({ method: "POST" })
     const conn = await getValidConnection(userId);
     const results = await searchFiles(conn, data.query, 25);
     return { results };
+  });
+
+/** Download a Nextcloud file (base64) so it can be attached to the assistant chat. */
+export const downloadNextcloudFile = createServerFn({ method: "POST" })
+  .middleware([attachSupabaseAuth, requireSupabaseAuth])
+  .inputValidator((d: { path: string }) => z.object({ path: z.string().min(1).max(1000) }).parse(d))
+  .handler(async ({ data, context }) => {
+    const conn = await getValidConnection(context.userId);
+    return await downloadFile(conn, data.path);
   });
