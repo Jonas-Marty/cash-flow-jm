@@ -2523,11 +2523,6 @@ function ImpactPreview({
                       <span className={cn("font-medium", r.savedAfter < 0 ? "text-destructive" : "text-foreground")}>
                         {fmt(r.savedAfter, mainSymbol)}
                       </span>
-                      {hasBudget && (
-                        <span className="text-muted-foreground">
-                          {" "}· {tr("add.impact.month_plan", { x: `${fmtMoney(r.after, mainSymbol)} / ${fmtMoney(r.allocated, mainSymbol)}` })}
-                        </span>
-                      )}
                     </>
                   ) : hasBudget ? (
                     <>
