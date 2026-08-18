@@ -301,10 +301,8 @@ function initials(email: string | undefined | null) {
 function DesktopTabs({ pendingCount }: { pendingCount: number }) {
   const loc = useLocation();
   const { t } = useI18n();
-  const containerRef = useState<HTMLDivElement | null>(null);
   const [el, setEl] = useState<HTMLDivElement | null>(null);
   const [visible, setVisible] = useState(tabs.length);
-  void containerRef;
 
   useEffect(() => {
     if (!el) return;
@@ -400,12 +398,6 @@ function DesktopTabs({ pendingCount }: { pendingCount: number }) {
       )}
     </div>
   );
-}
-
-function initialsUnused(email: string | undefined | null) {
-  if (!email) return "?";
-  const name = email.split("@")[0] ?? "";
-  return name.slice(0, 2).toUpperCase() || "?";
 }
 
 function AccountMenu() {
