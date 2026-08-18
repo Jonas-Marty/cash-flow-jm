@@ -27,7 +27,7 @@ import {
   testAIConnection,
   listAIModels,
 } from "@/utils/ai.functions";
-import type { AIContextLevel, AIEndpoint, AIEndpointHealth } from "@/lib/ai/types";
+import type { AIContextLevel, AIEndpoint, AIEndpointHealth, AIHealthMode } from "@/lib/ai/types";
 import { AI_ACTIONS } from "@/lib/ai/types";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
@@ -41,6 +41,7 @@ type Draft = {
   priority: number;
   context_level: AIContextLevel;
   transcribe_model: string;
+  health_mode: AIHealthMode;
   token: string;
   has_token: boolean;
 };
@@ -54,6 +55,7 @@ const emptyDraft = (priority: number): Draft => ({
   priority,
   context_level: "compact",
   transcribe_model: "",
+  health_mode: "real",
   token: "",
   has_token: false,
 });
@@ -67,9 +69,24 @@ const toDraft = (e: AIEndpoint): Draft => ({
   priority: e.priority,
   context_level: e.context_level ?? "compact",
   transcribe_model: e.transcribe_model ?? "",
+  health_mode: e.health_mode ?? "real",
   token: "",
   has_token: e.has_token,
 });
+
+/** "checked 12s ago" style label. */
+function useRelativeTime(iso: string | undefined, t: (k: string, p?: Record<string, string | number>) => string) {
+  const [, force] = React.useReducer((x: number) => x + 1, 0);
+  React.useEffect(() => {
+    if (!iso) return;
+    const id = setInterval(force, 5000);
+    return () => clearInterval(id);
+  }, [iso]);
+  if (!iso) return null;
+  const secs = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  if (secs < 60) return t("ai.conn.checked_seconds", { n: secs });
+  return t("ai.conn.checked_minutes", { n: Math.round(secs / 60) });
+}
 
 export function AISettingsCard() {
   return <AISettingsCardInner />;
