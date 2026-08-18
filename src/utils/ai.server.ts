@@ -475,7 +475,7 @@ export const TOOLS: ToolDef[] = [
   {
     name: "list_transactions",
     description:
-      "List recent transactions. Filters: date_from / date_to (YYYY-MM-DD), type (expense|income|transfer), search (text in description/note), limit (default 25, max 100).",
+      "Search the full transaction history (not just the snapshot). Returns tags too. Use it whenever the snapshot has no similar past entry for a merchant/description, before guessing a description, category or tags. Filters: date_from / date_to (YYYY-MM-DD), type (expense|income|transfer), search (text in description/note), limit (default 25, max 100).",
     parameters: {
       type: "object",
       properties: {
@@ -504,7 +504,21 @@ export const TOOLS: ToolDef[] = [
       if (search) q = q.or(`description.ilike.%${search}%,note.ilike.%${search}%`);
       const { data, error } = await q;
       if (error) return { ok: false, error: error.message };
-      return { ok: true, data };
+      const rows = (data || []) as any[];
+      if (rows.length) {
+        const { data: tagRows } = await sb
+          .from("transaction_tags")
+          .select("transaction_id, tag")
+          .in("transaction_id", rows.map((r) => r.id));
+        const byTx = new Map<string, string[]>();
+        for (const r of (tagRows || []) as any[]) {
+          const list = byTx.get(r.transaction_id) ?? [];
+          list.push(r.tag);
+          byTx.set(r.transaction_id, list);
+        }
+        for (const r of rows) r.tags = byTx.get(r.id) ?? [];
+      }
+      return { ok: true, data: rows };
     },
   },
   {
