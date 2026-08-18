@@ -232,6 +232,7 @@ function AISettingsCardInner() {
           priority: d.priority,
           context_level: d.context_level,
           transcribe_model: d.transcribe_model.trim() || null,
+          health_mode: d.health_mode,
           ...(d.token === "" ? {} : { api_token: d.token }),
         } as never,
       });
@@ -440,6 +441,27 @@ function AISettingsCardInner() {
             </SelectContent>
           </Select>
           <p className="mt-1 text-xs text-muted-foreground">{t("ai.conn.context_hint")}</p>
+        </div>
+        <div className="sm:col-span-2">
+          <Label className="text-sm">{t("ai.conn.health_mode")}</Label>
+          <Select
+            value={d.health_mode}
+            onValueChange={(v) =>
+              isNew
+                ? setNewDraft({ ...d, health_mode: v as AIHealthMode })
+                : patch(d.id!, { health_mode: v as AIHealthMode })
+            }
+          >
+            <SelectTrigger className="mt-1 h-9">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="fast">{t("ai.conn.health_mode.fast")}</SelectItem>
+              <SelectItem value="model_listed">{t("ai.conn.health_mode.model_listed")}</SelectItem>
+              <SelectItem value="real">{t("ai.conn.health_mode.real")}</SelectItem>
+            </SelectContent>
+          </Select>
+          <p className="mt-1 text-xs text-muted-foreground">{t("ai.conn.health_mode_hint")}</p>
         </div>
         <div className="sm:col-span-2">
           <Label className="text-sm">{t("ai.conn.transcribe_model")}</Label>
