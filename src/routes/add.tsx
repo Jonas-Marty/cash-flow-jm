@@ -2263,7 +2263,7 @@ function ImpactPreview({
   date: Date;
   splitMode: boolean;
   slices: Array<{ amount: number; categoryId: string | null }> | null;
-  categoryById: Map<string, { id: string; name: string; allocated_budget: number }>;
+  categoryById: Map<string, { id: string; name: string; allocated_budget: number; is_scope?: boolean }>;
   balances: AccountBalance[] | null;
   categoryRows: CategoryMonthRow[] | null;
   savingsBalances: CategorySavingsBalanceV2[] | null;
