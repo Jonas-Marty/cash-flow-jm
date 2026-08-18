@@ -19,6 +19,10 @@ export interface StatementLine {
   matched_transaction_id: string | null;
   match_score: number | null;
   decision: string | null;
+  /** AI-guessed fields for lines with no matching transaction yet. */
+  suggested_description?: string | null;
+  suggested_category_id?: string | null;
+  suggested_tags?: string[] | null;
 }
 
 export interface StatementImport {
