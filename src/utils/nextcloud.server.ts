@@ -161,6 +161,35 @@ export async function searchFiles(conn: NextcloudConnRow, query: string, limit =
   return parseSearchXml(text, base, user);
 }
 
+/** Download a file from the user's Nextcloud files via WebDAV. */
+export async function downloadFile(
+  conn: NextcloudConnRow,
+  path: string,
+  maxBytes = 15 * 1024 * 1024,
+): Promise<{ name: string; mime: string | null; base64: string }> {
+  const user = conn.nextcloud_user;
+  if (!user) throw new Error("Nextcloud user unknown; please reconnect");
+  const base = trimBaseUrl(conn.base_url);
+  const encoded = path
+    .split("/")
+    .map((seg) => encodeURIComponent(seg))
+    .join("/");
+  const url = `${base}/remote.php/dav/files/${encodeURIComponent(user)}${encoded.startsWith("/") ? encoded : `/${encoded}`}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${conn.access_token}` } });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Nextcloud download failed [${res.status}]: ${text.slice(0, 300)}`);
+  }
+  const buf = new Uint8Array(await res.arrayBuffer());
+  if (buf.byteLength > maxBytes) throw new Error("File is too large (max 15 MB)");
+  const name = path.split("/").filter(Boolean).pop() ?? "file";
+  return {
+    name,
+    mime: res.headers.get("content-type"),
+    base64: Buffer.from(buf).toString("base64"),
+  };
+}
+
 function parseSearchXml(xml: string, base: string, user: string): NextcloudFileResult[] {
   const out: NextcloudFileResult[] = [];
   const responseRe = /<d:response[\s\S]*?<\/d:response>/g;
