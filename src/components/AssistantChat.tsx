@@ -3,7 +3,7 @@ import { useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { SendHorizonal, Sparkles, Loader2, ExternalLink, Paperclip, X, FileText, Mic, Square, Plus, Camera } from "lucide-react";
+import { SendHorizonal, Sparkles, Loader2, ExternalLink, Paperclip, X, FileText, Mic, Square, Plus, Camera, Cloud } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Markdown } from "@/components/Markdown";
@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { chat, listAIEndpoints, getConversation, transcribeAudio } from "@/utils/ai.functions";
 import { startVoiceRecording, blobToBase64, type VoiceRecorderHandle } from "@/lib/voiceRecorder";
 import { extractStatement, getStatementImport } from "@/utils/statements.functions";
+import { getNextcloudStatus, downloadNextcloudFile } from "@/utils/nextcloud.functions";
+import { NextcloudFilePicker } from "@/components/NextcloudFilePicker";
 import { fetchAccounts } from "@/lib/finance";
 import { getChatDraft, setChatDraft, resetChatDraft } from "@/lib/ai/chatDraft";
 import type { AssistantAction, ChatMessage } from "@/lib/ai/types";
@@ -73,6 +75,12 @@ export function AssistantChat({
   const extractFn = useServerFn(extractStatement);
   const importFn = useServerFn(getStatementImport);
   const transcribeFn = useServerFn(transcribeAudio);
+  const ncStatusFn = useServerFn(getNextcloudStatus);
+  const ncDownloadFn = useServerFn(downloadNextcloudFile);
+  const ncStatusQ = useQuery({ queryKey: ["nextcloud_status"], queryFn: () => ncStatusFn() });
+  const nextcloudReady = !!ncStatusQ.data?.connected;
+  const [ncOpen, setNcOpen] = React.useState(false);
+  const [ncLoading, setNcLoading] = React.useState(false);
 
   const settingsQ = useQuery({ queryKey: ["ai_endpoints"], queryFn: () => listFn() });
   const historyQ = useQuery({
@@ -101,6 +109,23 @@ export function AssistantChat({
   const [recording, setRecording] = React.useState(false);
   const [elapsed, setElapsed] = React.useState(0);
   const [transcribing, setTranscribing] = React.useState(false);
+
+  const pickFromNextcloud = React.useCallback(
+    async (picked: { name: string; path: string }) => {
+      setNcLoading(true);
+      try {
+        const r = await ncDownloadFn({ data: { path: picked.path } });
+        const bin = Uint8Array.from(atob(r.base64), (c) => c.charCodeAt(0));
+        const type = (r.mime ?? "").split(";")[0] || "";
+        setFile(new File([bin], r.name, { type }));
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+      } finally {
+        setNcLoading(false);
+      }
+    },
+    [ncDownloadFn],
+  );
 
   React.useEffect(() => {
     if (!keepDraft) return;
@@ -513,6 +538,19 @@ export function AssistantChat({
         >
           <Camera className="h-4 w-4" />
         </Button>
+        {nextcloudReady && (
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            disabled={busy || ncLoading}
+            title={t("ai.attach.nextcloud")}
+            aria-label={t("ai.attach.nextcloud")}
+            onClick={() => setNcOpen(true)}
+          >
+            {ncLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Cloud className="h-4 w-4" />}
+          </Button>
+        )}
         {voiceAvailable && (
           <Button
             type="button"
