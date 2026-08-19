@@ -5,6 +5,7 @@ import type {
   StatementImport,
   StatementImportDetail,
   StatementLine,
+  StatementRef,
   UnmatchedAppTransaction,
 } from "@/lib/ai/statementTypes";
 import { resolveEndpoint } from "./ai.server";
@@ -329,16 +330,6 @@ export async function deleteImportWithFile(sb: SupabaseClient, importId: string)
     // Never touch files hosted by an external provider.
     await sb.storage.from(STATEMENT_BUCKET).remove([imp.storage_path]);
   }
-}
-
-export interface StatementRef {
-  transaction_id: string;
-  import_id: string;
-  file_name: string;
-  file_source: string;
-  period_from: string | null;
-  period_to: string | null;
-  line_no: number;
 }
 
 /** Reverse lookup: which statement (if any) covers each of these transactions. */
