@@ -167,12 +167,31 @@ export async function runStatementExtraction(
   const sign = input.invert_amounts ? -1 : 1;
   const windowDays = input.window_days ?? 3;
 
+  // Keep a reference to the source document. Uploaded bytes go into our own
+  // private bucket; externally hosted files are only referenced.
+  let fileSource = input.external_url ? input.external_source || "external" : "internal";
+  let storagePath: string | null = null;
+  if (!input.external_url) {
+    const bytes = base64ToBytes(input.file_base64);
+    const path = `${userId}/${crypto.randomUUID()}.${storageExt(input.file_name, mime)}`;
+    const { error: upErr } = await sb.storage.from(STATEMENT_BUCKET).upload(path, bytes, {
+      contentType: mime || "application/octet-stream",
+      upsert: false,
+    });
+    if (upErr) fileSource = "none";
+    else storagePath = path;
+  }
+
   const { data: imp, error: impErr } = await sb
     .from("statement_imports")
     .insert({
       user_id: userId,
       account_id: input.account_id,
       file_name: input.file_name,
+      file_source: fileSource,
+      storage_path: storagePath,
+      external_url: input.external_url ?? null,
+      file_type: mime || null,
       period_from: extracted.period_from,
       period_to: extracted.period_to,
       closing_balance: extracted.closing_balance,
