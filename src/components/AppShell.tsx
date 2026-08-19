@@ -134,31 +134,29 @@ export function AppShell({ children, wide = false }: { children: React.ReactNode
   return (
     <div className="min-h-screen overflow-x-clip bg-background text-foreground">
       <header className="hidden md:block sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-3">
-          <Link to="/" className="flex items-center gap-2 font-semibold">
+        <div className="mx-auto flex max-w-5xl items-center gap-4 px-6 py-3">
+          <Link to="/" className="flex shrink-0 items-center gap-2 font-semibold">
             <Wallet className="h-5 w-5" />
             <span>{t("app.name")}</span>
           </Link>
-          <nav className="flex min-w-0 flex-1 items-center justify-end gap-1">
-            <DesktopTabs pendingCount={pendingCount} />
-            {user && (
-              <div className="ml-3 flex items-center gap-2 border-l pl-3">
-                <ActiveScopeChip />
-                <Link
-                  to="/help"
-                  className={cn(
-                    "inline-flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
-                    loc.pathname.startsWith("/help") && "bg-accent text-accent-foreground",
-                  )}
-                  aria-label={t("nav.help")}
-                  title={t("nav.help")}
-                >
-                  <HelpCircle className="h-4 w-4" />
-                </Link>
-                <AccountMenu />
-              </div>
-            )}
-          </nav>
+          <DesktopTabs pendingCount={pendingCount} />
+          {user && (
+            <div className="flex shrink-0 items-center gap-2 border-l pl-3">
+              <ActiveScopeChip />
+              <Link
+                to="/help"
+                className={cn(
+                  "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
+                  loc.pathname.startsWith("/help") && "bg-accent text-accent-foreground",
+                )}
+                aria-label={t("nav.help")}
+                title={t("nav.help")}
+              >
+                <HelpCircle className="h-4 w-4" />
+              </Link>
+              <AccountMenu />
+            </div>
+          )}
         </div>
       </header>
 
@@ -333,22 +331,24 @@ function DesktopTabs({ pendingCount }: { pendingCount: number }) {
     tab.exact ? loc.pathname === tab.to : loc.pathname.startsWith(tab.to),
   );
 
-  const itemClass = (active: boolean) =>
+  const baseItemClass = (active: boolean) =>
     cn(
-      "inline-flex shrink-0 items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+      "inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
       active
         ? "bg-primary text-primary-foreground"
         : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
     );
+
+  const itemClass = (active: boolean) => cn(baseItemClass(active), "flex-1 justify-center min-w-0");
 
   return (
     <div ref={setEl} className="relative flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
       {/* Hidden measuring row: always renders every tab at natural width. */}
       <div aria-hidden className="pointer-events-none invisible absolute left-0 top-0 flex gap-1">
         {tabs.map((tab) => (
-          <span key={tab.to} data-measure-item className={itemClass(false)}>
-            <tab.icon className="h-4 w-4" />
-            {t(tab.labelKey)}
+          <span key={tab.to} data-measure-item className={baseItemClass(false)}>
+            <tab.icon className="h-4 w-4 shrink-0" />
+            <span className="truncate">{t(tab.labelKey)}</span>
           </span>
         ))}
       </div>
@@ -356,11 +356,11 @@ function DesktopTabs({ pendingCount }: { pendingCount: number }) {
         const active = tab.exact ? loc.pathname === tab.to : loc.pathname.startsWith(tab.to);
         const showBadge = tab.to === "/pending" && pendingCount > 0;
         return (
-          <Link key={tab.to} to={tab.to} className={itemClass(active)}>
-            <tab.icon className="h-4 w-4" />
-            {t(tab.labelKey)}
+          <Link key={tab.to} to={tab.to} className={itemClass(active)} title={t(tab.labelKey)}>
+            <tab.icon className="h-4 w-4 shrink-0" />
+            <span className="truncate">{t(tab.labelKey)}</span>
             {showBadge && (
-              <span className="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-semibold text-warning-foreground">
+              <span className="ml-1 inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-semibold text-warning-foreground">
                 {pendingCount}
               </span>
             )}
@@ -370,9 +370,9 @@ function DesktopTabs({ pendingCount }: { pendingCount: number }) {
       {overflow.length > 0 && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button type="button" className={itemClass(overflowActive)}>
-              <MoreHorizontal className="h-4 w-4" />
-              {t("nav.more")}
+            <button type="button" className={itemClass(overflowActive)} title={t("nav.more")}>
+              <MoreHorizontal className="h-4 w-4 shrink-0" />
+              <span className="truncate">{t("nav.more")}</span>
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
