@@ -1973,7 +1973,10 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
 
         <div className="pt-2">
           {isEdit && editId ? (
-            <AttachmentsSection transactionId={editId} />
+            <div className="space-y-2">
+              <TransactionStatementRow transactionId={editId} />
+              <AttachmentsSection transactionId={editId} />
+            </div>
           ) : (
             <AttachmentsSection
               draft
