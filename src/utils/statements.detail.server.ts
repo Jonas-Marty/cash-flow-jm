@@ -196,7 +196,14 @@ export async function rematchImport(
   sb: SupabaseClient,
   importId: string,
   windowDays: number,
+  period?: { from?: string | null; to?: string | null },
 ): Promise<StatementImportDetail> {
+  if (period && (period.from !== undefined || period.to !== undefined)) {
+    const patch: Record<string, unknown> = {};
+    if (period.from !== undefined) patch.period_from = period.from;
+    if (period.to !== undefined) patch.period_to = period.to;
+    await sb.from("statement_imports").update(patch).eq("id", importId);
+  }
   const imp = await loadImport(sb, importId);
   const lines = await loadLines(sb, importId);
   const { from, to } = periodOf(imp, lines);

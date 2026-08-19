@@ -55,11 +55,21 @@ export const extractStatement = createServerFn({ method: "POST" })
 export const rematchStatementImport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
-    z.object({ id: z.string().uuid(), window_days: z.number().int().min(0).max(30) }).parse(d),
+    z
+      .object({
+        id: z.string().uuid(),
+        window_days: z.number().int().min(0).max(30),
+        period_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+        period_to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }): Promise<StatementImportDetail> => {
     const { rematchImport } = await import("./statements.detail.server");
-    const detail = await rematchImport(context.supabase, data.id, data.window_days);
+    const detail = await rematchImport(context.supabase, data.id, data.window_days, {
+      from: data.period_from,
+      to: data.period_to,
+    });
     try {
       const { classifyOpenStatementLines } = await import("./statements.classify.server");
       const { classified } = await classifyOpenStatementLines(context.supabase, context.userId, data.id);

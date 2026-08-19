@@ -290,6 +290,7 @@ Rules:
 - amount is SIGNED from the account holder's perspective: money leaving the account is negative, money arriving is positive.
 - For foreign-currency card rows use the settled amount in the statement currency, never the original-currency amount.
 - Never invent rows, dates or amounts. Skip balance carry-forward, subtotal, interest-summary and header rows.
+- period_from / period_to are the statement's OWN billing period as printed on the document (e.g. "Abrechnung 17.07.2026 - 16.08.2026", "Periode", "Billing period", "vom ... bis ..."). Do NOT derive them from the first/last transaction row; many card statements run mid-month to mid-month. Only return null when no period is printed anywhere.
 - Dates must be ISO (YYYY-MM-DD). Infer the year from the statement period when the row shows only day/month.
 - raw_text is the original line as printed.`;
 

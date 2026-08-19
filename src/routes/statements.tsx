@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/components/DatePicker";
 import { useI18n } from "@/i18n";
 import { fetchAccounts, fmtMoney } from "@/lib/finance";
 import {
@@ -50,6 +51,20 @@ export const Route = createFileRoute("/statements")({
 });
 
 function readFileAsBase64(file: File): Promise<string> {
+  return readFileAsBase64Impl(file);
+}
+
+function toDate(iso: string | null): Date | null {
+  return iso ? new Date(iso + "T00:00:00") : null;
+}
+
+function toIso(d: Date | null): string | null {
+  if (!d) return null;
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function readFileAsBase64Impl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const fr = new FileReader();
     fr.onerror = () => reject(new Error("Could not read the file"));
@@ -357,9 +372,44 @@ function StatementsPage() {
             {detail && (
               <>
                 <div className="flex flex-wrap items-center gap-3 rounded-md border bg-card p-3 text-sm">
-                  <span>
-                    {detail.import.period_from ?? "?"} – {detail.import.period_to ?? "?"}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs">{t("statements.detail.period")}</Label>
+                    <DatePicker
+                      className="w-[190px]"
+                      placeholder={t("common.set")}
+                      clearLabel={t("common.clear")}
+                      value={toDate(detail.import.period_from)}
+                      onChange={async (v) => {
+                        await rematchFn({
+                          data: {
+                            id: detail.import.id,
+                            window_days: detail.import.match_window_days,
+                            period_from: toIso(v),
+                          },
+                        });
+                        qc.invalidateQueries({ queryKey: ["statement_import", detail.import.id] });
+                        qc.invalidateQueries({ queryKey: ["statement_imports"] });
+                      }}
+                    />
+                    <span className="text-muted-foreground">–</span>
+                    <DatePicker
+                      className="w-[190px]"
+                      placeholder={t("common.set")}
+                      clearLabel={t("common.clear")}
+                      value={toDate(detail.import.period_to)}
+                      onChange={async (v) => {
+                        await rematchFn({
+                          data: {
+                            id: detail.import.id,
+                            window_days: detail.import.match_window_days,
+                            period_to: toIso(v),
+                          },
+                        });
+                        qc.invalidateQueries({ queryKey: ["statement_import", detail.import.id] });
+                        qc.invalidateQueries({ queryKey: ["statement_imports"] });
+                      }}
+                    />
+                  </div>
                   {detail.import.closing_balance !== null && (
                     <span className="text-muted-foreground">
                       {t("statements.detail.closing")}: {fmtMoney(detail.import.closing_balance, symbol)}
