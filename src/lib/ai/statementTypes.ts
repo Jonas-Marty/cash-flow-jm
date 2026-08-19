@@ -29,6 +29,11 @@ export interface StatementImport {
   id: string;
   account_id: string;
   file_name: string;
+  /** Where the source document lives: none | internal | nextcloud | external. */
+  file_source: string;
+  storage_path: string | null;
+  external_url: string | null;
+  file_type: string | null;
   period_from: string | null;
   period_to: string | null;
   closing_balance: number | null;
