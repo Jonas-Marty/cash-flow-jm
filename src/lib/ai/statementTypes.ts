@@ -71,10 +71,3 @@ export interface StatementRef {
   period_to: string | null;
   line_no: number;
 }
-
-interface _LegacyDetail {
-  import: StatementImport;
-  lines: StatementLine[];
-  matched: Record<string, { occurred_on: string; amount: number; description: string }>;
-  unmatched_app: UnmatchedAppTransaction[];
-}
