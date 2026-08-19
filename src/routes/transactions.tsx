@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, subMonths, subDays, startOfYear } from "date-fns";
 import {
-  ArrowDown, ArrowUp, ArrowLeftRight, Trash2, ChevronRight, ChevronDown, Layers, X, Pencil,
+  ArrowDown, ArrowUp, ArrowLeftRight, Trash2, ChevronRight, ChevronDown, Layers, X, Pencil, FileText,
 } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
