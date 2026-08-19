@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePicker } from "@/components/DatePicker";
 import { useI18n } from "@/i18n";
 import { fetchAccounts, fmtMoney } from "@/lib/finance";
 import {
@@ -50,6 +51,20 @@ export const Route = createFileRoute("/statements")({
 });
 
 function readFileAsBase64(file: File): Promise<string> {
+  return readFileAsBase64Impl(file);
+}
+
+function toDate(iso: string | null): Date | null {
+  return iso ? new Date(iso + "T00:00:00") : null;
+}
+
+function toIso(d: Date | null): string | null {
+  if (!d) return null;
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+function readFileAsBase64Impl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const fr = new FileReader();
     fr.onerror = () => reject(new Error("Could not read the file"));
