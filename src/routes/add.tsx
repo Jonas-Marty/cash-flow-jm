@@ -50,6 +50,7 @@ import { DateInput } from "@/components/DateInput";
 import { ShortcutsDialog } from "@/components/ShortcutsDialog";
 import { DescriptionAutocomplete } from "@/components/DescriptionAutocomplete";
 import { AttachmentsSection, type DraftAttachment } from "@/components/AttachmentsSection";
+import { TransactionStatementRow } from "@/components/StatementDocLink";
 import { Markdown } from "@/components/Markdown";
 import { useFxRates, convert } from "@/lib/fx";
 import { findSubsetSumMatch, defaultTolerance, REIMB_MATCH_MAX_CANDIDATES } from "@/lib/reimbMatch";
