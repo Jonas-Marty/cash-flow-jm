@@ -29,6 +29,11 @@ export interface StatementImport {
   id: string;
   account_id: string;
   file_name: string;
+  /** Where the source document lives: none | internal | nextcloud | external. */
+  file_source: string;
+  storage_path: string | null;
+  external_url: string | null;
+  file_type: string | null;
   period_from: string | null;
   period_to: string | null;
   closing_balance: number | null;
@@ -54,4 +59,15 @@ export interface StatementImportDetail {
   lines: StatementLine[];
   matched: Record<string, { occurred_on: string; amount: number; description: string }>;
   unmatched_app: UnmatchedAppTransaction[];
+}
+
+/** Reverse link: the statement document a transaction was matched on. */
+export interface StatementRef {
+  transaction_id: string;
+  import_id: string;
+  file_name: string;
+  file_source: string;
+  period_from: string | null;
+  period_to: string | null;
+  line_no: number;
 }

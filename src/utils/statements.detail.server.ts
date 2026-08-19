@@ -5,6 +5,7 @@ import type {
   StatementImport,
   StatementImportDetail,
   StatementLine,
+  StatementRef,
   UnmatchedAppTransaction,
 } from "@/lib/ai/statementTypes";
 import { resolveEndpoint } from "./ai.server";
@@ -20,7 +21,18 @@ import {
 } from "./statements.server";
 
 const IMPORT_COLS =
-  "id, account_id, file_name, period_from, period_to, closing_balance, currency_code, status, model, match_window_days, created_at";
+  "id, account_id, file_name, file_source, storage_path, external_url, file_type, period_from, period_to, closing_balance, currency_code, status, model, match_window_days, created_at";
+
+export const STATEMENT_BUCKET = "statement-files";
+
+function storageExt(fileName: string, mime: string): string {
+  const m = /\.([a-z0-9]{1,5})$/i.exec(fileName);
+  if (m) return m[1].toLowerCase();
+  if (mime.includes("pdf")) return "pdf";
+  if (mime.includes("csv")) return "csv";
+  if (mime.startsWith("image/")) return mime.slice(6).split(";")[0];
+  return "bin";
+}
 const LINE_COLS =
   "id, line_no, booking_date, value_date, description, amount, raw_text, match_status, matched_transaction_id, match_score, decision, suggested_description, suggested_category_id, suggested_tags";
 
@@ -97,6 +109,9 @@ export async function runStatementExtraction(
     invert_amounts?: boolean;
     window_days?: number;
     endpoint_id?: string | null;
+    /** Set when the document stays on an external provider (e.g. Nextcloud). */
+    external_url?: string | null;
+    external_source?: string | null;
   },
 ): Promise<{ import_id: string }> {
   const { data: account, error: accErr } = await sb
@@ -156,12 +171,31 @@ export async function runStatementExtraction(
   const sign = input.invert_amounts ? -1 : 1;
   const windowDays = input.window_days ?? 3;
 
+  // Keep a reference to the source document. Uploaded bytes go into our own
+  // private bucket; externally hosted files are only referenced.
+  let fileSource = input.external_url ? input.external_source || "external" : "internal";
+  let storagePath: string | null = null;
+  if (!input.external_url) {
+    const bytes = base64ToBytes(input.file_base64);
+    const path = `${userId}/${crypto.randomUUID()}.${storageExt(input.file_name, mime)}`;
+    const { error: upErr } = await sb.storage.from(STATEMENT_BUCKET).upload(path, bytes, {
+      contentType: mime || "application/octet-stream",
+      upsert: false,
+    });
+    if (upErr) fileSource = "none";
+    else storagePath = path;
+  }
+
   const { data: imp, error: impErr } = await sb
     .from("statement_imports")
     .insert({
       user_id: userId,
       account_id: input.account_id,
       file_name: input.file_name,
+      file_source: fileSource,
+      storage_path: storagePath,
+      external_url: input.external_url ?? null,
+      file_type: mime || null,
       period_from: extracted.period_from,
       period_to: extracted.period_to,
       closing_balance: extracted.closing_balance,
@@ -272,4 +306,58 @@ export async function applyLineDecision(
     .single();
   if (error) throw new Error(error.message);
   return { line: { ...(data as any), amount: Number((data as any).amount) } as StatementLine };
+}
+/** A short-lived URL for the statement document, or the external link. */
+export async function getStatementFileLink(
+  sb: SupabaseClient,
+  importId: string,
+): Promise<{ url: string | null; file_name: string; source: string }> {
+  const imp = await loadImport(sb, importId);
+  if (imp.file_source === "internal" && imp.storage_path) {
+    const { data, error } = await sb.storage.from(STATEMENT_BUCKET).createSignedUrl(imp.storage_path, 300);
+    if (error) throw new Error(error.message);
+    return { url: data.signedUrl, file_name: imp.file_name, source: imp.file_source };
+  }
+  return { url: imp.external_url ?? null, file_name: imp.file_name, source: imp.file_source };
+}
+
+/** Delete an import; the stored object goes only when we own it. */
+export async function deleteImportWithFile(sb: SupabaseClient, importId: string): Promise<void> {
+  const imp = await loadImport(sb, importId);
+  const { error } = await sb.from("statement_imports").delete().eq("id", importId);
+  if (error) throw new Error(error.message);
+  if (imp.file_source === "internal" && imp.storage_path) {
+    // Never touch files hosted by an external provider.
+    await sb.storage.from(STATEMENT_BUCKET).remove([imp.storage_path]);
+  }
+}
+
+/** Reverse lookup: which statement (if any) covers each of these transactions. */
+export async function statementRefsFor(
+  sb: SupabaseClient,
+  transactionIds: string[],
+): Promise<StatementRef[]> {
+  if (transactionIds.length === 0) return [];
+  const { data, error } = await sb
+    .from("statement_import_lines")
+    .select("line_no, matched_transaction_id, statement_imports!inner(id, file_name, file_source, period_from, period_to)")
+    .in("matched_transaction_id", transactionIds);
+  if (error) throw new Error(error.message);
+  const out: StatementRef[] = [];
+  const seen = new Set<string>();
+  for (const r of (data || []) as any[]) {
+    const imp = r.statement_imports;
+    if (!imp || !r.matched_transaction_id || seen.has(r.matched_transaction_id)) continue;
+    seen.add(r.matched_transaction_id);
+    out.push({
+      transaction_id: r.matched_transaction_id,
+      import_id: imp.id,
+      file_name: imp.file_name,
+      file_source: imp.file_source,
+      period_from: imp.period_from,
+      period_to: imp.period_to,
+      line_no: r.line_no,
+    });
+  }
+  return out;
 }

@@ -1137,13 +1137,17 @@ export type Database = {
           closing_balance: number | null
           created_at: string
           currency_code: string | null
+          external_url: string | null
           file_name: string
+          file_source: string
+          file_type: string | null
           id: string
           match_window_days: number
           model: string | null
           period_from: string | null
           period_to: string | null
           status: string
+          storage_path: string | null
           updated_at: string
           user_id: string
         }
@@ -1152,13 +1156,17 @@ export type Database = {
           closing_balance?: number | null
           created_at?: string
           currency_code?: string | null
+          external_url?: string | null
           file_name?: string
+          file_source?: string
+          file_type?: string | null
           id?: string
           match_window_days?: number
           model?: string | null
           period_from?: string | null
           period_to?: string | null
           status?: string
+          storage_path?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1167,13 +1175,17 @@ export type Database = {
           closing_balance?: number | null
           created_at?: string
           currency_code?: string | null
+          external_url?: string | null
           file_name?: string
+          file_source?: string
+          file_type?: string | null
           id?: string
           match_window_days?: number
           model?: string | null
           period_from?: string | null
           period_to?: string | null
           status?: string
+          storage_path?: string | null
           updated_at?: string
           user_id?: string
         }

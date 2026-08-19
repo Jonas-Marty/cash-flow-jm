@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, subMonths, subDays, startOfYear } from "date-fns";
 import {
-  ArrowDown, ArrowUp, ArrowLeftRight, Trash2, ChevronRight, ChevronDown, Layers, X, Pencil,
+  ArrowDown, ArrowUp, ArrowLeftRight, Trash2, ChevronRight, ChevronDown, Layers, X, Pencil, FileText,
 } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
@@ -156,6 +156,27 @@ function TransactionsPage() {
   const reimbLinksQ = useQuery({ queryKey: ["reimbursement_links"], queryFn: fetchReimbursementLinks });
   const linksQ = useQuery({ queryKey: ["transaction_links"], queryFn: fetchTransactionLinks });
   const linkMembersQ = useQuery({ queryKey: ["transaction_link_members"], queryFn: fetchTransactionLinkMembers });
+  const stmtRefsQ = useQuery({
+    queryKey: ["statement_refs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("statement_import_lines")
+        .select("matched_transaction_id, line_no, statement_imports!inner(id, file_name, file_source)")
+        .not("matched_transaction_id", "is", null);
+      if (error) throw error;
+      const m = new Map<string, { importId: string; fileName: string; hasDoc: boolean }>();
+      for (const r of (data ?? []) as any[]) {
+        const imp = r.statement_imports;
+        if (!imp || m.has(r.matched_transaction_id)) continue;
+        m.set(r.matched_transaction_id, {
+          importId: imp.id,
+          fileName: imp.file_name,
+          hasDoc: imp.file_source !== "none",
+        });
+      }
+      return m;
+    },
+  });
   const linkByTx = React.useMemo(() => {
     const map = new Map<string, string>();
     (linkMembersQ.data ?? []).forEach((m) => map.set(m.transaction_id, m.link_id));
@@ -889,6 +910,19 @@ function TransactionsPage() {
                     >
                       <LinkIcon className="h-3 w-3" /> {lnk.title}
                     </button>,
+                  );
+                  const stmt = stmtRefsQ.data?.get(t.id);
+                  if (stmt) chips.push(
+                    <Link
+                      key="stmt"
+                      to="/statements"
+                      search={{ import: stmt.importId }}
+                      onClick={(ev) => ev.stopPropagation()}
+                      className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground hover:bg-accent hover:text-foreground"
+                      title={stmt.fileName}
+                    >
+                      <FileText className="h-3 w-3" /> {stmt.fileName}
+                    </Link>,
                   );
                   const actionsNode = (
                     <>
