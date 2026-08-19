@@ -20,7 +20,18 @@ import {
 } from "./statements.server";
 
 const IMPORT_COLS =
-  "id, account_id, file_name, period_from, period_to, closing_balance, currency_code, status, model, match_window_days, created_at";
+  "id, account_id, file_name, file_source, storage_path, external_url, file_type, period_from, period_to, closing_balance, currency_code, status, model, match_window_days, created_at";
+
+export const STATEMENT_BUCKET = "statement-files";
+
+function storageExt(fileName: string, mime: string): string {
+  const m = /\.([a-z0-9]{1,5})$/i.exec(fileName);
+  if (m) return m[1].toLowerCase();
+  if (mime.includes("pdf")) return "pdf";
+  if (mime.includes("csv")) return "csv";
+  if (mime.startsWith("image/")) return mime.slice(6).split(";")[0];
+  return "bin";
+}
 const LINE_COLS =
   "id, line_no, booking_date, value_date, description, amount, raw_text, match_status, matched_transaction_id, match_score, decision, suggested_description, suggested_category_id, suggested_tags";
 
