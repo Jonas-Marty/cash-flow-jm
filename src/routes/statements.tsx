@@ -375,13 +375,16 @@ function StatementsPage() {
                   <div className="flex items-center gap-2">
                     <Label className="text-xs">{t("statements.detail.period")}</Label>
                     <DatePicker
-                      value={detail.import.period_from ?? ""}
+                      className="w-[190px]"
+                      placeholder={t("common.set")}
+                      clearLabel={t("common.clear")}
+                      value={toDate(detail.import.period_from)}
                       onChange={async (v) => {
                         await rematchFn({
                           data: {
                             id: detail.import.id,
                             window_days: detail.import.match_window_days,
-                            period_from: v || null,
+                            period_from: toIso(v),
                           },
                         });
                         qc.invalidateQueries({ queryKey: ["statement_import", detail.import.id] });
@@ -390,13 +393,16 @@ function StatementsPage() {
                     />
                     <span className="text-muted-foreground">–</span>
                     <DatePicker
-                      value={detail.import.period_to ?? ""}
+                      className="w-[190px]"
+                      placeholder={t("common.set")}
+                      clearLabel={t("common.clear")}
+                      value={toDate(detail.import.period_to)}
                       onChange={async (v) => {
                         await rematchFn({
                           data: {
                             id: detail.import.id,
                             window_days: detail.import.match_window_days,
-                            period_to: v || null,
+                            period_to: toIso(v),
                           },
                         });
                         qc.invalidateQueries({ queryKey: ["statement_import", detail.import.id] });
