@@ -339,7 +339,7 @@ function DesktopTabs({ pendingCount }: { pendingCount: number }) {
         : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
     );
 
-  const itemClass = (active: boolean) => cn(baseItemClass(active), "flex-1 justify-center min-w-0");
+  const itemClass = (active: boolean) => cn(baseItemClass(active), "shrink-0 min-w-0");
 
   return (
     <div ref={setEl} className="relative flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
