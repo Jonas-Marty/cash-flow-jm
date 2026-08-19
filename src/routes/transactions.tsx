@@ -911,6 +911,19 @@ function TransactionsPage() {
                       <LinkIcon className="h-3 w-3" /> {lnk.title}
                     </button>,
                   );
+                  const stmt = stmtRefsQ.data?.get(t.id);
+                  if (stmt) chips.push(
+                    <Link
+                      key="stmt"
+                      to="/statements"
+                      search={{ import: stmt.importId }}
+                      onClick={(ev) => ev.stopPropagation()}
+                      className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground hover:bg-accent hover:text-foreground"
+                      title={stmt.fileName}
+                    >
+                      <FileText className="h-3 w-3" /> {stmt.fileName}
+                    </Link>,
+                  );
                   const actionsNode = (
                     <>
                       <Button asChild variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label={tr("common.edit")}>
