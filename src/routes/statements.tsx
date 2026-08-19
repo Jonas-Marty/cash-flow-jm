@@ -357,9 +357,38 @@ function StatementsPage() {
             {detail && (
               <>
                 <div className="flex flex-wrap items-center gap-3 rounded-md border bg-card p-3 text-sm">
-                  <span>
-                    {detail.import.period_from ?? "?"} – {detail.import.period_to ?? "?"}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <Label className="text-xs">{t("statements.detail.period")}</Label>
+                    <DatePicker
+                      value={detail.import.period_from ?? ""}
+                      onChange={async (v) => {
+                        await rematchFn({
+                          data: {
+                            id: detail.import.id,
+                            window_days: detail.import.match_window_days,
+                            period_from: v || null,
+                          },
+                        });
+                        qc.invalidateQueries({ queryKey: ["statement_import", detail.import.id] });
+                        qc.invalidateQueries({ queryKey: ["statement_imports"] });
+                      }}
+                    />
+                    <span className="text-muted-foreground">–</span>
+                    <DatePicker
+                      value={detail.import.period_to ?? ""}
+                      onChange={async (v) => {
+                        await rematchFn({
+                          data: {
+                            id: detail.import.id,
+                            window_days: detail.import.match_window_days,
+                            period_to: v || null,
+                          },
+                        });
+                        qc.invalidateQueries({ queryKey: ["statement_import", detail.import.id] });
+                        qc.invalidateQueries({ queryKey: ["statement_imports"] });
+                      }}
+                    />
+                  </div>
                   {detail.import.closing_balance !== null && (
                     <span className="text-muted-foreground">
                       {t("statements.detail.closing")}: {fmtMoney(detail.import.closing_balance, symbol)}
