@@ -306,3 +306,67 @@ export async function applyLineDecision(
   if (error) throw new Error(error.message);
   return { line: { ...(data as any), amount: Number((data as any).amount) } as StatementLine };
 }
+/** A short-lived URL for the statement document, or the external link. */
+export async function getStatementFileLink(
+  sb: SupabaseClient,
+  importId: string,
+): Promise<{ url: string | null; file_name: string; source: string }> {
+  const imp = await loadImport(sb, importId);
+  if (imp.file_source === "internal" && imp.storage_path) {
+    const { data, error } = await sb.storage.from(STATEMENT_BUCKET).createSignedUrl(imp.storage_path, 300);
+    if (error) throw new Error(error.message);
+    return { url: data.signedUrl, file_name: imp.file_name, source: imp.file_source };
+  }
+  return { url: imp.external_url ?? null, file_name: imp.file_name, source: imp.file_source };
+}
+
+/** Delete an import; the stored object goes only when we own it. */
+export async function deleteImportWithFile(sb: SupabaseClient, importId: string): Promise<void> {
+  const imp = await loadImport(sb, importId);
+  const { error } = await sb.from("statement_imports").delete().eq("id", importId);
+  if (error) throw new Error(error.message);
+  if (imp.file_source === "internal" && imp.storage_path) {
+    // Never touch files hosted by an external provider.
+    await sb.storage.from(STATEMENT_BUCKET).remove([imp.storage_path]);
+  }
+}
+
+export interface StatementRef {
+  transaction_id: string;
+  import_id: string;
+  file_name: string;
+  file_source: string;
+  period_from: string | null;
+  period_to: string | null;
+  line_no: number;
+}
+
+/** Reverse lookup: which statement (if any) covers each of these transactions. */
+export async function statementRefsFor(
+  sb: SupabaseClient,
+  transactionIds: string[],
+): Promise<StatementRef[]> {
+  if (transactionIds.length === 0) return [];
+  const { data, error } = await sb
+    .from("statement_import_lines")
+    .select("line_no, matched_transaction_id, statement_imports!inner(id, file_name, file_source, period_from, period_to)")
+    .in("matched_transaction_id", transactionIds);
+  if (error) throw new Error(error.message);
+  const out: StatementRef[] = [];
+  const seen = new Set<string>();
+  for (const r of (data || []) as any[]) {
+    const imp = r.statement_imports;
+    if (!imp || !r.matched_transaction_id || seen.has(r.matched_transaction_id)) continue;
+    seen.add(r.matched_transaction_id);
+    out.push({
+      transaction_id: r.matched_transaction_id,
+      import_id: imp.id,
+      file_name: imp.file_name,
+      file_source: imp.file_source,
+      period_from: imp.period_from,
+      period_to: imp.period_to,
+      line_no: r.line_no,
+    });
+  }
+  return out;
+}
