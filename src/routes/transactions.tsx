@@ -156,6 +156,27 @@ function TransactionsPage() {
   const reimbLinksQ = useQuery({ queryKey: ["reimbursement_links"], queryFn: fetchReimbursementLinks });
   const linksQ = useQuery({ queryKey: ["transaction_links"], queryFn: fetchTransactionLinks });
   const linkMembersQ = useQuery({ queryKey: ["transaction_link_members"], queryFn: fetchTransactionLinkMembers });
+  const stmtRefsQ = useQuery({
+    queryKey: ["statement_refs"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("statement_import_lines")
+        .select("matched_transaction_id, line_no, statement_imports!inner(id, file_name, file_source)")
+        .not("matched_transaction_id", "is", null);
+      if (error) throw error;
+      const m = new Map<string, { importId: string; fileName: string; hasDoc: boolean }>();
+      for (const r of (data ?? []) as any[]) {
+        const imp = r.statement_imports;
+        if (!imp || m.has(r.matched_transaction_id)) continue;
+        m.set(r.matched_transaction_id, {
+          importId: imp.id,
+          fileName: imp.file_name,
+          hasDoc: imp.file_source !== "none",
+        });
+      }
+      return m;
+    },
+  });
   const linkByTx = React.useMemo(() => {
     const map = new Map<string, string>();
     (linkMembersQ.data ?? []).forEach((m) => map.set(m.transaction_id, m.link_id));
