@@ -2,12 +2,13 @@
 
 Today the uploaded statement file is read into memory, sent to the AI, and thrown away. Only the file name survives, so there is nothing to open later and nothing a transaction could point at. Two changes fix that.
 
-## 1. Keep the file
+## 1. Keep a reference to the file
 
-- On import, the file is uploaded to a new private storage bucket (`statement-files`), under a per-user path, before extraction runs. Nothing changes about the extraction itself.
-- `statement_imports` gets `storage_path` and `file_type` so each import knows where its document lives.
-- Deleting an import also deletes the stored file.
-- Older imports have no file: they simply show no "Open" button (with a short hint that the document was not kept).
+- Each import records **where its document lives**, not just its name — with room for more sources than the app's own storage: `source` (`internal` today, `nextcloud` and other external providers later), `storage_path` (internal object path), `external_url` (external provider link) and `file_type`.
+- Uploaded files: on import the bytes go into a new private storage bucket (`statement-files`) under a per-user path, before extraction runs. Nothing changes about the extraction itself.
+- Externally sourced files (Nextcloud picker, later): only the reference is stored; the app never copies the file.
+- Deleting an import deletes the stored object **only for `internal` sources**. External files are never touched — the app just drops its reference.
+- Older imports have no reference: they simply show no "Open" button (with a short hint that the document was not kept).
 
 ## 2. Open the document
 
