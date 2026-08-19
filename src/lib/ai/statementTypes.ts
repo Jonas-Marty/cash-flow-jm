@@ -60,3 +60,21 @@ export interface StatementImportDetail {
   matched: Record<string, { occurred_on: string; amount: number; description: string }>;
   unmatched_app: UnmatchedAppTransaction[];
 }
+
+/** Reverse link: the statement document a transaction was matched on. */
+export interface StatementRef {
+  transaction_id: string;
+  import_id: string;
+  file_name: string;
+  file_source: string;
+  period_from: string | null;
+  period_to: string | null;
+  line_no: number;
+}
+
+interface _LegacyDetail {
+  import: StatementImport;
+  lines: StatementLine[];
+  matched: Record<string, { occurred_on: string; amount: number; description: string }>;
+  unmatched_app: UnmatchedAppTransaction[];
+}
