@@ -9,7 +9,7 @@ export const listStatementImports = createServerFn({ method: "GET" })
     const { data, error } = await context.supabase
       .from("statement_imports")
       .select(
-        "id, account_id, file_name, period_from, period_to, closing_balance, currency_code, status, model, match_window_days, created_at",
+        "id, account_id, file_name, file_source, storage_path, external_url, file_type, period_from, period_to, closing_balance, currency_code, status, model, match_window_days, created_at",
       )
       .order("created_at", { ascending: false })
       .limit(50);
@@ -37,6 +37,8 @@ export const extractStatement = createServerFn({ method: "POST" })
         invert_amounts: z.boolean().optional(),
         window_days: z.number().int().min(0).max(30).optional(),
         endpoint_id: z.string().uuid().nullable().optional(),
+        external_url: z.string().url().max(2000).nullable().optional(),
+        external_source: z.string().max(50).nullable().optional(),
       })
       .parse(d),
   )
@@ -103,7 +105,25 @@ export const deleteStatementImport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.from("statement_imports").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
+    const { deleteImportWithFile } = await import("./statements.detail.server");
+    await deleteImportWithFile(context.supabase, data.id);
     return { ok: true };
+  });
+
+export const getStatementFileUrl = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
+  .handler(async ({ data, context }): Promise<{ url: string | null; file_name: string; source: string }> => {
+    const { getStatementFileLink } = await import("./statements.detail.server");
+    return getStatementFileLink(context.supabase, data.id);
+  });
+
+export const getStatementRefsForTransactions = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z.object({ transaction_ids: z.array(z.string().uuid()).max(500) }).parse(d),
+  )
+  .handler(async ({ data, context }): Promise<{ refs: StatementRef[] }> => {
+    const { statementRefsFor } = await import("./statements.detail.server");
+    return { refs: await statementRefsFor(context.supabase, data.transaction_ids) };
   });
