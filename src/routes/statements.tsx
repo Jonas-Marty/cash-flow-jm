@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/DatePicker";
+import { StatementDocButton } from "@/components/StatementDocLink";
 import { useI18n } from "@/i18n";
 import { fetchAccounts, fmtMoney } from "@/lib/finance";
 import {
@@ -344,6 +345,13 @@ function StatementsPage() {
                       {imp.period_from ?? "?"} – {imp.period_to ?? "?"}
                     </div>
                   </button>
+                  <StatementDocButton
+                    importId={imp.id}
+                    hasDocument={imp.file_source !== "none"}
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7"
+                  />
                   <button
                     className="text-muted-foreground hover:text-destructive"
                     onClick={async () => {
