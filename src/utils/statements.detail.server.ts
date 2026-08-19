@@ -108,6 +108,9 @@ export async function runStatementExtraction(
     invert_amounts?: boolean;
     window_days?: number;
     endpoint_id?: string | null;
+    /** Set when the document stays on an external provider (e.g. Nextcloud). */
+    external_url?: string | null;
+    external_source?: string | null;
   },
 ): Promise<{ import_id: string }> {
   const { data: account, error: accErr } = await sb
