@@ -134,7 +134,7 @@ export function AppShell({ children, wide = false }: { children: React.ReactNode
   return (
     <div className="min-h-screen overflow-x-clip bg-background text-foreground">
       <header className="hidden md:block sticky top-0 z-40 border-b bg-background/80 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center gap-4 px-6 py-3">
+        <div className="flex items-center gap-4 px-6 py-3">
           <Link to="/" className="flex shrink-0 items-center gap-2 font-semibold">
             <Wallet className="h-5 w-5" />
             <span>{t("app.name")}</span>
