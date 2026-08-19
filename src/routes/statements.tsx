@@ -426,6 +426,11 @@ function StatementsPage() {
                   <span className="text-muted-foreground">
                     {t("statements.detail.lines")}: {detail.lines.length}
                   </span>
+                  {detail.import.file_source !== "none" ? (
+                    <StatementDocButton importId={detail.import.id} hasDocument size="sm" />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">{t("statements.doc.not_kept")}</span>
+                  )}
                   <div className="ml-auto flex items-center gap-2">
                     <Label className="text-xs">{t("statements.field.window")}</Label>
                     <Input
