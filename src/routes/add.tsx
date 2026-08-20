@@ -2055,6 +2055,13 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
           )}
         </div>
 
+        <LocationSection
+          value={location}
+          onChange={setLocationManual}
+          dateIsToday={isTodayDate}
+          recent={recentLocations}
+        />
+
         {/* Live summary: how this transaction will look in the list */}
         <TransactionPreview
           type={type}
