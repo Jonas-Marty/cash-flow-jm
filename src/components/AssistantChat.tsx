@@ -256,11 +256,12 @@ export function AssistantChat({
   }, [recording, elapsed, stopRecording]);
   React.useEffect(() => () => recorderRef.current?.cancel(), []);
 
-  const analyseFile = async (f: File) => {
+  const analyseFile = async (f: File, overrideEndpointId?: string) => {
     if (!accountId) {
       toast.error(t("statements.err.no_account"));
       return;
     }
+    const useId = overrideEndpointId ?? (endpointId === "auto" ? null : endpointId);
     setMessages((prev) => [...prev, { role: "user", text: `📎 ${f.name}` }]);
     setFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -273,7 +274,7 @@ export function AssistantChat({
           file_name: f.name,
           file_base64: base64,
           file_type: f.type || null,
-          endpoint_id: endpointId === "auto" ? null : endpointId,
+          endpoint_id: useId,
         },
       });
       const detail = await importFn({ data: { id: import_id } });
@@ -289,14 +290,21 @@ export function AssistantChat({
       setMessages((prev) => [...prev, { role: "assistant", text, importId: import_id }]);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setMessages((prev) => [...prev, { role: "assistant", text: `⚠️ ${msg}` }]);
+      const offline = parseEndpointOffline(msg);
+      if (offline) {
+        setOffline({ payload: offline, retry: (id) => void analyseFile(f, id) });
+        setMessages((prev) => prev.slice(0, -1));
+        setFile(f);
+      } else {
+        setMessages((prev) => [...prev, { role: "assistant", text: `⚠️ ${msg}` }]);
+      }
     } finally {
       setBusy(false);
     }
   };
 
-  const send = async (text: string) => {
-    if (file) {
+  const send = async (text: string, overrideEndpointId?: string) => {
+    if (file && !overrideEndpointId) {
       const f = file;
       void analyseFile(f);
       return;
@@ -315,7 +323,7 @@ export function AssistantChat({
           conversation_id: conversationId ?? null,
           message: text,
           persist,
-          endpoint_id: endpointId === "auto" ? null : endpointId,
+          endpoint_id: overrideEndpointId ?? (endpointId === "auto" ? null : endpointId),
         },
       });
       setMessages((prev) => [
@@ -326,11 +334,19 @@ export function AssistantChat({
       if (r.conversation_id && r.conversation_id !== conversationId) onConversationChange?.(r.conversation_id);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setMessages((prev) => [...prev, { role: "assistant", text: `⚠️ ${msg}` }]);
+      const offline = parseEndpointOffline(msg);
+      if (offline) {
+        // Drop the echoed user message; it is re-sent after the user picks.
+        setMessages((prev) => prev.slice(0, -1));
+        setOffline({ payload: offline, retry: (id) => void send(text, id) });
+      } else {
+        setMessages((prev) => [...prev, { role: "assistant", text: `⚠️ ${msg}` }]);
+      }
     } finally {
       setBusy(false);
     }
   };
+
 
   const runAction = (action: AssistantAction) => {
     if (action.kind === "open_add") {
