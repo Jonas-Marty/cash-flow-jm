@@ -493,6 +493,34 @@ function SettingsPage() {
         </Card>
         </section>
 
+        {/* Location capture */}
+        <section id="location">
+        <Card>
+          <CardHeader><CardTitle className="text-base">{tr("loc.settings.title")}</CardTitle></CardHeader>
+          <CardContent>
+            <div className="flex items-start justify-between gap-3">
+              <div className="space-y-0.5">
+                <Label htmlFor="capture-location" className="text-sm">{tr("loc.settings.toggle")}</Label>
+                <p className="text-xs text-muted-foreground">{tr("loc.settings.hint")}</p>
+              </div>
+              <Switch
+                id="capture-location"
+                checked={!!settingsQ.data?.capture_location}
+                onCheckedChange={async (checked) => {
+                  if (!settingsQ.data) return;
+                  const { error } = await supabase
+                    .from("settings")
+                    .update({ capture_location: checked })
+                    .eq("id", settingsQ.data.id);
+                  if (error) { toast.error(error.message); return; }
+                  qc.invalidateQueries({ queryKey: ["settings"] });
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+        </section>
+
         {/* Groups */}
         <section id="groups">
         <Card>
