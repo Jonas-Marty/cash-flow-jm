@@ -350,5 +350,108 @@ export function LocationSection({
         </div>
       </CollapsibleContent>
     </Collapsible>
+
+    <Dialog open={expanded} onOpenChange={setExpanded}>
+      <DialogContent
+        className="flex h-[100dvh] w-screen max-w-none flex-col gap-3 rounded-none p-3 sm:h-[calc(100vh-4rem)] sm:w-[calc(100vw-4rem)] sm:rounded-lg sm:p-4"
+      >
+        <DialogHeader className="shrink-0">
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <MapPin className="h-4 w-4" /> {tr("loc.title")}
+          </DialogTitle>
+        </DialogHeader>
+        <div className="min-h-0 flex-1">{expanded ? renderMap("h-full") : null}</div>
+        <div className="shrink-0 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" size="sm" variant="outline" onClick={capture} disabled={busy}>
+              <Crosshair className="mr-1 h-4 w-4" />
+              {busy ? tr("loc.locating") : tr("loc.use_current")}
+            </Button>
+            {value ? (
+              <Button type="button" size="sm" variant="ghost" onClick={() => onChange(null)}>
+                <X className="mr-1 h-4 w-4" />
+                {tr("loc.clear")}
+              </Button>
+            ) : null}
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="ml-auto"
+              onClick={() => setExpanded(false)}
+            >
+              <Minimize2 className="mr-1.5 h-4 w-4" />
+              {tr("loc.collapse_map")}
+            </Button>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="relative">
+              <Input
+                value={value?.label ?? ""}
+                disabled={!value}
+                onChange={(e) => value && onChange({ ...value, label: e.target.value || null })}
+                placeholder={resolving ? tr("loc.resolving") : tr("loc.address_ph")}
+                className="pr-9"
+              />
+              {value?.label ? (
+                <button
+                  type="button"
+                  onClick={() => onChange({ ...value, label: null })}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground"
+                  aria-label={tr("loc.clear_label")}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    void runSearch();
+                  }
+                }}
+                placeholder={tr("loc.search_ph")}
+              />
+              <Button type="button" size="sm" variant="outline" onClick={() => void runSearch()} disabled={searching}>
+                <Search className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          {results.length > 0 ? (
+            <div className="max-h-28 space-y-1 overflow-auto rounded-md border p-1">
+              {results.map((r, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className="w-full rounded px-2 py-1 text-left text-xs hover:bg-accent"
+                  onClick={() => {
+                    onChange({
+                      latitude: round6(r.latitude),
+                      longitude: round6(r.longitude),
+                      accuracy_m: null,
+                      label: r.label,
+                      source: "search",
+                    });
+                    setResults([]);
+                    setQuery("");
+                  }}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {searchErr ? <p className="text-xs text-destructive">{searchErr}</p> : null}
+          <p className="text-xs text-muted-foreground">
+            {value ? formatCoords(value) : tr("loc.empty_hint")}
+          </p>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
