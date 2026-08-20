@@ -43,6 +43,7 @@ export function LocationSection({
   const [query, setQuery] = React.useState("");
   const [results, setResults] = React.useState<{ label: string; latitude: number; longitude: number }[]>([]);
   const [searching, setSearching] = React.useState(false);
+  const [searchErr, setSearchErr] = React.useState<string | null>(null);
   const [showRecent, setShowRecent] = React.useState(false);
   const doSearch = useServerFn(searchPlaces);
 
@@ -66,8 +67,10 @@ export function LocationSection({
     try {
       const r = await doSearch({ data: { q } });
       setResults(r.results);
-    } catch {
+      setSearchErr(r.results.length === 0 ? (r.error ?? "No results") : null);
+    } catch (e) {
       setResults([]);
+      setSearchErr(e instanceof Error ? e.message : "Search unavailable");
     } finally {
       setSearching(false);
     }
@@ -202,6 +205,7 @@ export function LocationSection({
               <Search className="h-4 w-4" />
             </Button>
           </div>
+          {searchErr ? <p className="text-xs text-destructive">{searchErr}</p> : null}
           {results.length > 0 ? (
             <div className="max-h-40 space-y-1 overflow-auto rounded-md border p-1">
               {results.map((r, i) => (
