@@ -48,8 +48,7 @@ export default function LocationMiniMap({
       zoom: 16,
       zoomControl: true,
       attributionControl: true,
-especially: false as never,
-    } as L.MapOptions);
+    });
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: "&copy; OpenStreetMap",
