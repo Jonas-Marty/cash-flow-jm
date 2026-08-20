@@ -1027,6 +1027,10 @@ function TransactionsPage() {
         open={openLinkId !== null}
         onOpenChange={(o) => { if (!o) setOpenLinkId(null); }}
       />
+      <LocationPeekDialog
+        location={peekLoc}
+        onOpenChange={(o) => { if (!o) setPeekLoc(null); }}
+      />
     </AppShell>
   );
 }
