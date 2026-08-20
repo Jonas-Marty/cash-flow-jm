@@ -741,8 +741,30 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
     setExistingFeeTxId(null);
     setScopeSkipped(false);
     linkSelectionsTouchedRef.current = false;
+    setLocation(null);
+    locationTouchedRef.current = false;
+    autoLocRef.current = false;
     setTimeout(() => amountRef.current?.focus(), 0);
   };
+
+  // ───────── Auto-capture (new transactions, today only, opt-in) ─────────
+  const captureEnabled = !!settingsQ.data?.capture_location;
+  const isTodayDate = dateIsTodayFn(date);
+  const autoLocRef = React.useRef(false);
+  React.useEffect(() => {
+    if (isEdit || !captureEnabled || !isTodayDate) return;
+    if (locationTouchedRef.current || autoLocRef.current) return;
+    autoLocRef.current = true;
+    let cancelled = false;
+    void getCurrentLocation().then((res) => {
+      if (cancelled || !res.ok) return;
+      if (locationTouchedRef.current) return;
+      setLocation(res.location);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isEdit, captureEnabled, isTodayDate]);
 
   const save = async (andNew: boolean) => {
     const amt = Number(amount.replace(",", "."));
