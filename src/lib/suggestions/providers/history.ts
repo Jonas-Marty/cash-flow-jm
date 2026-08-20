@@ -78,6 +78,7 @@ export const historyProvider: SuggestionProvider = {
           category_id: t.category_id,
           description: t.description,
           note: t.note,
+          location: locationFromRow(t),
         };
         const cat = ctx.categories.find((c) => c.id === t.category_id);
         const acc = ctx.accounts.find((a) => a.id === t.source_account_id);
