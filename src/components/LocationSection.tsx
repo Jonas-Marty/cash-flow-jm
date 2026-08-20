@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
@@ -142,7 +143,38 @@ export function LocationSection({
 
   const acc = formatAccuracy(value?.accuracy_m);
 
+  const renderMap = (mapClass: string) => (
+    <ClientOnly fallback={<div className={cn("rounded-md bg-muted", mapClass)} />}>
+      <React.Suspense fallback={<div className={cn("rounded-md bg-muted", mapClass)} />}>
+        <LazyMap
+          latitude={value?.latitude ?? recent?.[0]?.latitude ?? 47.3769}
+          longitude={value?.longitude ?? recent?.[0]?.longitude ?? 8.5417}
+          accuracyM={value?.accuracy_m}
+          hasValue={!!value}
+          draggable
+          markers={(recent ?? []).map((r) => ({
+            latitude: r.latitude,
+            longitude: r.longitude,
+            label: r.label ?? r.description ?? null,
+          }))}
+          onPickMarker={(m) =>
+            onChange({
+              latitude: m.latitude,
+              longitude: m.longitude,
+              accuracy_m: null,
+              label: m.label ?? null,
+              source: "manual",
+            })
+          }
+          onChange={setManualPoint}
+          className={cn("w-full overflow-hidden rounded-md border", mapClass)}
+        />
+      </React.Suspense>
+    </ClientOnly>
+  );
+
   return (
+    <>
     <Collapsible open={open} onOpenChange={setOpen} className={cn("rounded-lg border", className)}>
       <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 px-3 py-2 text-sm">
         <span className="flex items-center gap-2 font-medium">
@@ -164,47 +196,20 @@ export function LocationSection({
             type="button"
             size="sm"
             variant="outline"
-            onClick={() => setExpanded((v) => !v)}
-            aria-label={expanded ? tr("loc.collapse_map") : tr("loc.expand_map")}
+            onClick={() => setExpanded(true)}
+            aria-label={tr("loc.expand_map")}
           >
-            {expanded ? (
-              <Minimize2 className="mr-1.5 h-4 w-4" />
-            ) : (
-              <Maximize2 className="mr-1.5 h-4 w-4" />
-            )}
-            {expanded ? tr("loc.collapse_map") : tr("loc.expand_map")}
+            <Maximize2 className="mr-1.5 h-4 w-4" />
+            {tr("loc.expand_map")}
           </Button>
         </div>
-        <ClientOnly fallback={<div className={cn("rounded-md bg-muted", expanded ? "h-96" : "h-48")} />}>
-          <React.Suspense fallback={<div className={cn("rounded-md bg-muted", expanded ? "h-96" : "h-48")} />}>
-            <LazyMap
-              latitude={value?.latitude ?? recent?.[0]?.latitude ?? 47.3769}
-              longitude={value?.longitude ?? recent?.[0]?.longitude ?? 8.5417}
-              accuracyM={value?.accuracy_m}
-              hasValue={!!value}
-              draggable
-              markers={(recent ?? []).map((r) => ({
-                latitude: r.latitude,
-                longitude: r.longitude,
-                label: r.label ?? r.description ?? null,
-              }))}
-              onPickMarker={(m) =>
-                onChange({
-                  latitude: m.latitude,
-                  longitude: m.longitude,
-                  accuracy_m: null,
-                  label: m.label ?? null,
-                  source: "manual",
-                })
-              }
-              onChange={setManualPoint}
-              className={cn(
-                "w-full overflow-hidden rounded-md border transition-[height]",
-                expanded ? "h-96" : "h-48",
-              )}
-            />
-          </React.Suspense>
-        </ClientOnly>
+        {expanded ? (
+          <div className="grid h-48 w-full place-items-center rounded-md border bg-muted text-xs text-muted-foreground">
+            {tr("loc.map_in_overlay")}
+          </div>
+        ) : (
+          renderMap("h-48")
+        )}
         {value ? (
           <>
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
