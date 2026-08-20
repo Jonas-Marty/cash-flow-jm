@@ -92,7 +92,11 @@ export default function LocationMiniMap({
     recentLayerRef.current = L.layerGroup().addTo(map);
     // Leaflet needs a size recalculation once the container is laid out.
     setTimeout(() => map.invalidateSize(), 0);
+    // Re-render tiles when the container resizes (e.g. expand/collapse map).
+    const ro = new ResizeObserver(() => map.invalidateSize());
+    ro.observe(hostRef.current);
     return () => {
+      ro.disconnect();
       map.remove();
       mapRef.current = null;
       markerRef.current = null;

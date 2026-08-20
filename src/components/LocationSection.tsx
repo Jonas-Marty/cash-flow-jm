@@ -1,7 +1,7 @@
 import * as React from "react";
 import { ClientOnly } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { MapPin, Crosshair, Search, X, History, ExternalLink } from "lucide-react";
+import { MapPin, Crosshair, Search, X, History, ExternalLink, Maximize2, Minimize2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,6 +48,7 @@ export function LocationSection({
   const doSearch = useServerFn(searchPlaces);
   const doReverse = useServerFn(reverseGeocode);
   const [resolving, setResolving] = React.useState(false);
+  const [expanded, setExpanded] = React.useState(false);
   const reverseSeq = React.useRef(0);
 
   /**
@@ -158,8 +159,24 @@ export function LocationSection({
         <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", open && "rotate-180")} />
       </CollapsibleTrigger>
       <CollapsibleContent className="space-y-3 border-t px-3 py-3">
-        <ClientOnly fallback={<div className="h-40 rounded-md bg-muted" />}>
-          <React.Suspense fallback={<div className="h-40 rounded-md bg-muted" />}>
+        <div className="flex items-center justify-end">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => setExpanded((v) => !v)}
+            aria-label={expanded ? tr("loc.collapse_map") : tr("loc.expand_map")}
+          >
+            {expanded ? (
+              <Minimize2 className="mr-1.5 h-4 w-4" />
+            ) : (
+              <Maximize2 className="mr-1.5 h-4 w-4" />
+            )}
+            {expanded ? tr("loc.collapse_map") : tr("loc.expand_map")}
+          </Button>
+        </div>
+        <ClientOnly fallback={<div className={cn("rounded-md bg-muted", expanded ? "h-96" : "h-48")} />}>
+          <React.Suspense fallback={<div className={cn("rounded-md bg-muted", expanded ? "h-96" : "h-48")} />}>
             <LazyMap
               latitude={value?.latitude ?? recent?.[0]?.latitude ?? 47.3769}
               longitude={value?.longitude ?? recent?.[0]?.longitude ?? 8.5417}
@@ -181,7 +198,10 @@ export function LocationSection({
                 })
               }
               onChange={setManualPoint}
-              className="h-48 w-full overflow-hidden rounded-md border"
+              className={cn(
+                "w-full overflow-hidden rounded-md border transition-[height]",
+                expanded ? "h-96" : "h-48",
+              )}
             />
           </React.Suspense>
         </ClientOnly>
