@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, subMonths, subDays, startOfYear } from "date-fns";
 import {
-  ArrowDown, ArrowUp, ArrowLeftRight, Trash2, ChevronRight, ChevronDown, Layers, X, Pencil, FileText,
+  ArrowDown, ArrowUp, ArrowLeftRight, Trash2, ChevronRight, ChevronDown, Layers, X, Pencil, FileText, MapPin,
 } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
@@ -189,6 +189,7 @@ function TransactionsPage() {
     [linksQ.data],
   );
   const [openLinkId, setOpenLinkId] = React.useState<string | null>(null);
+  const [peekLoc, setPeekLoc] = React.useState<TxLocation | null>(null);
 
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
   const dateFmt = settingsQ.data?.date_format;
