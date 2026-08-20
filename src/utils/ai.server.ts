@@ -314,12 +314,39 @@ export async function resolveEndpoint(
     .maybeSingle();
 
   const preferredId = explicitId || binding?.endpoint_id || null;
-  const allowFallback = explicitId ? true : binding?.allow_fallback !== false;
+  const allowFallback = explicitId ? false : binding?.allow_fallback !== false;
   const preferred = preferredId ? rows.find((r) => r.id === preferredId) : rows[0];
+
+  // Explicit user choice: never silently switch to another (possibly paid)
+  // connection. Report the offline state plus the reachable alternatives so
+  // the UI can ask the user which connection to retry on.
+  if (explicitId) {
+    if (!preferred) throw new Error("The selected AI connection no longer exists.");
+    const health = await pingEndpoint(preferred.base_url, preferred.api_token, preferred.model, preferred.health_mode);
+    if (health.ok) return { creds: toCreds(preferred), endpoint: preferred, fell_back: false };
+    const others = rows.filter((r) => r.id !== preferred.id);
+    const probed = await Promise.all(
+      others.map(async (r) => ({
+        id: r.id,
+        name: r.name,
+        model: r.model,
+        available: (await pingEndpoint(r.base_url, r.api_token, r.model, r.health_mode)).ok,
+      })),
+    );
+    throw new Error(
+      AI_ENDPOINT_OFFLINE_PREFIX +
+        JSON.stringify({
+          endpoint: { id: preferred.id, name: preferred.name, model: preferred.model },
+          error: health.error || "unavailable",
+          alternatives: probed,
+        } satisfies AIEndpointOfflinePayload),
+    );
+  }
 
   if (preferred && !allowFallback) return { creds: toCreds(preferred), endpoint: preferred, fell_back: false };
 
   const ordered = preferred ? [preferred, ...rows.filter((r) => r.id !== preferred.id)] : rows;
+
   let lastError = "";
   for (const [i, row] of ordered.entries()) {
     const health = await pingEndpoint(row.base_url, row.api_token, row.model, row.health_mode);
