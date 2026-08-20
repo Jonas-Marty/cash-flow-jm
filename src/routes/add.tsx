@@ -453,6 +453,7 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
     setSourceId(tx.source_account_id);
     setDestId(tx.destination_account_id ?? "");
     setDate(new Date(tx.occurred_on + "T00:00:00"));
+    setLocation(locationFromRow(tx));
     if (tx.is_reimbursable) {
       setIsReimbursable(true);
       setReimbCounterparty(tx.reimbursable_counterparty ?? "");
