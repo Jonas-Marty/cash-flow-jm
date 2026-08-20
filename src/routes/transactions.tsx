@@ -914,6 +914,18 @@ function TransactionsPage() {
                     </button>,
                   );
                   const stmt = stmtRefsQ.data?.get(t.id);
+                  const txLoc = locationFromRow(t as never);
+                  if (txLoc) chips.push(
+                    <button
+                      key="loc"
+                      type="button"
+                      onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); setPeekLoc(txLoc); }}
+                      className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground hover:bg-accent hover:text-foreground"
+                      title={txLoc.label ?? tr("loc.title")}
+                    >
+                      <MapPin className="h-3 w-3" /> {txLoc.label ? txLoc.label.split(",")[0] : tr("loc.title")}
+                    </button>,
+                  );
                   if (stmt) chips.push(
                     <Link
                       key="stmt"
