@@ -16,7 +16,17 @@ import { getNextcloudStatus, downloadNextcloudFile } from "@/utils/nextcloud.fun
 import { NextcloudFilePicker } from "@/components/NextcloudFilePicker";
 import { fetchAccounts } from "@/lib/finance";
 import { getChatDraft, setChatDraft, resetChatDraft } from "@/lib/ai/chatDraft";
-import type { AssistantAction, ChatMessage } from "@/lib/ai/types";
+import type { AssistantAction, ChatMessage, AIEndpointOfflinePayload } from "@/lib/ai/types";
+import { parseEndpointOffline } from "@/lib/ai/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
 import { useI18n } from "@/i18n";
 
 type LocalMsg = {
@@ -109,6 +119,18 @@ export function AssistantChat({
   const [recording, setRecording] = React.useState(false);
   const [elapsed, setElapsed] = React.useState(0);
   const [transcribing, setTranscribing] = React.useState(false);
+  const [offline, setOffline] = React.useState<{
+    payload: AIEndpointOfflinePayload;
+    retry: (id: string) => void;
+  } | null>(null);
+  const [retryId, setRetryId] = React.useState<string>("");
+
+  React.useEffect(() => {
+    if (!offline) return;
+    const first = offline.payload.alternatives.find((a) => a.available) ?? offline.payload.alternatives[0];
+    setRetryId(first?.id ?? "");
+  }, [offline]);
+
 
   const pickFromNextcloud = React.useCallback(
     async (picked: { name: string; path: string }) => {
