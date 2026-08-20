@@ -102,21 +102,42 @@ export function LocationSection({
   };
   const [err, setErr] = React.useState<string | null>(null);
 
-  const runSearch = async () => {
-    const q = query.trim();
-    if (q.length < 2) return;
+  const searchSeq = React.useRef(0);
+  const lastQueryRef = React.useRef("");
+
+  const runSearch = React.useCallback(async (raw?: string) => {
+    const q = (raw ?? query).trim();
+    if (q.length < 2) {
+      setResults([]);
+      setSearchErr(null);
+      return;
+    }
+    lastQueryRef.current = q;
+    const seq = ++searchSeq.current;
     setSearching(true);
     try {
       const r = await doSearch({ data: { q } });
+      if (seq !== searchSeq.current) return;
       setResults(r.results);
       setSearchErr(r.results.length === 0 ? (r.error ?? "No results") : null);
     } catch (e) {
+      if (seq !== searchSeq.current) return;
       setResults([]);
       setSearchErr(e instanceof Error ? e.message : "Search unavailable");
     } finally {
-      setSearching(false);
+      if (seq === searchSeq.current) setSearching(false);
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doSearch, query]);
+
+  // Search-as-you-type, debounced so we stay well inside the OSM usage policy.
+  React.useEffect(() => {
+    const q = query.trim();
+    if (q.length < 3 || q === lastQueryRef.current) return;
+    const id = setTimeout(() => void runSearch(q), 600);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
 
   const acc = formatAccuracy(value?.accuracy_m);
 
