@@ -641,6 +641,49 @@ export function AssistantChat({
           onPick={(f) => void pickFromNextcloud(f)}
         />
       )}
+      <Dialog open={!!offline} onOpenChange={(o) => !o && setOffline(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("ai.conn.offline_title")}</DialogTitle>
+            <DialogDescription>
+              {t("ai.conn.offline_body", { name: offline?.payload.endpoint.name ?? "" })}
+            </DialogDescription>
+          </DialogHeader>
+          {offline?.payload.error && (
+            <p className="text-xs text-muted-foreground break-words">{offline.payload.error}</p>
+          )}
+          <Select value={retryId} onValueChange={setRetryId}>
+            <SelectTrigger className="h-9 text-xs">
+              <SelectValue placeholder={t("ai.conn.offline_pick")} />
+            </SelectTrigger>
+            <SelectContent>
+              {(offline?.payload.alternatives ?? []).map((a) => (
+                <SelectItem key={a.id} value={a.id} disabled={!a.available}>
+                  {a.name} · {a.model} {a.available ? "" : `· ${t("ai.conn.offline")}`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOffline(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              disabled={!retryId || !(offline?.payload.alternatives.find((a) => a.id === retryId)?.available ?? false)}
+              onClick={() => {
+                const target = offline;
+                const id = retryId;
+                setOffline(null);
+                setEndpointId(id);
+                target?.retry(id);
+              }}
+            >
+              {t("ai.conn.offline_retry")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+
   );
 }
