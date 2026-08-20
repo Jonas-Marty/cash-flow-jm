@@ -1,4 +1,5 @@
 import type { Suggestion, SuggestionContext, SuggestionProvider } from "../types";
+import { locationFromRow } from "@/lib/location";
 
 const HALF_LIFE_DAYS = 30;
 const MAX_AGE_DAYS = 180;
