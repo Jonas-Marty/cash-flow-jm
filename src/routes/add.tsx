@@ -859,6 +859,7 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
           is_reimbursable: p.isReimbursable,
           reimbursable_counterparty: p.reimbCounterparty,
           reimbursable_reason: p.reimbReason,
+          ...locationToColumns(location),
         });
 
         const toUpdate: { id: string; row: ReturnType<typeof rowFor> }[] = [];
@@ -947,6 +948,7 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
         is_reimbursable: p.isReimbursable,
         reimbursable_counterparty: p.reimbCounterparty,
         reimbursable_reason: p.reimbReason,
+        ...locationToColumns(location),
       }));
       const { data: insRows, error } = await supabase
         .from("transactions")
@@ -1039,6 +1041,7 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
       fee_amount: type === "transfer" && feeAmtNum > 0 ? feeAmtNum : null,
       fee_category_id: type === "transfer" && feeAmtNum > 0 ? feeCategoryId : null,
       fee_transaction_id: type === "transfer" && feeAmtNum > 0 ? feeTxId : null,
+      ...locationToColumns(location),
     };
     const selectedLinks = Object.entries(linkSelections)
       .map(([id, amt2]) => ({ id, amount: Number(amt2) }))
