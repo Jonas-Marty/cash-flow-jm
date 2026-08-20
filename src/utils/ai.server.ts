@@ -5,7 +5,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildSystemPrompt } from "@/lib/ai/systemPrompt";
-import type { AIHealthMode, AIHealthProbe, AssistantAction } from "@/lib/ai/types";
+import type { AIHealthMode, AIHealthProbe, AssistantAction, AIEndpointOfflinePayload } from "@/lib/ai/types";
+import { AI_ENDPOINT_OFFLINE_PREFIX } from "@/lib/ai/types";
+
 
 export interface PingResult {
   ok: boolean;
