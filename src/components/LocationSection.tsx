@@ -10,7 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
-import { searchPlaces } from "@/utils/geocode.functions";
+import { searchPlaces, reverseGeocode } from "@/utils/geocode.functions";
 import {
   formatAccuracy,
   formatCoords,
@@ -46,6 +46,35 @@ export function LocationSection({
   const [searchErr, setSearchErr] = React.useState<string | null>(null);
   const [showRecent, setShowRecent] = React.useState(false);
   const doSearch = useServerFn(searchPlaces);
+  const doReverse = useServerFn(reverseGeocode);
+  const [resolving, setResolving] = React.useState(false);
+  const reverseSeq = React.useRef(0);
+
+  /**
+   * A hand-placed point must never keep the address of the previous pick —
+   * drop the label immediately, then ask OSM for the address at the new spot.
+   */
+  const setManualPoint = React.useCallback(
+    (lat: number, lng: number) => {
+      const latitude = round6(lat);
+      const longitude = round6(lng);
+      onChange({ latitude, longitude, accuracy_m: null, label: null, source: "manual" });
+      const seq = ++reverseSeq.current;
+      setResolving(true);
+      void doReverse({ data: { latitude, longitude } })
+        .then((r) => {
+          if (seq !== reverseSeq.current) return;
+          if (r.label) {
+            onChange({ latitude, longitude, accuracy_m: null, label: r.label, source: "manual" });
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (seq === reverseSeq.current) setResolving(false);
+        });
+    },
+    [doReverse, onChange],
+  );
 
   React.useEffect(() => {
     if (value) setOpen(true);
@@ -55,8 +84,21 @@ export function LocationSection({
     setBusy(true);
     const res = await getCurrentLocation();
     setBusy(false);
-    if (res.ok) onChange(res.location);
-    else setErr(res.reason);
+    if (res.ok) {
+      onChange(res.location);
+      const seq = ++reverseSeq.current;
+      setResolving(true);
+      try {
+        const r = await doReverse({
+          data: { latitude: res.location.latitude, longitude: res.location.longitude },
+        });
+        if (seq === reverseSeq.current && r.label) onChange({ ...res.location, label: r.label });
+      } catch {
+        /* label stays empty */
+      } finally {
+        if (seq === reverseSeq.current) setResolving(false);
+      }
+    } else setErr(res.reason);
   };
   const [err, setErr] = React.useState<string | null>(null);
 
@@ -95,28 +137,35 @@ export function LocationSection({
         <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", open && "rotate-180")} />
       </CollapsibleTrigger>
       <CollapsibleContent className="space-y-3 border-t px-3 py-3">
+        <ClientOnly fallback={<div className="h-40 rounded-md bg-muted" />}>
+          <React.Suspense fallback={<div className="h-40 rounded-md bg-muted" />}>
+            <LazyMap
+              latitude={value?.latitude ?? recent?.[0]?.latitude ?? 47.3769}
+              longitude={value?.longitude ?? recent?.[0]?.longitude ?? 8.5417}
+              accuracyM={value?.accuracy_m}
+              hasValue={!!value}
+              draggable
+              markers={(recent ?? []).map((r) => ({
+                latitude: r.latitude,
+                longitude: r.longitude,
+                label: r.label ?? r.description ?? null,
+              }))}
+              onPickMarker={(m) =>
+                onChange({
+                  latitude: m.latitude,
+                  longitude: m.longitude,
+                  accuracy_m: null,
+                  label: m.label ?? null,
+                  source: "manual",
+                })
+              }
+              onChange={setManualPoint}
+              className="h-48 w-full overflow-hidden rounded-md border"
+            />
+          </React.Suspense>
+        </ClientOnly>
         {value ? (
           <>
-            <ClientOnly fallback={<div className="h-40 rounded-md bg-muted" />}>
-              <React.Suspense fallback={<div className="h-40 rounded-md bg-muted" />}>
-                <LazyMap
-                  latitude={value.latitude}
-                  longitude={value.longitude}
-                  accuracyM={value.accuracy_m}
-                  draggable
-                  onChange={(lat, lng) =>
-                    onChange({
-                      ...value,
-                      latitude: round6(lat),
-                      longitude: round6(lng),
-                      accuracy_m: null,
-                      source: "manual",
-                    })
-                  }
-                  className="h-40 w-full overflow-hidden rounded-md border"
-                />
-              </React.Suspense>
-            </ClientOnly>
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <span>{formatCoords(value)}</span>
               {acc ? (
@@ -133,6 +182,15 @@ export function LocationSection({
               >
                 <ExternalLink className="h-3 w-3" /> OSM
               </a>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">{tr("loc.address_label")}</Label>
+              <Input
+                value={value.label ?? ""}
+                onChange={(e) => onChange({ ...value, label: e.target.value || null })}
+                placeholder={resolving ? tr("loc.resolving") : tr("loc.address_ph")}
+              />
+              {resolving ? <p className="text-xs text-muted-foreground">{tr("loc.resolving")}</p> : null}
             </div>
             <p className="text-xs text-muted-foreground">{tr("loc.drag_hint")}</p>
           </>
