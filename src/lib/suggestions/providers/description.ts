@@ -1,4 +1,5 @@
 import type { Suggestion, SuggestionContext, SuggestionProvider } from "../types";
+import { locationFromRow } from "@/lib/location";
 
 export const descriptionProvider: SuggestionProvider = {
   id: "description_match",
@@ -38,6 +39,7 @@ export const descriptionProvider: SuggestionProvider = {
           description: tx.description,
           category_id: tx.category_id,
           source_account_id: tx.source_account_id,
+          location: locationFromRow(tx),
         },
       });
     }

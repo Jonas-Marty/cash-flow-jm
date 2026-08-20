@@ -392,7 +392,7 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
 
   const [appliedFrom, setAppliedFrom] = React.useState<null | {
     suggestion: Suggestion;
-    prev: { amount: string; description: string; note: string; sourceId: string; categoryId: string };
+    prev: { amount: string; description: string; note: string; sourceId: string; categoryId: string; location: TxLocation | null; locationTouched: boolean };
   }>(null);
 
   const isEdit = !!editId;
@@ -693,7 +693,7 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
   });
 
   const applySuggestion = (s: Suggestion, mode: "sticky" | "all") => {
-    const prev = { amount, description, note, sourceId, categoryId };
+    const prev = { amount, description, note, sourceId, categoryId, location, locationTouched: locationTouchedRef.current };
     const d = s.draft;
     const shouldSet = (key: string, val: unknown) => {
       if (val == null || val === "") return false;
@@ -707,6 +707,9 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
     if (d.category_id !== undefined && shouldSet("categoryId", d.category_id)) {
       setCategoryId(d.category_id ?? "");
     }
+    if (d.location && (mode === "all" || !locationTouchedRef.current)) {
+      setLocationManual(d.location);
+    }
     setAppliedFrom({ suggestion: s, prev });
   };
 
@@ -715,6 +718,8 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
     const p = appliedFrom.prev;
     setAmount(p.amount); setDescription(p.description); setNote(p.note);
     setSourceId(p.sourceId); setCategoryId(p.categoryId);
+    setLocation(p.location);
+    locationTouchedRef.current = p.locationTouched;
     setAppliedFrom(null);
   };
 
