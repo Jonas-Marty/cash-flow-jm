@@ -1,4 +1,5 @@
 import type { Suggestion, SuggestionContext, SuggestionProvider } from "../types";
+import { locationFromRow } from "@/lib/location";
 
 export const descriptionProvider: SuggestionProvider = {
   id: "description_match",
