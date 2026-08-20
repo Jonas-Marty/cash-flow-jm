@@ -229,6 +229,17 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
       return out;
     },
   });
+  // Rank reusable locations: same description first, then most recent.
+  const recentLocations = React.useMemo<RecentLocation[]>(() => {
+    const list = recentLocationsQ.data ?? [];
+    const d = description.trim().toLowerCase();
+    if (!d) return list;
+    return [...list].sort((a, b) => {
+      const am = (a.description ?? "").toLowerCase().includes(d) ? 0 : 1;
+      const bm = (b.description ?? "").toLowerCase().includes(d) ? 0 : 1;
+      return am - bm;
+    });
+  }, [recentLocationsQ.data, description]);
 
   // Context-aware chip ordering: once the user picks a type/account/category,
   // the remaining fields re-rank toward what was historically used together.
