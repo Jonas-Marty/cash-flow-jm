@@ -140,6 +140,11 @@ export interface Transaction {
   fee_amount?: number | null;
   fee_transaction_id?: string | null;
   fee_category_id?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  location_accuracy_m?: number | null;
+  location_label?: string | null;
+  location_source?: string | null;
 }
 
 export type PendingTransactionStatus = "pending" | "confirmed" | "rejected";
@@ -322,6 +327,7 @@ export interface Settings {
   theme: "light" | "dark" | "system";
   format_locale: "de" | "en";
   default_sweep_category_id?: string | null;
+  capture_location?: boolean;
 }
 
 export const fmtMoney = (n: number, symbol = "CHF") => {

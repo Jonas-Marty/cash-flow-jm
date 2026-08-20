@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, subMonths, subDays, startOfYear } from "date-fns";
 import {
-  ArrowDown, ArrowUp, ArrowLeftRight, Trash2, ChevronRight, ChevronDown, Layers, X, Pencil, FileText,
+  ArrowDown, ArrowUp, ArrowLeftRight, Trash2, ChevronRight, ChevronDown, Layers, X, Pencil, FileText, MapPin,
 } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
@@ -35,6 +35,8 @@ import { matchesAmount, type AmountOp } from "@/lib/amountFilter";
 import { fetchTransactionLinks, fetchTransactionLinkMembers } from "@/lib/links";
 import { TransactionLinkPicker } from "@/components/TransactionLinkPicker";
 import { TransactionLinkSheet, KIND_ICON } from "@/components/TransactionLinkSheet";
+import { LocationPeekDialog } from "@/components/LocationPeekDialog";
+import { locationFromRow, type TxLocation } from "@/lib/location";
 
 const SORT_VALUES = ["date_desc", "date_asc", "amount_desc", "amount_asc"] as const;
 const OP_VALUES = ["any", "lt", "lte", "eq", "gte", "gt", "around"] as const;
@@ -187,6 +189,7 @@ function TransactionsPage() {
     [linksQ.data],
   );
   const [openLinkId, setOpenLinkId] = React.useState<string | null>(null);
+  const [peekLoc, setPeekLoc] = React.useState<TxLocation | null>(null);
 
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
   const dateFmt = settingsQ.data?.date_format;
@@ -912,6 +915,18 @@ function TransactionsPage() {
                     </button>,
                   );
                   const stmt = stmtRefsQ.data?.get(t.id);
+                  const txLoc = locationFromRow(t as never);
+                  if (txLoc) chips.push(
+                    <button
+                      key="loc"
+                      type="button"
+                      onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); setPeekLoc(txLoc); }}
+                      className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground hover:bg-accent hover:text-foreground"
+                      title={txLoc.label ?? tr("loc.title")}
+                    >
+                      <MapPin className="h-3 w-3" /> {txLoc.label ? txLoc.label.split(",")[0] : tr("loc.title")}
+                    </button>,
+                  );
                   if (stmt) chips.push(
                     <Link
                       key="stmt"
@@ -1011,6 +1026,10 @@ function TransactionsPage() {
         linkId={openLinkId}
         open={openLinkId !== null}
         onOpenChange={(o) => { if (!o) setOpenLinkId(null); }}
+      />
+      <LocationPeekDialog
+        location={peekLoc}
+        onOpenChange={(o) => { if (!o) setPeekLoc(null); }}
       />
     </AppShell>
   );

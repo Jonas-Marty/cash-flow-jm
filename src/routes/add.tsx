@@ -60,6 +60,14 @@ import type { FxRates } from "@/lib/fx";
 import { fetchScopes } from "@/lib/finance";
 import { useActiveScopeId } from "@/lib/activeScope";
 import { Target } from "lucide-react";
+import { LocationSection, type RecentLocation } from "@/components/LocationSection";
+import {
+  getCurrentLocation,
+  isToday as dateIsTodayFn,
+  locationFromRow,
+  locationToColumns,
+  type TxLocation,
+} from "@/lib/location";
 
 export const Route = createFileRoute("/add")({
   component: AddTransactionRoute,
@@ -187,6 +195,51 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
   const [categoryId, setCategoryId] = React.useState<string>("");
   const [description, setDescription] = React.useState("");
   const [note, setNote] = React.useState("");
+
+  // ───────── Location ─────────
+  const [location, setLocation] = React.useState<TxLocation | null>(null);
+  // Set as soon as the user edits the location by hand, so auto-capture and
+  // date changes never overwrite a deliberate choice.
+  const locationTouchedRef = React.useRef(false);
+  const setLocationManual = React.useCallback((loc: TxLocation | null) => {
+    locationTouchedRef.current = true;
+    setLocation(loc);
+  }, []);
+  const recentLocationsQ = useQuery({
+    queryKey: ["transactions", "recent_locations"],
+    queryFn: async (): Promise<RecentLocation[]> => {
+      const { data, error } = await supabase
+        .from("transactions")
+        .select("latitude, longitude, location_accuracy_m, location_label, location_source, description, occurred_on")
+        .not("latitude", "is", null)
+        .order("occurred_on", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      const out: RecentLocation[] = [];
+      const seen = new Set<string>();
+      for (const r of data ?? []) {
+        const loc = locationFromRow(r);
+        if (!loc) continue;
+        const key = `${loc.latitude.toFixed(4)}|${loc.longitude.toFixed(4)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ ...loc, description: r.description ?? null });
+        if (out.length >= 12) break;
+      }
+      return out;
+    },
+  });
+  // Rank reusable locations: same description first, then most recent.
+  const recentLocations = React.useMemo<RecentLocation[]>(() => {
+    const list = recentLocationsQ.data ?? [];
+    const d = description.trim().toLowerCase();
+    if (!d) return list;
+    return [...list].sort((a, b) => {
+      const am = (a.description ?? "").toLowerCase().includes(d) ? 0 : 1;
+      const bm = (b.description ?? "").toLowerCase().includes(d) ? 0 : 1;
+      return am - bm;
+    });
+  }, [recentLocationsQ.data, description]);
 
   // Context-aware chip ordering: once the user picks a type/account/category,
   // the remaining fields re-rank toward what was historically used together.
@@ -411,6 +464,7 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
     setSourceId(tx.source_account_id);
     setDestId(tx.destination_account_id ?? "");
     setDate(new Date(tx.occurred_on + "T00:00:00"));
+    setLocation(locationFromRow(tx));
     if (tx.is_reimbursable) {
       setIsReimbursable(true);
       setReimbCounterparty(tx.reimbursable_counterparty ?? "");
@@ -698,8 +752,30 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
     setExistingFeeTxId(null);
     setScopeSkipped(false);
     linkSelectionsTouchedRef.current = false;
+    setLocation(null);
+    locationTouchedRef.current = false;
+    autoLocRef.current = false;
     setTimeout(() => amountRef.current?.focus(), 0);
   };
+
+  // ───────── Auto-capture (new transactions, today only, opt-in) ─────────
+  const captureEnabled = !!settingsQ.data?.capture_location;
+  const isTodayDate = dateIsTodayFn(date);
+  const autoLocRef = React.useRef(false);
+  React.useEffect(() => {
+    if (isEdit || !captureEnabled || !isTodayDate) return;
+    if (locationTouchedRef.current || autoLocRef.current) return;
+    autoLocRef.current = true;
+    let cancelled = false;
+    void getCurrentLocation().then((res) => {
+      if (cancelled || !res.ok) return;
+      if (locationTouchedRef.current) return;
+      setLocation(res.location);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isEdit, captureEnabled, isTodayDate]);
 
   const save = async (andNew: boolean) => {
     const amt = Number(amount.replace(",", "."));
@@ -794,6 +870,7 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
           is_reimbursable: p.isReimbursable,
           reimbursable_counterparty: p.reimbCounterparty,
           reimbursable_reason: p.reimbReason,
+          ...locationToColumns(location),
         });
 
         const toUpdate: { id: string; row: ReturnType<typeof rowFor> }[] = [];
@@ -882,6 +959,7 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
         is_reimbursable: p.isReimbursable,
         reimbursable_counterparty: p.reimbCounterparty,
         reimbursable_reason: p.reimbReason,
+        ...locationToColumns(location),
       }));
       const { data: insRows, error } = await supabase
         .from("transactions")
@@ -974,6 +1052,7 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
       fee_amount: type === "transfer" && feeAmtNum > 0 ? feeAmtNum : null,
       fee_category_id: type === "transfer" && feeAmtNum > 0 ? feeCategoryId : null,
       fee_transaction_id: type === "transfer" && feeAmtNum > 0 ? feeTxId : null,
+      ...locationToColumns(location),
     };
     const selectedLinks = Object.entries(linkSelections)
       .map(([id, amt2]) => ({ id, amount: Number(amt2) }))
@@ -1986,6 +2065,13 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
             />
           )}
         </div>
+
+        <LocationSection
+          value={location}
+          onChange={setLocationManual}
+          dateIsToday={isTodayDate}
+          recent={recentLocations}
+        />
 
         {/* Live summary: how this transaction will look in the list */}
         <TransactionPreview
