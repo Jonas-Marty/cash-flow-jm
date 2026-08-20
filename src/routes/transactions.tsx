@@ -35,6 +35,8 @@ import { matchesAmount, type AmountOp } from "@/lib/amountFilter";
 import { fetchTransactionLinks, fetchTransactionLinkMembers } from "@/lib/links";
 import { TransactionLinkPicker } from "@/components/TransactionLinkPicker";
 import { TransactionLinkSheet, KIND_ICON } from "@/components/TransactionLinkSheet";
+import { LocationPeekDialog } from "@/components/LocationPeekDialog";
+import { locationFromRow, type TxLocation } from "@/lib/location";
 
 const SORT_VALUES = ["date_desc", "date_asc", "amount_desc", "amount_asc"] as const;
 const OP_VALUES = ["any", "lt", "lte", "eq", "gte", "gt", "around"] as const;
