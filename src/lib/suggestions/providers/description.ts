@@ -39,6 +39,7 @@ export const descriptionProvider: SuggestionProvider = {
           description: tx.description,
           category_id: tx.category_id,
           source_account_id: tx.source_account_id,
+          location: locationFromRow(tx),
         },
       });
     }
