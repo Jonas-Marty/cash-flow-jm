@@ -82,3 +82,23 @@ export interface AIEndpointHealth {
   /** ISO timestamp of the check (server clock). */
   checked_at?: string;
 }
+
+/** Marker prefix for "explicitly selected connection is offline" errors. */
+export const AI_ENDPOINT_OFFLINE_PREFIX = "AI_ENDPOINT_OFFLINE:";
+
+export interface AIEndpointOfflinePayload {
+  endpoint: { id: string; name: string; model: string };
+  error: string;
+  alternatives: { id: string; name: string; model: string; available: boolean }[];
+}
+
+/** Parse an error message thrown when the chosen connection was unreachable. */
+export function parseEndpointOffline(message: string): AIEndpointOfflinePayload | null {
+  const i = message.indexOf(AI_ENDPOINT_OFFLINE_PREFIX);
+  if (i < 0) return null;
+  try {
+    return JSON.parse(message.slice(i + AI_ENDPOINT_OFFLINE_PREFIX.length)) as AIEndpointOfflinePayload;
+  } catch {
+    return null;
+  }
+}

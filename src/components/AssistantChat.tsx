@@ -16,7 +16,17 @@ import { getNextcloudStatus, downloadNextcloudFile } from "@/utils/nextcloud.fun
 import { NextcloudFilePicker } from "@/components/NextcloudFilePicker";
 import { fetchAccounts } from "@/lib/finance";
 import { getChatDraft, setChatDraft, resetChatDraft } from "@/lib/ai/chatDraft";
-import type { AssistantAction, ChatMessage } from "@/lib/ai/types";
+import type { AssistantAction, ChatMessage, AIEndpointOfflinePayload } from "@/lib/ai/types";
+import { parseEndpointOffline } from "@/lib/ai/types";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
 import { useI18n } from "@/i18n";
 
 type LocalMsg = {
@@ -109,6 +119,18 @@ export function AssistantChat({
   const [recording, setRecording] = React.useState(false);
   const [elapsed, setElapsed] = React.useState(0);
   const [transcribing, setTranscribing] = React.useState(false);
+  const [offline, setOffline] = React.useState<{
+    payload: AIEndpointOfflinePayload;
+    retry: (id: string) => void;
+  } | null>(null);
+  const [retryId, setRetryId] = React.useState<string>("");
+
+  React.useEffect(() => {
+    if (!offline) return;
+    const first = offline.payload.alternatives.find((a) => a.available) ?? offline.payload.alternatives[0];
+    setRetryId(first?.id ?? "");
+  }, [offline]);
+
 
   const pickFromNextcloud = React.useCallback(
     async (picked: { name: string; path: string }) => {
@@ -256,11 +278,12 @@ export function AssistantChat({
   }, [recording, elapsed, stopRecording]);
   React.useEffect(() => () => recorderRef.current?.cancel(), []);
 
-  const analyseFile = async (f: File) => {
+  const analyseFile = async (f: File, overrideEndpointId?: string) => {
     if (!accountId) {
       toast.error(t("statements.err.no_account"));
       return;
     }
+    const useId = overrideEndpointId ?? (endpointId === "auto" ? null : endpointId);
     setMessages((prev) => [...prev, { role: "user", text: `📎 ${f.name}` }]);
     setFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
@@ -273,7 +296,7 @@ export function AssistantChat({
           file_name: f.name,
           file_base64: base64,
           file_type: f.type || null,
-          endpoint_id: endpointId === "auto" ? null : endpointId,
+          endpoint_id: useId,
         },
       });
       const detail = await importFn({ data: { id: import_id } });
@@ -289,14 +312,21 @@ export function AssistantChat({
       setMessages((prev) => [...prev, { role: "assistant", text, importId: import_id }]);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setMessages((prev) => [...prev, { role: "assistant", text: `⚠️ ${msg}` }]);
+      const offline = parseEndpointOffline(msg);
+      if (offline) {
+        setOffline({ payload: offline, retry: (id) => void analyseFile(f, id) });
+        setMessages((prev) => prev.slice(0, -1));
+        setFile(f);
+      } else {
+        setMessages((prev) => [...prev, { role: "assistant", text: `⚠️ ${msg}` }]);
+      }
     } finally {
       setBusy(false);
     }
   };
 
-  const send = async (text: string) => {
-    if (file) {
+  const send = async (text: string, overrideEndpointId?: string) => {
+    if (file && !overrideEndpointId) {
       const f = file;
       void analyseFile(f);
       return;
@@ -315,7 +345,7 @@ export function AssistantChat({
           conversation_id: conversationId ?? null,
           message: text,
           persist,
-          endpoint_id: endpointId === "auto" ? null : endpointId,
+          endpoint_id: overrideEndpointId ?? (endpointId === "auto" ? null : endpointId),
         },
       });
       setMessages((prev) => [
@@ -326,11 +356,19 @@ export function AssistantChat({
       if (r.conversation_id && r.conversation_id !== conversationId) onConversationChange?.(r.conversation_id);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
-      setMessages((prev) => [...prev, { role: "assistant", text: `⚠️ ${msg}` }]);
+      const offline = parseEndpointOffline(msg);
+      if (offline) {
+        // Drop the echoed user message; it is re-sent after the user picks.
+        setMessages((prev) => prev.slice(0, -1));
+        setOffline({ payload: offline, retry: (id) => void send(text, id) });
+      } else {
+        setMessages((prev) => [...prev, { role: "assistant", text: `⚠️ ${msg}` }]);
+      }
     } finally {
       setBusy(false);
     }
   };
+
 
   const runAction = (action: AssistantAction) => {
     if (action.kind === "open_add") {
@@ -603,6 +641,49 @@ export function AssistantChat({
           onPick={(f) => void pickFromNextcloud(f)}
         />
       )}
+      <Dialog open={!!offline} onOpenChange={(o) => !o && setOffline(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("ai.conn.offline_title")}</DialogTitle>
+            <DialogDescription>
+              {t("ai.conn.offline_body", { name: offline?.payload.endpoint.name ?? "" })}
+            </DialogDescription>
+          </DialogHeader>
+          {offline?.payload.error && (
+            <p className="text-xs text-muted-foreground break-words">{offline.payload.error}</p>
+          )}
+          <Select value={retryId} onValueChange={setRetryId}>
+            <SelectTrigger className="h-9 text-xs">
+              <SelectValue placeholder={t("ai.conn.offline_pick")} />
+            </SelectTrigger>
+            <SelectContent>
+              {(offline?.payload.alternatives ?? []).map((a) => (
+                <SelectItem key={a.id} value={a.id} disabled={!a.available}>
+                  {a.name} · {a.model} {a.available ? "" : `· ${t("ai.conn.offline")}`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOffline(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              disabled={!retryId || !(offline?.payload.alternatives.find((a) => a.id === retryId)?.available ?? false)}
+              onClick={() => {
+                const target = offline;
+                const id = retryId;
+                setOffline(null);
+                setEndpointId(id);
+                target?.retry(id);
+              }}
+            >
+              {t("ai.conn.offline_retry")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+
   );
 }
