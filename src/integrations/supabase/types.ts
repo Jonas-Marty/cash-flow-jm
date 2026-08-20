@@ -973,6 +973,7 @@ export type Database = {
       settings: {
         Row: {
           active_scope_id: string | null
+          capture_location: boolean
           created_at: string
           currency_code: string
           currency_symbol: string
@@ -990,6 +991,7 @@ export type Database = {
         }
         Insert: {
           active_scope_id?: string | null
+          capture_location?: boolean
           created_at?: string
           currency_code?: string
           currency_symbol?: string
@@ -1007,6 +1009,7 @@ export type Database = {
         }
         Update: {
           active_scope_id?: string | null
+          capture_location?: boolean
           created_at?: string
           currency_code?: string
           currency_symbol?: string
@@ -1382,6 +1385,11 @@ export type Database = {
           fee_transaction_id: string | null
           id: string
           is_reimbursable: boolean
+          latitude: number | null
+          location_accuracy_m: number | null
+          location_label: string | null
+          location_source: string | null
+          longitude: number | null
           note: string | null
           occurred_on: string
           recurring_rule_id: string | null
@@ -1409,6 +1417,11 @@ export type Database = {
           fee_transaction_id?: string | null
           id?: string
           is_reimbursable?: boolean
+          latitude?: number | null
+          location_accuracy_m?: number | null
+          location_label?: string | null
+          location_source?: string | null
+          longitude?: number | null
           note?: string | null
           occurred_on?: string
           recurring_rule_id?: string | null
@@ -1436,6 +1449,11 @@ export type Database = {
           fee_transaction_id?: string | null
           id?: string
           is_reimbursable?: boolean
+          latitude?: number | null
+          location_accuracy_m?: number | null
+          location_label?: string | null
+          location_source?: string | null
+          longitude?: number | null
           note?: string | null
           occurred_on?: string
           recurring_rule_id?: string | null
