@@ -60,6 +60,14 @@ import type { FxRates } from "@/lib/fx";
 import { fetchScopes } from "@/lib/finance";
 import { useActiveScopeId } from "@/lib/activeScope";
 import { Target } from "lucide-react";
+import { LocationSection, type RecentLocation } from "@/components/LocationSection";
+import {
+  getCurrentLocation,
+  isToday as dateIsTodayFn,
+  locationFromRow,
+  locationToColumns,
+  type TxLocation,
+} from "@/lib/location";
 
 export const Route = createFileRoute("/add")({
   component: AddTransactionRoute,
@@ -187,6 +195,40 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
   const [categoryId, setCategoryId] = React.useState<string>("");
   const [description, setDescription] = React.useState("");
   const [note, setNote] = React.useState("");
+
+  // ───────── Location ─────────
+  const [location, setLocation] = React.useState<TxLocation | null>(null);
+  // Set as soon as the user edits the location by hand, so auto-capture and
+  // date changes never overwrite a deliberate choice.
+  const locationTouchedRef = React.useRef(false);
+  const setLocationManual = React.useCallback((loc: TxLocation | null) => {
+    locationTouchedRef.current = true;
+    setLocation(loc);
+  }, []);
+  const recentLocationsQ = useQuery({
+    queryKey: ["transactions", "recent_locations"],
+    queryFn: async (): Promise<RecentLocation[]> => {
+      const { data, error } = await supabase
+        .from("transactions")
+        .select("latitude, longitude, location_accuracy_m, location_label, location_source, description, occurred_on")
+        .not("latitude", "is", null)
+        .order("occurred_on", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      const out: RecentLocation[] = [];
+      const seen = new Set<string>();
+      for (const r of data ?? []) {
+        const loc = locationFromRow(r);
+        if (!loc) continue;
+        const key = `${loc.latitude.toFixed(4)}|${loc.longitude.toFixed(4)}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ ...loc, description: r.description ?? null });
+        if (out.length >= 12) break;
+      }
+      return out;
+    },
+  });
 
   // Context-aware chip ordering: once the user picks a type/account/category,
   // the remaining fields re-rank toward what was historically used together.
