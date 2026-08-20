@@ -1,4 +1,5 @@
 import type { Transaction, Account, Category, TxType } from "@/lib/finance";
+import type { TxLocation } from "@/lib/location";
 
 export type TransactionDraft = {
   type?: TxType;
@@ -9,6 +10,7 @@ export type TransactionDraft = {
   description?: string | null;
   note?: string | null;
   occurred_on?: string;
+  location?: TxLocation | null;
 };
 
 export type SuggestionContext = {
