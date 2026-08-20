@@ -392,7 +392,7 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
 
   const [appliedFrom, setAppliedFrom] = React.useState<null | {
     suggestion: Suggestion;
-    prev: { amount: string; description: string; note: string; sourceId: string; categoryId: string };
+    prev: { amount: string; description: string; note: string; sourceId: string; categoryId: string; location: TxLocation | null; locationTouched: boolean };
   }>(null);
 
   const isEdit = !!editId;
