@@ -88,3 +88,67 @@ export const searchPlaces = createServerFn({ method: "POST" })
       return { results: [], error: e instanceof Error ? e.message : "Search unavailable" };
     }
   });
+
+/**
+ * Reverse geocoding: turn coordinates into a human readable address.
+ * Nominatim first, Photon as fallback (both OSM data, no key required).
+ */
+export const reverseGeocode = createServerFn({ method: "POST" })
+  .middleware([attachSupabaseAuth, requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        latitude: z.number().min(-90).max(90),
+        longitude: z.number().min(-180).max(180),
+        lang: z.string().trim().max(10).optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data }) => {
+    const lang = data.lang || "de,en";
+
+    try {
+      const url = new URL("https://nominatim.openstreetmap.org/reverse");
+      url.searchParams.set("lat", String(data.latitude));
+      url.searchParams.set("lon", String(data.longitude));
+      url.searchParams.set("format", "jsonv2");
+      url.searchParams.set("zoom", "18");
+      const res = await fetch(url.toString(), {
+        headers: {
+          "User-Agent": "CashflowApp/1.0 (transaction location picker)",
+          "Accept-Language": lang,
+          Accept: "application/json",
+        },
+      });
+      if (res.ok) {
+        const json = (await res.json()) as { display_name?: unknown };
+        if (typeof json.display_name === "string" && json.display_name.length > 0) {
+          return { label: json.display_name, error: null };
+        }
+      }
+    } catch {
+      /* fall through to Photon */
+    }
+
+    try {
+      const url = new URL("https://photon.komoot.io/reverse");
+      url.searchParams.set("lat", String(data.latitude));
+      url.searchParams.set("lon", String(data.longitude));
+      url.searchParams.set("limit", "1");
+      const res = await fetch(url.toString(), {
+        headers: { "User-Agent": "CashflowApp/1.0", Accept: "application/json" },
+      });
+      if (!res.ok) return { label: null, error: `Lookup unavailable (${res.status})` };
+      const json = (await res.json()) as { features?: unknown };
+      const feats = Array.isArray(json.features) ? json.features : [];
+      const first = feats[0] as { properties?: Record<string, unknown> } | undefined;
+      const p = first?.properties ?? {};
+      const parts = [p.name, p.street, p.housenumber, p.postcode, p.city, p.state, p.country].filter(
+        (x): x is string => typeof x === "string" && x.length > 0,
+      );
+      const label = parts.join(", ");
+      return { label: label || null, error: label ? null : "No address found" };
+    } catch (e) {
+      return { label: null, error: e instanceof Error ? e.message : "Lookup unavailable" };
+    }
+  });
