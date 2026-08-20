@@ -206,11 +206,24 @@ export function LocationSection({
             </div>
             <div className="space-y-1">
               <Label className="text-xs">{tr("loc.address_label")}</Label>
-              <Input
-                value={value.label ?? ""}
-                onChange={(e) => onChange({ ...value, label: e.target.value || null })}
-                placeholder={resolving ? tr("loc.resolving") : tr("loc.address_ph")}
-              />
+              <div className="relative">
+                <Input
+                  value={value.label ?? ""}
+                  onChange={(e) => onChange({ ...value, label: e.target.value || null })}
+                  placeholder={resolving ? tr("loc.resolving") : tr("loc.address_ph")}
+                  className="pr-9"
+                />
+                {value.label ? (
+                  <button
+                    type="button"
+                    onClick={() => onChange({ ...value, label: null })}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    aria-label={tr("loc.clear_label")}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                ) : null}
+              </div>
               {resolving ? <p className="text-xs text-muted-foreground">{tr("loc.resolving")}</p> : null}
             </div>
             <p className="text-xs text-muted-foreground">{tr("loc.drag_hint")}</p>

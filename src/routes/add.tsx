@@ -783,6 +783,7 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
     if (!sourceId) { toast.error(tr("toast.account_required")); return; }
     if (type === "transfer" && !destId) { toast.error(tr("toast.dest_required")); return; }
     if (type === "transfer" && destId === sourceId) { toast.error(tr("toast.dest_must_differ")); return; }
+    if (location && !location.label?.trim()) { toast.error(tr("loc.error.label_required")); return; }
 
     // Validate optional transfer fee
     const feeAmtNum =
