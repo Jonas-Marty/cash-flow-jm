@@ -1049,13 +1049,46 @@ function IntegrationsCard() {
               {p.provider === "keycloak" && (
                 <div>
                   <Label className="text-xs">{t("settings.integrations.discovery")}</Label>
-                  <Input
-                    defaultValue={p.discovery_url ?? ""}
-                    onBlur={(e) => e.currentTarget.value !== (p.discovery_url ?? "") && update(p.id, { discovery_url: e.currentTarget.value || null })}
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      value={discoveryDraft[p.id] ?? p.discovery_url ?? ""}
+                      onChange={(e) => setDiscoveryDraft((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                      onBlur={(e) => e.currentTarget.value !== (p.discovery_url ?? "") && update(p.id, { discovery_url: e.currentTarget.value || null })}
+                    />
+                    <Button
+                      variant="outline"
+                      disabled={testing === p.id}
+                      onClick={() => runTest(p.id, discoveryDraft[p.id] ?? p.discovery_url ?? "")}
+                    >
+                      {testing === p.id ? "…" : t("settings.integrations.test")}
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
+            {p.provider === "keycloak" && testResult[p.id] && (
+              <div
+                className={`rounded-md border p-2 text-xs ${testResult[p.id].ok ? "border-success/60 bg-success/10" : "border-destructive/60 bg-destructive/10"}`}
+              >
+                {testResult[p.id].ok ? (
+                  <div className="space-y-0.5">
+                    <div className="font-medium">
+                      {t("settings.integrations.test.ok")} ({testResult[p.id].durationMs} ms)
+                    </div>
+                    <div className="break-all text-muted-foreground">
+                      issuer: {testResult[p.id].issuer}
+                    </div>
+                    <div className="break-all text-muted-foreground">
+                      authorize: {testResult[p.id].authorizationEndpoint}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    {t("settings.integrations.test.failed")}: {testResult[p.id].error}
+                  </div>
+                )}
+              </div>
+            )}
             {callbackUrl && (
               <p className="text-xs text-muted-foreground">
                 {t("settings.integrations.redirect_uri_hint", { uri: callbackUrl })}
