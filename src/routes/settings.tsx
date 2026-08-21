@@ -37,6 +37,8 @@ import { SettingsSectionNav, type SettingsSection } from "@/components/SettingsS
 import { formatVersion } from "@/lib/version";
 import { AISettingsCard } from "@/components/AISettingsCard";
 import { AIAuditLogCard } from "@/components/AIAuditLogCard";
+import { LinkedAccountsCard } from "@/components/LinkedAccountsCard";
+import { testOidcDiscovery, type OidcTestResult } from "@/utils/oidc.functions";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
