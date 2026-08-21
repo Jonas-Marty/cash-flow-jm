@@ -1032,13 +1032,22 @@ function IntegrationsCard() {
         {(providersQ.data ?? []).map((p) => (
           <div key={p.id} className="space-y-2 rounded-md border p-3">
             <div className="flex items-center justify-between">
-              <div className="font-medium">{p.display_name ?? p.provider}</div>
+              <div className="font-medium">{providerLabel(p.provider, p.display_name)}</div>
               <div className="flex items-center gap-2">
                 <Label htmlFor={`en-${p.id}`} className="text-xs">{t("settings.integrations.enabled")}</Label>
                 <Switch id={`en-${p.id}`} checked={p.enabled} onCheckedChange={(v) => update(p.id, { enabled: v })} />
               </div>
             </div>
             <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+              <div>
+                <Label className="text-xs">{t("settings.integrations.display_name")}</Label>
+                <Input
+                  defaultValue={p.display_name ?? ""}
+                  placeholder={providerLabel(p.provider, null)}
+                  onBlur={(e) => e.currentTarget.value !== (p.display_name ?? "") && update(p.id, { display_name: e.currentTarget.value.trim() || null })}
+                />
+                <p className="mt-1 text-xs text-muted-foreground">{t("settings.integrations.display_name_hint")}</p>
+              </div>
               <div>
                 <Label className="text-xs">{t("settings.integrations.client_id")}</Label>
                 <Input
