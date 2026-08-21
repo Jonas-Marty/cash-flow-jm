@@ -424,8 +424,12 @@ const EN: Content = {
           a: "Enter the **discovery URL** (`…/.well-known/openid-configuration`) in Settings → Integrations and press **Test**. It fetches the document server-side and shows the issuer and authorize endpoint plus the round-trip time. A failing test means the URL, TLS or network path is wrong — it does *not* validate the client secret; that only shows up on a real sign-in attempt (`invalid_client`).",
         },
         {
+          q: "Linking fails with “manual_linking_disabled”",
+          a: "Manual identity linking is **off by default** in the auth backend. Enable it and restart the auth container:\n\n```bash\nGOTRUE_SECURITY_MANUAL_LINKING_ENABLED=true\n```\n\nUntil that variable is set, the *Link* buttons under Settings → Linked accounts and the post-login prompt return `manual_linking_disabled`. This is independent of the OIDC test, which only checks the discovery document.",
+        },
+        {
           q: "Existing account with the same e-mail",
-          a: "Signing in via OIDC with an e-mail that already has a password account does **not** create a second account when you confirm the linking prompt. You can also link and unlink methods any time under Settings → Linked accounts.",
+          a: "Signing in via OIDC with an e-mail that already has a password account does **not** create a second account when you confirm the linking prompt. You can also link and unlink methods any time under Settings → Linked accounts (requires manual linking enabled, see above).",
         },
       ],
     },
