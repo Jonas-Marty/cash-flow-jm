@@ -348,6 +348,7 @@ function SettingsPage() {
             { id: "ai", label: tr("ai.settings.title") },
             { id: "ai-audit", label: tr("ai.audit.title") },
             { id: "integrations", label: tr("settings.integrations") },
+            { id: "linked", label: tr("linked.title") },
             { id: "audit", label: tr("audit.title") },
             { id: "account", label: tr("settings.account") },
             { id: "about", label: tr("settings.about") },
