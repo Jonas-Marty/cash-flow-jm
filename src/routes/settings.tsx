@@ -1089,6 +1089,7 @@ function IntegrationsCard() {
                 )}
               </div>
             )}
+            <p className="text-xs text-muted-foreground">{t("settings.integrations.secret_hint")}</p>
             {callbackUrl && (
               <p className="text-xs text-muted-foreground">
                 {t("settings.integrations.redirect_uri_hint", { uri: callbackUrl })}
