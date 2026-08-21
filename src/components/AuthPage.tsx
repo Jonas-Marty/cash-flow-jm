@@ -61,9 +61,14 @@ export function AuthPage() {
     toast.success(t("auth.check_email"));
   };
 
-  const onOAuth = async (provider: "google") => {
+  const onOAuth = async (provider: string) => {
+    const mapped = toSupabaseProvider(provider);
+    if (!mapped) {
+      toast.error(t("auth.provider_not_wired"));
+      return;
+    }
     const { error } = await supabase.auth.signInWithOAuth({
-      provider,
+      provider: mapped,
       options: { redirectTo: window.location.origin },
     });
     if (error) toast.error(error.message);
