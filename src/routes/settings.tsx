@@ -30,6 +30,7 @@ import { BudgetBalanceCard } from "@/components/BudgetBalanceCard";
 import { SavingsAndSweepsCard } from "@/components/SavingsAndSweepsCard";
 import { fmtMoney } from "@/lib/finance";
 import { useAuth, useIsAdmin } from "@/lib/auth";
+import { providerLabel } from "@/lib/authProviders";
 import { Switch } from "@/components/ui/switch";
 import { useQuery as useRQ } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
