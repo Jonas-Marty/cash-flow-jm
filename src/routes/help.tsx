@@ -725,8 +725,12 @@ const DE: Content = {
           a: "Trage die **Discovery-URL** (`…/.well-known/openid-configuration`) unter Einstellungen → Integrationen ein und klicke **Test**. Das Dokument wird serverseitig geladen und Issuer, Authorize-Endpoint und Laufzeit werden angezeigt. Ein Fehler bedeutet falsche URL, TLS- oder Netzwerkprobleme — das Client Secret wird dabei *nicht* geprüft, ein falsches Secret zeigt sich erst beim echten Login (`invalid_client`).",
         },
         {
+          q: "Verknüpfen schlägt mit „manual_linking_disabled“ fehl",
+          a: "Manuelles Identity-Linking ist im Auth-Backend **standardmässig deaktiviert**. Aktiviere es und starte den Auth-Container neu:\n\n```bash\nGOTRUE_SECURITY_MANUAL_LINKING_ENABLED=true\n```\n\nSolange die Variable fehlt, liefern die *Verknüpfen*-Buttons unter Einstellungen → Verknüpfte Konten und der Hinweis nach dem Login `manual_linking_disabled`. Das hat nichts mit dem OIDC-Test zu tun, der nur das Discovery-Dokument prüft.",
+        },
+        {
           q: "Bestehendes Konto mit gleicher E-Mail",
-          a: "Meldest du dich per OIDC mit einer E-Mail an, die bereits ein Passwort-Konto hat, entsteht kein zweites Konto, sofern du die Verknüpfung bestätigst. Methoden lassen sich jederzeit unter Einstellungen → Verknüpfte Konten verbinden und trennen.",
+          a: "Meldest du dich per OIDC mit einer E-Mail an, die bereits ein Passwort-Konto hat, entsteht kein zweites Konto, sofern du die Verknüpfung bestätigst. Methoden lassen sich jederzeit unter Einstellungen → Verknüpfte Konten verbinden und trennen (setzt aktiviertes manuelles Linking voraus, siehe oben).",
         },
       ],
     },
