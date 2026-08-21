@@ -149,11 +149,11 @@ export function AuthPage() {
                   type="button"
                   variant="outline"
                   className="w-full"
-                  onClick={() => p.provider === "google" && onOAuth("google")}
-                  disabled={p.provider !== "google"}
-                  title={p.provider !== "google" ? t("auth.provider_not_wired") : undefined}
+                  onClick={() => onOAuth(p.provider)}
+                  disabled={!toSupabaseProvider(p.provider)}
+                  title={!toSupabaseProvider(p.provider) ? t("auth.provider_not_wired") : undefined}
                 >
-                  {t("auth.continue_with", { p: p.display_name ?? p.provider })}
+                  {t("auth.continue_with", { p: providerLabel(p.provider, p.display_name) })}
                 </Button>
               ))}
             </div>
