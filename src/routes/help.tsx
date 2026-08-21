@@ -12,7 +12,7 @@ import { useI18n, type Lang } from "@/i18n";
 import {
   BookOpen, Compass, LayoutDashboard, ListOrdered, Plus, PiggyBank,
   LineChart, Inbox, Scale, Settings as SettingsIcon, Users, HelpCircle,
-  Sparkles, Search, Shield, Github, Webhook, Link2, FileText,
+  Sparkles, Search, Shield, Github, Webhook, Link2, FileText, KeyRound,
 } from "lucide-react";
 export const Route = createFileRoute("/help")({
   head: () => ({
@@ -404,7 +404,33 @@ const EN: Content = {
         },
       ],
     },
+    {
+      id: "oidc",
+      icon: KeyRound,
+      title: "Generic OIDC sign-in",
+      intro:
+        "Settings → Integrations configures the OIDC provider (Authentik, Keycloak, Zitadel, …) that users can sign in with. Only non-secret values live in the app database; the client secret always belongs in the auth backend's environment.",
+      items: [
+        {
+          q: "Public client or confidential client?",
+          a: "Both work — pick one and stay consistent:\n\n**Public client** (no secret)\n- In your IdP: create the app as a *public* client with PKCE.\n- Redirect URI: the callback URL shown in Settings → Integrations.\n- Auth backend: set the issuer/discovery URL and client ID, **leave the secret env var unset**.\n\n**Confidential client** (with secret)\n- In your IdP: create the app as a *confidential* client and copy the generated secret.\n- Auth backend: set the secret env var **in addition** to issuer and client ID.\n- Never paste the secret into the app's Settings screen — that table is readable by every signed-in user.",
+        },
+        {
+          q: "Which environment variables do I set?",
+          a: "The self-hosted auth backend (GoTrue/Supabase Auth) keys its variables by the *provider id*, and the generic OIDC provider is registered under the id `keycloak`. That id is fixed by the auth backend, so the variable names cannot be renamed — only the label in this app says “Generic OIDC”.\n\n```bash\nGOTRUE_EXTERNAL_KEYCLOAK_ENABLED=true\nGOTRUE_EXTERNAL_KEYCLOAK_URL=https://auth.example.com/application/o/cashflow/\nGOTRUE_EXTERNAL_KEYCLOAK_CLIENT_ID=cashflow\nGOTRUE_EXTERNAL_KEYCLOAK_REDIRECT_URI=https://<supabase-host>/auth/v1/callback\n# only for a confidential client:\nGOTRUE_EXTERNAL_KEYCLOAK_SECRET=<client secret>\n```\n\nWith a public client simply omit the last line. Restart the auth container after changing the variables.",
+        },
+        {
+          q: "How do I verify the setup?",
+          a: "Enter the **discovery URL** (`…/.well-known/openid-configuration`) in Settings → Integrations and press **Test**. It fetches the document server-side and shows the issuer and authorize endpoint plus the round-trip time. A failing test means the URL, TLS or network path is wrong — it does *not* validate the client secret; that only shows up on a real sign-in attempt (`invalid_client`).",
+        },
+        {
+          q: "Existing account with the same e-mail",
+          a: "Signing in via OIDC with an e-mail that already has a password account does **not** create a second account when you confirm the linking prompt. You can also link and unlink methods any time under Settings → Linked accounts.",
+        },
+      ],
+    },
   ],
+
 };
 
 const DE: Content = {
@@ -675,7 +701,33 @@ const DE: Content = {
         },
       ],
     },
+    {
+      id: "oidc",
+      icon: KeyRound,
+      title: "Generic-OIDC-Anmeldung",
+      intro:
+        "Unter Einstellungen → Integrationen konfigurierst du den OIDC-Provider (Authentik, Keycloak, Zitadel, …), mit dem sich Nutzer anmelden können. In der App-Datenbank stehen nur nicht-geheime Werte; das Client Secret gehört immer in die Umgebung des Auth-Backends.",
+      items: [
+        {
+          q: "Public Client oder Confidential Client?",
+          a: "Beides funktioniert — entscheide dich für eine Variante:\n\n**Public Client** (ohne Secret)\n- Im IdP: App als *public* Client mit PKCE anlegen.\n- Redirect-URI: die Callback-URL aus Einstellungen → Integrationen.\n- Auth-Backend: Issuer/Discovery-URL und Client-ID setzen, die **Secret-Variable weglassen**.\n\n**Confidential Client** (mit Secret)\n- Im IdP: App als *confidential* Client anlegen und das Secret kopieren.\n- Auth-Backend: die Secret-Variable **zusätzlich** setzen.\n- Das Secret niemals in die App-Einstellungen eintragen — diese Tabelle ist für alle angemeldeten Nutzer lesbar.",
+        },
+        {
+          q: "Welche Umgebungsvariablen brauche ich?",
+          a: "Das selbst gehostete Auth-Backend (GoTrue/Supabase Auth) benennt seine Variablen nach der *Provider-ID*, und der generische OIDC-Provider ist dort unter der ID `keycloak` registriert. Diese ID gibt das Auth-Backend vor, die Variablennamen lassen sich also nicht umbenennen — nur die Beschriftung in dieser App heisst „Generic OIDC“.\n\n```bash\nGOTRUE_EXTERNAL_KEYCLOAK_ENABLED=true\nGOTRUE_EXTERNAL_KEYCLOAK_URL=https://auth.example.com/application/o/cashflow/\nGOTRUE_EXTERNAL_KEYCLOAK_CLIENT_ID=cashflow\nGOTRUE_EXTERNAL_KEYCLOAK_REDIRECT_URI=https://<supabase-host>/auth/v1/callback\n# nur bei Confidential Client:\nGOTRUE_EXTERNAL_KEYCLOAK_SECRET=<client secret>\n```\n\nBei einem Public Client lässt du die letzte Zeile einfach weg. Nach Änderungen den Auth-Container neu starten.",
+        },
+        {
+          q: "Wie prüfe ich die Konfiguration?",
+          a: "Trage die **Discovery-URL** (`…/.well-known/openid-configuration`) unter Einstellungen → Integrationen ein und klicke **Test**. Das Dokument wird serverseitig geladen und Issuer, Authorize-Endpoint und Laufzeit werden angezeigt. Ein Fehler bedeutet falsche URL, TLS- oder Netzwerkprobleme — das Client Secret wird dabei *nicht* geprüft, ein falsches Secret zeigt sich erst beim echten Login (`invalid_client`).",
+        },
+        {
+          q: "Bestehendes Konto mit gleicher E-Mail",
+          a: "Meldest du dich per OIDC mit einer E-Mail an, die bereits ein Passwort-Konto hat, entsteht kein zweites Konto, sofern du die Verknüpfung bestätigst. Methoden lassen sich jederzeit unter Einstellungen → Verknüpfte Konten verbinden und trennen.",
+        },
+      ],
+    },
   ],
+
 };
 
 const CONTENT: Record<Lang, Content> = { en: EN, de: DE };
