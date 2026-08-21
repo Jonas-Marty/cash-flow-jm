@@ -37,6 +37,8 @@ import { SettingsSectionNav, type SettingsSection } from "@/components/SettingsS
 import { formatVersion } from "@/lib/version";
 import { AISettingsCard } from "@/components/AISettingsCard";
 import { AIAuditLogCard } from "@/components/AIAuditLogCard";
+import { LinkedAccountsCard } from "@/components/LinkedAccountsCard";
+import { testOidcDiscovery, type OidcTestResult } from "@/utils/oidc.functions";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -348,6 +350,7 @@ function SettingsPage() {
             { id: "ai", label: tr("ai.settings.title") },
             { id: "ai-audit", label: tr("ai.audit.title") },
             { id: "integrations", label: tr("settings.integrations") },
+            { id: "linked", label: tr("linked.title") },
             { id: "audit", label: tr("audit.title") },
             { id: "account", label: tr("settings.account") },
             { id: "about", label: tr("settings.about") },
@@ -878,6 +881,7 @@ function SettingsPage() {
        <section id="ai"><AISettingsCard /></section>
         <section id="ai-audit"><AIAuditLogCard /></section>
         <section id="integrations"><IntegrationsCard /></section>
+        <section id="linked"><LinkedAccountsCard /></section>
         <section id="audit"><AuditLogCard /></section>
         <section id="account"><AccountCard /></section>
         <section id="about"><AboutCard /></section>
@@ -980,6 +984,26 @@ function IntegrationsCard() {
       return data ?? [];
     },
   });
+  const [discoveryDraft, setDiscoveryDraft] = React.useState<Record<string, string>>({});
+  const [testing, setTesting] = React.useState<string | null>(null);
+  const [testResult, setTestResult] = React.useState<Record<string, OidcTestResult>>({});
+
+  const runTest = async (id: string, url: string) => {
+    if (!url.trim()) { toast.error(t("settings.integrations.test.no_url")); return; }
+    setTesting(id);
+    try {
+      const res = await testOidcDiscovery({ data: { url } });
+      setTestResult((prev) => ({ ...prev, [id]: res }));
+      if (res.ok) toast.success(t("settings.integrations.test.ok"));
+      else toast.error(`${t("settings.integrations.test.failed")}: ${res.error ?? ""}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setTestResult((prev) => ({ ...prev, [id]: { ok: false, durationMs: 0, error: message } }));
+      toast.error(`${t("settings.integrations.test.failed")}: ${message}`);
+    } finally {
+      setTesting(null);
+    }
+  };
 
   if (isAdminQ.isLoading) return null;
   if (!isAdminQ.data) {
@@ -1025,13 +1049,46 @@ function IntegrationsCard() {
               {p.provider === "keycloak" && (
                 <div>
                   <Label className="text-xs">{t("settings.integrations.discovery")}</Label>
-                  <Input
-                    defaultValue={p.discovery_url ?? ""}
-                    onBlur={(e) => e.currentTarget.value !== (p.discovery_url ?? "") && update(p.id, { discovery_url: e.currentTarget.value || null })}
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      value={discoveryDraft[p.id] ?? p.discovery_url ?? ""}
+                      onChange={(e) => setDiscoveryDraft((prev) => ({ ...prev, [p.id]: e.target.value }))}
+                      onBlur={(e) => e.currentTarget.value !== (p.discovery_url ?? "") && update(p.id, { discovery_url: e.currentTarget.value || null })}
+                    />
+                    <Button
+                      variant="outline"
+                      disabled={testing === p.id}
+                      onClick={() => runTest(p.id, discoveryDraft[p.id] ?? p.discovery_url ?? "")}
+                    >
+                      {testing === p.id ? "…" : t("settings.integrations.test")}
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>
+            {p.provider === "keycloak" && testResult[p.id] && (
+              <div
+                className={`rounded-md border p-2 text-xs ${testResult[p.id].ok ? "border-success/60 bg-success/10" : "border-destructive/60 bg-destructive/10"}`}
+              >
+                {testResult[p.id].ok ? (
+                  <div className="space-y-0.5">
+                    <div className="font-medium">
+                      {t("settings.integrations.test.ok")} ({testResult[p.id].durationMs} ms)
+                    </div>
+                    <div className="break-all text-muted-foreground">
+                      issuer: {testResult[p.id].issuer}
+                    </div>
+                    <div className="break-all text-muted-foreground">
+                      authorize: {testResult[p.id].authorizationEndpoint}
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    {t("settings.integrations.test.failed")}: {testResult[p.id].error}
+                  </div>
+                )}
+              </div>
+            )}
             {callbackUrl && (
               <p className="text-xs text-muted-foreground">
                 {t("settings.integrations.redirect_uri_hint", { uri: callbackUrl })}

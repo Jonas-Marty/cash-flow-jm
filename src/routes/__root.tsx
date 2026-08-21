@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { AuthPage } from "@/components/AuthPage";
 import { ThemeApplier, type ThemeMode } from "@/lib/theme";
+import { LinkIdentityPrompt } from "@/components/LinkIdentityPrompt";
 
 import appCss from "../styles.css?url";
 
@@ -117,6 +118,7 @@ function I18nGate({ children }: { children: React.ReactNode }) {
     <I18nProvider lang={lang} setLang={setLang}>
       <ThemeApplier mode={theme} />
       {children}
+      <LinkIdentityPrompt />
     </I18nProvider>
   );
 }
