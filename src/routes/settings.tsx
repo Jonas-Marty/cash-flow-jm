@@ -984,6 +984,26 @@ function IntegrationsCard() {
       return data ?? [];
     },
   });
+  const [discoveryDraft, setDiscoveryDraft] = React.useState<Record<string, string>>({});
+  const [testing, setTesting] = React.useState<string | null>(null);
+  const [testResult, setTestResult] = React.useState<Record<string, OidcTestResult>>({});
+
+  const runTest = async (id: string, url: string) => {
+    if (!url.trim()) { toast.error(t("settings.integrations.test.no_url")); return; }
+    setTesting(id);
+    try {
+      const res = await testOidcDiscovery({ data: { url } });
+      setTestResult((prev) => ({ ...prev, [id]: res }));
+      if (res.ok) toast.success(t("settings.integrations.test.ok"));
+      else toast.error(`${t("settings.integrations.test.failed")}: ${res.error ?? ""}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      setTestResult((prev) => ({ ...prev, [id]: { ok: false, durationMs: 0, error: message } }));
+      toast.error(`${t("settings.integrations.test.failed")}: ${message}`);
+    } finally {
+      setTesting(null);
+    }
+  };
 
   if (isAdminQ.isLoading) return null;
   if (!isAdminQ.data) {
