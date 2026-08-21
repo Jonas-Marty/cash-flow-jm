@@ -701,7 +701,33 @@ const DE: Content = {
         },
       ],
     },
+    {
+      id: "oidc",
+      icon: KeyRound,
+      title: "Generic-OIDC-Anmeldung",
+      intro:
+        "Unter Einstellungen → Integrationen konfigurierst du den OIDC-Provider (Authentik, Keycloak, Zitadel, …), mit dem sich Nutzer anmelden können. In der App-Datenbank stehen nur nicht-geheime Werte; das Client Secret gehört immer in die Umgebung des Auth-Backends.",
+      items: [
+        {
+          q: "Public Client oder Confidential Client?",
+          a: "Beides funktioniert — entscheide dich für eine Variante:\n\n**Public Client** (ohne Secret)\n- Im IdP: App als *public* Client mit PKCE anlegen.\n- Redirect-URI: die Callback-URL aus Einstellungen → Integrationen.\n- Auth-Backend: Issuer/Discovery-URL und Client-ID setzen, die **Secret-Variable weglassen**.\n\n**Confidential Client** (mit Secret)\n- Im IdP: App als *confidential* Client anlegen und das Secret kopieren.\n- Auth-Backend: die Secret-Variable **zusätzlich** setzen.\n- Das Secret niemals in die App-Einstellungen eintragen — diese Tabelle ist für alle angemeldeten Nutzer lesbar.",
+        },
+        {
+          q: "Welche Umgebungsvariablen brauche ich?",
+          a: "Das selbst gehostete Auth-Backend (GoTrue/Supabase Auth) benennt seine Variablen nach der *Provider-ID*, und der generische OIDC-Provider ist dort unter der ID `keycloak` registriert. Diese ID gibt das Auth-Backend vor, die Variablennamen lassen sich also nicht umbenennen — nur die Beschriftung in dieser App heisst „Generic OIDC“.\n\n```bash\nGOTRUE_EXTERNAL_KEYCLOAK_ENABLED=true\nGOTRUE_EXTERNAL_KEYCLOAK_URL=https://auth.example.com/application/o/cashflow/\nGOTRUE_EXTERNAL_KEYCLOAK_CLIENT_ID=cashflow\nGOTRUE_EXTERNAL_KEYCLOAK_REDIRECT_URI=https://<supabase-host>/auth/v1/callback\n# nur bei Confidential Client:\nGOTRUE_EXTERNAL_KEYCLOAK_SECRET=<client secret>\n```\n\nBei einem Public Client lässt du die letzte Zeile einfach weg. Nach Änderungen den Auth-Container neu starten.",
+        },
+        {
+          q: "Wie prüfe ich die Konfiguration?",
+          a: "Trage die **Discovery-URL** (`…/.well-known/openid-configuration`) unter Einstellungen → Integrationen ein und klicke **Test**. Das Dokument wird serverseitig geladen und Issuer, Authorize-Endpoint und Laufzeit werden angezeigt. Ein Fehler bedeutet falsche URL, TLS- oder Netzwerkprobleme — das Client Secret wird dabei *nicht* geprüft, ein falsches Secret zeigt sich erst beim echten Login (`invalid_client`).",
+        },
+        {
+          q: "Bestehendes Konto mit gleicher E-Mail",
+          a: "Meldest du dich per OIDC mit einer E-Mail an, die bereits ein Passwort-Konto hat, entsteht kein zweites Konto, sofern du die Verknüpfung bestätigst. Methoden lassen sich jederzeit unter Einstellungen → Verknüpfte Konten verbinden und trennen.",
+        },
+      ],
+    },
   ],
+
 };
 
 const CONTENT: Record<Lang, Content> = { en: EN, de: DE };
