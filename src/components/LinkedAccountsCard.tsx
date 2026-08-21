@@ -64,6 +64,10 @@ export function LinkedAccountsCard() {
       toast.error(t("linked.unsupported"));
       return;
     }
+    if (error && /manual.linking.is.disabled/i.test(error)) {
+      toast.error(t("linked.manual_disabled"));
+      return;
+    }
     if (error) toast.error(`${t("linked.link_failed")}: ${error}`);
   };
 
