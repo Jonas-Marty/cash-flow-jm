@@ -1015,7 +1015,7 @@ function IntegrationsCard() {
     );
   }
 
-  const update = async (id: string, patch: { enabled?: boolean; client_id?: string | null; discovery_url?: string | null }) => {
+  const update = async (id: string, patch: { enabled?: boolean; client_id?: string | null; discovery_url?: string | null; display_name?: string | null }) => {
     const { error } = await supabase.from("auth_providers").update(patch).eq("id", id);
     if (error) { toast.error(error.message); return; }
     qc.invalidateQueries({ queryKey: ["auth_providers_admin"] });
