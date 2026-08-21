@@ -879,6 +879,7 @@ function SettingsPage() {
        <section id="ai"><AISettingsCard /></section>
         <section id="ai-audit"><AIAuditLogCard /></section>
         <section id="integrations"><IntegrationsCard /></section>
+        <section id="linked"><LinkedAccountsCard /></section>
         <section id="audit"><AuditLogCard /></section>
         <section id="account"><AccountCard /></section>
         <section id="about"><AboutCard /></section>
