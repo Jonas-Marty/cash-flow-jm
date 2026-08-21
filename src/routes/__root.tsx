@@ -117,6 +117,7 @@ function I18nGate({ children }: { children: React.ReactNode }) {
     <I18nProvider lang={lang} setLang={setLang}>
       <ThemeApplier mode={theme} />
       {children}
+      <LinkIdentityPrompt />
     </I18nProvider>
   );
 }
