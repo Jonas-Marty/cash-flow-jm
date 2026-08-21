@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/i18n";
+import { toSupabaseProvider, providerLabel } from "@/lib/authProviders";
 
 export function AuthPage() {
   const { t } = useI18n();
