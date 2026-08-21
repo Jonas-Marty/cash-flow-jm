@@ -998,6 +998,9 @@ function IntegrationsCard() {
     qc.invalidateQueries({ queryKey: ["auth_providers_enabled"] });
   };
 
+  const supabaseUrl = (supabase as unknown as { supabaseUrl?: string }).supabaseUrl ?? import.meta.env.VITE_SUPABASE_URL ?? "";
+  const callbackUrl = supabaseUrl ? `${supabaseUrl.replace(/\/$/, "")}/auth/v1/callback` : "";
+
   return (
     <Card>
       <CardHeader><CardTitle className="text-base">{t("settings.integrations")}</CardTitle></CardHeader>
@@ -1029,6 +1032,11 @@ function IntegrationsCard() {
                 </div>
               )}
             </div>
+            {callbackUrl && (
+              <p className="text-xs text-muted-foreground">
+                {t("settings.integrations.redirect_uri_hint", { uri: callbackUrl })}
+              </p>
+            )}
           </div>
         ))}
         <p className="text-xs text-muted-foreground">{t("settings.integrations.hint")}</p>
