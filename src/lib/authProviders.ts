@@ -18,5 +18,16 @@ export function toSupabaseProvider(provider: string): Provider | null {
 }
 
 export function providerLabel(provider: string, displayName?: string | null) {
-  return displayName ?? provider;
+  if (displayName?.trim()) return displayName.trim();
+  switch (provider) {
+    case "keycloak":
+      return "Generic OIDC";
+    case "azure":
+    case "microsoft":
+      return "Microsoft";
+    case "google":
+      return "Google";
+    default:
+      return provider;
+  }
 }

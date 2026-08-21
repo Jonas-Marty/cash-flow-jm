@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/i18n";
+import { toSupabaseProvider, providerLabel } from "@/lib/authProviders";
 
 export function AuthPage() {
   const { t } = useI18n();
@@ -61,9 +62,14 @@ export function AuthPage() {
     toast.success(t("auth.check_email"));
   };
 
-  const onOAuth = async (provider: "google") => {
+  const onOAuth = async (provider: string) => {
+    const mapped = toSupabaseProvider(provider);
+    if (!mapped) {
+      toast.error(t("auth.provider_not_wired"));
+      return;
+    }
     const { error } = await supabase.auth.signInWithOAuth({
-      provider,
+      provider: mapped,
       options: { redirectTo: window.location.origin },
     });
     if (error) toast.error(error.message);
@@ -143,11 +149,11 @@ export function AuthPage() {
                   type="button"
                   variant="outline"
                   className="w-full"
-                  onClick={() => p.provider === "google" && onOAuth("google")}
-                  disabled={p.provider !== "google"}
-                  title={p.provider !== "google" ? t("auth.provider_not_wired") : undefined}
+                  onClick={() => onOAuth(p.provider)}
+                  disabled={!toSupabaseProvider(p.provider)}
+                  title={!toSupabaseProvider(p.provider) ? t("auth.provider_not_wired") : undefined}
                 >
-                  {t("auth.continue_with", { p: p.display_name ?? p.provider })}
+                  {t("auth.continue_with", { p: providerLabel(p.provider, p.display_name) })}
                 </Button>
               ))}
             </div>
