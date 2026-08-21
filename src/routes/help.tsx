@@ -12,7 +12,7 @@ import { useI18n, type Lang } from "@/i18n";
 import {
   BookOpen, Compass, LayoutDashboard, ListOrdered, Plus, PiggyBank,
   LineChart, Inbox, Scale, Settings as SettingsIcon, Users, HelpCircle,
-  Sparkles, Search, Shield, Github, Webhook, Link2, FileText,
+  Sparkles, Search, Shield, Github, Webhook, Link2, FileText, KeyRound,
 } from "lucide-react";
 export const Route = createFileRoute("/help")({
   head: () => ({
