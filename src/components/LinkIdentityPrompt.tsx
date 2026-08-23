@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
-import { useAuth } from "@/lib/auth";
+import { useAuth, JUST_SIGNED_IN_KEY } from "@/lib/auth";
 import { toSupabaseProvider, providerLabel } from "@/lib/authProviders";
 import { startLinkIdentity, useEnabledProviders, useUserIdentities } from "@/components/LinkedAccountsCard";
 
