@@ -48,8 +48,13 @@ export function LinkIdentityPrompt() {
     if (typeof window === "undefined") return;
     if (window.localStorage.getItem(`${NEVER_KEY}:${user.id}`)) return;
     if (window.sessionStorage.getItem(`${SESSION_KEY}:${user.id}`)) return;
+    // Only right after an actual interactive sign-in — not on every tab open
+    // or restored session.
+    if (!window.sessionStorage.getItem(`${JUST_SIGNED_IN_KEY}:${user.id}`)) return;
+    window.sessionStorage.removeItem(`${JUST_SIGNED_IN_KEY}:${user.id}`);
     setOpen(true);
   }, [user, missing.length]);
+
 
   const dismiss = (never: boolean) => {
     if (user && typeof window !== "undefined") {
