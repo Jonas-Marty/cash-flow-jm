@@ -3,6 +3,9 @@ import type { Session, User } from "@supabase/supabase-js";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+/** sessionStorage marker for a fresh interactive sign-in in this tab. */
+export const JUST_SIGNED_IN_KEY = "just-signed-in";
+
 interface AuthCtx {
   session: Session | null;
   user: User | null;
