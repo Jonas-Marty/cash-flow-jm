@@ -3,6 +3,9 @@ import type { Session, User } from "@supabase/supabase-js";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+/** sessionStorage marker for a fresh interactive sign-in in this tab. */
+export const JUST_SIGNED_IN_KEY = "just-signed-in";
+
 interface AuthCtx {
   session: Session | null;
   user: User | null;
@@ -23,12 +26,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     let lastUserId: string | null = null;
+    let hadSession = false;
     // Set listener BEFORE getSession (per Supabase guidance)
     const { data: sub } = supabase.auth.onAuthStateChange((evt, s) => {
       setSession(s);
       // Best-effort audit logging for auth events.
       // Defer the network call so we don't block the auth state update.
       const uid = s?.user?.id ?? null;
+      // Mark a *fresh* interactive sign-in (no session before) so one-time
+      // post-login prompts don't fire on every tab open / session restore.
+      if (evt === "SIGNED_IN" && uid && !hadSession && typeof window !== "undefined") {
+        window.sessionStorage.setItem(`${JUST_SIGNED_IN_KEY}:${uid}`, "1");
+      }
+      hadSession = !!s;
+
       const action: "login" | "logout" | "token.refresh" | null =
         evt === "SIGNED_IN" ? "login"
         : evt === "SIGNED_OUT" ? "logout"
