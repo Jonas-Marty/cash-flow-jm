@@ -42,17 +42,33 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
   const [description, setDescription] = React.useState<string>("");
   const [note, setNote] = React.useState<string>("");
   const [amount, setAmount] = React.useState<string>("");
+  const [sliceFields, setSliceFields] = React.useState<Array<{ description: string; note: string }>>([]);
   const [busy, setBusy] = React.useState(false);
   const descRef = React.useRef<HTMLInputElement | null>(null);
   const noteRef = React.useRef<HTMLInputElement | null>(null);
-  const lastFocusedRef = React.useRef<"description" | "note">("description");
+  const sliceRefs = React.useRef<Record<string, HTMLInputElement | null>>({});
+  const lastFocusedRef = React.useRef<string>("description");
   const cursorRef = React.useRef<number | null>(null);
+
+  const isSplit = !!occurrence?.rule.is_split
+    && !!occurrence?.rule.slices
+    && occurrence.rule.slices.length >= 2
+    && occurrence.rule.type !== "transfer";
+  const slices = React.useMemo(
+    () => (isSplit ? [...(occurrence!.rule.slices ?? [])].sort((a, b) => a.sort_order - b.sort_order) : []),
+    [isSplit, occurrence],
+  );
 
   React.useEffect(() => {
     if (!occurrence) return;
     setDate(occurrence.effective_on);
     setDescription(initialDescription ?? occurrence.rule.description ?? "");
     setNote(initialNote ?? occurrence.rule.note ?? "");
+    setSliceFields(
+      [...(occurrence.rule.slices ?? [])]
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((s) => ({ description: s.description ?? "", note: s.note ?? "" })),
+    );
     if (occurrence.rule.is_variable_amount) {
       if (initialAmount && initialAmount.trim() !== "") {
         setAmount(initialAmount);
@@ -101,6 +117,14 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
         description: resolvedDesc || null,
         note: resolvedNote || null,
         ...(r.is_variable_amount ? { amount: Number(amount) } : {}),
+        ...(isSplit
+          ? {
+              slices: slices.map((_s, i) => ({
+                description: sliceFields[i]?.description || null,
+                note: sliceFields[i]?.note || null,
+              })),
+            }
+          : {}),
       });
       toast.success(t("recurring.toast.posted"));
       onPosted();
@@ -112,12 +136,32 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
     }
   };
 
+  const setSliceField = (i: number, field: "description" | "note", value: string) => {
+    setSliceFields((prev) => {
+      const next = prev.slice();
+      next[i] = { ...(next[i] ?? { description: "", note: "" }), [field]: value };
+      return next;
+    });
+  };
+
   const insertToken = (token: string) => {
     const snippet = `\${${token}}`;
     const target = lastFocusedRef.current;
-    const inputEl = target === "note" ? noteRef.current : descRef.current;
-    const setter = target === "note" ? setNote : setDescription;
-    const current = target === "note" ? note : description;
+    let inputEl: HTMLInputElement | null;
+    let current: string;
+    let setter: (v: string) => void;
+    if (target.startsWith("slice:")) {
+      const [, idxStr, field] = target.split(":");
+      const i = Number(idxStr);
+      const f = field as "description" | "note";
+      inputEl = sliceRefs.current[target] ?? null;
+      current = sliceFields[i]?.[f] ?? "";
+      setter = (v) => setSliceField(i, f, v);
+    } else if (target === "note") {
+      inputEl = noteRef.current; current = note; setter = setNote;
+    } else {
+      inputEl = descRef.current; current = description; setter = setDescription;
+    }
     const pos = cursorRef.current ?? inputEl?.selectionStart ?? current.length;
     const next = current.slice(0, pos) + snippet + current.slice(pos);
     setter(next);
@@ -128,6 +172,7 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
       try { inputEl?.setSelectionRange(newPos, newPos); } catch { /* noop */ }
     });
   };
+
 
   return (
     <Dialog open={!!occurrence} onOpenChange={(o) => { if (!o) onClose(); }}>
@@ -170,6 +215,7 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
               />
             </div>
           )}
+          {!isSplit && (
           <div>
             <Label className="text-xs">{t("recurring.post_dialog.description")}</Label>
             <Input
@@ -185,6 +231,8 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
               {t("recurring.post_dialog.preview")}: <span className="font-mono">{resolvedDesc || "—"}</span>
             </div>
           </div>
+          )}
+          {!isSplit && (
           <div>
             <Label className="text-xs">{t("recurring.post_dialog.note")}</Label>
             <Input
@@ -202,6 +250,59 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
               </div>
             )}
           </div>
+          )}
+          {isSplit && (
+            <div className="grid gap-2">
+              <div className="text-xs font-semibold uppercase text-muted-foreground">
+                {t("recurring.post_dialog.slices")}
+              </div>
+              {slices.map((s, i) => {
+                const key = `slice:${i}`;
+                const label = s.amount != null
+                  ? Number(s.amount).toFixed(2)
+                  : s.amount_ratio != null
+                    ? `${Math.round(Number(s.amount_ratio) * 100)}%`
+                    : "";
+                const dVal = sliceFields[i]?.description ?? "";
+                const nVal = sliceFields[i]?.note ?? "";
+                return (
+                  <div key={s.id ?? i} className="rounded-md border p-2">
+                    <div className="mb-1 text-xs font-medium">
+                      {t("recurring.post_dialog.slice")} {i + 1}{label ? ` — ${label}` : ""}
+                    </div>
+                    <Label className="text-xs">{t("recurring.post_dialog.description")}</Label>
+                    <Input
+                      ref={(el) => { sliceRefs.current[`${key}:description`] = el; }}
+                      value={dVal}
+                      onChange={(e) => { setSliceField(i, "description", e.target.value); cursorRef.current = e.target.selectionStart; }}
+                      onFocus={(e) => { lastFocusedRef.current = `${key}:description`; cursorRef.current = e.currentTarget.selectionStart; }}
+                      onSelect={(e) => { cursorRef.current = (e.currentTarget as HTMLInputElement).selectionStart; }}
+                      onKeyUp={(e) => { cursorRef.current = (e.currentTarget as HTMLInputElement).selectionStart; }}
+                      onClick={(e) => { cursorRef.current = (e.currentTarget as HTMLInputElement).selectionStart; }}
+                    />
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {t("recurring.post_dialog.preview")}: <span className="font-mono">{interpolate(dVal, ctx) || "—"}</span>
+                    </div>
+                    <Label className="mt-2 block text-xs">{t("recurring.post_dialog.note")}</Label>
+                    <Input
+                      ref={(el) => { sliceRefs.current[`${key}:note`] = el; }}
+                      value={nVal}
+                      onChange={(e) => { setSliceField(i, "note", e.target.value); cursorRef.current = e.target.selectionStart; }}
+                      onFocus={(e) => { lastFocusedRef.current = `${key}:note`; cursorRef.current = e.currentTarget.selectionStart; }}
+                      onSelect={(e) => { cursorRef.current = (e.currentTarget as HTMLInputElement).selectionStart; }}
+                      onKeyUp={(e) => { cursorRef.current = (e.currentTarget as HTMLInputElement).selectionStart; }}
+                      onClick={(e) => { cursorRef.current = (e.currentTarget as HTMLInputElement).selectionStart; }}
+                    />
+                    {nVal && (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        <span className="font-mono">{interpolate(nVal, ctx) || "—"}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
           <div className="rounded-md border p-2">
             <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
               {t("recurring.placeholders.title")}

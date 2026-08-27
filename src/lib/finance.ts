@@ -725,7 +725,7 @@ export async function deletePendingOccurrence(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function postOccurrence(occ: RecurringOccurrence & { rule: RecurringRule }, overrides?: { amount?: number; description?: string | null; note?: string | null; occurred_on?: string }): Promise<void> {
+export async function postOccurrence(occ: RecurringOccurrence & { rule: RecurringRule }, overrides?: { amount?: number; description?: string | null; note?: string | null; occurred_on?: string; slices?: Array<{ description?: string | null; note?: string | null }> }): Promise<void> {
   const r = occ.rule;
   // Determine final amount
   let finalAmount: number;
@@ -783,7 +783,11 @@ export async function postOccurrence(occ: RecurringOccurrence & { rule: Recurrin
     // siblings used only for run-number below; keep dead-simple markers to
     // avoid unused-var lint when the block above is inlined.
     void prevStr; void nextStr;
-    const rows = slices.map((s, i) => ({
+    const rows = slices.map((s, i) => {
+      const ov = overrides?.slices?.[i];
+      const descTpl = ov?.description !== undefined ? ov.description : s.description;
+      const noteTpl = ov?.note !== undefined ? ov.note : s.note;
+      return {
       user_id: userId,
       occurred_on: occurredOn,
       amount: sliceAmounts[i],
@@ -791,15 +795,16 @@ export async function postOccurrence(occ: RecurringOccurrence & { rule: Recurrin
       source_account_id: r.source_account_id,
       destination_account_id: null,
       category_id: s.category_id ?? null,
-      description: s.description ? interpolate(s.description, ctx) : null,
-      note: s.note ? interpolate(s.note, ctx) : null,
+      description: descTpl ? interpolate(descTpl, ctx) : null,
+      note: noteTpl ? interpolate(noteTpl, ctx) : null,
       recurring_rule_id: r.id,
       split_group_id: groupId,
       is_reimbursable: !!s.is_reimbursable,
       reimbursable_status: s.is_reimbursable ? "open" : null,
       reimbursable_counterparty: s.is_reimbursable ? (s.reimbursable_counterparty ?? null) : null,
       reimbursable_reason: s.is_reimbursable ? (s.reimbursable_reason ?? null) : null,
-    }));
+    };
+    });
     const { data: inserted, error: insErr } = await supabase
       .from("transactions")
       .insert(rows)
