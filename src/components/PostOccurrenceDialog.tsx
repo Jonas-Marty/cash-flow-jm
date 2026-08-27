@@ -215,6 +215,7 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
               />
             </div>
           )}
+          {!isSplit && (
           <div>
             <Label className="text-xs">{t("recurring.post_dialog.description")}</Label>
             <Input
@@ -230,6 +231,8 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
               {t("recurring.post_dialog.preview")}: <span className="font-mono">{resolvedDesc || "—"}</span>
             </div>
           </div>
+          )}
+          {!isSplit && (
           <div>
             <Label className="text-xs">{t("recurring.post_dialog.note")}</Label>
             <Input
@@ -247,6 +250,59 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
               </div>
             )}
           </div>
+          )}
+          {isSplit && (
+            <div className="grid gap-2">
+              <div className="text-xs font-semibold uppercase text-muted-foreground">
+                {t("recurring.post_dialog.slices")}
+              </div>
+              {slices.map((s, i) => {
+                const key = `slice:${i}`;
+                const label = s.amount != null
+                  ? Number(s.amount).toFixed(2)
+                  : s.amount_ratio != null
+                    ? `${Math.round(Number(s.amount_ratio) * 100)}%`
+                    : "";
+                const dVal = sliceFields[i]?.description ?? "";
+                const nVal = sliceFields[i]?.note ?? "";
+                return (
+                  <div key={s.id ?? i} className="rounded-md border p-2">
+                    <div className="mb-1 text-xs font-medium">
+                      {t("recurring.post_dialog.slice")} {i + 1}{label ? ` — ${label}` : ""}
+                    </div>
+                    <Label className="text-xs">{t("recurring.post_dialog.description")}</Label>
+                    <Input
+                      ref={(el) => { sliceRefs.current[`${key}:description`] = el; }}
+                      value={dVal}
+                      onChange={(e) => { setSliceField(i, "description", e.target.value); cursorRef.current = e.target.selectionStart; }}
+                      onFocus={(e) => { lastFocusedRef.current = `${key}:description`; cursorRef.current = e.currentTarget.selectionStart; }}
+                      onSelect={(e) => { cursorRef.current = (e.currentTarget as HTMLInputElement).selectionStart; }}
+                      onKeyUp={(e) => { cursorRef.current = (e.currentTarget as HTMLInputElement).selectionStart; }}
+                      onClick={(e) => { cursorRef.current = (e.currentTarget as HTMLInputElement).selectionStart; }}
+                    />
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {t("recurring.post_dialog.preview")}: <span className="font-mono">{interpolate(dVal, ctx) || "—"}</span>
+                    </div>
+                    <Label className="mt-2 block text-xs">{t("recurring.post_dialog.note")}</Label>
+                    <Input
+                      ref={(el) => { sliceRefs.current[`${key}:note`] = el; }}
+                      value={nVal}
+                      onChange={(e) => { setSliceField(i, "note", e.target.value); cursorRef.current = e.target.selectionStart; }}
+                      onFocus={(e) => { lastFocusedRef.current = `${key}:note`; cursorRef.current = e.currentTarget.selectionStart; }}
+                      onSelect={(e) => { cursorRef.current = (e.currentTarget as HTMLInputElement).selectionStart; }}
+                      onKeyUp={(e) => { cursorRef.current = (e.currentTarget as HTMLInputElement).selectionStart; }}
+                      onClick={(e) => { cursorRef.current = (e.currentTarget as HTMLInputElement).selectionStart; }}
+                    />
+                    {nVal && (
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        <span className="font-mono">{interpolate(nVal, ctx) || "—"}</span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
           <div className="rounded-md border p-2">
             <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
               {t("recurring.placeholders.title")}
