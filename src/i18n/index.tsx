@@ -1876,6 +1876,8 @@ const en: Dict = {
   "recurring.post_dialog.note": "Note",
   "recurring.post_dialog.amount": "Amount",
   "recurring.post_dialog.preview": "Resolved description",
+  "recurring.post_dialog.slices": "Split parts",
+  "recurring.post_dialog.slice": "Part",
   "recurring.backfill.title": "Start date is in the past",
   "recurring.backfill.none": "Don't create past transactions",
   "recurring.backfill.post": "Create past transactions now",
