@@ -704,6 +704,8 @@ const de: Dict = {
   "recurring.post_dialog.note": "Notiz",
   "recurring.post_dialog.amount": "Betrag",
   "recurring.post_dialog.preview": "Vorschau Beschreibung",
+  "recurring.post_dialog.slices": "Aufteilungen",
+  "recurring.post_dialog.slice": "Teil",
   "recurring.backfill.title": "Startdatum liegt in der Vergangenheit",
   "recurring.backfill.none": "Keine vergangenen Buchungen erstellen",
   "recurring.backfill.post": "Vergangene Buchungen jetzt erstellen",
