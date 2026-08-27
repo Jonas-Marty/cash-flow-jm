@@ -117,6 +117,14 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
         description: resolvedDesc || null,
         note: resolvedNote || null,
         ...(r.is_variable_amount ? { amount: Number(amount) } : {}),
+        ...(isSplit
+          ? {
+              slices: slices.map((_s, i) => ({
+                description: sliceFields[i]?.description || null,
+                note: sliceFields[i]?.note || null,
+              })),
+            }
+          : {}),
       });
       toast.success(t("recurring.toast.posted"));
       onPosted();
@@ -128,12 +136,32 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
     }
   };
 
+  const setSliceField = (i: number, field: "description" | "note", value: string) => {
+    setSliceFields((prev) => {
+      const next = prev.slice();
+      next[i] = { ...(next[i] ?? { description: "", note: "" }), [field]: value };
+      return next;
+    });
+  };
+
   const insertToken = (token: string) => {
     const snippet = `\${${token}}`;
     const target = lastFocusedRef.current;
-    const inputEl = target === "note" ? noteRef.current : descRef.current;
-    const setter = target === "note" ? setNote : setDescription;
-    const current = target === "note" ? note : description;
+    let inputEl: HTMLInputElement | null;
+    let current: string;
+    let setter: (v: string) => void;
+    if (target.startsWith("slice:")) {
+      const [, idxStr, field] = target.split(":");
+      const i = Number(idxStr);
+      const f = field as "description" | "note";
+      inputEl = sliceRefs.current[target] ?? null;
+      current = sliceFields[i]?.[f] ?? "";
+      setter = (v) => setSliceField(i, f, v);
+    } else if (target === "note") {
+      inputEl = noteRef.current; current = note; setter = setNote;
+    } else {
+      inputEl = descRef.current; current = description; setter = setDescription;
+    }
     const pos = cursorRef.current ?? inputEl?.selectionStart ?? current.length;
     const next = current.slice(0, pos) + snippet + current.slice(pos);
     setter(next);
@@ -144,6 +172,7 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
       try { inputEl?.setSelectionRange(newPos, newPos); } catch { /* noop */ }
     });
   };
+
 
   return (
     <Dialog open={!!occurrence} onOpenChange={(o) => { if (!o) onClose(); }}>
