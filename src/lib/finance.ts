@@ -725,7 +725,7 @@ export async function deletePendingOccurrence(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function postOccurrence(occ: RecurringOccurrence & { rule: RecurringRule }, overrides?: { amount?: number; description?: string | null; note?: string | null; occurred_on?: string }): Promise<void> {
+export async function postOccurrence(occ: RecurringOccurrence & { rule: RecurringRule }, overrides?: { amount?: number; description?: string | null; note?: string | null; occurred_on?: string; slices?: Array<{ description?: string | null; note?: string | null }> }): Promise<void> {
   const r = occ.rule;
   // Determine final amount
   let finalAmount: number;
