@@ -42,17 +42,33 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
   const [description, setDescription] = React.useState<string>("");
   const [note, setNote] = React.useState<string>("");
   const [amount, setAmount] = React.useState<string>("");
+  const [sliceFields, setSliceFields] = React.useState<Array<{ description: string; note: string }>>([]);
   const [busy, setBusy] = React.useState(false);
   const descRef = React.useRef<HTMLInputElement | null>(null);
   const noteRef = React.useRef<HTMLInputElement | null>(null);
-  const lastFocusedRef = React.useRef<"description" | "note">("description");
+  const sliceRefs = React.useRef<Record<string, HTMLInputElement | null>>({});
+  const lastFocusedRef = React.useRef<string>("description");
   const cursorRef = React.useRef<number | null>(null);
+
+  const isSplit = !!occurrence?.rule.is_split
+    && !!occurrence?.rule.slices
+    && occurrence.rule.slices.length >= 2
+    && occurrence.rule.type !== "transfer";
+  const slices = React.useMemo(
+    () => (isSplit ? [...(occurrence!.rule.slices ?? [])].sort((a, b) => a.sort_order - b.sort_order) : []),
+    [isSplit, occurrence],
+  );
 
   React.useEffect(() => {
     if (!occurrence) return;
     setDate(occurrence.effective_on);
     setDescription(initialDescription ?? occurrence.rule.description ?? "");
     setNote(initialNote ?? occurrence.rule.note ?? "");
+    setSliceFields(
+      [...(occurrence.rule.slices ?? [])]
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map((s) => ({ description: s.description ?? "", note: s.note ?? "" })),
+    );
     if (occurrence.rule.is_variable_amount) {
       if (initialAmount && initialAmount.trim() !== "") {
         setAmount(initialAmount);
