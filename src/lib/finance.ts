@@ -803,7 +803,8 @@ export async function postOccurrence(occ: RecurringOccurrence & { rule: Recurrin
       reimbursable_status: s.is_reimbursable ? "open" : null,
       reimbursable_counterparty: s.is_reimbursable ? (s.reimbursable_counterparty ?? null) : null,
       reimbursable_reason: s.is_reimbursable ? (s.reimbursable_reason ?? null) : null,
-    }));
+    };
+    });
     const { data: inserted, error: insErr } = await supabase
       .from("transactions")
       .insert(rows)
