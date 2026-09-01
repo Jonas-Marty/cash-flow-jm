@@ -381,6 +381,81 @@ function TransactionsPage() {
     return arr;
   }, [filtered, sort]);
 
+  // ----- Bulk selection -----
+  const [selected, setSelected] = React.useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = React.useState<null | "category" | "add_tags" | "remove_tags" | "delete">(null);
+  const [bulkCategory, setBulkCategory] = React.useState<string>(NO_CATEGORY);
+  const [bulkTagInput, setBulkTagInput] = React.useState("");
+  const [bulkRemoveSel, setBulkRemoveSel] = React.useState<string[]>([]);
+  const [bulkBusy, setBulkBusy] = React.useState(false);
+
+  // Drop selections that no longer match the current filters.
+  React.useEffect(() => {
+    setSelected((prev) => {
+      if (prev.size === 0) return prev;
+      const visible = new Set(sorted.map((t) => t.id));
+      const next = new Set(Array.from(prev).filter((id) => visible.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [sorted]);
+
+  const selectedTxs = React.useMemo(
+    () => sorted.filter((t) => selected.has(t.id)),
+    [sorted, selected],
+  );
+  const toggleSelect = (id: string, checked: boolean) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id); else next.delete(id);
+      return next;
+    });
+  const toggleSelectMany = (ids: string[], checked: boolean) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => (checked ? next.add(id) : next.delete(id)));
+      return next;
+    });
+  const toggleSelectAll = (checked: boolean) =>
+    setSelected(checked ? new Set(sorted.map((t) => t.id)) : new Set());
+  const clearSelection = () => setSelected(new Set());
+
+  const selectedTagPool = React.useMemo(() => {
+    const s2 = new Set<string>();
+    selectedTxs.forEach((t) => (tagsByTx.get(t.id) ?? []).forEach((tg) => s2.add(tg)));
+    return Array.from(s2).sort();
+  }, [selectedTxs, tagsByTx]);
+
+  const finishBulk = (res: BulkResult) => {
+    if (res.errors.length > 0) {
+      toast.error(tr("tx.bulk.partial", { n: res.updated, e: res.errors.length }));
+    } else {
+      toast.success(tr("tx.bulk.done", { n: res.updated, s: res.skipped }));
+    }
+    setBulkAction(null);
+    setBulkTagInput("");
+    setBulkRemoveSel([]);
+    clearSelection();
+    qc.invalidateQueries();
+  };
+
+  const runBulk = async (fn: () => Promise<BulkResult>) => {
+    setBulkBusy(true);
+    try {
+      finishBulk(await fn());
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const reimbursementIds = React.useMemo(
+    () => new Set((reimbLinksQ.data ?? []).map((l) => l.settling_transaction_id)),
+    [reimbLinksQ.data],
+  );
+
+
+
   // Group by date (only for date sort)
   const groups = React.useMemo(() => {
     if (sort !== "date_desc" && sort !== "date_asc") {
