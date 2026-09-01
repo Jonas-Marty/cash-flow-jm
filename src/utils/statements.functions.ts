@@ -127,3 +127,34 @@ export const getStatementRefsForTransactions = createServerFn({ method: "POST" }
     const { statementRefsFor } = await import("./statements.detail.server");
     return { refs: await statementRefsFor(context.supabase, data.transaction_ids) };
   });
+export const commitStatementLines = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        import_id: z.string().uuid(),
+        rows: z
+          .array(
+            z.object({
+              line_id: z.string().uuid(),
+              occurred_on: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+              amount: z.number().finite().positive(),
+              type: z.enum(["expense", "income"]),
+              description: z.string().max(500).nullable(),
+              note: z.string().max(2000).nullable(),
+              category_id: z.string().uuid().nullable(),
+              latitude: z.number().min(-90).max(90).nullable().optional(),
+              longitude: z.number().min(-180).max(180).nullable().optional(),
+              location_label: z.string().max(500).nullable().optional(),
+              location_source: z.string().max(20).nullable().optional(),
+            }),
+          )
+          .min(1)
+          .max(200),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    const { commitStatementLines: run } = await import("./statements.detail.server");
+    return run(context.supabase, context.userId, data);
+  });

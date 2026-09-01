@@ -15,6 +15,8 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/DatePicker";
 import { StatementDocButton } from "@/components/StatementDocLink";
+import { StatementLineTable } from "@/components/statements/StatementLineTable";
+
 import { useI18n } from "@/i18n";
 import { fetchAccounts, fmtMoney } from "@/lib/finance";
 import {
@@ -486,11 +488,35 @@ function StatementsPage() {
                     : t("statements.progress", { open: String(openCount), total: String(detail.lines.length) })}
                 </div>
 
-                {section(
-                  t("statements.group.missing"),
-                  <AlertTriangle className="h-4 w-4 text-destructive" />,
-                  groups.missing,
+                {groups.missing.length > 0 && (
+                  <div className="rounded-md border">
+                    <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2 text-sm font-medium">
+                      <AlertTriangle className="h-4 w-4 text-destructive" />
+                      {t("statements.group.missing")}
+                      <Badge variant="secondary">{groups.missing.length}</Badge>
+                    </div>
+                    <div className="p-2">
+                      <StatementLineTable
+                        importId={detail.import.id}
+                        lines={groups.missing}
+                        symbol={symbol}
+                        renderRowActions={(l) => (
+                          <>
+                            <Button asChild size="sm" variant="outline">
+                              <Link to="/add" search={addLink(l) as never}>
+                                {t("statements.action.create")}
+                              </Link>
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => decide(l.id, "ignore")}>
+                              <EyeOff className="h-3.5 w-3.5" />
+                            </Button>
+                          </>
+                        )}
+                      />
+                    </div>
+                  </div>
                 )}
+
                 {section(
                   t("statements.group.probable"),
                   <HelpCircle className="h-4 w-4 text-amber-600" />,
