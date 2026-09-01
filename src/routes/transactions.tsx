@@ -58,13 +58,16 @@ const searchSchema = z.object({
   tol: fallback(z.number(), 0.15).default(0.15),
   sort: fallback(z.enum(SORT_VALUES), "date_desc").default("date_desc"),
   reimb: fallback(z.enum(REIMB_VALUES), "any").default("any"),
+  view: fallback(z.string(), "cards").default("cards"),
 });
 
 const SEARCH_DEFAULTS = {
   q: "", types: [] as TxType[], accts: [] as string[], cats: [] as string[], tags: [] as string[],
   from: "", to: "", op: "any" as AmountOp, val: "", tol: 0.15,
   sort: "date_desc" as SortKey, reimb: "any" as (typeof REIMB_VALUES)[number],
+  view: "cards",
 };
+
 
 export const Route = createFileRoute("/transactions")({
   validateSearch: zodValidator(searchSchema),
