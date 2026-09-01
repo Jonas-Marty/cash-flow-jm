@@ -12,11 +12,11 @@ export interface ChatMessage {
   created_at: string;
 }
 
-export interface AssistantActionTarget {
+export type AssistantActionTarget = {
   label: string;
   /** URL search params for `/add`. */
   search: Record<string, string>;
-}
+};
 
 export type AssistantAction = AssistantActionTarget & {
   kind: "open_add";
