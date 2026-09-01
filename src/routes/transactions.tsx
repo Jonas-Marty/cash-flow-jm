@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, subMonths, subDays, startOfYear } from "date-fns";
 import {
   ArrowDown, ArrowUp, ArrowLeftRight, Trash2, ChevronRight, ChevronDown, Layers, X, Pencil, FileText, MapPin,
+  LayoutList, Table as TableIcon, Tag, TagsIcon, FolderTree,
 } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
@@ -14,6 +15,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -25,11 +30,13 @@ import { useI18n } from "@/i18n";
 import {
   fetchAccounts, fetchCategories, fetchSettings, fetchTransactions, fetchTransactionTags,
   fetchRecurringRules, fetchReimbursementLinks,
-  fmtMoney, type TxType, type Transaction,
+  bulkSetCategory, bulkAddTags, bulkRemoveTags, bulkDeleteTransactions, parseTagInput,
+  fmtMoney, type TxType, type Transaction, type BulkResult,
 } from "@/lib/finance";
 import { MultiSelectCombobox, type MSCOption } from "@/components/MultiSelectCombobox";
 import { DatePicker } from "@/components/DatePicker";
 import { EntityVisual } from "@/components/EntityVisual";
+import { TransactionTable } from "@/components/transactions/TransactionTable";
 import { highlightTokens, tokenize, normalize, parseLooseNumber } from "@/lib/highlight";
 import { matchesAmount, type AmountOp } from "@/lib/amountFilter";
 import { fetchTransactionLinks, fetchTransactionLinkMembers } from "@/lib/links";
@@ -37,6 +44,7 @@ import { TransactionLinkPicker } from "@/components/TransactionLinkPicker";
 import { TransactionLinkSheet, KIND_ICON } from "@/components/TransactionLinkSheet";
 import { LocationPeekDialog } from "@/components/LocationPeekDialog";
 import { locationFromRow, type TxLocation } from "@/lib/location";
+
 
 const SORT_VALUES = ["date_desc", "date_asc", "amount_desc", "amount_asc"] as const;
 const OP_VALUES = ["any", "lt", "lte", "eq", "gte", "gt", "around"] as const;
@@ -58,13 +66,16 @@ const searchSchema = z.object({
   tol: fallback(z.number(), 0.15).default(0.15),
   sort: fallback(z.enum(SORT_VALUES), "date_desc").default("date_desc"),
   reimb: fallback(z.enum(REIMB_VALUES), "any").default("any"),
+  view: fallback(z.string(), "cards").default("cards"),
 });
 
 const SEARCH_DEFAULTS = {
   q: "", types: [] as TxType[], accts: [] as string[], cats: [] as string[], tags: [] as string[],
   from: "", to: "", op: "any" as AmountOp, val: "", tol: 0.15,
   sort: "date_desc" as SortKey, reimb: "any" as (typeof REIMB_VALUES)[number],
+  view: "cards",
 };
+
 
 export const Route = createFileRoute("/transactions")({
   validateSearch: zodValidator(searchSchema),
@@ -249,6 +260,9 @@ function TransactionsPage() {
   const setTolerance = (v: number) => patchSearch({ tol: v });
   const setSort = (v: SortKey) => patchSearch({ sort: v });
   const setFilterReimb = (v: typeof filterReimb) => patchSearch({ reimb: v });
+  const view = s.view === "table" ? "table" : "cards";
+  const setView = (v: "cards" | "table") => patchSearch({ view: v });
+
 
   const searchRef = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => {
@@ -366,6 +380,81 @@ function TransactionsPage() {
     }
     return arr;
   }, [filtered, sort]);
+
+  // ----- Bulk selection -----
+  const [selected, setSelected] = React.useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = React.useState<null | "category" | "add_tags" | "remove_tags" | "delete">(null);
+  const [bulkCategory, setBulkCategory] = React.useState<string>(NO_CATEGORY);
+  const [bulkTagInput, setBulkTagInput] = React.useState("");
+  const [bulkRemoveSel, setBulkRemoveSel] = React.useState<string[]>([]);
+  const [bulkBusy, setBulkBusy] = React.useState(false);
+
+  // Drop selections that no longer match the current filters.
+  React.useEffect(() => {
+    setSelected((prev) => {
+      if (prev.size === 0) return prev;
+      const visible = new Set(sorted.map((t) => t.id));
+      const next = new Set(Array.from(prev).filter((id) => visible.has(id)));
+      return next.size === prev.size ? prev : next;
+    });
+  }, [sorted]);
+
+  const selectedTxs = React.useMemo(
+    () => sorted.filter((t) => selected.has(t.id)),
+    [sorted, selected],
+  );
+  const toggleSelect = (id: string, checked: boolean) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id); else next.delete(id);
+      return next;
+    });
+  const toggleSelectMany = (ids: string[], checked: boolean) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      ids.forEach((id) => (checked ? next.add(id) : next.delete(id)));
+      return next;
+    });
+  const toggleSelectAll = (checked: boolean) =>
+    setSelected(checked ? new Set(sorted.map((t) => t.id)) : new Set());
+  const clearSelection = () => setSelected(new Set());
+
+  const selectedTagPool = React.useMemo(() => {
+    const s2 = new Set<string>();
+    selectedTxs.forEach((t) => (tagsByTx.get(t.id) ?? []).forEach((tg) => s2.add(tg)));
+    return Array.from(s2).sort();
+  }, [selectedTxs, tagsByTx]);
+
+  const finishBulk = (res: BulkResult) => {
+    if (res.errors.length > 0) {
+      toast.error(tr("tx.bulk.partial", { n: res.updated, e: res.errors.length }));
+    } else {
+      toast.success(tr("tx.bulk.done", { n: res.updated, s: res.skipped }));
+    }
+    setBulkAction(null);
+    setBulkTagInput("");
+    setBulkRemoveSel([]);
+    clearSelection();
+    qc.invalidateQueries();
+  };
+
+  const runBulk = async (fn: () => Promise<BulkResult>) => {
+    setBulkBusy(true);
+    try {
+      finishBulk(await fn());
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const reimbursementIds = React.useMemo(
+    () => new Set((reimbLinksQ.data ?? []).map((l) => l.settling_transaction_id)),
+    [reimbLinksQ.data],
+  );
+
+
 
   // Group by date (only for date sort)
   const groups = React.useMemo(() => {
@@ -657,13 +746,36 @@ function TransactionsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-end justify-end">
+            <div className="flex items-end justify-between gap-2">
+              <div className="inline-flex rounded-md border border-border p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setView("cards")}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded px-2 py-1 text-xs",
+                    view === "cards" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <LayoutList className="h-3.5 w-3.5" /> {tr("tx.view.cards")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setView("table")}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded px-2 py-1 text-xs",
+                    view === "table" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <TableIcon className="h-3.5 w-3.5" /> {tr("tx.view.table")}
+                </button>
+              </div>
               {activeFilterCount > 0 && (
                 <Button type="button" variant="ghost" size="sm" onClick={clearAll}>
                   <X className="mr-1 h-3.5 w-3.5" /> {tr("tx.clear_all")}
                 </Button>
               )}
             </div>
+
           </div>
 
           {/* Result count + active filter pills */}
@@ -722,8 +834,26 @@ function TransactionsPage() {
           <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
             {tr("tx.no_match")} <Link to="/add" className="text-primary underline-offset-2 hover:underline">{tr("tx.add_one")}</Link>.
           </CardContent></Card>
+        ) : view === "table" ? (
+          <Card><CardContent className="p-0">
+            <TransactionTable
+              rows={sorted}
+              accountById={accountById}
+              categoryById={categoryById}
+              tagsByTx={tagsByTx}
+              reimbursementIds={reimbursementIds}
+              selected={selected}
+              onToggle={toggleSelect}
+              onToggleAll={toggleSelectAll}
+              symbol={symbol}
+              dateFmt={dateFmt}
+              locale={locale}
+              backSearch={s as Record<string, unknown>}
+            />
+          </CardContent></Card>
         ) : groups.map(([date, items]) => (
           <div key={date}>
+
             {date !== "__flat__" && (
               <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 {format(new Date(date), "EEE, MMM d, yyyy", { locale })}
@@ -767,6 +897,13 @@ function TransactionsPage() {
                     return (
                       <div key={`g-${row.groupId}`} className="bg-muted/20">
                         <div className="flex w-full items-start gap-3 px-4 py-3 hover:bg-muted/40">
+                          <Checkbox
+                            className="mt-3"
+                            checked={row.txs.every((x) => selected.has(x.id))}
+                            onCheckedChange={(v) => toggleSelectMany(row.txs.map((x) => x.id), v === true)}
+                            aria-label={tr("tx.bulk.select_row")}
+                          />
+
                           <button
                             type="button"
                             onClick={() => toggleGroup(row.groupId)}
@@ -956,6 +1093,13 @@ function TransactionsPage() {
                   );
                   return (
                     <div key={t.id} className="flex items-start gap-3 px-4 py-3">
+                      <Checkbox
+                        className="mt-3"
+                        checked={selected.has(t.id)}
+                        onCheckedChange={(v) => toggleSelect(t.id, v === true)}
+                        aria-label={tr("tx.bulk.select_row")}
+                      />
+
                       <RowVisual entity={primary} typeIcon={<Icon className="h-3 w-3" />} tone={tone} />
                       <div className="min-w-0 flex-1">
                         <div className="grid grid-cols-1 items-start gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-2">
@@ -1021,7 +1165,149 @@ function TransactionsPage() {
             </CardContent></Card>
           </div>
         ))}
+
+        {selected.size > 0 && <div className="h-20" aria-hidden />}
       </div>
+
+      {/* Bulk action bar */}
+      {selected.size > 0 && (
+        <div className="fixed inset-x-0 bottom-16 z-40 px-3 sm:bottom-4">
+          <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2 rounded-lg border border-border bg-card/95 p-2 shadow-lg backdrop-blur">
+            <span className="px-1 text-sm font-medium">{tr("tx.bulk.n_selected", { n: selected.size })}</span>
+            <Button size="sm" variant="outline" onClick={() => setBulkAction("category")}>
+              <FolderTree className="mr-1 h-3.5 w-3.5" /> {tr("tx.bulk.set_category")}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setBulkAction("add_tags")}>
+              <Tag className="mr-1 h-3.5 w-3.5" /> {tr("tx.bulk.add_tags")}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setBulkAction("remove_tags")} disabled={selectedTagPool.length === 0}>
+              <TagsIcon className="mr-1 h-3.5 w-3.5" /> {tr("tx.bulk.remove_tags")}
+            </Button>
+            <Button size="sm" variant="outline" className="text-destructive" onClick={() => setBulkAction("delete")}>
+              <Trash2 className="mr-1 h-3.5 w-3.5" /> {tr("common.delete")}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={clearSelection}>
+              <X className="mr-1 h-3.5 w-3.5" /> {tr("tx.bulk.clear")}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Set category */}
+      <Dialog open={bulkAction === "category"} onOpenChange={(o) => { if (!o) setBulkAction(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{tr("tx.bulk.set_category")}</DialogTitle>
+            <DialogDescription>{tr("tx.bulk.set_category.help", { n: selectedTxs.filter((t) => t.type !== "transfer").length })}</DialogDescription>
+          </DialogHeader>
+          <Select value={bulkCategory} onValueChange={setBulkCategory}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_CATEGORY}>{`— ${tr("add.split.no_category")} —`}</SelectItem>
+              {(categoriesQ.data ?? []).filter((c) => !c.archived).map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkAction(null)}>{tr("common.cancel")}</Button>
+            <Button
+              disabled={bulkBusy}
+              onClick={() => runBulk(() => bulkSetCategory(selectedTxs, bulkCategory === NO_CATEGORY ? null : bulkCategory))}
+            >
+              {tr("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add tags */}
+      <Dialog open={bulkAction === "add_tags"} onOpenChange={(o) => { if (!o) setBulkAction(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{tr("tx.bulk.add_tags")}</DialogTitle>
+            <DialogDescription>{tr("tx.bulk.add_tags.help", { n: selected.size })}</DialogDescription>
+          </DialogHeader>
+          <Input
+            autoFocus
+            value={bulkTagInput}
+            placeholder="#coop #migros"
+            onChange={(e) => setBulkTagInput(e.target.value)}
+          />
+          <div className="flex flex-wrap gap-1">
+            {parseTagInput(bulkTagInput).map((tg) => (
+              <Badge key={tg} variant="secondary" className="rounded-full text-[11px]">{`#${tg}`}</Badge>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkAction(null)}>{tr("common.cancel")}</Button>
+            <Button
+              disabled={bulkBusy || parseTagInput(bulkTagInput).length === 0}
+              onClick={() => runBulk(() => bulkAddTags(selectedTxs, parseTagInput(bulkTagInput)))}
+            >
+              {tr("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove tags */}
+      <Dialog open={bulkAction === "remove_tags"} onOpenChange={(o) => { if (!o) setBulkAction(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{tr("tx.bulk.remove_tags")}</DialogTitle>
+            <DialogDescription>{tr("tx.bulk.remove_tags.help", { n: selected.size })}</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-wrap gap-1.5">
+            {selectedTagPool.map((tg) => {
+              const on = bulkRemoveSel.includes(tg);
+              return (
+                <button
+                  key={tg}
+                  type="button"
+                  onClick={() => setBulkRemoveSel((p) => (on ? p.filter((x) => x !== tg) : [...p, tg]))}
+                  className={cn(
+                    "rounded-full border px-2.5 py-0.5 text-xs",
+                    on ? "border-destructive bg-destructive/10 text-destructive" : "border-border text-muted-foreground hover:bg-accent",
+                  )}
+                >
+                  {`#${tg}`}
+                </button>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkAction(null)}>{tr("common.cancel")}</Button>
+            <Button
+              disabled={bulkBusy || bulkRemoveSel.length === 0}
+              onClick={() => runBulk(() => bulkRemoveTags(selectedTxs, bulkRemoveSel))}
+            >
+              {tr("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete */}
+      <Dialog open={bulkAction === "delete"} onOpenChange={(o) => { if (!o) setBulkAction(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{tr("common.delete")}</DialogTitle>
+            <DialogDescription>{tr("tx.bulk.delete.help", { n: selected.size })}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkAction(null)}>{tr("common.cancel")}</Button>
+            <Button
+              variant="destructive"
+              disabled={bulkBusy}
+              onClick={() => runBulk(() => bulkDeleteTransactions(selectedTxs.map((t) => t.id)))}
+            >
+              {tr("common.delete")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <TransactionLinkSheet
         linkId={openLinkId}
         open={openLinkId !== null}

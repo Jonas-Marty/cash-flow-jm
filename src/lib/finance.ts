@@ -1530,3 +1530,116 @@ export async function deleteScope(scopeId: string): Promise<void> {
   const { error } = await supabase.from("categories").delete().eq("id", scopeId);
   if (error) throw error;
 }
+
+// ---------------------------------------------------------------------------
+// Bulk operations (transactions list)
+// ---------------------------------------------------------------------------
+
+export type BulkResult = { updated: number; skipped: number; errors: string[] };
+
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
+
+/** Normalize a user-entered tag into the canonical form stored in notes. */
+export function normalizeTagInput(raw: string): string {
+  return raw.trim().replace(/^#+/, "").replace(/\s+/g, "-").toLowerCase();
+}
+
+/** Parse a free-text tag input ("#a, b c") into a list of canonical tags. */
+export function parseTagInput(raw: string): string[] {
+  return Array.from(
+    new Set(
+      raw
+        .split(/[,\s]+/)
+        .map(normalizeTagInput)
+        .filter((t) => t.length > 0 && /^[\p{L}\p{N}_-]+$/u.test(t)),
+    ),
+  );
+}
+
+function noteHasTag(note: string, tag: string): boolean {
+  const re = new RegExp(`(^|\\s)#${tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}_-])`, "iu");
+  return re.test(note);
+}
+
+/** Append `#tag` tokens that are not already present in the note text. */
+export function addTagsToNote(note: string | null, tags: string[]): string {
+  let out = (note ?? "").trimEnd();
+  for (const tag of tags) {
+    if (noteHasTag(out, tag)) continue;
+    out = out.length > 0 ? `${out} #${tag}` : `#${tag}`;
+  }
+  return out;
+}
+
+/** Strip `#tag` tokens from note text, normalizing leftover whitespace. */
+export function removeTagsFromNote(note: string | null, tags: string[]): string {
+  let out = note ?? "";
+  for (const tag of tags) {
+    const re = new RegExp(`#${tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}_-])`, "giu");
+    out = out.replace(re, " ");
+  }
+  return out.replace(/[ \t]{2,}/g, " ").replace(/ +\n/g, "\n").trim();
+}
+
+/** Assign one category to many transactions. Transfers are skipped. */
+export async function bulkSetCategory(txs: Transaction[], categoryId: string | null): Promise<BulkResult> {
+  const targets = txs.filter((t) => t.type !== "transfer");
+  const skipped = txs.length - targets.length;
+  const errors: string[] = [];
+  let updated = 0;
+  for (const part of chunk(targets.map((t) => t.id), 200)) {
+    const { error } = await supabase.from("transactions").update({ category_id: categoryId }).in("id", part);
+    if (error) errors.push(error.message);
+    else updated += part.length;
+  }
+  return { updated, skipped, errors };
+}
+
+/**
+ * Add tags to many transactions. Tags live as `#token`s inside the note text,
+ * a database trigger re-indexes `transaction_tags` on write.
+ */
+export async function bulkAddTags(txs: Transaction[], tags: string[]): Promise<BulkResult> {
+  const errors: string[] = [];
+  let updated = 0;
+  let skipped = 0;
+  for (const t of txs) {
+    const next = addTagsToNote(t.note ?? null, tags);
+    if (next === (t.note ?? "")) { skipped++; continue; }
+    const { error } = await supabase.from("transactions").update({ note: next }).eq("id", t.id);
+    if (error) errors.push(`${t.description ?? t.id}: ${error.message}`);
+    else updated++;
+  }
+  return { updated, skipped, errors };
+}
+
+/** Remove tags from many transactions by rewriting note text. */
+export async function bulkRemoveTags(txs: Transaction[], tags: string[]): Promise<BulkResult> {
+  const errors: string[] = [];
+  let updated = 0;
+  let skipped = 0;
+  for (const t of txs) {
+    const next = removeTagsFromNote(t.note ?? null, tags);
+    if (next === (t.note ?? "")) { skipped++; continue; }
+    const { error } = await supabase.from("transactions").update({ note: next || null }).eq("id", t.id);
+    if (error) errors.push(`${t.description ?? t.id}: ${error.message}`);
+    else updated++;
+  }
+  return { updated, skipped, errors };
+}
+
+/** Delete many transactions (existing cascade triggers still apply). */
+export async function bulkDeleteTransactions(ids: string[]): Promise<BulkResult> {
+  const errors: string[] = [];
+  let updated = 0;
+  for (const part of chunk(ids, 200)) {
+    const { error } = await supabase.from("transactions").delete().in("id", part);
+    if (error) errors.push(error.message);
+    else updated += part.length;
+  }
+  return { updated, skipped: 0, errors };
+}
