@@ -260,6 +260,9 @@ function TransactionsPage() {
   const setTolerance = (v: number) => patchSearch({ tol: v });
   const setSort = (v: SortKey) => patchSearch({ sort: v });
   const setFilterReimb = (v: typeof filterReimb) => patchSearch({ reimb: v });
+  const view = s.view === "table" ? "table" : "cards";
+  const setView = (v: "cards" | "table") => patchSearch({ view: v });
+
 
   const searchRef = React.useRef<HTMLInputElement>(null);
   React.useEffect(() => {
