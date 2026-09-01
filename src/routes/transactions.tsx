@@ -834,8 +834,26 @@ function TransactionsPage() {
           <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
             {tr("tx.no_match")} <Link to="/add" className="text-primary underline-offset-2 hover:underline">{tr("tx.add_one")}</Link>.
           </CardContent></Card>
+        ) : view === "table" ? (
+          <Card><CardContent className="p-0">
+            <TransactionTable
+              rows={sorted}
+              accountById={accountById}
+              categoryById={categoryById}
+              tagsByTx={tagsByTx}
+              reimbursementIds={reimbursementIds}
+              selected={selected}
+              onToggle={toggleSelect}
+              onToggleAll={toggleSelectAll}
+              symbol={symbol}
+              dateFmt={dateFmt}
+              locale={locale}
+              backSearch={s as Record<string, unknown>}
+            />
+          </CardContent></Card>
         ) : groups.map(([date, items]) => (
           <div key={date}>
+
             {date !== "__flat__" && (
               <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 {format(new Date(date), "EEE, MMM d, yyyy", { locale })}
