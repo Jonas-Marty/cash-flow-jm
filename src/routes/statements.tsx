@@ -15,6 +15,8 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePicker } from "@/components/DatePicker";
 import { StatementDocButton } from "@/components/StatementDocLink";
+import { StatementLineTable } from "@/components/statements/StatementLineTable";
+
 import { useI18n } from "@/i18n";
 import { fetchAccounts, fmtMoney } from "@/lib/finance";
 import {
