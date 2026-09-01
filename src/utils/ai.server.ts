@@ -465,8 +465,8 @@ async function loadAccounts(sb: Sb) {
   return (data || []) as { id: string; name: string; type: string; archived: boolean; currency_code: string; currency_symbol: string }[];
 }
 async function loadCategories(sb: Sb) {
-  const { data } = await sb.from("categories").select("id, name, archived").order("name");
-  return (data || []) as { id: string; name: string; archived: boolean }[];
+  const { data } = await sb.from("categories").select("id, name, archived, is_scope, closed_at").order("name");
+  return (data || []) as { id: string; name: string; archived: boolean; is_scope?: boolean; closed_at?: string | null }[];
 }
 
 export const TOOLS: ToolDef[] = [
@@ -670,9 +670,17 @@ export const TOOLS: ToolDef[] = [
       const amount = num(a.amount);
       if (type !== "expense" && type !== "income" && type !== "transfer") return { ok: false, error: "type must be expense|income|transfer" };
       if (!amount || amount <= 0) return { ok: false, error: "amount must be > 0" };
-      const [accs, cats] = await Promise.all([loadAccounts(sb), loadCategories(sb)]);
+      const [accs, cats, settingsRes] = await Promise.all([
+        loadAccounts(sb),
+        loadCategories(sb),
+        sb.from("settings").select("active_scope_id").maybeSingle(),
+      ]);
       const acc = fuzzyFind(accs, str(a.account_name));
       const cat = fuzzyFind(cats, str(a.category_name));
+      const activeScope =
+        type === "transfer"
+          ? null
+          : cats.find((c) => c.id === settingsRes.data?.active_scope_id && c.is_scope && !c.archived && !c.closed_at) ?? null;
       const search: Record<string, string> = {
         type,
         amount: String(amount),
@@ -693,10 +701,22 @@ export const TOOLS: ToolDef[] = [
         search.iou_with = iouWith;
         search.iou_amount = String(iouAmt);
       }
+
+      const proposedCategoryName = cat?.name ?? str(a.category_name) ?? null;
+      const scopeConflict =
+        !!activeScope &&
+        !!proposedCategoryName &&
+        cat?.id !== activeScope.id &&
+        proposedCategoryName.localeCompare(activeScope.name, undefined, { sensitivity: "accent" }) !== 0;
+      const proposedSearch = scopeConflict ? { ...search, ignore_scope: "1" } : search;
+      const scopeSearch = { ...search };
+      delete scopeSearch.category;
+      delete scopeSearch.category_name;
+
       const summary = [
         `${type === "expense" ? "Expense" : type === "income" ? "Income" : "Transfer"} ${amount}`,
         acc ? `from ${acc.name}` : null,
-        cat ? `→ ${cat.name}` : null,
+        proposedCategoryName ? `→ ${proposedCategoryName}` : null,
         desc,
         iouWith && iouAmt ? `(${iouWith} owes ${iouAmt})` : null,
       ]
@@ -704,8 +724,22 @@ export const TOOLS: ToolDef[] = [
         .join(" · ");
       return {
         ok: true,
-        data: { summary, prefilled: search, matched_account: acc?.name ?? null, matched_category: cat?.name ?? null },
-        action: { kind: "open_add", label: "Review in Add form", search },
+        data: {
+          summary,
+          prefilled: proposedSearch,
+          matched_account: acc?.name ?? null,
+          matched_category: cat?.name ?? null,
+          active_scope: activeScope?.name ?? null,
+          scope_conflict: scopeConflict,
+        },
+        action: {
+          kind: "open_add",
+          label: scopeConflict ? "Use proposed category" : "Review in Add form",
+          search: proposedSearch,
+          alternate: scopeConflict ? { label: "Use active scope", search: scopeSearch } : undefined,
+          proposed_category_name: proposedCategoryName,
+          active_scope_name: activeScope?.name ?? null,
+        },
       };
     },
   },

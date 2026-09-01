@@ -12,13 +12,20 @@ export interface ChatMessage {
   created_at: string;
 }
 
-export type AssistantAction =
-  | {
-      kind: "open_add";
-      label: string;
-      /** URL search params for `/add`. */
-      search: Record<string, string>;
-    };
+export type AssistantActionTarget = {
+  label: string;
+  /** URL search params for `/add`. */
+  search: Record<string, string>;
+};
+
+export type AssistantAction = AssistantActionTarget & {
+  kind: "open_add";
+  /** Second route target shown when the draft conflicts with the active scope. */
+  alternate?: AssistantActionTarget;
+  /** Optional names let the client localize the two explicit choices. */
+  proposed_category_name?: string | null;
+  active_scope_name?: string | null;
+};
 
 export interface AISettings {
   enabled: boolean;
