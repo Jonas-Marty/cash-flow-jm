@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, subMonths, subDays, startOfYear } from "date-fns";
 import {
   ArrowDown, ArrowUp, ArrowLeftRight, Trash2, ChevronRight, ChevronDown, Layers, X, Pencil, FileText, MapPin,
+  LayoutList, Table as TableIcon, Tag, TagsIcon, FolderTree,
 } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
@@ -14,6 +15,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -25,11 +30,13 @@ import { useI18n } from "@/i18n";
 import {
   fetchAccounts, fetchCategories, fetchSettings, fetchTransactions, fetchTransactionTags,
   fetchRecurringRules, fetchReimbursementLinks,
-  fmtMoney, type TxType, type Transaction,
+  bulkSetCategory, bulkAddTags, bulkRemoveTags, bulkDeleteTransactions, parseTagInput,
+  fmtMoney, type TxType, type Transaction, type BulkResult,
 } from "@/lib/finance";
 import { MultiSelectCombobox, type MSCOption } from "@/components/MultiSelectCombobox";
 import { DatePicker } from "@/components/DatePicker";
 import { EntityVisual } from "@/components/EntityVisual";
+import { TransactionTable } from "@/components/transactions/TransactionTable";
 import { highlightTokens, tokenize, normalize, parseLooseNumber } from "@/lib/highlight";
 import { matchesAmount, type AmountOp } from "@/lib/amountFilter";
 import { fetchTransactionLinks, fetchTransactionLinkMembers } from "@/lib/links";
@@ -37,6 +44,7 @@ import { TransactionLinkPicker } from "@/components/TransactionLinkPicker";
 import { TransactionLinkSheet, KIND_ICON } from "@/components/TransactionLinkSheet";
 import { LocationPeekDialog } from "@/components/LocationPeekDialog";
 import { locationFromRow, type TxLocation } from "@/lib/location";
+
 
 const SORT_VALUES = ["date_desc", "date_asc", "amount_desc", "amount_asc"] as const;
 const OP_VALUES = ["any", "lt", "lte", "eq", "gte", "gt", "around"] as const;
