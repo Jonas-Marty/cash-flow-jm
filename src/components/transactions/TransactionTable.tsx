@@ -87,9 +87,9 @@ export function TransactionTable({
   return (
     <div>
       {/* Desktop table */}
-      <div className="hidden overflow-x-auto md:block">
+      <div className="hidden overflow-auto rounded-md md:block max-h-[calc(100vh-280px)]">
         <table className="w-full border-collapse text-sm">
-          <thead className="sticky top-0 z-10 bg-card">
+          <thead className="sticky top-0 z-10 bg-card shadow-sm">
             <tr className="border-b text-xs uppercase tracking-wide text-muted-foreground">
               <th className="w-9 px-2 py-2">
                 <Checkbox
