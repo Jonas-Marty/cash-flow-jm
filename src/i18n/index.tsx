@@ -541,6 +541,12 @@ const de: Dict = {
   "tx.bulk.remove_tags": "Tags entfernen",
   "tx.bulk.remove_tags.help": "Tags aus den Notizen von {n} Buchungen entfernen.",
   "tx.bulk.delete.help": "{n} Buchungen endgültig löschen?",
+  "tx.bulk.link": "Verknüpfen",
+  "tx.bulk.link.help": "{n} Buchungen einer Verknüpfung zuordnen.",
+  "tx.bulk.link.existing": "Bestehende Verknüpfung",
+  "tx.bulk.link.new": "Neue Verknüpfung (Titel)",
+  "tx.bulk.link.done": "{n} Buchungen verknüpft",
+  "tx.actions": "Aktionen",
   "tx.bulk.done": "{n} aktualisiert, {s} übersprungen",
   "tx.bulk.partial": "{n} aktualisiert, {e} fehlgeschlagen",
 
