@@ -165,7 +165,7 @@ export function AppShell({ children, wide = false }: { children: React.ReactNode
           "app-main mx-auto w-full overflow-x-clip px-4 pb-28 pt-4 md:pb-10 md:pt-6",
           // Dense admin-style pages (Settings) need more horizontal room than
           // the reading-width default used everywhere else.
-          wide ? "max-w-3xl xl:max-w-[1100px]" : "max-w-3xl",
+          wide ? "max-w-3xl lg:max-w-[1200px] xl:max-w-[1500px] 2xl:max-w-[1700px]" : "max-w-3xl",
         )}
       >
         {/* Mobile-visible active-scope chip (header is hidden on mobile). */}
