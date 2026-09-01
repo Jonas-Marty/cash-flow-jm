@@ -746,13 +746,36 @@ function TransactionsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-end justify-end">
+            <div className="flex items-end justify-between gap-2">
+              <div className="inline-flex rounded-md border border-border p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setView("cards")}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded px-2 py-1 text-xs",
+                    view === "cards" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <LayoutList className="h-3.5 w-3.5" /> {tr("tx.view.cards")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setView("table")}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded px-2 py-1 text-xs",
+                    view === "table" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <TableIcon className="h-3.5 w-3.5" /> {tr("tx.view.table")}
+                </button>
+              </div>
               {activeFilterCount > 0 && (
                 <Button type="button" variant="ghost" size="sm" onClick={clearAll}>
                   <X className="mr-1 h-3.5 w-3.5" /> {tr("tx.clear_all")}
                 </Button>
               )}
             </div>
+
           </div>
 
           {/* Result count + active filter pills */}
