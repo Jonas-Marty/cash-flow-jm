@@ -188,20 +188,25 @@ export function DayHeatmapCalendar({
   );
 
   return (
-    <div className={cn("rounded-lg border bg-card p-2 md:mx-auto md:max-w-sm", className)}>
+    <div
+      ref={rootRef}
+      className={cn("w-full rounded-lg border bg-card p-2 md:mx-auto", className)}
+      style={{ maxWidth: monthCount === 1 ? "24rem" : monthCount === 2 ? "44rem" : "100%" }}
+    >
       <DayPicker
         mode="single"
         selected={selected}
         onSelect={(d) => d && onSelect(d)}
         month={month}
         onMonthChange={setMonth}
+        numberOfMonths={monthCount}
         locale={locale}
         showOutsideDays
         weekStartsOn={1}
-        className="pointer-events-auto"
+        className="pointer-events-auto w-full"
         classNames={{
-          months: "relative flex flex-col",
-          month: "space-y-2",
+          months: "relative flex flex-col gap-3 sm:flex-row",
+          month: "min-w-52 flex-1 space-y-2",
           month_caption: "flex h-8 items-center justify-center px-8 text-sm font-medium",
           caption_label: "select-none",
           nav: "absolute inset-x-0 top-0 flex w-full items-center justify-between gap-1 px-2",
