@@ -361,3 +361,69 @@ export async function statementRefsFor(
   }
   return out;
 }
+
+/**
+ * Book several statement lines as real transactions in one go (tabular entry).
+ * Each row is inserted independently so one failure does not block the rest;
+ * the matching line is then linked to the created transaction.
+ */
+export async function commitStatementLines(
+  sb: SupabaseClient,
+  userId: string,
+  input: {
+    import_id: string;
+    rows: Array<{
+      line_id: string;
+      occurred_on: string;
+      amount: number;
+      type: "expense" | "income";
+      description: string | null;
+      note: string | null;
+      category_id: string | null;
+      latitude?: number | null;
+      longitude?: number | null;
+      location_label?: string | null;
+      location_source?: string | null;
+    }>;
+  },
+): Promise<{
+  results: Array<{ line_id: string; ok: boolean; transaction_id?: string; error?: string }>;
+  detail: StatementImportDetail;
+}> {
+  const imp = await loadImport(sb, input.import_id);
+  const results: Array<{ line_id: string; ok: boolean; transaction_id?: string; error?: string }> = [];
+
+  for (const row of input.rows) {
+    try {
+      const { data, error } = await sb
+        .from("transactions")
+        .insert({
+          user_id: userId,
+          occurred_on: row.occurred_on,
+          amount: Math.abs(row.amount),
+          type: row.type,
+          source_account_id: imp.account_id,
+          destination_account_id: null,
+          category_id: row.category_id,
+          description: row.description,
+          note: row.note,
+          latitude: row.latitude ?? null,
+          longitude: row.longitude ?? null,
+          location_accuracy_m: null,
+          location_label: row.location_label ?? null,
+          location_source: row.latitude != null ? (row.location_source ?? "search") : null,
+        })
+        .select("id")
+        .single();
+      if (error) throw new Error(error.message);
+      const txId = (data as { id: string }).id;
+      await applyLineDecision(sb, { line_id: row.line_id, decision: "link", transaction_id: txId });
+      results.push({ line_id: row.line_id, ok: true, transaction_id: txId });
+    } catch (e) {
+      results.push({ line_id: row.line_id, ok: false, error: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
+  const detail = await buildImportDetail(sb, input.import_id);
+  return { results, detail };
+}
