@@ -897,6 +897,13 @@ function TransactionsPage() {
                     return (
                       <div key={`g-${row.groupId}`} className="bg-muted/20">
                         <div className="flex w-full items-start gap-3 px-4 py-3 hover:bg-muted/40">
+                          <Checkbox
+                            className="mt-3"
+                            checked={row.txs.every((x) => selected.has(x.id))}
+                            onCheckedChange={(v) => toggleSelectMany(row.txs.map((x) => x.id), v === true)}
+                            aria-label={tr("tx.bulk.select_row")}
+                          />
+
                           <button
                             type="button"
                             onClick={() => toggleGroup(row.groupId)}
