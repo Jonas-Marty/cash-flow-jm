@@ -97,6 +97,7 @@ function AddTransactionRoute() {
       iou_amount: cleanAmountParam(sp.get("iou_amount")),
       statement_line: sp.get("statement_line") ?? undefined,
       statement_import: sp.get("statement_import") ?? undefined,
+      ignore_scope: sp.get("ignore_scope") === "1",
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -125,6 +126,8 @@ export interface AddPrefill {
   occurred_on?: string;
   iou_with?: string;
   iou_amount?: string;
+  /** Assistant draft explicitly chose its own category instead of the active scope. */
+  ignore_scope?: boolean;
   /** Statement import line this entry closes; linked back after save. */
   statement_line?: string;
   statement_import?: string;
@@ -420,13 +423,13 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
     const s = (scopesQ.data ?? []).find((x) => x.id === activeScopeId);
     return s && !s.closed_at ? s : null;
   }, [isEdit, activeScopeId, scopesQ.data]);
-  const [scopeSkipped, setScopeSkipped] = React.useState(false);
+  const [scopeSkipped, setScopeSkipped] = React.useState(() => !!prefill?.ignore_scope);
   React.useEffect(() => {
-    if (!activeScope || scopeSkipped || isEdit) return;
+    if (!activeScope || scopeSkipped || isEdit || prefill?.ignore_scope) return;
     if (type === "transfer") return;
     if (!categoryId) setCategoryId(activeScope.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeScope?.id, scopeSkipped, isEdit, type]);
+  }, [activeScope?.id, scopeSkipped, isEdit, type, prefill?.ignore_scope]);
 
   // ───────── Edit mode: load the transaction (and split-group siblings) ─────────
   const editQ = useQuery({
@@ -1250,7 +1253,7 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
               onClick={() => {
                 if (scopeSkipped) {
                   setScopeSkipped(false);
-                  if (!categoryId) setCategoryId(activeScope.id);
+                  setCategoryId(activeScope.id);
                 } else {
                   setScopeSkipped(true);
                   if (categoryId === activeScope.id) setCategoryId("");

@@ -276,7 +276,21 @@ export const chat = createServerFn({ method: "POST" })
     const creds = resolved.creds;
 
     // Settings for system prompt context.
-    const { data: settings } = await supabase.from("settings").select("currency_code, currency_symbol, language").maybeSingle();
+    const { data: settings } = await supabase
+      .from("settings")
+      .select("currency_code, currency_symbol, language, active_scope_id")
+      .maybeSingle();
+    let activeScope: { id: string; name: string } | null = null;
+    if (settings?.active_scope_id && (resolved.endpoint.context_level ?? "compact") !== "off") {
+      const { data: scope } = await supabase
+        .from("categories")
+        .select("id, name")
+        .eq("id", settings.active_scope_id)
+        .eq("is_scope", true)
+        .is("closed_at", null)
+        .maybeSingle();
+      activeScope = scope ? { id: scope.id, name: scope.name } : null;
+    }
 
     // Context briefing: real accounts/categories/recent activity, sized per connection.
     let briefing = "";
@@ -297,6 +311,7 @@ export const chat = createServerFn({ method: "POST" })
       todayISO: new Date().toISOString().slice(0, 10),
       language: settings?.language || "de",
       briefing,
+      activeScope,
     };
 
     // Load existing history if persistent.

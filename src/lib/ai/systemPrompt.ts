@@ -7,6 +7,8 @@ export interface SystemPromptCtx {
   language: string;
   /** Compact snapshot of the user's accounts/categories/recent activity. */
   briefing?: string;
+  /** Current open scope, included only when the endpoint allows finance context. */
+  activeScope?: { id: string; name: string } | null;
 }
 
 export function buildSystemPrompt(ctx: SystemPromptCtx): string {
@@ -27,6 +29,7 @@ Rules:
 - For "where did I spend most" style questions, call aggregate_spending.
 - When proposing a new transaction, prefer the smallest set of fields you are confident about. Leave fields blank if unsure — the user will fill them in.
 - For IOUs / "X owes me back": set iou_with to the person's name and iou_amount to the amount they owe (not the full bill).
+${ctx.activeScope ? `- Active scope: "${ctx.activeScope.name}" (category id ${ctx.activeScope.id}). If the described transaction clearly belongs to this trip/event/bucket, use that category. If it clearly does not, use the normal category; the app will let the user choose explicitly.` : ""}
 
 Style rules for descriptions and tags (important):
 - Write the description in the same style the user already uses: same language, same capitalisation, same short wording. If a similar past entry exists, reuse its exact description text instead of inventing a new phrasing (e.g. reuse "Gipfeli", not "Gipfeli im Pfenniger gekauft"). Keep it short — a few words, no full sentences, no amounts or dates inside it.

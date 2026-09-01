@@ -370,9 +370,9 @@ export function AssistantChat({
   };
 
 
-  const runAction = (action: AssistantAction) => {
+  const runAction = (action: AssistantAction, searchOverride?: Record<string, string>) => {
     if (action.kind === "open_add") {
-      navigate({ to: "/add", search: action.search as never });
+      navigate({ to: "/add", search: (searchOverride ?? action.search) as never });
     }
   };
 
@@ -465,11 +465,25 @@ export function AssistantChat({
             >
               {m.role === "assistant" ? <Markdown>{m.text || ""}</Markdown> : <p className="whitespace-pre-wrap">{m.text}</p>}
               {m.action && (
-                <div className="mt-2 flex">
+                <div className="mt-2 flex flex-wrap gap-2">
                   <Button size="sm" variant="secondary" onClick={() => runAction(m.action!)}>
                     <ExternalLink className="mr-1 h-3 w-3" />
-                    {m.action.label}
+                    {m.action.alternate && m.action.proposed_category_name
+                      ? t("ai.action.use_proposed", { name: m.action.proposed_category_name })
+                      : m.action.label}
                   </Button>
+                  {m.action.alternate && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => runAction(m.action!, m.action!.alternate!.search)}
+                    >
+                      <ExternalLink className="mr-1 h-3 w-3" />
+                      {m.action.active_scope_name
+                        ? t("ai.action.use_scope", { name: m.action.active_scope_name })
+                        : m.action.alternate.label}
+                    </Button>
+                  )}
                 </div>
               )}
               {m.importId && (
