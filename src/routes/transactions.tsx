@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, subMonths, subDays, startOfYear } from "date-fns";
 import {
   ArrowDown, ArrowUp, ArrowLeftRight, Trash2, ChevronRight, ChevronDown, Layers, X, Pencil, FileText, MapPin,
-  LayoutList, Table as TableIcon, Tag, TagsIcon, FolderTree,
+  LayoutList, Table as TableIcon, Tag, TagsIcon, FolderTree, Link2,
 } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
@@ -39,7 +39,7 @@ import { EntityVisual } from "@/components/EntityVisual";
 import { TransactionTable } from "@/components/transactions/TransactionTable";
 import { highlightTokens, tokenize, normalize, parseLooseNumber } from "@/lib/highlight";
 import { matchesAmount, type AmountOp } from "@/lib/amountFilter";
-import { fetchTransactionLinks, fetchTransactionLinkMembers } from "@/lib/links";
+import { fetchTransactionLinks, fetchTransactionLinkMembers, attachTransactionsToLink, createTransactionLink } from "@/lib/links";
 import { TransactionLinkPicker } from "@/components/TransactionLinkPicker";
 import { TransactionLinkSheet, KIND_ICON } from "@/components/TransactionLinkSheet";
 import { LocationPeekDialog } from "@/components/LocationPeekDialog";
@@ -383,7 +383,9 @@ function TransactionsPage() {
 
   // ----- Bulk selection -----
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
-  const [bulkAction, setBulkAction] = React.useState<null | "category" | "add_tags" | "remove_tags" | "delete">(null);
+  const [bulkAction, setBulkAction] = React.useState<null | "category" | "add_tags" | "remove_tags" | "delete" | "link">(null);
+  const [bulkLinkId, setBulkLinkId] = React.useState<string>("");
+  const [bulkLinkTitle, setBulkLinkTitle] = React.useState("");
   const [bulkCategory, setBulkCategory] = React.useState<string>(NO_CATEGORY);
   const [bulkTagInput, setBulkTagInput] = React.useState("");
   const [bulkRemoveSel, setBulkRemoveSel] = React.useState<string[]>([]);
@@ -448,6 +450,41 @@ function TransactionsPage() {
       setBulkBusy(false);
     }
   };
+
+  const runBulkLink = async () => {
+    setBulkBusy(true);
+    try {
+      let linkId = bulkLinkId;
+      if (bulkLinkTitle.trim()) {
+        const created = await createTransactionLink({ title: bulkLinkTitle.trim() });
+        linkId = created.id;
+      }
+      if (!linkId) return;
+      const n = await attachTransactionsToLink(selectedTxs.map((t) => t.id), linkId);
+      toast.success(tr("tx.bulk.link.done", { n }));
+      setBulkAction(null);
+      setBulkLinkId("");
+      setBulkLinkTitle("");
+      clearSelection();
+      qc.invalidateQueries();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+
+  const rowActions = (t: Transaction) => (
+    <>
+      <Button asChild variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label={tr("common.edit")}>
+        <Link to="/edit/$id" params={{ id: t.id }} search={{ back: s as Record<string, unknown> }}><Pencil className="h-4 w-4" /></Link>
+      </Button>
+      <TransactionLinkPicker transactionId={t.id} currentLinkId={linkByTx.get(t.id) ?? null} compact />
+      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => del(t.id)} aria-label={tr("common.delete")}>
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </>
+  );
 
   const reimbursementIds = React.useMemo(
     () => new Set((reimbLinksQ.data ?? []).map((l) => l.settling_transaction_id)),
@@ -555,7 +592,7 @@ function TransactionsPage() {
   };
 
   return (
-    <AppShell>
+    <AppShell wide={view === "table"}>
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold tracking-tight">{tr("tx.title")}</h1>
 
@@ -849,6 +886,7 @@ function TransactionsPage() {
               dateFmt={dateFmt}
               locale={locale}
               backSearch={s as Record<string, unknown>}
+              renderActions={rowActions}
             />
           </CardContent></Card>
         ) : groups.map(([date, items]) => (
@@ -1172,7 +1210,7 @@ function TransactionsPage() {
       {/* Bulk action bar */}
       {selected.size > 0 && (
         <div className="fixed inset-x-0 bottom-16 z-40 px-3 sm:bottom-4">
-          <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2 rounded-lg border border-border bg-card/95 p-2 shadow-lg backdrop-blur">
+          <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-2 rounded-lg border border-border bg-card/95 p-2 shadow-lg backdrop-blur">
             <span className="px-1 text-sm font-medium">{tr("tx.bulk.n_selected", { n: selected.size })}</span>
             <Button size="sm" variant="outline" onClick={() => setBulkAction("category")}>
               <FolderTree className="mr-1 h-3.5 w-3.5" /> {tr("tx.bulk.set_category")}
@@ -1183,6 +1221,9 @@ function TransactionsPage() {
             <Button size="sm" variant="outline" onClick={() => setBulkAction("remove_tags")} disabled={selectedTagPool.length === 0}>
               <TagsIcon className="mr-1 h-3.5 w-3.5" /> {tr("tx.bulk.remove_tags")}
             </Button>
+            <Button size="sm" variant="outline" onClick={() => setBulkAction("link")}>
+              <Link2 className="mr-1 h-3.5 w-3.5" /> {tr("tx.bulk.link")}
+            </Button>
             <Button size="sm" variant="outline" className="text-destructive" onClick={() => setBulkAction("delete")}>
               <Trash2 className="mr-1 h-3.5 w-3.5" /> {tr("common.delete")}
             </Button>
@@ -1192,6 +1233,42 @@ function TransactionsPage() {
           </div>
         </div>
       )}
+
+      {/* Link together */}
+      <Dialog open={bulkAction === "link"} onOpenChange={(o) => { if (!o) setBulkAction(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{tr("tx.bulk.link")}</DialogTitle>
+            <DialogDescription>{tr("tx.bulk.link.help", { n: selected.size })}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label>{tr("tx.bulk.link.existing")}</Label>
+              <Select value={bulkLinkId} onValueChange={(v) => { setBulkLinkId(v); setBulkLinkTitle(""); }}>
+                <SelectTrigger><SelectValue placeholder={tr("tx.bulk.link.existing")} /></SelectTrigger>
+                <SelectContent>
+                  {(linksQ.data ?? []).map((l) => (
+                    <SelectItem key={l.id} value={l.id}>{l.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label>{tr("tx.bulk.link.new")}</Label>
+              <Input
+                value={bulkLinkTitle}
+                onChange={(e) => { setBulkLinkTitle(e.target.value); if (e.target.value) setBulkLinkId(""); }}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setBulkAction(null)}>{tr("common.cancel")}</Button>
+            <Button disabled={bulkBusy || (!bulkLinkId && !bulkLinkTitle.trim())} onClick={runBulkLink}>
+              {tr("tx.bulk.link")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Set category */}
       <Dialog open={bulkAction === "category"} onOpenChange={(o) => { if (!o) setBulkAction(null); }}>
