@@ -1,7 +1,7 @@
 import * as React from "react";
 import { DayPicker, type DayButtonProps } from "react-day-picker";
 import type { Locale } from "date-fns";
-import { format } from "date-fns";
+import { addMonths, format, startOfMonth } from "date-fns";
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -30,6 +30,19 @@ const bucketClass: Record<Exclude<Bucket, null>, string> = {
 };
 
 const LONG_PRESS_MS = 500;
+const TWO_MONTH_MIN_WIDTH = 440;
+const THREE_MONTH_MIN_WIDTH = 680;
+
+function monthCountForWidth(width: number): 1 | 2 | 3 {
+  if (width >= THREE_MONTH_MIN_WIDTH) return 3;
+  if (width >= TWO_MONTH_MIN_WIDTH) return 2;
+  return 1;
+}
+
+/** The selected month is centered whenever more than one month fits. */
+function initialVisibleMonth(selectedMonth: Date, monthCount: number): Date {
+  return monthCount === 1 ? selectedMonth : addMonths(selectedMonth, -1);
+}
 
 interface Props {
   selected: Date;
@@ -48,14 +61,41 @@ export function DayHeatmapCalendar({
   selected, onSelect, transactions, accounts, categories,
   threshold, symbol, locale, labels, className,
 }: Props) {
-  const [month, setMonth] = React.useState<Date>(() => new Date(selected.getFullYear(), selected.getMonth(), 1));
+  const rootRef = React.useRef<HTMLDivElement>(null);
+  const selectedMonth = React.useMemo(() => startOfMonth(selected), [selected]);
+  const [month, setMonth] = React.useState<Date>(() => selectedMonth);
+  const [monthCount, setMonthCount] = React.useState<1 | 2 | 3>(1);
+
+  // Measure the available parent width rather than the calendar itself: the
+  // calendar grows with the number of months, which would make the measurement
+  // circular. This keeps one month on phones and adds neighbors on wide layouts.
   React.useEffect(() => {
-    setMonth((m) =>
-      m.getFullYear() === selected.getFullYear() && m.getMonth() === selected.getMonth()
-        ? m
-        : new Date(selected.getFullYear(), selected.getMonth(), 1),
-    );
-  }, [selected]);
+    const parent = rootRef.current?.parentElement;
+    if (!parent) return;
+    const update = () => setMonthCount(monthCountForWidth(parent.clientWidth));
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(parent);
+    return () => observer.disconnect();
+  }, []);
+
+  // When space opens/closes, restore the requested previous/current/next order.
+  React.useEffect(() => {
+    setMonth(initialVisibleMonth(selectedMonth, monthCount));
+    // selectedMonth is intentionally read at the time the layout changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [monthCount]);
+
+  // Date changes keep the current viewport while the new date is visible; if
+  // it is outside the rendered months, re-center around the transaction month.
+  React.useEffect(() => {
+    setMonth((current) => {
+      const first = startOfMonth(current);
+      const last = addMonths(first, monthCount - 1);
+      if (selectedMonth >= first && selectedMonth <= last) return first;
+      return initialVisibleMonth(selectedMonth, monthCount);
+    });
+  }, [selectedMonth, monthCount]);
 
   const byDay = React.useMemo(() => {
     const m = new Map<string, { net: number; count: number; txs: Transaction[] }>();
@@ -148,20 +188,25 @@ export function DayHeatmapCalendar({
   );
 
   return (
-    <div className={cn("rounded-lg border bg-card p-2 md:mx-auto md:max-w-sm", className)}>
+    <div
+      ref={rootRef}
+      className={cn("w-full rounded-lg border bg-card p-2 md:mx-auto", className)}
+      style={{ maxWidth: monthCount === 1 ? "24rem" : monthCount === 2 ? "44rem" : "100%" }}
+    >
       <DayPicker
         mode="single"
         selected={selected}
         onSelect={(d) => d && onSelect(d)}
         month={month}
         onMonthChange={setMonth}
+        numberOfMonths={monthCount}
         locale={locale}
         showOutsideDays
         weekStartsOn={1}
-        className="pointer-events-auto"
+        className="pointer-events-auto w-full"
         classNames={{
-          months: "relative flex flex-col",
-          month: "space-y-2",
+          months: "relative flex flex-col gap-3 sm:flex-row",
+          month: "min-w-52 flex-1 space-y-2",
           month_caption: "flex h-8 items-center justify-center px-8 text-sm font-medium",
           caption_label: "select-none",
           nav: "absolute inset-x-0 top-0 flex w-full items-center justify-between gap-1 px-2",
