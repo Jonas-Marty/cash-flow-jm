@@ -1753,6 +1753,12 @@ const en: Dict = {
   "tx.bulk.remove_tags": "Remove tags",
   "tx.bulk.remove_tags.help": "Remove tags from the notes of {n} transactions.",
   "tx.bulk.delete.help": "Permanently delete {n} transactions?",
+  "tx.bulk.link": "Link together",
+  "tx.bulk.link.help": "Attach {n} transactions to a link.",
+  "tx.bulk.link.existing": "Existing link",
+  "tx.bulk.link.new": "New link (title)",
+  "tx.bulk.link.done": "{n} transactions linked",
+  "tx.actions": "Actions",
   "tx.bulk.done": "{n} updated, {s} skipped",
   "tx.bulk.partial": "{n} updated, {e} failed",
 
