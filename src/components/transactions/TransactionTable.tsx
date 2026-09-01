@@ -24,6 +24,8 @@ interface Props {
   dateFmt?: string;
   locale: Locale;
   backSearch: Record<string, unknown>;
+  /** Per-row action controls (edit / link / delete) rendered by the parent. */
+  renderActions?: (t: Transaction) => React.ReactNode;
 }
 
 /**
@@ -44,6 +46,7 @@ export function TransactionTable({
   dateFmt,
   locale,
   backSearch,
+  renderActions,
 }: Props) {
   const { t: tr } = useI18n();
   const allChecked = rows.length > 0 && rows.every((r) => selected.has(r.id));
@@ -101,6 +104,7 @@ export function TransactionTable({
               <th className="px-2 py-2 text-left font-medium">{tr("add.account")}</th>
               <th className="px-2 py-2 text-left font-medium">{tr("tx.all_tags")}</th>
               <th className="px-2 py-2 text-right font-medium">{tr("tx.amount")}</th>
+              {renderActions && <th className="w-px px-2 py-2 text-right font-medium">{tr("tx.actions")}</th>}
             </tr>
           </thead>
           <tbody>
@@ -158,6 +162,11 @@ export function TransactionTable({
                     </div>
                   </td>
                   <td className="px-2 py-1.5 text-right align-middle">{amountCell(t)}</td>
+                  {renderActions && (
+                    <td className="whitespace-nowrap px-2 py-1 text-right align-middle">
+                      <div className="flex items-center justify-end">{renderActions(t)}</div>
+                    </td>
+                  )}
                 </tr>
               );
             })}
@@ -207,6 +216,7 @@ export function TransactionTable({
                     <span key={tg} className="text-muted-foreground">{`#${tg}`}</span>
                   ))}
                 </div>
+                {renderActions && <div className="mt-0.5 flex items-center">{renderActions(t)}</div>}
               </div>
             </li>
           );
