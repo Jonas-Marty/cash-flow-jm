@@ -1086,6 +1086,13 @@ function TransactionsPage() {
                   );
                   return (
                     <div key={t.id} className="flex items-start gap-3 px-4 py-3">
+                      <Checkbox
+                        className="mt-3"
+                        checked={selected.has(t.id)}
+                        onCheckedChange={(v) => toggleSelect(t.id, v === true)}
+                        aria-label={tr("tx.bulk.select_row")}
+                      />
+
                       <RowVisual entity={primary} typeIcon={<Icon className="h-3 w-3" />} tone={tone} />
                       <div className="min-w-0 flex-1">
                         <div className="grid grid-cols-1 items-start gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-2">
