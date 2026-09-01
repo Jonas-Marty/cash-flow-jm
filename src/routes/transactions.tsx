@@ -1165,7 +1165,149 @@ function TransactionsPage() {
             </CardContent></Card>
           </div>
         ))}
+
+        {selected.size > 0 && <div className="h-20" aria-hidden />}
       </div>
+
+      {/* Bulk action bar */}
+      {selected.size > 0 && (
+        <div className="fixed inset-x-0 bottom-16 z-40 px-3 sm:bottom-4">
+          <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2 rounded-lg border border-border bg-card/95 p-2 shadow-lg backdrop-blur">
+            <span className="px-1 text-sm font-medium">{tr("tx.bulk.n_selected", { n: selected.size })}</span>
+            <Button size="sm" variant="outline" onClick={() => setBulkAction("category")}>
+              <FolderTree className="mr-1 h-3.5 w-3.5" /> {tr("tx.bulk.set_category")}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setBulkAction("add_tags")}>
+              <Tag className="mr-1 h-3.5 w-3.5" /> {tr("tx.bulk.add_tags")}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setBulkAction("remove_tags")} disabled={selectedTagPool.length === 0}>
+              <TagsIcon className="mr-1 h-3.5 w-3.5" /> {tr("tx.bulk.remove_tags")}
+            </Button>
+            <Button size="sm" variant="outline" className="text-destructive" onClick={() => setBulkAction("delete")}>
+              <Trash2 className="mr-1 h-3.5 w-3.5" /> {tr("common.delete")}
+            </Button>
+            <Button size="sm" variant="ghost" onClick={clearSelection}>
+              <X className="mr-1 h-3.5 w-3.5" /> {tr("tx.bulk.clear")}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Set category */}
+      <Dialog open={bulkAction === "category"} onOpenChange={(o) => { if (!o) setBulkAction(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{tr("tx.bulk.set_category")}</DialogTitle>
+            <DialogDescription>{tr("tx.bulk.set_category.help", { n: selectedTxs.filter((t) => t.type !== "transfer").length })}</DialogDescription>
+          </DialogHeader>
+          <Select value={bulkCategory} onValueChange={setBulkCategory}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_CATEGORY}>{`— ${tr("add.split.no_category")} —`}</SelectItem>
+              {(categoriesQ.data ?? []).filter((c) => !c.archived).map((c) => (
+                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkAction(null)}>{tr("common.cancel")}</Button>
+            <Button
+              disabled={bulkBusy}
+              onClick={() => runBulk(() => bulkSetCategory(selectedTxs, bulkCategory === NO_CATEGORY ? null : bulkCategory))}
+            >
+              {tr("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add tags */}
+      <Dialog open={bulkAction === "add_tags"} onOpenChange={(o) => { if (!o) setBulkAction(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{tr("tx.bulk.add_tags")}</DialogTitle>
+            <DialogDescription>{tr("tx.bulk.add_tags.help", { n: selected.size })}</DialogDescription>
+          </DialogHeader>
+          <Input
+            autoFocus
+            value={bulkTagInput}
+            placeholder="#coop #migros"
+            onChange={(e) => setBulkTagInput(e.target.value)}
+          />
+          <div className="flex flex-wrap gap-1">
+            {parseTagInput(bulkTagInput).map((tg) => (
+              <Badge key={tg} variant="secondary" className="rounded-full text-[11px]">{`#${tg}`}</Badge>
+            ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkAction(null)}>{tr("common.cancel")}</Button>
+            <Button
+              disabled={bulkBusy || parseTagInput(bulkTagInput).length === 0}
+              onClick={() => runBulk(() => bulkAddTags(selectedTxs, parseTagInput(bulkTagInput)))}
+            >
+              {tr("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove tags */}
+      <Dialog open={bulkAction === "remove_tags"} onOpenChange={(o) => { if (!o) setBulkAction(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{tr("tx.bulk.remove_tags")}</DialogTitle>
+            <DialogDescription>{tr("tx.bulk.remove_tags.help", { n: selected.size })}</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-wrap gap-1.5">
+            {selectedTagPool.map((tg) => {
+              const on = bulkRemoveSel.includes(tg);
+              return (
+                <button
+                  key={tg}
+                  type="button"
+                  onClick={() => setBulkRemoveSel((p) => (on ? p.filter((x) => x !== tg) : [...p, tg]))}
+                  className={cn(
+                    "rounded-full border px-2.5 py-0.5 text-xs",
+                    on ? "border-destructive bg-destructive/10 text-destructive" : "border-border text-muted-foreground hover:bg-accent",
+                  )}
+                >
+                  {`#${tg}`}
+                </button>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkAction(null)}>{tr("common.cancel")}</Button>
+            <Button
+              disabled={bulkBusy || bulkRemoveSel.length === 0}
+              onClick={() => runBulk(() => bulkRemoveTags(selectedTxs, bulkRemoveSel))}
+            >
+              {tr("common.save")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete */}
+      <Dialog open={bulkAction === "delete"} onOpenChange={(o) => { if (!o) setBulkAction(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{tr("common.delete")}</DialogTitle>
+            <DialogDescription>{tr("tx.bulk.delete.help", { n: selected.size })}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkAction(null)}>{tr("common.cancel")}</Button>
+            <Button
+              variant="destructive"
+              disabled={bulkBusy}
+              onClick={() => runBulk(() => bulkDeleteTransactions(selectedTxs.map((t) => t.id)))}
+            >
+              {tr("common.delete")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <TransactionLinkSheet
         linkId={openLinkId}
         open={openLinkId !== null}
