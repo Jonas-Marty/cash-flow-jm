@@ -94,6 +94,10 @@ paths:
         metres, an optional \`location_label\`, and \`location_source\`
         (\`device\` | \`manual\` | \`search\`, defaulting to \`device\`). It is
         carried onto the transaction when the pending row is confirmed.
+
+        If a point arrives without a \`location_label\`, the server borrows the
+        name of the nearest already-labelled place whose description matches
+        this one. Only the name is borrowed — the coordinates stay as measured.
       requestBody:
         required: true
         content:

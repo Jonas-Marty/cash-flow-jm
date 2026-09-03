@@ -164,6 +164,12 @@ export interface PendingTransaction {
   external_source: string | null;
   external_ref: string | null;
   external_info: string | null;
+  /** Where the capturing device thought it was; see @/lib/location. */
+  latitude: number | null;
+  longitude: number | null;
+  location_accuracy_m: number | null;
+  location_label: string | null;
+  location_source: string | null;
   confirmed_transaction_id: string | null;
   confirmed_at: string | null;
   rejected_at: string | null;

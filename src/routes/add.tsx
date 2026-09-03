@@ -61,6 +61,8 @@ import { fetchScopes } from "@/lib/finance";
 import { useActiveScopeId } from "@/lib/activeScope";
 import { Target } from "lucide-react";
 import { LocationSection, type RecentLocation } from "@/components/LocationSection";
+import { useRecentLocations } from "@/hooks/useRecentLocations";
+import { rankLocationCandidates } from "@/lib/locationSuggest";
 import {
   getCurrentLocation,
   isToday as dateIsTodayFn,
@@ -208,41 +210,17 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
     locationTouchedRef.current = true;
     setLocation(loc);
   }, []);
-  const recentLocationsQ = useQuery({
-    queryKey: ["transactions", "recent_locations"],
-    queryFn: async (): Promise<RecentLocation[]> => {
-      const { data, error } = await supabase
-        .from("transactions")
-        .select("latitude, longitude, location_accuracy_m, location_label, location_source, description, occurred_on")
-        .not("latitude", "is", null)
-        .order("occurred_on", { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      const out: RecentLocation[] = [];
-      const seen = new Set<string>();
-      for (const r of data ?? []) {
-        const loc = locationFromRow(r);
-        if (!loc) continue;
-        const key = `${loc.latitude.toFixed(4)}|${loc.longitude.toFixed(4)}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        out.push({ ...loc, description: r.description ?? null });
-        if (out.length >= 12) break;
-      }
-      return out;
-    },
-  });
-  // Rank reusable locations: same description first, then most recent.
-  const recentLocations = React.useMemo<RecentLocation[]>(() => {
-    const list = recentLocationsQ.data ?? [];
-    const d = description.trim().toLowerCase();
-    if (!d) return list;
-    return [...list].sort((a, b) => {
-      const am = (a.description ?? "").toLowerCase().includes(d) ? 0 : 1;
-      const bm = (b.description ?? "").toLowerCase().includes(d) ? 0 : 1;
-      return am - bm;
-    });
-  }, [recentLocationsQ.data, description]);
+  const recentLocationsQ = useRecentLocations();
+  // Same description first, then nearest to the point already picked — with
+  // several branches of one chain in the list, distance is what tells them apart.
+  const recentLocations = React.useMemo<RecentLocation[]>(
+    () =>
+      rankLocationCandidates(recentLocationsQ.data ?? [], {
+        description,
+        near: location,
+      }),
+    [recentLocationsQ.data, description, location],
+  );
 
   // Context-aware chip ordering: once the user picks a type/account/category,
   // the remaining fields re-rank toward what was historically used together.

@@ -12,9 +12,11 @@ import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
 import { searchPlaces, reverseGeocode } from "@/utils/geocode.functions";
+import type { LocationHistoryEntry } from "@/lib/locationSuggest";
 import {
   formatAccuracy,
   formatCoords,
+  formatDistance,
   getCurrentLocation,
   osmLink,
   round6,
@@ -23,7 +25,13 @@ import {
 
 const LazyMap = React.lazy(() => import("@/components/LocationMiniMap"));
 
-export type RecentLocation = TxLocation & { description: string | null };
+/**
+ * A place the user has been before. `distance_m` is filled in by callers that
+ * rank against a known fix (see `rankLocationCandidates`) — with several
+ * branches of the same shop in the list, it is the only thing that tells them
+ * apart.
+ */
+export type RecentLocation = LocationHistoryEntry & { distance_m?: number | null };
 
 export function LocationSection({
   value,
@@ -298,7 +306,10 @@ export function LocationSection({
                 }}
               >
                 <span className="font-medium">{r.label ?? r.description ?? formatCoords(r)}</span>
-                <span className="text-muted-foreground">{formatCoords(r)}</span>
+                <span className="text-muted-foreground">
+                  {formatCoords(r)}
+                  {r.distance_m != null ? ` · ${formatDistance(r.distance_m)}` : null}
+                </span>
               </button>
             ))}
           </div>

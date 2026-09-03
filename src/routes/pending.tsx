@@ -3,9 +3,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
-import { Check, Ban, RotateCcw, ChevronDown, ChevronRight } from "lucide-react";
+import { Check, Ban, RotateCcw, ChevronDown, ChevronRight, LayoutList, Table2 } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
+import { LocationSection, type RecentLocation } from "@/components/LocationSection";
+import { PendingLineTable } from "@/components/pending/PendingLineTable";
+import { useRecentLocations } from "@/hooks/useRecentLocations";
 import { OpenIOUsCard } from "@/components/OpenIOUsCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,6 +26,8 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { useI18n } from "@/i18n";
+import { isToday, locationFromRow, type TxLocation } from "@/lib/location";
+import { rankLocationCandidates } from "@/lib/locationSuggest";
 import {
   fetchPendingTransactions,
   fetchAccounts,
@@ -41,9 +46,26 @@ export const Route = createFileRoute("/pending")({
   component: PendingRoute,
 });
 
+const VIEW_KEY = "pending.view";
+
 function PendingRoute() {
   const { t } = useI18n();
   const [tab, setTab] = React.useState<"pending" | "rejected" | "confirmed" | "ious">("pending");
+  // Read after mount: the server has no way to know the stored preference and
+  // rendering a different view there would be a hydration mismatch.
+  const [view, setView] = React.useState<"table" | "cards">("table");
+  React.useEffect(() => {
+    const stored = window.localStorage.getItem(VIEW_KEY);
+    if (stored === "cards" || stored === "table") setView(stored);
+  }, []);
+  const chooseView = (next: "table" | "cards") => {
+    setView(next);
+    try {
+      window.localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      /* private mode: the choice just does not outlive the visit */
+    }
+  };
   const pendingQ = useQuery({
     queryKey: ["pending_transactions", tab],
     queryFn: () => fetchPendingTransactions(tab === "ious" ? "pending" : tab),
@@ -70,9 +92,31 @@ function PendingRoute() {
             <TabsTrigger value="rejected">{t("pending.tab.rejected")}</TabsTrigger>
             <TabsTrigger value="confirmed">{t("pending.tab.confirmed")}</TabsTrigger>
           </TabsList>
-          <p className="mt-2 text-xs text-muted-foreground">
-            {t(`pending.tab.help.${tab}`)}
-          </p>
+          <div className="mt-2 flex items-start justify-between gap-3">
+            <p className="text-xs text-muted-foreground">{t(`pending.tab.help.${tab}`)}</p>
+            {tab === "pending" ? (
+              <div className="flex shrink-0 gap-1">
+                <Button
+                  size="sm"
+                  variant={view === "table" ? "secondary" : "ghost"}
+                  onClick={() => chooseView("table")}
+                  aria-label={t("pending.view.table")}
+                  title={t("pending.view.table")}
+                >
+                  <Table2 className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant={view === "cards" ? "secondary" : "ghost"}
+                  onClick={() => chooseView("cards")}
+                  aria-label={t("pending.view.cards")}
+                  title={t("pending.view.cards")}
+                >
+                  <LayoutList className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : null}
+          </div>
           <TabsContent value={tab} className="mt-4 space-y-3">
             {tab === "ious" ? (
               <OpenIOUsCard symbol={sym} headless />
@@ -80,6 +124,13 @@ function PendingRoute() {
               <Card><CardContent className="py-6 text-center text-sm text-muted-foreground">{t("common.loading")}</CardContent></Card>
             ) : items.length === 0 ? (
               <Card><CardContent className="py-6 text-center text-sm text-muted-foreground">{t("pending.empty")}</CardContent></Card>
+            ) : tab === "pending" && view === "table" ? (
+              <PendingLineTable
+                items={items}
+                accounts={accountsQ.data ?? []}
+                categories={categoriesQ.data ?? []}
+                symbol={sym}
+              />
             ) : (
               items.map((p) => (
                 <PendingRow
@@ -127,6 +178,17 @@ function PendingRow({
   const [categoryId, setCategoryId] = React.useState<string>(pending.category_id ?? "");
   const [description, setDescription] = React.useState<string>(pending.description ?? "");
   const [note, setNote] = React.useState<string>(pending.note ?? "");
+  const [location, setLocation] = React.useState<TxLocation | null>(() => locationFromRow(pending));
+  const recentQ = useRecentLocations();
+  const candidates = React.useMemo<RecentLocation[]>(
+    () =>
+      rankLocationCandidates(recentQ.data ?? [], {
+        description,
+        near: location,
+        limit: 8,
+      }),
+    [recentQ.data, description, location],
+  );
 
   const acc = accounts.find((a) => a.id === pending.source_account_id);
   const sym = acc?.currency_symbol ?? "CHF";
@@ -154,6 +216,7 @@ function PendingRow({
         category_id: type === "transfer" ? null : categoryId || null,
         description: description.trim() || null,
         note: note.trim() || null,
+        location,
       });
       toast.success(t("pending.toast.confirmed"));
       qc.invalidateQueries();
@@ -323,6 +386,14 @@ function PendingRow({
               <div className="space-y-1 sm:col-span-2">
                 <Label>{t("add.note")}</Label>
                 <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+              </div>
+              <div className="sm:col-span-2">
+                <LocationSection
+                  value={location}
+                  onChange={setLocation}
+                  dateIsToday={isToday(parseISO(occurredOn))}
+                  recent={candidates}
+                />
               </div>
             </div>
           )}

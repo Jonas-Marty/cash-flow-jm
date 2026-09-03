@@ -9,11 +9,10 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatementPlaceDialog } from "@/components/statements/StatementPlaceDialog";
-import type { RecentLocation } from "@/components/LocationSection";
+import { useRecentLocations } from "@/hooks/useRecentLocations";
 import { useI18n } from "@/i18n";
-import { supabase } from "@/integrations/supabase/client";
 import { fetchCategories, fmtMoney } from "@/lib/finance";
-import { locationFromRow, type TxLocation } from "@/lib/location";
+import type { TxLocation } from "@/lib/location";
 import { commitStatementLines } from "@/utils/statements.functions";
 import type { StatementLine } from "@/lib/ai/statementTypes";
 
@@ -68,30 +67,7 @@ export function StatementLineTable({
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   const categories = (categoriesQ.data ?? []).filter((c) => !c.archived);
 
-  const recentLocationsQ = useQuery({
-    queryKey: ["transactions", "recent_locations"],
-    queryFn: async (): Promise<RecentLocation[]> => {
-      const { data, error } = await supabase
-        .from("transactions")
-        .select("latitude, longitude, location_accuracy_m, location_label, location_source, description, occurred_on")
-        .not("latitude", "is", null)
-        .order("occurred_on", { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      const out: RecentLocation[] = [];
-      const seenKeys = new Set<string>();
-      for (const r of data ?? []) {
-        const loc = locationFromRow(r);
-        if (!loc) continue;
-        const key = `${loc.latitude.toFixed(4)}|${loc.longitude.toFixed(4)}`;
-        if (seenKeys.has(key)) continue;
-        seenKeys.add(key);
-        out.push({ ...loc, description: r.description ?? null });
-        if (out.length >= 12) break;
-      }
-      return out;
-    },
-  });
+  const recentLocationsQ = useRecentLocations();
 
   const [drafts, setDrafts] = React.useState<Record<string, Draft>>({});
   const [placeFor, setPlaceFor] = React.useState<string | null>(null);

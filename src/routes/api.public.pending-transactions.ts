@@ -6,6 +6,8 @@ import {
   pendingTransactionInputSchema,
   normalizePendingTransactionInput,
 } from "@/lib/pendingTransactionSchema";
+import { locationFromRow } from "@/lib/location";
+import { suggestLocationLabel, type LocationHistoryEntry } from "@/lib/locationSuggest";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -37,6 +39,37 @@ async function authenticate(request: Request): Promise<{ userId: string } | null
     .update({ last_used_at: new Date().toISOString() })
     .eq("id", data.id);
   return { userId: data.user_id };
+}
+
+/**
+ * A phone posts coordinates, never a name — it has no idea it was standing in
+ * "Coop Bahnhof". The places the user has already labelled by hand do know, so
+ * a row that arrives with a fix and a description borrows the name of the
+ * nearest place that matches both. Only the name: the coordinates stay as
+ * measured, and /pending offers the curated pin itself as a one-tap upgrade.
+ *
+ * Best-effort — a failed lookup costs the row a label, not its creation.
+ */
+async function labelFromHistory(
+  userId: string,
+  fix: { latitude: number; longitude: number; accuracy_m: number | null },
+  description: string | null,
+): Promise<string | null> {
+  const { data, error } = await supabaseAdmin
+    .from("transactions")
+    .select("latitude, longitude, location_accuracy_m, location_label, location_source, description")
+    .eq("user_id", userId)
+    .not("latitude", "is", null)
+    .not("location_label", "is", null)
+    .order("occurred_on", { ascending: false })
+    .limit(200);
+  if (error || !data) return null;
+  const history: LocationHistoryEntry[] = [];
+  for (const row of data) {
+    const loc = locationFromRow(row);
+    if (loc) history.push({ ...loc, description: row.description ?? null });
+  }
+  return suggestLocationLabel(history, fix, description);
 }
 
 const SELECT_COLS =
@@ -132,9 +165,23 @@ export const Route = createFileRoute("/api/public/pending-transactions")({
           }
         }
 
+        // Only when the device gave a point and nothing to call it.
+        const label =
+          payload.latitude != null && payload.longitude != null && !payload.location_label
+            ? await labelFromHistory(
+                auth.userId,
+                {
+                  latitude: payload.latitude,
+                  longitude: payload.longitude,
+                  accuracy_m: payload.location_accuracy_m ?? null,
+                },
+                payload.description ?? null,
+              )
+            : null;
+
         const { data: ins, error: insErr } = await supabaseAdmin
           .from("pending_transactions")
-          .insert({ ...payload, user_id: auth.userId })
+          .insert({ ...payload, location_label: label ?? payload.location_label, user_id: auth.userId })
           .select(SELECT_COLS)
           .single();
         if (insErr) {

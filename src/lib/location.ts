@@ -67,6 +67,13 @@ export function formatCoords(loc: { latitude: number; longitude: number }): stri
   return `${loc.latitude.toFixed(5)}, ${loc.longitude.toFixed(5)}`;
 }
 
+/** How far away something is, in the units a person would say it in. */
+export function formatDistance(m: number | null | undefined): string | null {
+  if (m == null || !Number.isFinite(m)) return null;
+  if (m >= 1000) return `${(m / 1000).toFixed(1)} km`;
+  return `${Math.round(m)} m`;
+}
+
 export function formatAccuracy(m: number | null | undefined): string | null {
   if (m == null || !Number.isFinite(m)) return null;
   if (m >= 1000) return `±${(m / 1000).toFixed(1)} km`;
