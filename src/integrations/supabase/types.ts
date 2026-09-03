@@ -707,6 +707,11 @@ export type Database = {
           external_ref: string | null
           external_source: string | null
           id: string
+          latitude: number | null
+          location_accuracy_m: number | null
+          location_label: string | null
+          location_source: string | null
+          longitude: number | null
           note: string | null
           occurred_on: string
           reject_reason: string | null
@@ -730,6 +735,11 @@ export type Database = {
           external_ref?: string | null
           external_source?: string | null
           id?: string
+          latitude?: number | null
+          location_accuracy_m?: number | null
+          location_label?: string | null
+          location_source?: string | null
+          longitude?: number | null
           note?: string | null
           occurred_on?: string
           reject_reason?: string | null
@@ -753,6 +763,11 @@ export type Database = {
           external_ref?: string | null
           external_source?: string | null
           id?: string
+          latitude?: number | null
+          location_accuracy_m?: number | null
+          location_label?: string | null
+          location_source?: string | null
+          longitude?: number | null
           note?: string | null
           occurred_on?: string
           reject_reason?: string | null

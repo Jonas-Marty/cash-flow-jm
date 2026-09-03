@@ -40,7 +40,7 @@ async function authenticate(request: Request): Promise<{ userId: string } | null
 }
 
 const SELECT_COLS =
-  "id, status, source_account_id, amount, type, occurred_on, destination_account_id, destination_amount, category_id, description, note, external_source, external_ref, external_info, confirmed_transaction_id, confirmed_at, rejected_at, reject_reason, created_at, updated_at";
+  "id, status, source_account_id, amount, type, occurred_on, destination_account_id, destination_amount, category_id, description, note, external_source, external_ref, external_info, latitude, longitude, location_accuracy_m, location_label, location_source, confirmed_transaction_id, confirmed_at, rejected_at, reject_reason, created_at, updated_at";
 
 export const Route = createFileRoute("/api/public/pending-transactions")({
   server: {

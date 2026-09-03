@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { locationFromRow, locationToColumns, type TxLocation } from "@/lib/location";
 
 export type AccountType = "asset" | "liability";
 export type TxType = "expense" | "income" | "transfer";
@@ -196,11 +197,29 @@ export async function confirmPendingTransaction(
     category_id?: string | null;
     description?: string | null;
     note?: string | null;
+    /**
+     * Overrides the location captured on the pending row. Omit to keep what
+     * the capturing device recorded; pass null to drop it deliberately.
+     */
+    location?: TxLocation | null;
   },
 ): Promise<string> {
   const { data: u } = await supabase.auth.getUser();
   const userId = u.user?.id;
   if (!userId) throw new Error("Not authenticated");
+
+  // Carried here rather than at the call site so a caller cannot silently lose
+  // the location the phone captured.
+  let location = overrides.location ?? null;
+  if (overrides.location === undefined) {
+    const { data: pending } = await supabase
+      .from("pending_transactions")
+      .select("latitude, longitude, location_accuracy_m, location_label, location_source")
+      .eq("id", pendingId)
+      .maybeSingle();
+    location = pending ? locationFromRow(pending) : null;
+  }
+
   const insertPayload = {
     user_id: userId,
     source_account_id: overrides.source_account_id,
@@ -214,6 +233,7 @@ export async function confirmPendingTransaction(
     category_id: overrides.type === "transfer" ? null : overrides.category_id ?? null,
     description: overrides.description ?? null,
     note: overrides.note ?? null,
+    ...locationToColumns(location),
   };
   const { data: tx, error: txErr } = await supabase
     .from("transactions")

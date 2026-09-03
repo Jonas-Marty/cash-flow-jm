@@ -88,6 +88,12 @@ paths:
         Creates a pending transaction that the user will later confirm in the app.
         If \`(external_source, external_ref)\` matches an existing row it is returned
         with \`deduplicated: true\` instead of being inserted again.
+
+        A capturing device may attach where the payment happened:
+        \`latitude\`/\`longitude\` (required together), \`location_accuracy_m\` in
+        metres, an optional \`location_label\`, and \`location_source\`
+        (\`device\` | \`manual\` | \`search\`, defaulting to \`device\`). It is
+        carried onto the transaction when the pending row is confirmed.
       requestBody:
         required: true
         content:
@@ -461,6 +467,15 @@ components:
           description: Combined with external_ref for idempotency.
         external_ref: { type: string, maxLength: 200, nullable: true }
         external_info: { type: string, maxLength: 2000, nullable: true }
+        latitude: { type: number, minimum: -90, maximum: 90, nullable: true }
+        longitude: { type: number, minimum: -180, maximum: 180, nullable: true }
+        location_accuracy_m:
+          type: number
+          minimum: 0
+          nullable: true
+          description: Radius in metres. A phone fix indoors is routinely 20-100 m.
+        location_label: { type: string, maxLength: 200, nullable: true }
+        location_source: { type: string, enum: [device, manual, search], nullable: true }
     PendingTransaction:
       type: object
       properties:
@@ -478,6 +493,11 @@ components:
         external_source: { type: string, nullable: true }
         external_ref: { type: string, nullable: true }
         external_info: { type: string, nullable: true }
+        latitude: { type: number, nullable: true }
+        longitude: { type: number, nullable: true }
+        location_accuracy_m: { type: number, nullable: true }
+        location_label: { type: string, nullable: true }
+        location_source: { type: string, enum: [device, manual, search], nullable: true }
         confirmed_transaction_id: { type: string, format: uuid, nullable: true }
         confirmed_at: { type: string, format: date-time, nullable: true }
         rejected_at: { type: string, format: date-time, nullable: true }

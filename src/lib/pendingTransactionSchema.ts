@@ -50,8 +50,24 @@ export const pendingTransactionInputSchema = z
     external_source: trimmedNullable(120),
     external_ref: trimmedNullable(200),
     external_info: trimmedNullable(2000),
+    latitude: z.number().min(-90).max(90).nullable().optional(),
+    longitude: z.number().min(-180).max(180).nullable().optional(),
+    // Metres. A phone fix indoors is routinely 20-100 m, so this is stored and
+    // shown rather than rounded away.
+    location_accuracy_m: z.number().min(0).max(100000).nullable().optional(),
+    location_label: trimmedNullable(200),
+    location_source: z.enum(["device", "manual", "search"]).nullable().optional(),
   })
   .superRefine((data, ctx) => {
+    // The DB enforces this too; failing here gives a usable message instead of
+    // a constraint violation.
+    if ((data.latitude == null) !== (data.longitude == null)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["latitude"],
+        message: "latitude and longitude must be given together",
+      });
+    }
     if (
       data.type === "transfer" &&
       data.destination_account_id &&
@@ -90,5 +106,27 @@ export function normalizePendingTransactionInput(input: PendingTransactionInput)
     external_source: input.external_source,
     external_ref: input.external_ref,
     external_info: input.external_info,
+    ...normalizeLocation(input),
+  };
+}
+
+/** Rounded to ~11 cm, matching `round6` in lib/location. */
+function normalizeLocation(input: PendingTransactionInput) {
+  const hasPoint = input.latitude != null && input.longitude != null;
+  if (!hasPoint) {
+    return {
+      latitude: null,
+      longitude: null,
+      location_accuracy_m: null,
+      location_label: null,
+      location_source: null,
+    };
+  }
+  return {
+    latitude: Math.round(input.latitude! * 1e6) / 1e6,
+    longitude: Math.round(input.longitude! * 1e6) / 1e6,
+    location_accuracy_m: input.location_accuracy_m ?? null,
+    location_label: input.location_label,
+    location_source: input.location_source ?? "device",
   };
 }
