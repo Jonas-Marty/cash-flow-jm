@@ -62,6 +62,13 @@ paths:
         - in: query
           name: status
           schema: { type: string, enum: [pending, confirmed, rejected] }
+        - in: query
+          name: external_source
+          schema: { type: string }
+        - in: query
+          name: external_ref
+          description: One ref, or several separated by commas (max 200).
+          schema: { type: string }
       responses:
         '200':
           description: OK
@@ -107,6 +114,39 @@ paths:
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [Pending transactions]
+      summary: Delete a pending transaction
+      description: |
+        Deletes a row that is still \`pending\` or was \`rejected\`. Identify it
+        either by \`id\` or by the \`(external_source, external_ref)\` pair.
+        A \`confirmed\` row is refused with 409: it already produced a real
+        transaction, which has to be undone in the app first.
+      parameters:
+        - in: query
+          name: id
+          schema: { type: string, format: uuid }
+        - in: query
+          name: external_source
+          schema: { type: string }
+        - in: query
+          name: external_ref
+          schema: { type: string }
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted: { type: boolean }
+                  id: { type: string, format: uuid }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The pending transaction is already confirmed
   /api/public/account-statements:
     get:
       tags: [Account statements]

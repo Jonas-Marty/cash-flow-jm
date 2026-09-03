@@ -9,7 +9,7 @@ import {
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
   "Access-Control-Allow-Headers": "Authorization, Content-Type",
 };
 
@@ -59,6 +59,15 @@ export const Route = createFileRoute("/api/public/pending-transactions")({
           .limit(200);
         if (status === "pending" || status === "confirmed" || status === "rejected") {
           q = q.eq("status", status);
+        }
+        const externalSource = url.searchParams.get("external_source");
+        if (externalSource) q = q.eq("external_source", externalSource);
+        // Comma-separated, so a client can ask about a whole batch at once.
+        const externalRef = url.searchParams.get("external_ref");
+        if (externalRef !== null) {
+          const refs = [...new Set(externalRef.split(",").map((r) => r.trim()).filter(Boolean))];
+          if (refs.length === 0) return json({ pending_transactions: [] });
+          q = q.in("external_ref", refs.slice(0, 200));
         }
         const { data, error } = await q;
         if (error) {
@@ -133,6 +142,49 @@ export const Route = createFileRoute("/api/public/pending-transactions")({
           return json({ error: "Internal server error" }, 500);
         }
         return json({ pending_transaction: ins }, 201);
+      },
+      DELETE: async ({ request }) => {
+        const auth = await authenticate(request);
+        if (!auth) return json({ error: "Unauthorized" }, 401);
+        const url = new URL(request.url);
+        const id = url.searchParams.get("id");
+        const externalSource = url.searchParams.get("external_source");
+        const externalRef = url.searchParams.get("external_ref");
+
+        let find = supabaseAdmin
+          .from("pending_transactions")
+          .select("id, status")
+          .eq("user_id", auth.userId);
+        if (id) {
+          find = find.eq("id", id);
+        } else if (externalSource && externalRef) {
+          find = find.eq("external_source", externalSource).eq("external_ref", externalRef);
+        } else {
+          return json({ error: "Provide id, or external_source and external_ref" }, 400);
+        }
+        const { data: row, error: findErr } = await find.maybeSingle();
+        if (findErr) {
+          log.error({ event: "api.public.pending.delete_lookup_error", err: findErr.message });
+          return json({ error: "Database error" }, 500);
+        }
+        if (!row) return json({ error: "Pending transaction not found" }, 404);
+        // A confirmed row already produced a real transaction; deleting it here
+        // would leave that transaction orphaned, so it has to be undone in the
+        // web app first.
+        if (row.status === "confirmed") {
+          return json({ error: "Pending transaction already confirmed" }, 409);
+        }
+
+        const { error: delErr } = await supabaseAdmin
+          .from("pending_transactions")
+          .delete()
+          .eq("id", row.id)
+          .eq("user_id", auth.userId);
+        if (delErr) {
+          log.error({ event: "api.public.pending.delete_error", err: delErr.message, userId: auth.userId });
+          return json({ error: "Internal server error" }, 500);
+        }
+        return json({ deleted: true, id: row.id });
       },
     },
   },
