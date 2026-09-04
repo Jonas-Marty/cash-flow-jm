@@ -238,128 +238,139 @@ export function PendingLineTable({
         </div>
       </div>
 
-      <div className={`hidden px-3 text-[11px] uppercase tracking-wide text-muted-foreground ${COLUMNS}`}>
-        <span />
-        <span>{t("statements.table.col.date")}</span>
-        <span>{t("statements.table.col.description")}</span>
-        <span>{t("statements.table.col.category")}</span>
-        <span>{t("add.account")}</span>
-        <span>{t("statements.table.place")}</span>
-        <span className="text-right">{t("statements.table.col.amount")}</span>
-      </div>
+      {/* On the wide layout the rows scroll under a pinned header, so the
+          column labels and the bulk actions stay put however long the list
+          gets. On mobile there is no header to pin and nesting a scroller
+          inside the page would only fight the page's own. */}
+      <div className="lg:max-h-[calc(100vh-300px)] lg:overflow-auto">
+        <div
+          className={`sticky top-0 z-10 hidden bg-background px-3 pb-1.5 text-[11px] uppercase tracking-wide text-muted-foreground ${COLUMNS}`}
+        >
+          <span />
+          <span>{t("statements.table.col.date")}</span>
+          <span>{t("statements.table.col.description")}</span>
+          <span>{t("statements.table.col.category")}</span>
+          <span>{t("add.account")}</span>
+          <span>{t("statements.table.place")}</span>
+          <span className="text-right">{t("statements.table.col.amount")}</span>
+        </div>
 
-      <ul className="space-y-2">
-        {items.map((p) => {
-          const d = drafts[p.id];
-          if (!d) return null;
-          const acc = accounts.find((a) => a.id === d.source_account_id);
-          const sym = acc?.currency_symbol ?? symbol;
-          const accuracy = formatAccuracy(d.location?.accuracy_m);
-          return (
-            <li key={p.id} className={`rounded-md border bg-card p-2 ${COLUMNS} lg:items-center lg:p-2`}>
-              <div className="mb-2 flex items-center gap-2 lg:mb-0">
-                <Checkbox
-                  checked={d.checked}
-                  onCheckedChange={(v) => patch(p.id, { checked: !!v })}
-                />
-                <span className="text-xs text-muted-foreground lg:hidden">
-                  {d.occurred_on} · {fmtMoney(Number(p.amount), sym)}
-                  {p.external_source ? ` · ${p.external_source}` : ""}
-                </span>
-              </div>
-              <div className="mb-1 lg:mb-0">
-                <Input
-                  type="date"
-                  className="h-8"
-                  value={d.occurred_on}
-                  onChange={(e) => patch(p.id, { occurred_on: e.target.value })}
-                />
-              </div>
-              <div className="mb-1 lg:mb-0">
-                <Input
-                  className="h-8"
-                  value={d.description}
-                  placeholder={t("pending.row.untitled")}
-                  onChange={(e) => patch(p.id, { description: e.target.value })}
-                />
-                {p.external_source ? (
-                  <Badge variant="outline" className="mt-1 hidden text-[10px] lg:inline-flex">
-                    {p.external_source}
-                  </Badge>
-                ) : null}
-              </div>
-              <div className="mb-1 lg:mb-0">
-                <Select
-                  value={d.category_id || "__none__"}
-                  onValueChange={(v) => patch(p.id, { category_id: v === "__none__" ? "" : v })}
-                  disabled={p.type === "transfer"}
-                >
-                  <SelectTrigger className="h-8 w-full">
-                    <SelectValue placeholder={t("statements.table.col.category")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">{t("common.none")}</SelectItem>
-                    {categories
-                      .filter((c) => !c.archived)
-                      .map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="mb-1 lg:mb-0">
-                <Select
-                  value={d.source_account_id}
-                  onValueChange={(v) => patch(p.id, { source_account_id: v })}
-                >
-                  <SelectTrigger className="h-8 w-full">
-                    <SelectValue placeholder={t("add.account")} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {accounts
-                      .filter((a) => !a.archived)
-                      .map((a) => (
-                        <SelectItem key={a.id} value={a.id}>
-                          {a.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="mb-1 lg:mb-0">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={d.location ? "secondary" : "outline"}
-                  className="h-8 w-full justify-start truncate"
-                  onClick={() => setPlaceFor(p.id)}
-                >
-                  <MapPin className="mr-1 h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">
-                    {d.location?.label ??
-                      (d.location
-                        ? (accuracy ?? t("loc.title"))
-                        : t("statements.table.place_pick"))}
+        <ul className="space-y-2">
+          {items.map((p) => {
+            const d = drafts[p.id];
+            if (!d) return null;
+            const acc = accounts.find((a) => a.id === d.source_account_id);
+            const sym = acc?.currency_symbol ?? symbol;
+            const accuracy = formatAccuracy(d.location?.accuracy_m);
+            return (
+              <li
+                key={p.id}
+                className={`rounded-md border bg-card p-2 ${COLUMNS} lg:items-center lg:p-2`}
+              >
+                <div className="mb-2 flex items-center gap-2 lg:mb-0">
+                  <Checkbox
+                    checked={d.checked}
+                    onCheckedChange={(v) => patch(p.id, { checked: !!v })}
+                  />
+                  <span className="text-xs text-muted-foreground lg:hidden">
+                    {d.occurred_on} · {fmtMoney(Number(p.amount), sym)}
+                    {p.external_source ? ` · ${p.external_source}` : ""}
                   </span>
-                </Button>
-              </div>
-              <div className="mb-1 lg:mb-0">
-                <Input
-                  className="h-8 text-right"
-                  inputMode="decimal"
-                  value={d.amount}
-                  onChange={(e) => patch(p.id, { amount: e.target.value })}
-                />
-              </div>
-              {d.error ? (
-                <p className="text-xs text-destructive lg:col-span-full">{d.error}</p>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
+                </div>
+                <div className="mb-1 lg:mb-0">
+                  <Input
+                    type="date"
+                    className="h-8"
+                    value={d.occurred_on}
+                    onChange={(e) => patch(p.id, { occurred_on: e.target.value })}
+                  />
+                </div>
+                <div className="mb-1 lg:mb-0">
+                  <Input
+                    className="h-8"
+                    value={d.description}
+                    placeholder={t("pending.row.untitled")}
+                    onChange={(e) => patch(p.id, { description: e.target.value })}
+                  />
+                  {p.external_source ? (
+                    <Badge variant="outline" className="mt-1 hidden text-[10px] lg:inline-flex">
+                      {p.external_source}
+                    </Badge>
+                  ) : null}
+                </div>
+                <div className="mb-1 lg:mb-0">
+                  <Select
+                    value={d.category_id || "__none__"}
+                    onValueChange={(v) => patch(p.id, { category_id: v === "__none__" ? "" : v })}
+                    disabled={p.type === "transfer"}
+                  >
+                    <SelectTrigger className="h-8 w-full">
+                      <SelectValue placeholder={t("statements.table.col.category")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">{t("common.none")}</SelectItem>
+                      {categories
+                        .filter((c) => !c.archived)
+                        .map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="mb-1 lg:mb-0">
+                  <Select
+                    value={d.source_account_id}
+                    onValueChange={(v) => patch(p.id, { source_account_id: v })}
+                  >
+                    <SelectTrigger className="h-8 w-full">
+                      <SelectValue placeholder={t("add.account")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {accounts
+                        .filter((a) => !a.archived)
+                        .map((a) => (
+                          <SelectItem key={a.id} value={a.id}>
+                            {a.name}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="mb-1 lg:mb-0">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={d.location ? "secondary" : "outline"}
+                    className="h-8 w-full justify-start truncate"
+                    onClick={() => setPlaceFor(p.id)}
+                  >
+                    <MapPin className="mr-1 h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">
+                      {d.location?.label ??
+                        (d.location
+                          ? (accuracy ?? t("loc.title"))
+                          : t("statements.table.place_pick"))}
+                    </span>
+                  </Button>
+                </div>
+                <div className="mb-1 lg:mb-0">
+                  <Input
+                    className="h-8 text-right"
+                    inputMode="decimal"
+                    value={d.amount}
+                    onChange={(e) => patch(p.id, { amount: e.target.value })}
+                  />
+                </div>
+                {d.error ? (
+                  <p className="text-xs text-destructive lg:col-span-full">{d.error}</p>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      </div>
 
       <StatementPlaceDialog
         open={!!placeFor}

@@ -77,8 +77,11 @@ function PendingRoute() {
 
   const items = pendingQ.data ?? [];
 
+  // The table needs the room the cards do not, exactly as /transactions does.
+  const tableView = tab === "pending" && view === "table";
+
   return (
-    <AppShell>
+    <AppShell wide={tableView}>
       <div className="space-y-4">
         <header>
           <h1 className="text-2xl font-semibold">{t("pending.title")}</h1>
@@ -124,7 +127,7 @@ function PendingRoute() {
               <Card><CardContent className="py-6 text-center text-sm text-muted-foreground">{t("common.loading")}</CardContent></Card>
             ) : items.length === 0 ? (
               <Card><CardContent className="py-6 text-center text-sm text-muted-foreground">{t("pending.empty")}</CardContent></Card>
-            ) : tab === "pending" && view === "table" ? (
+            ) : tableView ? (
               <PendingLineTable
                 items={items}
                 accounts={accountsQ.data ?? []}
