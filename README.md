@@ -14,10 +14,16 @@ For domain model, business rules and SQL surface, see [`architecture.md`](./arch
 
 ## 1. Local development
 
-Prerequisites: Node 22+, [bun](https://bun.sh) (the lockfile is `bun.lock`),
-and a reachable Supabase project (hosted or self-hosted). npm works too, but
-only from npm 12 — npm 10, the one bundled with node 22, crashes on this
-dependency graph with `Cannot read properties of null (reading 'edgesOut')`.
+Prerequisites: [bun](https://bun.sh) (the lockfile is `bun.lock`) and a
+reachable Supabase project (hosted or self-hosted). Installs, the build and
+the tests all run on bun, locally and in the Docker image, so a green run
+here means the same thing as a green image build. The server itself still
+runs on Node 22 — that is what `dist/server` targets and what the runtime
+image ships.
+
+npm works too, but only from npm 12 — npm 10, the one bundled with node 22,
+crashes on this dependency graph with `Cannot read properties of null
+(reading 'edgesOut')`.
 
 ```bash
 # 1. Install dependencies

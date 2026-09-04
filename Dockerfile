@@ -1,10 +1,14 @@
 # syntax=docker/dockerfile:1.7
 
-# Installs run on bun, which is what the committed lockfile belongs to. npm 10
-# (the one bundled with node 22) crashes resolving this dependency graph with
-# "Cannot read properties of null (reading 'edgesOut')" — an arborist bug fixed
-# in npm 12 — and its package-lock.json had drifted from package.json anyway.
-# The app itself still runs under node; only the installs changed.
+# Installs and the build run on bun, which is what the committed lockfile
+# belongs to. npm 10 (the one bundled with node 22) crashes resolving this
+# dependency graph with "Cannot read properties of null (reading 'edgesOut')"
+# — an arborist bug fixed in npm 12 — and its package-lock.json had drifted
+# from package.json anyway. One runtime for install, build and tests means a
+# green local run says the same thing as a green image build.
+#
+# The server itself still runs under node: dist/server is a plain node bundle
+# and the runtime stage is where an unproven runtime would actually hurt.
 
 # ---------- 1. deps ----------
 FROM oven/bun:1-alpine AS deps
@@ -19,7 +23,7 @@ COPY package.json bun.lock* bun.lockb* ./
 RUN bun install --frozen-lockfile --production
 
 # ---------- 3. build ----------
-FROM node:22-alpine AS build
+FROM oven/bun:1-alpine AS build
 WORKDIR /app
 ENV NODE_ENV=production
 # git so the version stamp below can name the commit that was checked out.
@@ -41,7 +45,7 @@ ENV VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
 ARG APP_VERSION
 ARG APP_COMMIT
 ARG APP_BUILD_TIME
-RUN APP_VERSION="${APP_VERSION:-$(node -p "require('./package.json').version")}" \
+RUN APP_VERSION="${APP_VERSION:-$(bun -e "console.log(require('./package.json').version)")}" \
  && APP_COMMIT="${APP_COMMIT:-$(git rev-parse HEAD 2>/dev/null || echo '')}" \
  && APP_BUILD_TIME="${APP_BUILD_TIME:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}" \
  && printf 'VITE_APP_VERSION=%s\nVITE_APP_COMMIT=%s\nVITE_APP_BUILD_TIME=%s\n' \
@@ -51,7 +55,7 @@ RUN APP_VERSION="${APP_VERSION:-$(node -p "require('./package.json').version")}"
 # Build SSR + client assets targeting Node
 RUN set -a && . ./.env.build && set +a \
  && APP_VERSION="$VITE_APP_VERSION" APP_COMMIT="$VITE_APP_COMMIT" APP_BUILD_TIME="$VITE_APP_BUILD_TIME" \
-    npx vite build --config vite.config.node.ts
+    bunx vite build --config vite.config.node.ts
 
 # ---------- 4. runtime ----------
 FROM node:22-alpine AS runtime
