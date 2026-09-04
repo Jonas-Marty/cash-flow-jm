@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 
 /**
  * Validation for the public `/api/public/pending-transactions` endpoint.

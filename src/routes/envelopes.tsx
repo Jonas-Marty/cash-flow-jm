@@ -3,7 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, addMonths, isValid, parseISO } from "date-fns";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
-import { z } from "zod";
+import * as z from "zod";
 import { ChevronLeft, ChevronRight, ArrowLeftRight, ChevronDown } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";

@@ -34,11 +34,16 @@ cp .env.example .env
 bun run dev
 ```
 
-Run the test suite:
+Run the test suite (either runtime — the results are identical):
 
 ```bash
-npx vitest run
+bunx vitest run
 ```
+
+Note for anything importing `zod`: use `import * as z from "zod"`, not
+`import { z } from "zod"`. zod's entry point re-exports `z` as a namespace
+binding, which bun's ESM implementation resolves to `undefined`, so the named
+form fails under `bunx` while working under node.
 
 ---
 
