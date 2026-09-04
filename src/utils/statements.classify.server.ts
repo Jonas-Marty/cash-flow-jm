@@ -66,8 +66,9 @@ export async function classifyOpenStatementLines(
   const json = await callJsonModel(creds, SYSTEM, user, {
     userId,
     fileName: null,
-    source: "pdf",
+    source: "rows",
     part: "classify",
+    kind: "statement_classify",
   });
 
   const validCats = new Set(

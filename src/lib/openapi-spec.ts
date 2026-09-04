@@ -98,6 +98,12 @@ paths:
         If a point arrives without a \`location_label\`, the server borrows the
         name of the nearest already-labelled place whose description matches
         this one. Only the name is borrowed — the coordinates stay as measured.
+
+        A row that arrives without a \`category_id\` gets one *suggested* behind
+        the response: from the user's own history when the same merchant was
+        booked before, otherwise from their configured AI connection. The
+        suggestion lives in the \`suggested_*\` fields and is applied only when
+        the user accepts it in the app; \`category_id\` stays as posted.
       requestBody:
         required: true
         content:
@@ -502,6 +508,19 @@ components:
         location_accuracy_m: { type: number, nullable: true }
         location_label: { type: string, nullable: true }
         location_source: { type: string, enum: [device, manual, search], nullable: true }
+        suggested_description:
+          type: string
+          nullable: true
+          description: Proposed by history or AI; not applied until the user accepts it.
+        suggested_category_id: { type: string, format: uuid, nullable: true }
+        suggested_tags: { type: array, items: { type: string } }
+        suggestion_source:
+          type: string
+          enum: [history, ai]
+          nullable: true
+          description: Null with suggested_at set means the row was examined and nothing was worth proposing.
+        suggestion_confidence: { type: number, minimum: 0, maximum: 1, nullable: true }
+        suggested_at: { type: string, format: date-time, nullable: true }
         confirmed_transaction_id: { type: string, format: uuid, nullable: true }
         confirmed_at: { type: string, format: date-time, nullable: true }
         rejected_at: { type: string, format: date-time, nullable: true }

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Ban, Check, Loader2, MapPin } from "lucide-react";
+import { Ban, Check, History, Loader2, MapPin, Sparkles } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -27,6 +27,7 @@ import { StatementPlaceDialog } from "@/components/statements/StatementPlaceDial
 import { useRecentLocations } from "@/hooks/useRecentLocations";
 import { useI18n } from "@/i18n";
 import {
+  addTagsToNote,
   confirmPendingTransaction,
   fmtMoney,
   rejectPendingTransaction,
@@ -66,6 +67,58 @@ function seed(p: PendingTransaction): Draft {
 /** Tick · date · description · category · account · place · amount. */
 const COLUMNS =
   "lg:grid lg:grid-cols-[28px_110px_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_120px] lg:gap-2";
+
+/** A suggestion still counts while the draft has not taken it. */
+function suggestsCategory(p: PendingTransaction, d: Draft): boolean {
+  return !!p.suggested_category_id && !d.category_id && p.type !== "transfer";
+}
+function suggestsDescription(p: PendingTransaction, d: Draft): boolean {
+  return !!p.suggested_description && p.suggested_description !== d.description;
+}
+
+/** The tap that promotes a suggestion: it only ever touches the draft. */
+function withSuggestion(p: PendingTransaction, d: Draft): Draft {
+  return {
+    ...d,
+    category_id: suggestsCategory(p, d) ? p.suggested_category_id! : d.category_id,
+    description: p.suggested_description ?? d.description,
+    note: p.suggested_tags.length ? addTagsToNote(d.note, p.suggested_tags) : d.note,
+  };
+}
+
+/**
+ * One chip per suggested field, marked by where it came from — the user's
+ * own history is a different kind of claim than a model's guess.
+ */
+function SuggestionChip({
+  p,
+  label,
+  onClick,
+}: {
+  p: PendingTransaction;
+  label: string;
+  onClick: () => void;
+}) {
+  const { t } = useI18n();
+  const fromHistory = p.suggestion_source === "history";
+  const why = fromHistory
+    ? t("pending.suggest.source.history")
+    : t("pending.suggest.source.ai", {
+        pct: String(Math.round((p.suggestion_confidence ?? 0) * 100)),
+      });
+  const Icon = fromHistory ? History : Sparkles;
+  return (
+    <button
+      type="button"
+      title={why}
+      onClick={onClick}
+      className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full border border-dashed border-primary/40 bg-primary/5 px-2 py-0.5 text-[11px] text-primary hover:bg-primary/10"
+    >
+      <Icon className="h-3 w-3 shrink-0" />
+      <span className="truncate">{label}</span>
+    </button>
+  );
+}
 
 /**
  * The many-rows view of /pending: everything editable in place, ticked off in
@@ -111,6 +164,17 @@ export function PendingLineTable({
 
   const selected = items.filter((p) => drafts[p.id]?.checked);
   const allChecked = items.length > 0 && selected.length === items.length;
+
+  const suggested = items.filter((p) => {
+    const d = drafts[p.id];
+    return d && (suggestsCategory(p, d) || suggestsDescription(p, d));
+  });
+  const applyAllSuggestions = () =>
+    setDrafts((prev) => {
+      const next = { ...prev };
+      for (const p of suggested) next[p.id] = withSuggestion(p, next[p.id] ?? seed(p));
+      return next;
+    });
 
   /** Rows are confirmed one at a time so one bad row cannot take the batch down. */
   const confirmMut = useMutation({
@@ -214,6 +278,12 @@ export function PendingLineTable({
         />
         <span>{t("pending.table.hint")}</span>
         <div className="ml-auto flex items-center gap-2">
+          {suggested.length > 0 ? (
+            <Button size="sm" variant="ghost" disabled={busy} onClick={applyAllSuggestions}>
+              <Sparkles className="mr-1 h-3.5 w-3.5" />
+              {t("pending.suggest.apply_all", { n: String(suggested.length) })}
+            </Button>
+          ) : null}
           <Button
             size="sm"
             variant="outline"
@@ -292,7 +362,23 @@ export function PendingLineTable({
                     placeholder={t("pending.row.untitled")}
                     onChange={(e) => patch(p.id, { description: e.target.value })}
                   />
-                  {p.external_source ? (
+                  {suggestsDescription(p, d) ? (
+                    <SuggestionChip
+                      p={p}
+                      label={[
+                        p.suggested_description,
+                        ...p.suggested_tags.map((x) => `#${x}`),
+                      ].join(" ")}
+                      onClick={() =>
+                        patch(p.id, {
+                          description: p.suggested_description ?? d.description,
+                          note: p.suggested_tags.length
+                            ? addTagsToNote(d.note, p.suggested_tags)
+                            : d.note,
+                        })
+                      }
+                    />
+                  ) : p.external_source ? (
                     <Badge variant="outline" className="mt-1 hidden text-[10px] lg:inline-flex">
                       {p.external_source}
                     </Badge>
@@ -318,6 +404,13 @@ export function PendingLineTable({
                         ))}
                     </SelectContent>
                   </Select>
+                  {suggestsCategory(p, d) ? (
+                    <SuggestionChip
+                      p={p}
+                      label={categories.find((c) => c.id === p.suggested_category_id)?.name ?? "?"}
+                      onClick={() => patch(p.id, { category_id: p.suggested_category_id! })}
+                    />
+                  ) : null}
                 </div>
                 <div className="mb-1 lg:mb-0">
                   <Select

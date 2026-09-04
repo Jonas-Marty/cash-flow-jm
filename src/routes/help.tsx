@@ -305,7 +305,7 @@ const EN: Content = {
         },
         {
           q: "Does it write to my data?",
-          a: "No. It only **prepares a draft** for the Add screen — you always review and save manually. All other tools are read-only.",
+          a: "No. The chat only **prepares a draft** for the Add screen, and the classification passes (statement lines, pending transactions) only fill **suggestion fields** that you accept or ignore — you always review and save manually. All other tools are read-only.",
         },
         {
           q: "What is sent to my provider?",
@@ -313,7 +313,7 @@ const EN: Content = {
         },
         {
           q: "Where is my API token stored?",
-          a: "Server-side in the `ai_credentials` table. It is **not** returned to the browser, but the server operator can read it — treat it like other credentials on this instance.",
+          a: "Server-side in the `ai_endpoints` table, one per connection. It is **not** returned to the browser, but the server operator can read it — treat it like other credentials on this instance.",
         },
       ],
     },
@@ -613,9 +613,9 @@ const DE: Content = {
         { q: "Wie wird die Verfügbarkeit geprüft?", a: "Pro Verbindung gibt es die **Verfügbarkeitsprüfung**. *Schnell* ruft nur `/models` auf — flott, aber ein Proxy wie **LiteLLM** antwortet auch dann, wenn das Modell dahinter offline ist. *Modell gelistet* verlangt zusätzlich, dass dein Modell in dieser Liste steht. *Echte Anfrage* (Standard) fragt zuerst `/health` für das Modell und schickt sonst eine 1-Token-Anfrage — so fällt ein ausgefallenes Backend auf. Antwortet der Proxy, das Modell aber nicht, wird das Abzeichen orange **Eingeschränkt**. Beim Öffnen der Einstellungen werden alle Verbindungen geprüft, danach still alle 5 Minuten, solange der Tab sichtbar ist; jedes Abzeichen zeigt, wann zuletzt geprüft wurde." },
         { q: "Was kann er?", a: "Add-Formular vorausfüllen aus Sätzen wie *„Ich habe 50 im Coop bezahlt für Lebensmittel, Kreditkarte\"*; Fragen zu deinen Daten beantworten (*„Wo habe ich letzten Monat am meisten ausgegeben?\"*) via Lesetools; App-Funktionen und Datenschutz erklären. Alles andere lehnt er ab." },
         { q: "Kann ich sprechen statt tippen?", a: "Ja, wenn bei einer KI-Verbindung ein **Transkriptions-Modell** hinterlegt ist (Einstellungen → KI-Assistent, z. B. `whisper-1` oder ein lokales `faster-whisper`-Modell). Im Chat erscheint dann ein Mikrofon-Button: aufnehmen, stoppen — der Text landet im Eingabefeld und kann vor dem Senden korrigiert werden. Die Aufnahme wird als 16-kHz-Mono-WAV nur an diesen Provider gesendet und nicht gespeichert; im Aktivitätsprotokoll steht lediglich eine Textvorschau." },
-        { q: "Schreibt er in meine Daten?", a: "Nein. Er **bereitet nur einen Entwurf** für das Add-Formular vor — speichern musst du selbst. Alle anderen Tools lesen nur." },
+        { q: "Schreibt er in meine Daten?", a: "Nein. Der Chat **bereitet nur einen Entwurf** für das Add-Formular vor, und die Klassifizierungsläufe (Auszugszeilen, offene Buchungen) füllen nur **Vorschlagsfelder**, die du übernimmst oder ignorierst — speichern musst du selbst. Alle anderen Tools lesen nur." },
         { q: "Was wird an den Provider gesendet?", a: "Deine Nachrichten plus die Ergebnisse der Lesetools, die das Modell aufruft (Buchungen, Kontostände, Kategoriesummen). Siehe [Datenschutzseite](/privacy) für den vollständigen Datenfluss." },
-        { q: "Wo wird mein API Token gespeichert?", a: "Serverseitig in der Tabelle `ai_credentials`. Er wird **nicht** an den Browser zurückgegeben, aber der Server-Betreiber kann ihn lesen — behandle ihn wie andere Zugangsdaten auf dieser Instanz." },
+        { q: "Wo wird mein API Token gespeichert?", a: "Serverseitig in der Tabelle `ai_endpoints`, pro Verbindung einer. Er wird **nicht** an den Browser zurückgegeben, aber der Server-Betreiber kann ihn lesen — behandle ihn wie andere Zugangsdaten auf dieser Instanz." },
       ],
     },
     {

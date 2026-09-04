@@ -170,6 +170,16 @@ export interface PendingTransaction {
   location_accuracy_m: number | null;
   location_label: string | null;
   location_source: string | null;
+  /**
+   * Proposed by the user's history or the AI pass, promoted only by the
+   * user's tap. See docs/pending-suggestions-feedback-loop.md.
+   */
+  suggested_description: string | null;
+  suggested_category_id: string | null;
+  suggested_tags: string[];
+  suggestion_source: "history" | "ai" | null;
+  suggestion_confidence: number | null;
+  suggested_at: string | null;
   confirmed_transaction_id: string | null;
   confirmed_at: string | null;
   rejected_at: string | null;

@@ -40,9 +40,18 @@ export function preview(v: unknown, max = 1000): string {
   return s;
 }
 
+/** Mirrors the CHECK constraint on ai_audit_logs.kind. */
+export type AuditKind =
+  | "chat_request"
+  | "tool_call"
+  | "document_extract"
+  | "statement_classify"
+  | "pending_enrich"
+  | "transcribe";
+
 export async function writeAudit(row: {
   user_id: string;
-  kind: "chat_request" | "tool_call" | "document_extract" | "transcribe";
+  kind: AuditKind;
   model?: string | null;
   provider_host?: string | null;
   tool_name?: string | null;
@@ -356,48 +365,6 @@ export async function resolveEndpoint(
     lastError = health.error || "unavailable";
   }
   throw new Error(`No AI connection is reachable right now (last error: ${lastError}).`);
-}
-
-export async function loadCredentials(userId: string): Promise<FullAICreds> {
-  const { data, error } = await supabaseAdmin
-    .from("ai_credentials")
-    .select("enabled, base_url, model, api_token")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!data || !data.enabled) throw new Error("AI is disabled. Configure it in Settings.");
-  const base_url = (data.base_url || "").trim().replace(/\/+$/, "");
-  if (!base_url) throw new Error("AI base URL is missing. Configure it in Settings.");
-  if (!data.api_token) throw new Error("AI API token is missing. Configure it in Settings.");
-  if (!data.model) throw new Error("AI model name is missing. Configure it in Settings.");
-  return {
-    enabled: true,
-    base_url,
-    model: data.model,
-    api_token: data.api_token,
-  };
-}
-
-export async function saveCredentials(
-  userId: string,
-  patch: { enabled?: boolean; base_url?: string | null; model?: string | null; api_token?: string | null },
-): Promise<void> {
-  // Upsert via admin to allow writing api_token (column-grant excludes it for authenticated).
-  const { error } = await supabaseAdmin
-    .from("ai_credentials")
-    .upsert(
-      {
-        user_id: userId,
-        enabled: patch.enabled ?? false,
-        base_url: patch.base_url ?? null,
-        model: patch.model ?? null,
-        // If api_token is undefined, keep existing; null clears.
-        ...(patch.api_token !== undefined ? { api_token: patch.api_token } : {}),
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "user_id" },
-    );
-  if (error) throw new Error(error.message);
 }
 
 // ---------------------------------------------------------------------------

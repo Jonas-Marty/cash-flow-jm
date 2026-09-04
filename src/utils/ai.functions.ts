@@ -13,6 +13,17 @@ import type {
 } from "@/lib/ai/types";
 import { AI_ACTIONS } from "@/lib/ai/types";
 
+/**
+ * A connection that was just switched on or assigned may be the one that was
+ * missing while pending rows piled up unplaced. Drain them now rather than
+ * waiting for the next notification or page visit. Best effort.
+ */
+function drainPendingSuggestions(userId: string): void {
+  void import("./pending.enrich.server")
+    .then(({ enrichPending }) => enrichPending(userId))
+    .catch(() => {});
+}
+
 // ---------- Connections (endpoints) ----------
 
 const actionSchema = z.enum(AI_ACTIONS as unknown as [AIAction, ...AIAction[]]);
@@ -103,6 +114,7 @@ export const saveAIEndpoint = createServerFn({ method: "POST" })
       const { error } = await supabaseAdmin.from("ai_endpoints").insert({ ...base, user_id: userId });
       if (error) throw new Error(error.message);
     }
+    if (data.enabled) drainPendingSuggestions(userId);
     return { endpoints: await readEndpoints(userId) };
   });
 
@@ -142,6 +154,7 @@ export const saveAIActionBinding = createServerFn({ method: "POST" })
       { onConflict: "user_id,action" },
     );
     if (error) throw new Error(error.message);
+    if (data.action === "pending_enrich") drainPendingSuggestions(context.userId);
     return { ok: true };
   });
 
@@ -166,6 +179,10 @@ export const checkAIEndpoints = createServerFn({ method: "POST" })
         };
       }),
     );
+    // The settings page probes on a timer, which makes this the moment a
+    // local model that was off is first seen back — the case the rows
+    // nobody could place have been waiting for.
+    if (health.some((h) => h.ok && !h.degraded)) drainPendingSuggestions(context.userId);
     return { health };
   });
 

@@ -719,6 +719,12 @@ export type Database = {
           source_account_id: string
           status: Database["public"]["Enums"]["pending_transaction_status"]
           type: Database["public"]["Enums"]["transaction_type"]
+          suggested_at: string | null
+          suggested_category_id: string | null
+          suggested_description: string | null
+          suggested_tags: string[]
+          suggestion_confidence: number | null
+          suggestion_source: string | null
           updated_at: string
           user_id: string
         }
@@ -747,6 +753,12 @@ export type Database = {
           source_account_id: string
           status?: Database["public"]["Enums"]["pending_transaction_status"]
           type?: Database["public"]["Enums"]["transaction_type"]
+          suggested_at?: string | null
+          suggested_category_id?: string | null
+          suggested_description?: string | null
+          suggested_tags?: string[]
+          suggestion_confidence?: number | null
+          suggestion_source?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -775,6 +787,12 @@ export type Database = {
           source_account_id?: string
           status?: Database["public"]["Enums"]["pending_transaction_status"]
           type?: Database["public"]["Enums"]["transaction_type"]
+          suggested_at?: string | null
+          suggested_category_id?: string | null
+          suggested_description?: string | null
+          suggested_tags?: string[]
+          suggestion_confidence?: number | null
+          suggestion_source?: string | null
           updated_at?: string
           user_id?: string
         }

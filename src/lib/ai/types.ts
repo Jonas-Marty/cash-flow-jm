@@ -41,8 +41,18 @@ export interface AIConversationSummary {
   updated_at: string;
 }
 
-/** AI actions that can be bound to a specific connection. */
-export const AI_ACTIONS = ["chat", "statement_extract", "transcribe"] as const;
+/**
+ * AI actions that can be bound to a specific connection. Every call site of
+ * `resolveEndpoint` names one of these; an action missing here silently
+ * takes the highest-priority connection with no way to change that.
+ */
+export const AI_ACTIONS = [
+  "chat",
+  "statement_extract",
+  "statement_classify",
+  "pending_enrich",
+  "transcribe",
+] as const;
 export type AIAction = (typeof AI_ACTIONS)[number];
 
 /** How much real finance data is pasted into the assistant's system prompt. */

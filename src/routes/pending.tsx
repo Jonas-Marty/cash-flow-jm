@@ -1,9 +1,20 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
-import { Check, Ban, RotateCcw, ChevronDown, ChevronRight, LayoutList, Table2 } from "lucide-react";
+import {
+  Check,
+  Ban,
+  RotateCcw,
+  ChevronDown,
+  ChevronRight,
+  History,
+  LayoutList,
+  Loader2,
+  Sparkles,
+  Table2,
+} from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { LocationSection, type RecentLocation } from "@/components/LocationSection";
@@ -28,7 +39,9 @@ import {
 import { useI18n } from "@/i18n";
 import { isToday, locationFromRow, type TxLocation } from "@/lib/location";
 import { rankLocationCandidates } from "@/lib/locationSuggest";
+import { enrichPendingTransactions } from "@/utils/pending.functions";
 import {
+  addTagsToNote,
   fetchPendingTransactions,
   fetchAccounts,
   fetchCategories,
@@ -76,6 +89,45 @@ function PendingRoute() {
   const sym = accountsQ.data?.[0]?.currency_symbol ?? "CHF";
 
   const items = pendingQ.data ?? [];
+  const qc = useQueryClient();
+
+  // "Suggest" re-examines every uncategorised row, including ones already
+  // looked at, and says what it found.
+  const suggestMut = useMutation({
+    mutationFn: () => enrichPendingTransactions({ data: { force: true } }),
+    onSuccess: (s) => {
+      if (s.rows > 0) qc.invalidateQueries({ queryKey: ["pending_transactions"] });
+      if (s.rows === 0 || s.history + s.ai === 0) toast.info(t("pending.suggest.toast.none"));
+      else
+        toast.success(
+          t("pending.suggest.toast", {
+            rows: String(s.rows),
+            history: String(s.history),
+            ai: String(s.ai),
+          }),
+        );
+      if (s.ai_status === "unavailable") toast.warning(t("pending.suggest.ai_unavailable"));
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : String(e)),
+  });
+
+  // Catching up silently: rows nobody could place when they arrived (no AI
+  // connection online at the time) get another look whenever the tab opens.
+  React.useEffect(() => {
+    if (tab !== "pending") return;
+    let cancelled = false;
+    enrichPendingTransactions({ data: {} })
+      .then((s) => {
+        if (!cancelled && s.history + s.ai > 0)
+          qc.invalidateQueries({ queryKey: ["pending_transactions"] });
+      })
+      .catch(() => {
+        /* best effort; the page is not waiting on it */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, qc]);
 
   // The table needs the room the cards do not, exactly as /transactions does.
   const tableView = tab === "pending" && view === "table";
@@ -99,6 +151,20 @@ function PendingRoute() {
             <p className="text-xs text-muted-foreground">{t(`pending.tab.help.${tab}`)}</p>
             {tab === "pending" ? (
               <div className="flex shrink-0 gap-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="mr-2"
+                  onClick={() => suggestMut.mutate()}
+                  disabled={suggestMut.isPending}
+                >
+                  {suggestMut.isPending ? (
+                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="mr-1 h-4 w-4" />
+                  )}
+                  {suggestMut.isPending ? t("pending.suggest.running") : t("pending.suggest.run")}
+                </Button>
                 <Button
                   size="sm"
                   variant={view === "table" ? "secondary" : "ghost"}
@@ -195,6 +261,17 @@ function PendingRow({
 
   const acc = accounts.find((a) => a.id === pending.source_account_id);
   const sym = acc?.currency_symbol ?? "CHF";
+
+  const suggestedCat = categories.find((c) => c.id === pending.suggested_category_id);
+  const suggestionOpen =
+    isPending &&
+    ((!!suggestedCat && !categoryId && type !== "transfer") ||
+      (!!pending.suggested_description && pending.suggested_description !== description));
+  const useSuggestion = () => {
+    if (suggestedCat && !categoryId) setCategoryId(suggestedCat.id);
+    if (pending.suggested_description) setDescription(pending.suggested_description);
+    if (pending.suggested_tags.length) setNote((n) => addTagsToNote(n, pending.suggested_tags));
+  };
 
   const onConfirm = async () => {
     const n = Number(amount.replace(",", "."));
@@ -307,6 +384,36 @@ function PendingRow({
               {pending.external_info && (
                 <div className="mt-1 whitespace-pre-wrap">{pending.external_info}</div>
               )}
+            </div>
+          )}
+
+          {suggestionOpen && (
+            <div className="flex flex-wrap items-center gap-2 rounded-md border border-dashed border-primary/40 bg-primary/5 p-2 text-xs">
+              {pending.suggestion_source === "history" ? (
+                <History className="h-3.5 w-3.5 shrink-0" />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5 shrink-0" />
+              )}
+              <span className="font-medium">{t("pending.suggest.label")}:</span>
+              <span className="min-w-0 flex-1 truncate">
+                {[
+                  suggestedCat?.name,
+                  pending.suggested_description,
+                  pending.suggested_tags.map((x) => `#${x}`).join(" ") || null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </span>
+              <span className="text-muted-foreground">
+                {pending.suggestion_source === "history"
+                  ? t("pending.suggest.source.history")
+                  : t("pending.suggest.source.ai", {
+                      pct: String(Math.round((pending.suggestion_confidence ?? 0) * 100)),
+                    })}
+              </span>
+              <Button size="sm" variant="secondary" className="h-7" onClick={useSuggestion}>
+                {t("pending.suggest.use")}
+              </Button>
             </div>
           )}
 

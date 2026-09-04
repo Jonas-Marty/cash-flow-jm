@@ -278,6 +278,36 @@ Source/destination accounts and categories on Add Transaction render as **chips*
 
 Out of scope: drag-to-reorder pinned items, server-side image resizing, applying chip pickers to recurring-rule editor or settings selects.
 
+### 3.11 Suggestions on pending transactions
+
+A pending row that arrives without a `category_id` (the phone's rule did not
+set one) gets a proposal, never a value:
+
+1. **History** — `suggestFromHistory` (`src/lib/pendingSuggest.ts`) matches
+   the row's description, borrowed place name and raw notification text
+   against the user's last 365 days of transactions, whole words only, and
+   takes the category they used. No model, no tokens.
+2. **AI** — rows history cannot place go, batched, to the connection bound to
+   the `pending_enrich` action (`src/utils/pending.enrich.server.ts`), with
+   the same context briefing the assistant gets. Returned category ids are
+   validated against the user's categories before anything is stored.
+
+Results land in `suggested_description`, `suggested_category_id`,
+`suggested_tags`, `suggestion_source` (`history` | `ai`),
+`suggestion_confidence` and `suggested_at`. `/pending` shows them as chips;
+the user's tap (or "Apply suggestions") copies them into the draft. Nothing
+writes `category_id` on its own.
+
+Triggers, all best effort and all draining the whole backlog rather than one
+row: the public POST (behind the response), `/pending` on mount, the
+"Suggest" button (`force`, re-examines rows already looked at), saving an
+enabled AI connection, binding `pending_enrich`, and a health probe that
+finds a connection back online. A row nobody could place keeps
+`suggested_at` NULL so the next trigger retries it.
+
+Deferred: the feedback loop and gated auto-apply, see
+`docs/pending-suggestions-feedback-loop.md`.
+
 ## 4. SQL surface
 
 | Object | Type | Purpose |
@@ -318,6 +348,16 @@ Every public table carries a nullable `user_id UUID`. To plug in Keycloak/OIDC:
 No schema change required for the switch.
 
 ## 7. Change log
+
+### 2026-09-04 — Pending suggestions, honest AI plumbing
+- History-then-AI category suggestions on `/pending` (§3.11); columns on
+  `pending_transactions`, `pending_enrich` action, `docs/pending-suggestions-feedback-loop.md`.
+- Every `resolveEndpoint` call site is now in `AI_ACTIONS` and bindable in
+  Settings (`statement_classify` was not).
+- `ai_audit_logs.kind` gains `statement_classify` and `pending_enrich`; the
+  classifier no longer logs as `document_extract`.
+- Privacy notice §6a and the help FAQ describe all AI features and the
+  `ai_endpoints` table; the dead single-credential API (`ai_credentials`) is gone from the server code.
 
 ### 2026-04-30 — Observability: structured logging, audit trail, metrics
 

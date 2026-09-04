@@ -1,7 +1,7 @@
 // Server-only helpers for statement (PDF) import and matching.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { FullAICreds } from "./ai.server";
+import type { AuditKind, FullAICreds } from "./ai.server";
 import { preview, providerHost, writeAudit } from "./ai.server";
 
 // ---------------------------------------------------------------------------
@@ -373,8 +373,11 @@ const FORMAT_CACHE = new Map<string, number>();
 export interface ExtractAudit {
   userId: string;
   fileName?: string | null;
-  source: "pdf" | "image" | "csv";
+  /** What the rows came from; "rows" for the classification passes. */
+  source: "pdf" | "image" | "csv" | "rows";
   part?: string | null;
+  /** Defaults to document_extract, which is what the PDF pipeline is. */
+  kind?: Extract<AuditKind, "document_extract" | "statement_classify" | "pending_enrich">;
 }
 
 export async function callJsonModel(
@@ -419,7 +422,7 @@ export async function callJsonModel(
         const c = num(u["completion_tokens"] ?? u["output_tokens"]);
         await writeAudit({
           user_id: audit.userId,
-          kind: "document_extract",
+          kind: audit.kind ?? "document_extract",
           model: creds.model,
           provider_host: providerHost(creds.base_url),
           duration_ms: Date.now() - started,
@@ -449,7 +452,7 @@ export async function callJsonModel(
     if (audit && !retryable) {
       await writeAudit({
         user_id: audit.userId,
-        kind: "document_extract",
+        kind: audit.kind ?? "document_extract",
         model: creds.model,
         provider_host: providerHost(creds.base_url),
         duration_ms: Date.now() - started,
@@ -470,7 +473,7 @@ export async function callJsonModel(
   if (audit) {
     await writeAudit({
       user_id: audit.userId,
-      kind: "document_extract",
+      kind: audit.kind ?? "document_extract",
       model: creds.model,
       provider_host: providerHost(creds.base_url),
       duration_ms: 0,

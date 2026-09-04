@@ -8,6 +8,7 @@ import {
 } from "@/lib/pendingTransactionSchema";
 import { locationFromRow } from "@/lib/location";
 import { suggestLocationLabel, type LocationHistoryEntry } from "@/lib/locationSuggest";
+import { enrichPending } from "@/utils/pending.enrich.server";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -73,7 +74,7 @@ async function labelFromHistory(
 }
 
 const SELECT_COLS =
-  "id, status, source_account_id, amount, type, occurred_on, destination_account_id, destination_amount, category_id, description, note, external_source, external_ref, external_info, latitude, longitude, location_accuracy_m, location_label, location_source, confirmed_transaction_id, confirmed_at, rejected_at, reject_reason, created_at, updated_at";
+  "id, status, source_account_id, amount, type, occurred_on, destination_account_id, destination_amount, category_id, description, note, external_source, external_ref, external_info, latitude, longitude, location_accuracy_m, location_label, location_source, suggested_description, suggested_category_id, suggested_tags, suggestion_source, suggestion_confidence, suggested_at, confirmed_transaction_id, confirmed_at, rejected_at, reject_reason, created_at, updated_at";
 
 export const Route = createFileRoute("/api/public/pending-transactions")({
   server: {
@@ -187,6 +188,18 @@ export const Route = createFileRoute("/api/public/pending-transactions")({
         if (insErr) {
           log.error({ event: "api.public.pending.insert_error", err: insErr.message, userId: auth.userId });
           return json({ error: "Internal server error" }, 500);
+        }
+        // Category suggestions are filled in behind the response so the phone
+        // never waits on a model. The pass also drains rows left over from
+        // earlier, when no AI connection was reachable.
+        if (!ins.category_id) {
+          void enrichPending(auth.userId).catch((e: unknown) =>
+            log.warn({
+              event: "api.public.pending.enrich_failed",
+              userId: auth.userId,
+              err: String(e),
+            }),
+          );
         }
         return json({ pending_transaction: ins }, 201);
       },
