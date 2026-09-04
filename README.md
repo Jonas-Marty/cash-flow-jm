@@ -14,12 +14,14 @@ For domain model, business rules and SQL surface, see [`architecture.md`](./arch
 
 ## 1. Local development
 
-Prerequisites: Node 22+, npm or bun, and a reachable Supabase project (hosted
-or self-hosted).
+Prerequisites: Node 22+, [bun](https://bun.sh) (the lockfile is `bun.lock`),
+and a reachable Supabase project (hosted or self-hosted). npm works too, but
+only from npm 12 — npm 10, the one bundled with node 22, crashes on this
+dependency graph with `Cannot read properties of null (reading 'edgesOut')`.
 
 ```bash
 # 1. Install dependencies
-npm install
+bun install
 
 # 2. Configure environment
 cp .env.example .env
@@ -29,7 +31,7 @@ cp .env.example .env
 #   VITE_SUPABASE_PROJECT_ID
 
 # 3. Start the dev server
-npm run dev
+bun run dev
 ```
 
 Run the test suite:

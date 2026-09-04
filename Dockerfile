@@ -1,16 +1,29 @@
 # syntax=docker/dockerfile:1.7
 
-# ---------- 1. deps ----------
-FROM node:22-alpine AS deps
-WORKDIR /app
-RUN apk add --no-cache libc6-compat
-COPY package.json package-lock.json* bun.lockb* ./
-RUN npm install
+# Installs run on bun, which is what the committed lockfile belongs to. npm 10
+# (the one bundled with node 22) crashes resolving this dependency graph with
+# "Cannot read properties of null (reading 'edgesOut')" — an arborist bug fixed
+# in npm 12 — and its package-lock.json had drifted from package.json anyway.
+# The app itself still runs under node; only the installs changed.
 
-# ---------- 2. build ----------
+# ---------- 1. deps ----------
+FROM oven/bun:1-alpine AS deps
+WORKDIR /app
+COPY package.json bun.lock* bun.lockb* ./
+RUN bun install --frozen-lockfile
+
+# ---------- 2. production deps (runtime image) ----------
+FROM oven/bun:1-alpine AS prod-deps
+WORKDIR /app
+COPY package.json bun.lock* bun.lockb* ./
+RUN bun install --frozen-lockfile --production
+
+# ---------- 3. build ----------
 FROM node:22-alpine AS build
 WORKDIR /app
 ENV NODE_ENV=production
+# git so the version stamp below can name the commit that was checked out.
+RUN apk add --no-cache libc6-compat git
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
@@ -20,13 +33,16 @@ ARG VITE_SUPABASE_PUBLISHABLE_KEY
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
 ENV VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
 
-# Version stamp: semver from package.json unless APP_VERSION is passed,
-# plus the git commit hash and build timestamp.
+# Version stamp: semver from package.json unless APP_VERSION is passed, plus
+# the git commit hash and build timestamp. The commit is what answers "is the
+# running container the code I pushed?", so it is worth the git in this stage:
+# a deploy platform that clones the repo gets it for free, and an explicit
+# APP_COMMIT build arg still wins.
 ARG APP_VERSION
 ARG APP_COMMIT
 ARG APP_BUILD_TIME
 RUN APP_VERSION="${APP_VERSION:-$(node -p "require('./package.json').version")}" \
- && APP_COMMIT="${APP_COMMIT:-$( [ -d .git ] && git rev-parse HEAD 2>/dev/null || echo '' )}" \
+ && APP_COMMIT="${APP_COMMIT:-$(git rev-parse HEAD 2>/dev/null || echo '')}" \
  && APP_BUILD_TIME="${APP_BUILD_TIME:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}" \
  && printf 'VITE_APP_VERSION=%s\nVITE_APP_COMMIT=%s\nVITE_APP_BUILD_TIME=%s\n' \
       "$APP_VERSION" "$APP_COMMIT" "$APP_BUILD_TIME" > .env.build \
@@ -37,7 +53,7 @@ RUN set -a && . ./.env.build && set +a \
  && APP_VERSION="$VITE_APP_VERSION" APP_COMMIT="$VITE_APP_COMMIT" APP_BUILD_TIME="$VITE_APP_BUILD_TIME" \
     npx vite build --config vite.config.node.ts
 
-# ---------- 3. runtime ----------
+# ---------- 4. runtime ----------
 FROM node:22-alpine AS runtime
 
 # Create user and group first
@@ -54,14 +70,10 @@ ENV NODE_ENV=production \
     SERVER_ENTRY=/app/dist/server/server.js \
     LOG_SERVICE_NAME=cash-flow
 
-# Copy dependency files with correct ownership
-COPY --chown=app:app package.json package-lock.json* ./
-
-# Switch to the non-root user for npm install and subsequent steps
 USER app
 
-RUN npm install --omit=dev \
-    && npm cache clean --force
+COPY --chown=app:app package.json ./
+COPY --chown=app:app --from=prod-deps /app/node_modules ./node_modules
 
 # Copy build artifacts with correct ownership
 COPY --chown=app:app --from=build /app/dist ./dist
