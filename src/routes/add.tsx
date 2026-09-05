@@ -844,43 +844,33 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
           tx.split_group_id ??
           (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
 
-        const rowFor = (p: typeof parsed[number]) => ({
-          occurred_on,
+        // Slices that are already rows keep their id (and with it their
+        // reimbursement links and attachments); new ones go in with id null.
+        const rows = parsed.map((p) => ({
+          id: existingIds.has(p.id) ? p.id : null,
           amount: p.amount,
           description: p.description,
           note: p.note,
-          type,
-          source_account_id: sourceId,
-          destination_account_id: null,
           category_id: p.categoryId,
-          split_group_id: groupId,
           is_reimbursable: p.isReimbursable,
           reimbursable_counterparty: p.reimbCounterparty,
           reimbursable_reason: p.reimbReason,
-          ...locationToColumns(location),
-        });
-
-        const toUpdate: { id: string; row: ReturnType<typeof rowFor> }[] = [];
-        const toInsert: ReturnType<typeof rowFor>[] = [];
-        parsed.forEach((p) => {
-          if (existingIds.has(p.id)) toUpdate.push({ id: p.id, row: rowFor(p) });
-          else toInsert.push(rowFor(p));
-        });
-        const incomingIds = new Set(parsed.map((p) => p.id));
-        const toDeleteIds = [...existingIds].filter((id) => !incomingIds.has(id));
+        }));
+        const keptIds = new Set(rows.map((r) => r.id).filter((x): x is string => !!x));
+        const toDeleteIds = [...existingIds].filter((id) => !keptIds.has(id));
 
         // Per-slice guard: prevent turning off is_reimbursable on a slice
         // that still has reimbursement links or a write-off.
         const existingById = new Map<string, Transaction>(
           (existingGroup.length > 0 ? existingGroup : [tx]).map((g) => [g.id, g as Transaction]),
         );
-        for (const u of toUpdate) {
-          const prev = existingById.get(u.id);
+        for (const r of rows) {
+          const prev = r.id ? existingById.get(r.id) : undefined;
           if (!prev) continue;
-          const becameNotReimb = !!prev.is_reimbursable && !u.row.is_reimbursable;
+          const becameNotReimb = !!prev.is_reimbursable && !r.is_reimbursable;
           if (!becameNotReimb) continue;
           const hasLink = (reimbLinksQ.data ?? []).some(
-            (l) => l.original_transaction_id === u.id,
+            (l) => l.original_transaction_id === r.id,
           );
           const hasWriteoff = !!prev.reimbursable_writeoff_transaction_id;
           if (hasLink || hasWriteoff) {
@@ -907,24 +897,19 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
           }
         }
 
-        for (const u of toUpdate) {
-          const { error: uErr } = await supabase
-            .from("transactions")
-            .update(u.row)
-            .eq("id", u.id);
-          if (uErr) { setSaving(false); toast.error(uErr.message); return; }
-        }
-        if (toInsert.length > 0) {
-          const { error: iErr } = await supabase.from("transactions").insert(toInsert);
-          if (iErr) { setSaving(false); toast.error(iErr.message); return; }
-        }
-        if (toDeleteIds.length > 0) {
-          const { error: dErr } = await supabase
-            .from("transactions")
-            .delete()
-            .in("id", toDeleteIds);
-          if (dErr) { setSaving(false); toast.error(dErr.message); return; }
-        }
+        // One server-side transaction for the whole group: updates, inserts
+        // and removals land together. Row-by-row writes could not move a
+        // split to another date or account — the first row already disagreed
+        // with its untouched siblings and the split-group check rejected it.
+        const { error: saveErr } = await supabase.rpc("save_split_group", {
+          p_group_id: groupId,
+          p_occurred_on: occurred_on,
+          p_type: type,
+          p_source_account_id: sourceId,
+          p_slices: rows,
+          p_location: locationToColumns(location),
+        });
+        if (saveErr) { setSaving(false); toast.error(saveErr.message); return; }
 
         setSaving(false);
         toast.success(tr("toast.saved"));

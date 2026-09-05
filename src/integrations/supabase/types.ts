@@ -1862,6 +1862,17 @@ export type Database = {
           unswept_current_month: number
         }[]
       }
+      save_split_group: {
+        Args: {
+          p_group_id: string
+          p_location?: Json
+          p_occurred_on: string
+          p_slices: Json
+          p_source_account_id: string
+          p_type: string
+        }
+        Returns: string[]
+      }
       series_step: {
         Args: {
           p_anchor: string

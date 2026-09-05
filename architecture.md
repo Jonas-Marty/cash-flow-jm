@@ -321,6 +321,8 @@ Deferred: the feedback loop and gated auto-apply, see
 | `compute_due_date(p_month, p_rule, p_dom)` | function | Produces the un-adjusted scheduled date for a recurring rule in a given month. Clamps fixed day to month length. |
 | `compute_effective_date(p_due, p_adjust)` | function | Applies the weekend adjustment (`before` / `after` / `none`). |
 | `process_recurring_rules(p_today)` | function | Idempotent recurring-rule processor. Catches up missed occurrences, auto-posts where configured, and creates pending occurrences for manual rules within a 7-day lookahead. |
+| `save_split_group(p_group_id, p_occurred_on, p_type, p_source_account_id, p_slices, p_location)` | function | Applies a whole edited split group in one transaction: updates the slices that keep their id, inserts new ones, deletes the ones the user removed. Returns the resulting ids in slice order. |
+| `validate_transaction_split_group()` | trigger function | Deferred constraint trigger: at commit, every row of a `split_group_id` must share `user_id`, `source_account_id`, `occurred_on` and `type`, and none may be a transfer. |
 | `reset_occurrence_on_tx_delete()` | trigger function | When a transaction backing an occurrence is deleted, flips the occurrence back to `pending`. |
 
 RLS: every public table has a permissive `open_all` policy (single-user mode). When auth is added these become `auth.uid() = user_id`.
@@ -348,6 +350,19 @@ Every public table carries a nullable `user_id UUID`. To plug in Keycloak/OIDC:
 No schema change required for the switch.
 
 ## 7. Change log
+
+### 2026-09-04 — Split groups: deferred validation, atomic group save
+
+- The split-group invariant moved from a `BEFORE ROW` trigger to a `DEFERRABLE INITIALLY DEFERRED`
+  constraint trigger. The old one compared the row being written against a sibling as it stood
+  *before* the statement, so a slice-by-slice save could never move a split to another date or
+  account — the first slice always disagreed with its untouched siblings.
+- `save_split_group()` applies an edited group (updates + inserts + removals) in a single
+  transaction; `/add` calls it instead of writing one row per request, so a group can no longer end
+  up half-saved. The function re-checks the invariant with `SET CONSTRAINTS … IMMEDIATE` so a real
+  violation is reported with its message instead of failing at commit.
+- Group membership is checked per row: a slice id must be the caller's own and either already in the
+  group or in no group at all.
 
 ### 2026-09-04 — Pending suggestions, honest AI plumbing
 - History-then-AI category suggestions on `/pending` (§3.11); columns on
