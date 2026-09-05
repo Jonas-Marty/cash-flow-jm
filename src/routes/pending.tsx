@@ -148,7 +148,7 @@ function PendingRoute() {
             <TabsTrigger value="confirmed">{t("pending.tab.confirmed")}</TabsTrigger>
           </TabsList>
           <div className="mt-2 flex items-start justify-between gap-3">
-            <p className="text-xs text-muted-foreground">{t(`pending.tab.help.${tab}`)}</p>
+            <p className="min-w-0 text-xs text-muted-foreground">{t(`pending.tab.help.${tab}`)}</p>
             {tab === "pending" ? (
               <div className="flex shrink-0 gap-1">
                 <Button
@@ -344,28 +344,40 @@ function PendingRow({
           onClick={() => setOpen((o) => !o)}
         >
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-              <CardTitle className="text-base">
+            <div className="flex min-w-0 items-center gap-2">
+              {open ? (
+                <ChevronDown className="h-4 w-4 shrink-0" />
+              ) : (
+                <ChevronRight className="h-4 w-4 shrink-0" />
+              )}
+              <CardTitle className="min-w-0 truncate text-base">
                 {pending.description || t("pending.row.untitled")}
               </CardTitle>
               {pending.external_source && (
-                <Badge variant="outline" className="text-[10px]">{pending.external_source}</Badge>
+                <Badge variant="outline" className="shrink-0 text-[10px]">
+                  {pending.external_source}
+                </Badge>
               )}
               {pending.status === "rejected" && (
-                <Badge variant="secondary">{t("pending.tab.rejected")}</Badge>
+                <Badge variant="secondary" className="shrink-0">
+                  {t("pending.tab.rejected")}
+                </Badge>
               )}
               {pending.status === "confirmed" && (
-                <Badge variant="secondary">{t("pending.tab.confirmed")}</Badge>
+                <Badge variant="secondary" className="shrink-0">
+                  {t("pending.tab.confirmed")}
+                </Badge>
               )}
             </div>
-            <div className="mt-0.5 text-xs text-muted-foreground">
+            {/* Account names and the raw type can be long: let the line wrap
+                and break rather than push the amount off a phone screen. */}
+            <div className="mt-0.5 break-words text-xs text-muted-foreground">
               {format(parseISO(pending.occurred_on), "dd.MM.yyyy", { locale })}
               {" · "}{acc?.name ?? "?"}
-              {" · "}{pending.type}
+              {" · "}{t(`add.${pending.type}`)}
             </div>
           </div>
-          <span className="tabular-nums text-sm font-semibold">
+          <span className="shrink-0 tabular-nums text-sm font-semibold">
             {fmtMoney(Number(pending.amount), sym)}
           </span>
         </button>
@@ -373,7 +385,7 @@ function PendingRow({
       {open && (
         <CardContent className="space-y-3">
           {(pending.external_info || pending.external_ref || pending.external_source) && (
-            <div className="rounded-md border bg-muted/30 p-3 text-xs">
+            <div className="break-words rounded-md border bg-muted/30 p-3 text-xs">
               <div className="mb-1 font-medium">{t("pending.external.title")}</div>
               {pending.external_source && (
                 <div><span className="text-muted-foreground">{t("pending.external.source")}: </span>{pending.external_source}</div>
@@ -382,7 +394,7 @@ function PendingRow({
                 <div><span className="text-muted-foreground">{t("pending.external.ref")}: </span>{pending.external_ref}</div>
               )}
               {pending.external_info && (
-                <div className="mt-1 whitespace-pre-wrap">{pending.external_info}</div>
+                <div className="mt-1 whitespace-pre-wrap break-words">{pending.external_info}</div>
               )}
             </div>
           )}

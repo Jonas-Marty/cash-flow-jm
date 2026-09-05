@@ -342,7 +342,9 @@ export function PendingLineTable({
                     checked={d.checked}
                     onCheckedChange={(v) => patch(p.id, { checked: !!v })}
                   />
-                  <span className="text-xs text-muted-foreground lg:hidden">
+                  {/* The source name arrives from the outside and can be one
+                      long token, so this summary has to be free to break. */}
+                  <span className="min-w-0 break-words text-xs text-muted-foreground lg:hidden">
                     {d.occurred_on} · {fmtMoney(Number(p.amount), sym)}
                     {p.external_source ? ` · ${p.external_source}` : ""}
                   </span>
