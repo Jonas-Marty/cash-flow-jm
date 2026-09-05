@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Link, Outlet, createRootRouteWithContext, HeadContent, Scripts, useLocation } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
 import { I18nProvider, type Lang } from "@/i18n";
 import { fetchSettings } from "@/lib/finance";
@@ -73,8 +74,9 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const loc = useLocation();
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
-        …
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden="true" />
+        <span>{"Cashflow"}</span>
       </div>
     );
   }
