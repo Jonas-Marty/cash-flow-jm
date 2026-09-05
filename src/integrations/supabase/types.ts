@@ -707,12 +707,23 @@ export type Database = {
           external_ref: string | null
           external_source: string | null
           id: string
+          latitude: number | null
+          location_accuracy_m: number | null
+          location_label: string | null
+          location_source: string | null
+          longitude: number | null
           note: string | null
           occurred_on: string
           reject_reason: string | null
           rejected_at: string | null
           source_account_id: string
           status: Database["public"]["Enums"]["pending_transaction_status"]
+          suggested_at: string | null
+          suggested_category_id: string | null
+          suggested_description: string | null
+          suggested_tags: string[]
+          suggestion_confidence: number | null
+          suggestion_source: string | null
           type: Database["public"]["Enums"]["transaction_type"]
           updated_at: string
           user_id: string
@@ -730,12 +741,23 @@ export type Database = {
           external_ref?: string | null
           external_source?: string | null
           id?: string
+          latitude?: number | null
+          location_accuracy_m?: number | null
+          location_label?: string | null
+          location_source?: string | null
+          longitude?: number | null
           note?: string | null
           occurred_on?: string
           reject_reason?: string | null
           rejected_at?: string | null
           source_account_id: string
           status?: Database["public"]["Enums"]["pending_transaction_status"]
+          suggested_at?: string | null
+          suggested_category_id?: string | null
+          suggested_description?: string | null
+          suggested_tags?: string[]
+          suggestion_confidence?: number | null
+          suggestion_source?: string | null
           type?: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string
           user_id?: string
@@ -753,12 +775,23 @@ export type Database = {
           external_ref?: string | null
           external_source?: string | null
           id?: string
+          latitude?: number | null
+          location_accuracy_m?: number | null
+          location_label?: string | null
+          location_source?: string | null
+          longitude?: number | null
           note?: string | null
           occurred_on?: string
           reject_reason?: string | null
           rejected_at?: string | null
           source_account_id?: string
           status?: Database["public"]["Enums"]["pending_transaction_status"]
+          suggested_at?: string | null
+          suggested_category_id?: string | null
+          suggested_description?: string | null
+          suggested_tags?: string[]
+          suggestion_confidence?: number | null
+          suggestion_source?: string | null
           type?: Database["public"]["Enums"]["transaction_type"]
           updated_at?: string
           user_id?: string
@@ -770,6 +803,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "transactions"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_transactions_suggested_category_id_fkey"
+            columns: ["suggested_category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_transactions_suggested_category_id_fkey"
+            columns: ["suggested_category_id"]
+            isOneToOne: false
+            referencedRelation: "category_savings_balance"
+            referencedColumns: ["category_id"]
           },
         ]
       }
