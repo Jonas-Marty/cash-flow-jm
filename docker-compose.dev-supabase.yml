@@ -1,0 +1,216 @@
+# Minimal self-hosted Supabase for the throwaway DEV environment.
+#
+# Prod (cash-flow-supabase-e2meaa) runs the full 13-service upstream stack. The
+# app uses five of them, so this file keeps db + auth + rest + storage + kong and
+# drops analytics (1.5 GB on its own), vector, realtime, edge functions, imgproxy
+# and the connection pooler. Studio and pg-meta sit behind the "studio" profile
+# for when you want to browse the data.
+#
+# Deployed by Dokploy as its own compose resource; Kong is published through the
+# Dokploy "Domains" tab (service kong, port 8000), which injects the Traefik
+# labels. The network is declared external with a fixed name so the dev app and
+# the clone scripts have a stable target — create it once with:
+#   docker network create cash-flow-dev-supabase
+
+services:
+  db:
+    image: supabase/postgres:15.8.1.060
+    restart: unless-stopped
+    volumes:
+      # 98 before 99: roles.sql sets a password for supabase_functions_admin,
+      # which webhooks.sql creates. Without it that script aborts, and since the
+      # image's entrypoint runs under `set -e`, its own migrations never follow —
+      # including the one that hands the auth.* functions to supabase_auth_admin,
+      # without which GoTrue cannot start.
+      - ./docker/dev-supabase/db/webhooks.sql:/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql:ro
+      - ./docker/dev-supabase/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:ro
+      - ./docker/dev-supabase/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:ro
+      - db-data:/var/lib/postgresql/data
+      - db-config:/etc/postgresql-custom
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres", "-h", "localhost"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    environment:
+      POSTGRES_HOST: /var/run/postgresql
+      PGPORT: 5432
+      POSTGRES_PORT: 5432
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      PGDATABASE: postgres
+      POSTGRES_DB: postgres
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_EXP: ${JWT_EXPIRY:-3600}
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
+      - -c
+      - log_min_messages=fatal
+    networks: [dev-supabase]
+
+  auth:
+    image: supabase/gotrue:v2.171.0
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9999/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+    environment:
+      GOTRUE_API_HOST: 0.0.0.0
+      GOTRUE_API_PORT: 9999
+      API_EXTERNAL_URL: ${API_EXTERNAL_URL}
+      GOTRUE_DB_DRIVER: postgres
+      GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@db:5432/postgres
+      GOTRUE_SITE_URL: ${SITE_URL}
+      GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS}
+      GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP:-false}
+      GOTRUE_JWT_ADMIN_ROLES: service_role
+      GOTRUE_JWT_AUD: authenticated
+      GOTRUE_JWT_DEFAULT_GROUP_NAME: authenticated
+      GOTRUE_JWT_EXP: ${JWT_EXPIRY:-3600}
+      GOTRUE_JWT_SECRET: ${JWT_SECRET}
+      GOTRUE_EXTERNAL_EMAIL_ENABLED: "true"
+      GOTRUE_EXTERNAL_ANONYMOUS_USERS_ENABLED: "false"
+      # No SMTP on dev: confirmation mails would never arrive, so sign-ups are
+      # confirmed on the spot.
+      GOTRUE_MAILER_AUTOCONFIRM: ${ENABLE_EMAIL_AUTOCONFIRM:-true}
+      GOTRUE_MAILER_URLPATHS_INVITE: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_CONFIRMATION: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_RECOVERY: /auth/v1/verify
+      GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: /auth/v1/verify
+      GOTRUE_EXTERNAL_PHONE_ENABLED: "false"
+      GOTRUE_SMS_AUTOCONFIRM: "false"
+      GOTRUE_SECURITY_MANUAL_LINKING_ENABLED: "true"
+    networks: [dev-supabase]
+
+  rest:
+    image: postgrest/postgrest:v12.2.11
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGRST_DB_URI: postgres://authenticator:${POSTGRES_PASSWORD}@db:5432/postgres
+      PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-public,storage,graphql_public}
+      PGRST_DB_ANON_ROLE: anon
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
+      PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY:-3600}
+    command: ["postgrest"]
+    networks: [dev-supabase]
+
+  storage:
+    image: supabase/storage-api:v1.22.7
+    restart: unless-stopped
+    volumes:
+      - storage-data:/var/lib/storage
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://storage:5000/status"]
+      interval: 5s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      db:
+        condition: service_healthy
+      rest:
+        condition: service_started
+    environment:
+      ANON_KEY: ${ANON_KEY}
+      SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      POSTGREST_URL: http://rest:3000
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      DATABASE_URL: postgres://supabase_storage_admin:${POSTGRES_PASSWORD}@db:5432/postgres
+      FILE_SIZE_LIMIT: 52428800
+      STORAGE_BACKEND: file
+      FILE_STORAGE_BACKEND_PATH: /var/lib/storage
+      TENANT_ID: stub
+      REGION: stub
+      GLOBAL_S3_BUCKET: stub
+      # Image transformation needs imgproxy, which dev does not run.
+      ENABLE_IMAGE_TRANSFORMATION: "false"
+    networks: [dev-supabase]
+
+  kong:
+    image: kong:2.8.1
+    restart: unless-stopped
+    expose:
+      - 8000
+    volumes:
+      - ./docker/dev-supabase/kong.yml:/home/kong/temp.yml:ro
+    depends_on:
+      auth:
+        condition: service_started
+      rest:
+        condition: service_started
+      storage:
+        condition: service_started
+    environment:
+      KONG_DATABASE: "off"
+      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
+      KONG_DNS_ORDER: LAST,A,CNAME
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
+      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
+      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      DASHBOARD_USERNAME: ${DASHBOARD_USERNAME:-supabase}
+      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
+    # Upstream's trick: shell-expand the $VARS in temp.yml, then hand the result
+    # to Kong. Anything with a $ in kong.yml is expanded, so keep it to the four
+    # variables above.
+    entrypoint: bash -c 'eval "echo \"$$(cat ~/temp.yml)\"" > ~/kong.yml && /docker-entrypoint.sh kong docker-start'
+    networks: [dev-supabase]
+
+  # ---- optional data browser: set COMPOSE_PROFILES=studio to run these ----
+  meta:
+    image: supabase/postgres-meta:v0.88.9
+    profiles: ["studio"]
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PG_META_PORT: 8080
+      PG_META_DB_HOST: db
+      PG_META_DB_PORT: 5432
+      PG_META_DB_NAME: postgres
+      PG_META_DB_USER: supabase_admin
+      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
+    networks: [dev-supabase]
+
+  studio:
+    image: supabase/studio:2025.04.21-sha-173cc56
+    profiles: ["studio"]
+    restart: unless-stopped
+    depends_on:
+      meta:
+        condition: service_started
+    environment:
+      STUDIO_PG_META_URL: http://meta:8080
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DEFAULT_ORGANIZATION_NAME: Cash Flow DEV
+      DEFAULT_PROJECT_NAME: cash-flow-dev
+      SUPABASE_URL: http://kong:8000
+      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
+      SUPABASE_ANON_KEY: ${ANON_KEY}
+      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
+      AUTH_JWT_SECRET: ${JWT_SECRET}
+      NEXT_PUBLIC_ENABLE_LOGS: "false"
+    networks: [dev-supabase]
+
+volumes:
+  db-data:
+  db-config:
+  storage-data:
+
+networks:
+  dev-supabase:
+    external: true
+    name: ${DEV_SUPABASE_NETWORK:-cash-flow-dev-supabase}

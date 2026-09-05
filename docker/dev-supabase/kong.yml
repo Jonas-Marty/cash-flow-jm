@@ -1,0 +1,161 @@
+# Declarative Kong config for the DEV Supabase stack.
+#
+# Derived from the production file
+# (/etc/dokploy/compose/cash-flow-supabase-e2meaa/files/volumes/api/kong.yml)
+# with the routes for services dev does not run removed: graphql-v1,
+# realtime-v1-*, functions-v1 and analytics-v1. Keep every remaining variable to the
+# four the compose entrypoint expands: SUPABASE_ANON_KEY, SUPABASE_SERVICE_KEY,
+# DASHBOARD_USERNAME, DASHBOARD_PASSWORD.
+#
+# /pg and the catch-all dashboard route point at meta/studio, which only run
+# under the "studio" compose profile; without it they answer 502, which is fine.
+_format_version: '2.1'
+_transform: true
+
+###
+### Consumers / Users
+###
+consumers:
+  - username: DASHBOARD
+  - username: anon
+    keyauth_credentials:
+      - key: $SUPABASE_ANON_KEY
+  - username: service_role
+    keyauth_credentials:
+      - key: $SUPABASE_SERVICE_KEY
+
+###
+### Access Control List
+###
+acls:
+  - consumer: anon
+    group: anon
+  - consumer: service_role
+    group: admin
+
+###
+### Dashboard credentials
+###
+basicauth_credentials:
+  - consumer: DASHBOARD
+    username: $DASHBOARD_USERNAME
+    password: $DASHBOARD_PASSWORD
+
+###
+### API Routes
+###
+services:
+  ## Open Auth routes
+  - name: auth-v1-open
+    url: http://auth:9999/verify
+    routes:
+      - name: auth-v1-open
+        strip_path: true
+        paths:
+          - /auth/v1/verify
+    plugins:
+      - name: cors
+  - name: auth-v1-open-callback
+    url: http://auth:9999/callback
+    routes:
+      - name: auth-v1-open-callback
+        strip_path: true
+        paths:
+          - /auth/v1/callback
+    plugins:
+      - name: cors
+  - name: auth-v1-open-authorize
+    url: http://auth:9999/authorize
+    routes:
+      - name: auth-v1-open-authorize
+        strip_path: true
+        paths:
+          - /auth/v1/authorize
+    plugins:
+      - name: cors
+
+  ## Secure Auth routes
+  - name: auth-v1
+    _comment: 'GoTrue: /auth/v1/* -> http://auth:9999/*'
+    url: http://auth:9999/
+    routes:
+      - name: auth-v1-all
+        strip_path: true
+        paths:
+          - /auth/v1/
+    plugins:
+      - name: cors
+      - name: key-auth
+        config:
+          hide_credentials: false
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow:
+            - admin
+            - anon
+
+  ## Secure REST routes
+  - name: rest-v1
+    _comment: 'PostgREST: /rest/v1/* -> http://rest:3000/*'
+    url: http://rest:3000/
+    routes:
+      - name: rest-v1-all
+        strip_path: true
+        paths:
+          - /rest/v1/
+    plugins:
+      - name: cors
+      - name: key-auth
+        config:
+          hide_credentials: true
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow:
+            - admin
+            - anon
+  ## Storage routes: the storage server manages its own auth
+  - name: storage-v1
+    _comment: 'Storage: /storage/v1/* -> http://storage:5000/*'
+    url: http://storage:5000/
+    routes:
+      - name: storage-v1-all
+        strip_path: true
+        paths:
+          - /storage/v1/
+    plugins:
+      - name: cors
+  ## Secure Database routes
+  - name: meta
+    _comment: 'pg-meta: /pg/* -> http://pg-meta:8080/*'
+    url: http://meta:8080/
+    routes:
+      - name: meta-all
+        strip_path: true
+        paths:
+          - /pg/
+    plugins:
+      - name: key-auth
+        config:
+          hide_credentials: false
+      - name: acl
+        config:
+          hide_groups_header: true
+          allow:
+            - admin
+
+  ## Protected Dashboard - catch all remaining routes
+  - name: dashboard
+    _comment: 'Studio: /* -> http://studio:3000/*'
+    url: http://studio:3000/
+    routes:
+      - name: dashboard-all
+        strip_path: true
+        paths:
+          - /
+    plugins:
+      - name: cors
+      - name: basic-auth
+        config:
+          hide_credentials: true

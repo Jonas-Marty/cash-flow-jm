@@ -286,6 +286,92 @@ is served at `/api/public/docs` and the raw OpenAPI document at
 
 ---
 
-## 8. License
+## 8. Dev environment
+
+A second, throwaway copy of the whole stack, so a change can be looked at in a
+real browser before it reaches production.
+
+```
+   push to `dev`                      dev-cash-flow.wi-wo.ch
+        │                                      │
+   Dokploy: cash-flow-dev-app  ────────────────┘
+        │  (docker-compose.yml, APP_IMAGE=cash-flow-app:dev)
+        ↓
+   Dokploy: cash-flow-dev-supabase   ← dev-cash-flow-supabase.wi-wo.ch
+      (docker-compose.dev-supabase.yml: db, auth, rest, storage, kong)
+```
+
+Production is never involved: the dev stack has its own JWT secret, its own
+anon/service keys and its own database volume. The only thing it takes from
+production is a copy of the data, and only ever by reading it.
+
+### First-time setup
+
+1. `docker network create cash-flow-dev-supabase` — the fixed network both
+   resources join.
+2. `bash docker/scripts/gen-keys.sh` and fill in `.env.dev-supabase`
+   (see `.env.dev-supabase.example`).
+3. In Dokploy, create a **Compose** resource `cash-flow-dev-supabase` from this
+   repository, branch `dev`, compose path `./docker-compose.dev-supabase.yml`,
+   paste that env, deploy, then add the domain
+   `dev-cash-flow-supabase.wi-wo.ch` → service `kong`, port `8000`.
+4. `bash scripts/dev/clone-prod-db.sh` — copies production into it.
+5. Create a second **Compose** resource `cash-flow-dev-app`, branch `dev`,
+   compose path `./docker-compose.yml`, **auto-deploy on**, domain
+   `dev-cash-flow.wi-wo.ch` → service `app`, port `3000`, with:
+
+   | Variable | Value |
+   | --- | --- |
+   | `APP_IMAGE` | `cash-flow-app:dev` (keeps production's `:latest` intact) |
+   | `SUPABASE_DOCKER_NETWORK` | `cash-flow-dev-supabase` |
+   | `SUPABASE_DB_URL` | `postgresql://supabase_admin:<POSTGRES_PASSWORD>@db:5432/postgres` |
+   | `VITE_SUPABASE_URL`, `SUPABASE_URL` | `https://dev-cash-flow-supabase.wi-wo.ch` |
+   | `VITE_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_PUBLISHABLE_KEY` | dev `ANON_KEY` |
+   | `SUPABASE_SERVICE_ROLE_KEY` | dev `SERVICE_ROLE_KEY` |
+   | `METRICS_TOKEN` | a fresh one — do **not** point cron at dev |
+   | `LOG_SERVICE_NAME` | `cash-flow-dev` |
+
+Log in on dev with your production credentials: password hashes survive the
+clone, sessions do not.
+
+### Day to day
+
+```bash
+git switch dev && git push          # dev auto-deploys, then merge to main
+
+bun run dev:clone-db                # re-copy production into dev
+bun run dev:clone-db -- --with-storage --migrate
+bun run dev:reset-db                # throw the dev database away
+
+# Browser toolbox (Playwright + bun in a container; the host has neither)
+bun run dev:tools                              # shell in the toolbox
+bun run dev:tools -- bun run lint
+DEV_LOGIN_EMAIL=… DEV_LOGIN_PASSWORD=… \
+  bun run dev:screenshot -- --login --mobile --path /pending
+```
+
+`dev:screenshot` writes full-page PNGs plus the console output per viewport to
+`screenshots/`, and reports how far each page overflows its viewport
+horizontally — which is what mobile layout bugs look like from the outside.
+Point it at a local `bun run dev` with `--url http://localhost:8080`.
+
+Health checks (from a container on the `cash-flow-dev-supabase` network, or
+from anywhere once the domain is up):
+
+```bash
+curl -H "apikey: $ANON_KEY" https://dev-cash-flow-supabase.wi-wo.ch/auth/v1/health
+curl -o /dev/null -w '%{http_code}\n' -H "apikey: $ANON_KEY" \
+  https://dev-cash-flow-supabase.wi-wo.ch/rest/v1/     # 200; 401 without the key
+curl https://dev-cash-flow.wi-wo.ch/api/public/version # should report the dev commit
+```
+
+The clone script copies `public`, `auth` and `storage`, then blanks the
+Nextcloud tokens and deactivates the webhooks, so a dev instance cannot act on
+the outside world. AI credentials and API tokens are kept so those paths stay
+testable — see `scripts/dev/scrub-dev.sql`.
+
+---
+
+## 9. License
 
 See repository for license details: https://github.com/Jonas-Marty/cash-flow-jm

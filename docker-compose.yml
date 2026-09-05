@@ -41,7 +41,9 @@ services:
         # Dokploy (e.g. to the deployed commit SHA) to see the exact build.
         APP_VERSION: ${APP_VERSION:-}
         APP_COMMIT: ${APP_COMMIT:-}
-    image: cash-flow-app:latest
+    # Overridable so a second deployment (the dev environment) does not retag the
+    # image the production stack runs.
+    image: ${APP_IMAGE:-cash-flow-app:latest}
     restart: unless-stopped
     depends_on:
       migrate:

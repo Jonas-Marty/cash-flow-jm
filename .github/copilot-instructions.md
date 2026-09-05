@@ -9,6 +9,10 @@ Read [`architecture.md`](../architecture.md) and [`.lovable/plan.md`](../.lovabl
 ## 1. Tech stack (do not change)
 
 - **Framework:** TanStack Start v1 (React 19, Vite 7) targeting **Cloudflare Workers** (edge runtime).
+  The deployed instance is the *other* target: a Node SSR container on Dokploy, built with
+  `vite.config.node.ts` (see `README.md` §4). Keep server code inside the Worker constraints of
+  §5 anyway — both builds are produced from the same sources. A throwaway copy of the deployment
+  for trying changes in a browser is described in `README.md` §8.
 - **Styling:** Tailwind CSS v4 via `src/styles.css` (`@import "tailwindcss"` + `@theme`). No `tailwind.config.js`.
 - **UI:** shadcn/ui (Radix) components in `src/components/ui/`. Don't fork them ad-hoc — extend with variants.
 - **State / data:** `@tanstack/react-query`, `react-hook-form` + `zod`.
