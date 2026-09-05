@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Link, Outlet, createRootRouteWithContext, HeadContent, Scripts, useLocation } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2 } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
 import { I18nProvider, type Lang } from "@/i18n";
 import { fetchSettings } from "@/lib/finance";
