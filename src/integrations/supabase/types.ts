@@ -129,6 +129,7 @@ export type Database = {
           action: string
           allow_fallback: boolean
           endpoint_id: string | null
+          model: string | null
           updated_at: string
           user_id: string
         }
@@ -136,6 +137,7 @@ export type Database = {
           action: string
           allow_fallback?: boolean
           endpoint_id?: string | null
+          model?: string | null
           updated_at?: string
           user_id: string
         }
@@ -143,6 +145,7 @@ export type Database = {
           action?: string
           allow_fallback?: boolean
           endpoint_id?: string | null
+          model?: string | null
           updated_at?: string
           user_id?: string
         }

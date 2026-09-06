@@ -9,7 +9,6 @@ import type { AIHealthMode, AIHealthProbe, AssistantAction, AIEndpointOfflinePay
 import { AI_ENDPOINT_OFFLINE_PREFIX } from "@/lib/ai/types";
 import { healthBases } from "@/lib/ai/endpointUrls";
 
-
 export interface PingResult {
   ok: boolean;
   latency_ms: number;
@@ -162,8 +161,13 @@ export async function loadEndpointRows(userId: string): Promise<EndpointRow[]> {
   }));
 }
 
-function toCreds(row: EndpointRow): FullAICreds {
-  return { enabled: true, base_url: row.base_url, model: row.model, api_token: row.api_token || "" };
+function toCreds(row: EndpointRow, model?: string | null): FullAICreds {
+  return {
+    enabled: true,
+    base_url: row.base_url,
+    model: model || row.model,
+    api_token: row.api_token || "",
+  };
 }
 
 /**
@@ -314,24 +318,41 @@ export async function pingEndpoint(
  *   explicit id → action binding → highest-priority enabled connection.
  * When the preferred one is offline and fallback is allowed, walk the
  * remaining enabled connections by priority and use the first that answers.
+ *
+ * A binding may also name a model to use on its connection, so one provider
+ * serving several models needs one connection (and so one availability probe)
+ * rather than one per model. `model_override` is that model, and it is null
+ * unless the connection we settled on is the bound one — a model name does not
+ * carry over to a connection reached by fallback, which may not serve it.
  */
 export async function resolveEndpoint(
   userId: string,
   action: string,
   explicitId?: string | null,
-  filter?: (row: EndpointRow) => boolean,
-): Promise<{ creds: FullAICreds; endpoint: EndpointRow; fell_back: boolean }> {
-  const rows = (await loadEndpointRows(userId)).filter(
-    (r) => r.enabled && r.base_url && r.model && (!filter || filter(r)),
-  );
-  if (rows.length === 0) throw new Error("No AI connection configured. Add one in Settings.");
-
+  filter?: (row: EndpointRow, modelOverride: string | null) => boolean,
+): Promise<{
+  creds: FullAICreds;
+  endpoint: EndpointRow;
+  fell_back: boolean;
+  model_override: string | null;
+}> {
+  // Read the binding before filtering: a filter that asks whether a connection
+  // can serve an action (transcription, say) has to see the model the binding
+  // names, not just the connection's own defaults.
   const { data: binding } = await supabaseAdmin
     .from("ai_action_endpoints")
-    .select("endpoint_id, allow_fallback")
+    .select("endpoint_id, allow_fallback, model")
     .eq("user_id", userId)
     .eq("action", action)
     .maybeSingle();
+
+  const overrideFor = (row: EndpointRow): string | null =>
+    binding?.endpoint_id === row.id && binding?.model ? binding.model : null;
+
+  const rows = (await loadEndpointRows(userId)).filter(
+    (r) => r.enabled && r.base_url && r.model && (!filter || filter(r, overrideFor(r))),
+  );
+  if (rows.length === 0) throw new Error("No AI connection configured. Add one in Settings.");
 
   const preferredId = explicitId || binding?.endpoint_id || null;
   const allowFallback = explicitId ? false : binding?.allow_fallback !== false;
@@ -343,7 +364,13 @@ export async function resolveEndpoint(
   if (explicitId) {
     if (!preferred) throw new Error("The selected AI connection no longer exists.");
     const health = await pingEndpoint(preferred.base_url, preferred.api_token, preferred.model, preferred.health_mode);
-    if (health.ok) return { creds: toCreds(preferred), endpoint: preferred, fell_back: false };
+    if (health.ok)
+      return {
+        creds: toCreds(preferred, overrideFor(preferred)),
+        endpoint: preferred,
+        fell_back: false,
+        model_override: overrideFor(preferred),
+      };
     const others = rows.filter((r) => r.id !== preferred.id);
     const probed = await Promise.all(
       others.map(async (r) => ({
@@ -356,21 +383,37 @@ export async function resolveEndpoint(
     throw new Error(
       AI_ENDPOINT_OFFLINE_PREFIX +
         JSON.stringify({
-          endpoint: { id: preferred.id, name: preferred.name, model: preferred.model },
+          endpoint: {
+            id: preferred.id,
+            name: preferred.name,
+            model: overrideFor(preferred) ?? preferred.model,
+          },
           error: health.error || "unavailable",
           alternatives: probed,
         } satisfies AIEndpointOfflinePayload),
     );
   }
 
-  if (preferred && !allowFallback) return { creds: toCreds(preferred), endpoint: preferred, fell_back: false };
+  if (preferred && !allowFallback)
+    return {
+      creds: toCreds(preferred, overrideFor(preferred)),
+      endpoint: preferred,
+      fell_back: false,
+      model_override: overrideFor(preferred),
+    };
 
   const ordered = preferred ? [preferred, ...rows.filter((r) => r.id !== preferred.id)] : rows;
 
   let lastError = "";
   for (const [i, row] of ordered.entries()) {
     const health = await pingEndpoint(row.base_url, row.api_token, row.model, row.health_mode);
-    if (health.ok) return { creds: toCreds(row), endpoint: row, fell_back: i > 0 };
+    if (health.ok)
+      return {
+        creds: toCreds(row, overrideFor(row)),
+        endpoint: row,
+        fell_back: i > 0,
+        model_override: overrideFor(row),
+      };
     lastError = health.error || "unavailable";
   }
   throw new Error(`No AI connection is reachable right now (last error: ${lastError}).`);
@@ -1011,9 +1054,16 @@ export async function runTranscription(
   if (audio.byteLength === 0) throw new Error("The recording is empty. Please try again.");
   if (audio.byteLength > MAX_AUDIO_BYTES) throw new Error("The recording is too large (max 10 MB).");
 
-  const resolved = await resolveEndpoint(userId, "transcribe", opts.endpoint_id ?? null, (r) => !!r.transcribe_model);
+  // A binding may name the speech-to-text model directly, which makes the
+  // connection usable for voice even when it carries no transcribe_model.
+  const resolved = await resolveEndpoint(
+    userId,
+    "transcribe",
+    opts.endpoint_id ?? null,
+    (r, modelOverride) => !!(modelOverride ?? r.transcribe_model),
+  );
   const row = resolved.endpoint;
-  const model = row.transcribe_model!;
+  const model = resolved.model_override ?? row.transcribe_model!;
   const host = providerHost(row.base_url);
   const started = Date.now();
 

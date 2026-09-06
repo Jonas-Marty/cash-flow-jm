@@ -59,7 +59,7 @@ export const listAIEndpoints = createServerFn({ method: "GET" })
     const endpoints = await readEndpoints(userId);
     const { data: rows } = await supabaseAdmin
       .from("ai_action_endpoints")
-      .select("action, endpoint_id, allow_fallback")
+      .select("action, endpoint_id, allow_fallback, model")
       .eq("user_id", userId);
     const bindings: AIActionBinding[] = AI_ACTIONS.map((action) => {
       const row = (rows || []).find((r: any) => r.action === action);
@@ -67,6 +67,7 @@ export const listAIEndpoints = createServerFn({ method: "GET" })
         action,
         endpoint_id: row?.endpoint_id ?? null,
         allow_fallback: row ? row.allow_fallback !== false : true,
+        model: row?.model ?? null,
       };
     });
     return { endpoints, bindings };
@@ -139,16 +140,37 @@ export const saveAIActionBinding = createServerFn({ method: "POST" })
         action: actionSchema,
         endpoint_id: z.string().uuid().nullable(),
         allow_fallback: z.boolean(),
+        // null or "" clears the override; undefined keeps whatever is stored.
+        model: z.string().trim().max(120).nullable().optional(),
       })
       .parse(d),
   )
   .handler(async ({ data, context }) => {
+    // The upsert replaces the whole row, so an omitted model has to be read
+    // back rather than written as null — otherwise saving just the fallback
+    // toggle would wipe the model. A model also names one model on one
+    // connection, so clearing the connection clears the model with it.
+    let model: string | null = null;
+    if (data.endpoint_id !== null) {
+      if (data.model === undefined) {
+        const { data: existing } = await supabaseAdmin
+          .from("ai_action_endpoints")
+          .select("model")
+          .eq("user_id", context.userId)
+          .eq("action", data.action)
+          .maybeSingle();
+        model = existing?.model ?? null;
+      } else {
+        model = data.model?.trim() || null;
+      }
+    }
     const { error } = await supabaseAdmin.from("ai_action_endpoints").upsert(
       {
         user_id: context.userId,
         action: data.action,
         endpoint_id: data.endpoint_id,
         allow_fallback: data.allow_fallback,
+        model,
         updated_at: new Date().toISOString(),
       },
       { onConflict: "user_id,action" },

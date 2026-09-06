@@ -85,6 +85,8 @@ export interface AIActionBinding {
   action: AIAction;
   endpoint_id: string | null;
   allow_fallback: boolean;
+  /** Model to use on the bound connection. Null = the connection's default. */
+  model: string | null;
 }
 
 export interface AIEndpointHealth {

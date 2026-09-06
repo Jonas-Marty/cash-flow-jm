@@ -302,9 +302,14 @@ function AISettingsCardInner() {
     }
   };
 
-  const setBinding = async (action: string, endpoint_id: string | null, allow_fallback: boolean) => {
+  const setBinding = async (
+    action: string,
+    endpoint_id: string | null,
+    allow_fallback: boolean,
+    model?: string | null,
+  ) => {
     try {
-      await bindFn({ data: { action, endpoint_id, allow_fallback } as never });
+      await bindFn({ data: { action, endpoint_id, allow_fallback, model } as never });
       qc.invalidateQueries({ queryKey: ["ai_endpoints"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
@@ -538,12 +543,21 @@ function AISettingsCardInner() {
             <Label className="text-sm font-medium">{t("ai.conn.actions_title")}</Label>
             {AI_ACTIONS.map((action) => {
               const b = bindings.find((x) => x.action === action);
+              // A model names one model on one connection, so the picker only
+              // makes sense once a specific connection is bound.
+              const bound = b?.endpoint_id ? drafts[b.endpoint_id] : undefined;
+              const boundKey = bound ? draftKey(bound) : null;
+              const listed = boundKey ? (models[boundKey] ?? []) : [];
+              // Keep a stored model selectable before the list has loaded.
+              const options = b?.model && !listed.includes(b.model) ? [b.model, ...listed] : listed;
               return (
                 <div key={action} className="space-y-2">
                   <Label className="text-xs text-muted-foreground">{t(`ai.conn.action.${action}`)}</Label>
                   <Select
                     value={b?.endpoint_id ?? "auto"}
-                    onValueChange={(v) => setBinding(action, v === "auto" ? null : v, b?.allow_fallback !== false)}
+                    onValueChange={(v) =>
+                      setBinding(action, v === "auto" ? null : v, b?.allow_fallback !== false, null)
+                    }
                   >
                     <SelectTrigger className="h-9">
                       <SelectValue />
@@ -557,6 +571,38 @@ function AISettingsCardInner() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {bound && (
+                    <Select
+                      value={b?.model ?? "default"}
+                      onOpenChange={(open) => {
+                        if (open && listed.length === 0 && loadingModels !== boundKey) {
+                          void loadModels(bound);
+                        }
+                      }}
+                      onValueChange={(v) =>
+                        setBinding(
+                          action,
+                          b!.endpoint_id,
+                          b?.allow_fallback !== false,
+                          v === "default" ? null : v,
+                        )
+                      }
+                    >
+                      <SelectTrigger className="h-9" aria-label={t("ai.conn.action_model")}>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="default">
+                          {t("ai.conn.action_model_default")} · {bound.model}
+                        </SelectItem>
+                        {options.map((m) => (
+                          <SelectItem key={m} value={m}>
+                            {m}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-muted-foreground">{t("ai.conn.fallback")}</span>
                     <Switch
@@ -567,6 +613,7 @@ function AISettingsCardInner() {
                 </div>
               );
             })}
+            <p className="text-xs text-muted-foreground">{t("ai.conn.action_model_hint")}</p>
           </div>
         )}
       </CardContent>
