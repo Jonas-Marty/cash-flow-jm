@@ -7,6 +7,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildSystemPrompt } from "@/lib/ai/systemPrompt";
 import type { AIHealthMode, AIHealthProbe, AssistantAction, AIEndpointOfflinePayload } from "@/lib/ai/types";
 import { AI_ENDPOINT_OFFLINE_PREFIX } from "@/lib/ai/types";
+import { healthBases } from "@/lib/ai/endpointUrls";
 
 
 export interface PingResult {
@@ -243,30 +244,38 @@ export async function pingEndpoint(
   }
 
   // mode === "real": try a provider health endpoint first (LiteLLM), then a real request.
-  try {
-    const resp = await withTimeout((signal) =>
-      fetch(`${base}/health?model=${encodeURIComponent(model)}`, { headers, signal }),
-    );
-    if (resp.ok) {
-      const json = (await resp.json().catch(() => null)) as any;
-      const healthy = Array.isArray(json?.healthy_endpoints) ? json.healthy_endpoints.length : null;
-      const unhealthy = Array.isArray(json?.unhealthy_endpoints) ? json.unhealthy_endpoints : [];
-      if (healthy !== null || unhealthy.length > 0) {
-        if (healthy === 0 || unhealthy.length > 0) {
-          const detail = JSON.stringify(unhealthy).slice(0, 160);
-          return {
-            ok: false,
-            latency_ms: el(),
-            probe: "health",
-            degraded: listOk,
-            error: `upstream unhealthy ${detail}`,
-          };
+  //
+  // LiteLLM serves /health at the proxy root, not under the OpenAI /v1 prefix,
+  // so a base_url of "https://host/v1" has to be probed at "https://host/health"
+  // too. Without this the probe 404s and falls through to the chat request
+  // below — which reaches the upstream and loads the model on every poll, the
+  // exact cost the health endpoint exists to avoid.
+  for (const healthBase of healthBases(base)) {
+    try {
+      const resp = await withTimeout((signal) =>
+        fetch(`${healthBase}/health?model=${encodeURIComponent(model)}`, { headers, signal }),
+      );
+      if (resp.ok) {
+        const json = (await resp.json().catch(() => null)) as any;
+        const healthy = Array.isArray(json?.healthy_endpoints) ? json.healthy_endpoints.length : null;
+        const unhealthy = Array.isArray(json?.unhealthy_endpoints) ? json.unhealthy_endpoints : [];
+        if (healthy !== null || unhealthy.length > 0) {
+          if (healthy === 0 || unhealthy.length > 0) {
+            const detail = JSON.stringify(unhealthy).slice(0, 160);
+            return {
+              ok: false,
+              latency_ms: el(),
+              probe: "health",
+              degraded: listOk,
+              error: `upstream unhealthy ${detail}`,
+            };
+          }
+          return { ok: true, latency_ms: el(), probe: "health" };
         }
-        return { ok: true, latency_ms: el(), probe: "health" };
       }
+    } catch {
+      // this base has no usable /health — try the next, then the chat request
     }
-  } catch {
-    // no usable /health — fall through to the real chat request
   }
 
   try {
