@@ -176,6 +176,9 @@ export interface PendingTransaction {
    */
   suggested_description: string | null;
   suggested_category_id: string | null;
+  suggested_note: string | null;
+  /** History-sourced only; the model cannot supply coordinates. */
+  suggested_location: TxLocation | null;
   suggested_tags: string[];
   suggestion_source: "history" | "ai" | null;
   suggestion_confidence: number | null;
@@ -257,16 +260,30 @@ export async function confirmPendingTransaction(
     .select("id")
     .single();
   if (txErr) throw txErr;
-  const { error: upErr } = await supabase
+  await markPendingConfirmed(pendingId, tx.id);
+  return tx.id;
+}
+
+/**
+ * Retires a pending row against the transaction it became.
+ *
+ * Shared with the /add hand-off: a row sent there to be split is resolved the
+ * same way a Confirm resolves one, so it leaves the Pending tab either way
+ * rather than lingering as a duplicate of what was just booked.
+ */
+export async function markPendingConfirmed(
+  pendingId: string,
+  transactionId: string,
+): Promise<void> {
+  const { error } = await supabase
     .from("pending_transactions")
     .update({
       status: "confirmed",
-      confirmed_transaction_id: tx.id,
+      confirmed_transaction_id: transactionId,
       confirmed_at: new Date().toISOString(),
     })
     .eq("id", pendingId);
-  if (upErr) throw upErr;
-  return tx.id;
+  if (error) throw error;
 }
 
 export async function rejectPendingTransaction(

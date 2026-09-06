@@ -15,12 +15,19 @@
  */
 
 import { normalizeDescription } from "./locationSuggest";
+import { locationFromRow, type TxLocation } from "./location";
 
 export interface HistoryTx {
   description: string | null;
   category_id: string | null;
   type: string;
   occurred_on: string;
+  note?: string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  location_accuracy_m?: number | string | null;
+  location_label?: string | null;
+  location_source?: string | null;
 }
 
 export interface PendingLike {
@@ -34,6 +41,14 @@ export interface HistorySuggestion {
   /** The description as the user last wrote it for this merchant. */
   description: string;
   category_id: string | null;
+  /** The note the user last wrote for this merchant, if any. */
+  note: string | null;
+  /**
+   * Where they were the last time. A whole location rather than a name:
+   * only a stored transaction can supply the coordinates `TxLocation`
+   * needs, which is why the model is never asked for one.
+   */
+  location: TxLocation | null;
   /** 0..1, see `confidence()` for how it is composed. */
   confidence: number;
   /** How many past transactions backed this. */
@@ -116,13 +131,17 @@ export function suggestFromHistory(
 
   const [winner, votes] = [...best.cats.entries()].sort((a, b) => b[1] - a[1])[0] ?? [null, 0];
   const description = (best.latest.description ?? "").trim();
+  const note = (best.latest.note ?? "").trim() || null;
+  const location = locationFromRow(best.latest);
 
-  // Nothing new to say: same wording, no category to offer.
-  if (!winner && normalizeDescription(description) === rowKey) return null;
+  // Nothing new to say: same wording, and no category, note or place to offer.
+  if (!winner && !note && !location && normalizeDescription(description) === rowKey) return null;
 
   return {
     description,
     category_id: winner,
+    note,
+    location,
     confidence: confidence(best.weight, votes, best.count),
     matches: best.count,
   };
@@ -150,12 +169,15 @@ function round3(n: number): number {
 export interface ModelSuggestion {
   description: string | null;
   category_id: string | null;
+  /** The remark the model would have written. */
+  note: string | null;
   tags: string[];
   confidence: number;
 }
 
 const MAX_TAGS = 3;
 const MAX_DESCRIPTION_CHARS = 120;
+const MAX_NOTE_CHARS = 300;
 
 /**
  * Turns whatever the model returned into suggestions that are safe to store.
@@ -184,6 +206,8 @@ export function parseModelSuggestions(
       typeof s?.category_id === "string" && validCategoryIds.has(s.category_id)
         ? s.category_id
         : null;
+    const note =
+      typeof s?.note === "string" && s.note.trim() ? s.note.trim().slice(0, MAX_NOTE_CHARS) : null;
     const tags = Array.isArray(s?.tags)
       ? [
           ...new Set(
@@ -198,8 +222,8 @@ export function parseModelSuggestions(
       typeof s?.confidence === "number" && Number.isFinite(s.confidence) ? s.confidence : 0.5;
     const confidence = round3(Math.min(1, Math.max(0, c)));
 
-    if (!description && !category_id && tags.length === 0) continue;
-    out.set(id, { description, category_id, tags, confidence });
+    if (!description && !category_id && !note && tags.length === 0) continue;
+    out.set(id, { description, category_id, note, tags, confidence });
   }
   return out;
 }

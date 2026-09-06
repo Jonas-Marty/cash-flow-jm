@@ -29,6 +29,7 @@ import {
   type AccountBalance, type CategoryMonthRow,
 } from "@/lib/finance";
 import { fetchSavingsBalancesV2, type CategorySavingsBalanceV2 } from "@/lib/finance";
+import { markPendingConfirmed } from "@/lib/finance";
 import { EntityVisual } from "@/components/EntityVisual";
 import { AlertTriangle, Link as LinkIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -99,6 +100,7 @@ function AddTransactionRoute() {
       iou_amount: cleanAmountParam(sp.get("iou_amount")),
       statement_line: sp.get("statement_line") ?? undefined,
       statement_import: sp.get("statement_import") ?? undefined,
+      pending_id: sp.get("pending_id") ?? undefined,
       ignore_scope: sp.get("ignore_scope") === "1",
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -133,6 +135,11 @@ export interface AddPrefill {
   /** Statement import line this entry closes; linked back after save. */
   statement_line?: string;
   statement_import?: string;
+  /**
+   * Pending row this entry closes — set when /pending sends a row here to be
+   * split. Retired against the saved transaction afterwards.
+   */
+  pending_id?: string;
 }
 
 export function TransactionForm({ editId, prefill, backSearch }: { editId: string | null; prefill?: AddPrefill; backSearch?: Record<string, unknown> }) {
@@ -161,6 +168,25 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [prefill?.statement_line, prefill?.statement_import],
+  );
+  // Opened from /pending to be split: retire the pending row against what was
+  // saved, so it leaves the Pending tab instead of sitting there as a duplicate
+  // of the split that just replaced it.
+  const linkPendingRow = React.useCallback(
+    async (txId: string): Promise<boolean> => {
+      const pendingId = prefill?.pending_id;
+      if (!pendingId) return false;
+      try {
+        await markPendingConfirmed(pendingId, txId);
+        toast.success(tr("pending.toast.confirmed"));
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : String(e));
+      }
+      navigate({ to: "/pending" });
+      return true;
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [prefill?.pending_id],
   );
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
@@ -946,6 +972,7 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
       toast.success(tr("toast.saved"));
       qc.invalidateQueries();
       if (newIds.length > 0 && (await linkStatementLine(newIds[0]))) return;
+      if (newIds.length > 0 && (await linkPendingRow(newIds[0]))) return;
       if (andNew) { setSplitMode(false); setSlices([newSlice(), newSlice()]); reset(); }
       else navigate({ to: "/" });
       return;
@@ -1095,6 +1122,7 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
     toast.success(tr("toast.saved"));
     qc.invalidateQueries();
     if (newTxId && (await linkStatementLine(newTxId))) return;
+    if (newTxId && (await linkPendingRow(newTxId))) return;
     if (andNew) reset(); else navigate({ to: "/" });
   };
 

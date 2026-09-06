@@ -724,6 +724,8 @@ export type Database = {
           suggested_at: string | null
           suggested_category_id: string | null
           suggested_description: string | null
+          suggested_location: Json | null
+          suggested_note: string | null
           suggested_tags: string[]
           suggestion_confidence: number | null
           suggestion_source: string | null
@@ -758,6 +760,8 @@ export type Database = {
           suggested_at?: string | null
           suggested_category_id?: string | null
           suggested_description?: string | null
+          suggested_location?: Json | null
+          suggested_note?: string | null
           suggested_tags?: string[]
           suggestion_confidence?: number | null
           suggestion_source?: string | null
@@ -792,6 +796,8 @@ export type Database = {
           suggested_at?: string | null
           suggested_category_id?: string | null
           suggested_description?: string | null
+          suggested_location?: Json | null
+          suggested_note?: string | null
           suggested_tags?: string[]
           suggestion_confidence?: number | null
           suggestion_source?: string | null

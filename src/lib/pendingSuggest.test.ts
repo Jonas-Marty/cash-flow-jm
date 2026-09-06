@@ -100,6 +100,53 @@ describe("suggestFromHistory", () => {
   });
 });
 
+describe("suggestFromHistory — note and place", () => {
+  const AT_THE_BAKERY = {
+    latitude: 47.0502,
+    longitude: 8.3093,
+    location_accuracy_m: 12,
+    location_label: "Bäckerei Hug, Luzern",
+    location_source: "device",
+  };
+
+  it("carries the note and the whole location from the latest match", () => {
+    const s = suggestFromHistory(row({ description: "Bäckerei Hug" }), [
+      { ...tx("Bäckerei Hug", GROCERIES, "2026-07-02"), note: "old" },
+      { ...tx("Bäckerei Hug", GROCERIES, "2026-08-14"), note: "Znüni", ...AT_THE_BAKERY },
+    ]);
+    expect(s!.note).toBe("Znüni");
+    expect(s!.location).toEqual({
+      latitude: 47.0502,
+      longitude: 8.3093,
+      accuracy_m: 12,
+      label: "Bäckerei Hug, Luzern",
+      source: "device",
+    });
+  });
+
+  it("leaves place null when history has no coordinates", () => {
+    const s = suggestFromHistory(row({ description: "Bäckerei Hug" }), [
+      { ...tx("Bäckerei Hug", GROCERIES), note: "Znüni", location_label: "Luzern" },
+    ]);
+    expect(s!.location).toBeNull();
+    expect(s!.note).toBe("Znüni");
+  });
+
+  it("still suggests when only a note differs, with the wording unchanged", () => {
+    // Same description, no category to offer: without a note this returns null.
+    const s = suggestFromHistory(row({ description: "Bäckerei Hug" }), [
+      { ...tx("Bäckerei Hug", null), note: "Znüni" },
+    ]);
+    expect(s).not.toBeNull();
+    expect(s!.note).toBe("Znüni");
+  });
+
+  it("returns null when there is genuinely nothing new to say", () => {
+    const s = suggestFromHistory(row({ description: "Bäckerei Hug" }), [tx("Bäckerei Hug", null)]);
+    expect(s).toBeNull();
+  });
+});
+
 describe("parseModelSuggestions", () => {
   const ids = new Set(["row-1", "row-2"]);
   const cats = new Set([GROCERIES]);
@@ -131,12 +178,41 @@ describe("parseModelSuggestions", () => {
     expect(out.get("row-1")).toEqual({
       description: "Bäckerei Hug",
       category_id: GROCERIES,
+      note: null,
       tags: ["bakery"],
       confidence: 0.87,
     });
     // Unknown category dropped and nothing else offered → no suggestion.
     expect(out.has("row-2")).toBe(false);
     expect(out.has("row-9")).toBe(false);
+  });
+
+  it("keeps a trimmed note and lets it alone carry the suggestion", () => {
+    const out = parseModelSuggestions(
+      {
+        suggestions: [
+          {
+            pending_id: "row-1",
+            description: null,
+            category_id: null,
+            tags: [],
+            note: "  Znüni  ",
+          },
+        ],
+      },
+      ids,
+      cats,
+    );
+    expect(out.get("row-1")!.note).toBe("Znüni");
+  });
+
+  it("drops a blank note rather than storing an empty remark", () => {
+    const out = parseModelSuggestions(
+      { suggestions: [{ pending_id: "row-1", category_id: GROCERIES, note: "   " }] },
+      ids,
+      cats,
+    );
+    expect(out.get("row-1")!.note).toBeNull();
   });
 
   it("survives garbage", () => {

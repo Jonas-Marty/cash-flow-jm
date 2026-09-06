@@ -1,18 +1,19 @@
 import * as React from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import {
-  Check,
   Ban,
-  RotateCcw,
+  Check,
   ChevronDown,
   ChevronRight,
   History,
   LayoutList,
   Loader2,
+  RotateCcw,
   Sparkles,
+  Split,
   Table2,
 } from "lucide-react";
 
@@ -266,11 +267,32 @@ function PendingRow({
   const suggestionOpen =
     isPending &&
     ((!!suggestedCat && !categoryId && type !== "transfer") ||
-      (!!pending.suggested_description && pending.suggested_description !== description));
+      (!!pending.suggested_description && pending.suggested_description !== description) ||
+      (!!pending.suggested_note && !note.includes(pending.suggested_note)) ||
+      (!!pending.suggested_location && !location));
   const useSuggestion = () => {
     if (suggestedCat && !categoryId) setCategoryId(suggestedCat.id);
     if (pending.suggested_description) setDescription(pending.suggested_description);
+    // The remark goes above whatever is already there, tag line included.
+    const remark = pending.suggested_note;
+    if (remark) setNote((n) => (n.includes(remark) ? n : n.trim() ? `${remark}\n${n}` : remark));
     if (pending.suggested_tags.length) setNote((n) => addTagsToNote(n, pending.suggested_tags));
+    if (pending.suggested_location && !location) setLocation(pending.suggested_location);
+  };
+
+  /** The /add deep link that opens this row for splitting. */
+  const splitSearch = (): Record<string, string> => {
+    const search: Record<string, string> = {
+      pending_id: pending.id,
+      type,
+      amount,
+      occurred_on: occurredOn,
+    };
+    if (sourceId) search.source = sourceId;
+    if (categoryId) search.category = categoryId;
+    if (description.trim()) search.description = description.trim();
+    if (note.trim()) search.note = note.trim();
+    return search;
   };
 
   const onConfirm = async () => {
@@ -411,6 +433,8 @@ function PendingRow({
                 {[
                   suggestedCat?.name,
                   pending.suggested_description,
+                  pending.suggested_note,
+                  pending.suggested_location?.label ?? null,
                   pending.suggested_tags.map((x) => `#${x}`).join(" ") || null,
                 ]
                   .filter(Boolean)
@@ -525,6 +549,11 @@ function PendingRow({
               <>
                 <Button variant="outline" size="sm" onClick={() => setRejectOpen(true)} disabled={busy}>
                   <Ban className="mr-1 h-3.5 w-3.5" /> {t("pending.action.reject")}
+                </Button>
+                <Button asChild variant="outline" size="sm" disabled={busy}>
+                  <Link to="/add" search={splitSearch() as never}>
+                    <Split className="mr-1 h-3.5 w-3.5" /> {t("pending.table.split")}
+                  </Link>
                 </Button>
                 <Button size="sm" onClick={onConfirm} disabled={busy}>
                   <Check className="mr-1 h-3.5 w-3.5" /> {t("pending.action.confirm")}

@@ -76,10 +76,11 @@ Use the user's own past entries in the snapshot: reuse their exact wording, thei
 Rules:
 - Never invent a category id. Only ids listed under Categories.
 - description: the merchant or purpose in a few words, same language and style as past entries, no amounts or dates.
+- note: the remark the user would have added — the detail that does not belong in the description (occasion, what was bought, who it was for). Same language and style as their past notes. Null when the row says nothing worth remarking on; most rows do not.
 - tags: lowercase, no "#", max 3, prefer tags the user already uses.
 - confidence: 0..1, how sure you are of the category.
 - If you are unsure about a field, return null (for tags: an empty array). Do not guess wildly.
-Return strict JSON: {"suggestions":[{"pending_id":"...","description":null|"...","category_id":null|"uuid","tags":["..."],"confidence":0.0}]}`;
+Return strict JSON: {"suggestions":[{"pending_id":"...","description":null|"...","note":null|"...","category_id":null|"uuid","tags":["..."],"confidence":0.0}]}`;
 
 /** One run per user at a time; a second trigger joins the run in flight. */
 const running = new Map<string, Promise<EnrichSummary>>();
@@ -112,10 +113,12 @@ async function enrich(userId: string, force: boolean): Promise<EnrichSummary> {
     )
     .eq("user_id", userId)
     .eq("status", "pending")
-    .is("category_id", null)
     .order("created_at", { ascending: false })
     .limit(ROW_LIMIT);
-  if (!force) q = q.is("suggested_at", null);
+  // Asked for explicitly (the Suggest button): look at every pending row again,
+  // including ones already categorised or already stamped. The automatic
+  // triggers stay cheap and only pick up rows nobody has looked at yet.
+  if (!force) q = q.is("category_id", null).is("suggested_at", null);
   const { data: rowsData, error: rowsErr } = await q;
   if (rowsErr) throw new Error(rowsErr.message);
   const rows: PendingRow[] = ((rowsData || []) as PendingRow[]).map((r) => ({
@@ -130,7 +133,9 @@ async function enrich(userId: string, force: boolean): Promise<EnrichSummary> {
   const [{ data: txData }, { data: catData }, { data: accData }] = await Promise.all([
     supabaseAdmin
       .from("transactions")
-      .select("id, occurred_on, description, amount, type, source_account_id, category_id")
+      .select(
+        "id, occurred_on, description, amount, type, source_account_id, category_id, note, latitude, longitude, location_accuracy_m, location_label, location_source",
+      )
       .eq("user_id", userId)
       .gte("occurred_on", since.toISOString().slice(0, 10))
       .order("occurred_on", { ascending: false })
@@ -170,6 +175,8 @@ async function enrich(userId: string, force: boolean): Promise<EnrichSummary> {
       .update({
         suggested_description: s.description,
         suggested_category_id: s.category_id,
+        suggested_note: s.note,
+        suggested_location: s.location,
         suggested_tags: [],
         suggestion_source: "history",
         suggestion_confidence: s.confidence,
@@ -314,6 +321,10 @@ async function enrich(userId: string, force: boolean): Promise<EnrichSummary> {
             ? {
                 suggested_description: s.description,
                 suggested_category_id: s.category_id,
+                suggested_note: s.note,
+                // The model is never asked for a place: it could only guess a
+                // label, and a location without coordinates cannot be applied.
+                suggested_location: null,
                 suggested_tags: s.tags,
                 suggestion_source: "ai",
                 suggestion_confidence: s.confidence,
@@ -324,6 +335,8 @@ async function enrich(userId: string, force: boolean): Promise<EnrichSummary> {
               {
                 suggested_description: null,
                 suggested_category_id: null,
+                suggested_note: null,
+                suggested_location: null,
                 suggested_tags: [],
                 suggestion_source: null,
                 suggestion_confidence: null,

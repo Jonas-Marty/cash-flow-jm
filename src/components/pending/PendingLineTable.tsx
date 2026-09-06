@@ -1,7 +1,8 @@
 import * as React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Ban, Check, History, Loader2, MapPin, Sparkles } from "lucide-react";
+import { Ban, Check, History, Loader2, MapPin, Sparkles, Split } from "lucide-react";
+import { Link } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -64,9 +65,34 @@ function seed(p: PendingTransaction): Draft {
   };
 }
 
-/** Tick · date · description · category · account · place · amount. */
+/** Tick · date · description · remarks · category · account · place · split · amount. */
 const COLUMNS =
-  "lg:grid lg:grid-cols-[28px_110px_minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.1fr)_120px] lg:gap-2";
+  "lg:grid lg:grid-cols-[28px_110px_minmax(0,1.4fr)_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_36px_36px_120px] lg:gap-2";
+
+/**
+ * Settles a typed amount to two decimals on blur. Anything that does not parse
+ * is left exactly as typed, so the confirm-time error still explains it rather
+ * than the field quietly rewriting what someone meant.
+ */
+function settleAmount(raw: string): string {
+  const n = Number(raw.replace(",", "."));
+  return raw.trim() && Number.isFinite(n) ? n.toFixed(2) : raw;
+}
+
+/** The /add deep link that opens this row for splitting. */
+function splitSearch(p: PendingTransaction, d: Draft): Record<string, string> {
+  const search: Record<string, string> = {
+    pending_id: p.id,
+    type: p.type,
+    amount: settleAmount(d.amount),
+    occurred_on: d.occurred_on,
+  };
+  if (d.source_account_id) search.source = d.source_account_id;
+  if (d.category_id) search.category = d.category_id;
+  if (d.description.trim()) search.description = d.description.trim();
+  if (d.note.trim()) search.note = d.note.trim();
+  return search;
+}
 
 /** A suggestion still counts while the draft has not taken it. */
 function suggestsCategory(p: PendingTransaction, d: Draft): boolean {
@@ -75,14 +101,36 @@ function suggestsCategory(p: PendingTransaction, d: Draft): boolean {
 function suggestsDescription(p: PendingTransaction, d: Draft): boolean {
   return !!p.suggested_description && p.suggested_description !== d.description;
 }
+function suggestsNote(p: PendingTransaction, d: Draft): boolean {
+  return !!p.suggested_note && !noteContains(d.note, p.suggested_note);
+}
+function suggestsPlace(p: PendingTransaction, d: Draft): boolean {
+  return !!p.suggested_location && !d.location;
+}
+
+/** Whether the remark is already in the note, tags and all. */
+function noteContains(note: string, suggested: string): boolean {
+  return note.split(/\s*\n\s*/).some((line) => line.trim() === suggested.trim());
+}
+
+/**
+ * Adds the suggested remark without displacing what is already there — the
+ * note also carries the tag line that `addTagsToNote` maintains.
+ */
+function withSuggestedNote(note: string, suggested: string | null): string {
+  if (!suggested || noteContains(note, suggested)) return note;
+  return note.trim() ? `${suggested}\n${note}` : suggested;
+}
 
 /** The tap that promotes a suggestion: it only ever touches the draft. */
 function withSuggestion(p: PendingTransaction, d: Draft): Draft {
+  const withNote = withSuggestedNote(d.note, p.suggested_note);
   return {
     ...d,
     category_id: suggestsCategory(p, d) ? p.suggested_category_id! : d.category_id,
     description: p.suggested_description ?? d.description,
-    note: p.suggested_tags.length ? addTagsToNote(d.note, p.suggested_tags) : d.note,
+    note: p.suggested_tags.length ? addTagsToNote(withNote, p.suggested_tags) : withNote,
+    location: suggestsPlace(p, d) ? p.suggested_location : d.location,
   };
 }
 
@@ -167,7 +215,13 @@ export function PendingLineTable({
 
   const suggested = items.filter((p) => {
     const d = drafts[p.id];
-    return d && (suggestsCategory(p, d) || suggestsDescription(p, d));
+    return (
+      d &&
+      (suggestsCategory(p, d) ||
+        suggestsDescription(p, d) ||
+        suggestsNote(p, d) ||
+        suggestsPlace(p, d))
+    );
   });
   const applyAllSuggestions = () =>
     setDrafts((prev) => {
@@ -319,9 +373,11 @@ export function PendingLineTable({
           <span />
           <span>{t("statements.table.col.date")}</span>
           <span>{t("statements.table.col.description")}</span>
+          <span>{t("pending.table.col.note")}</span>
           <span>{t("statements.table.col.category")}</span>
           <span>{t("add.account")}</span>
-          <span>{t("statements.table.place")}</span>
+          <span />
+          <span />
           <span className="text-right">{t("statements.table.col.amount")}</span>
         </div>
 
@@ -332,6 +388,9 @@ export function PendingLineTable({
             const acc = accounts.find((a) => a.id === d.source_account_id);
             const sym = acc?.currency_symbol ?? symbol;
             const accuracy = formatAccuracy(d.location?.accuracy_m);
+            const placeLabel =
+              d.location?.label ??
+              (d.location ? (accuracy ?? t("loc.title")) : t("statements.table.place_pick"));
             return (
               <li
                 key={p.id}
@@ -387,6 +446,23 @@ export function PendingLineTable({
                   ) : null}
                 </div>
                 <div className="mb-1 lg:mb-0">
+                  <Input
+                    className="h-8"
+                    value={d.note}
+                    placeholder={t("pending.table.col.note")}
+                    onChange={(e) => patch(p.id, { note: e.target.value })}
+                  />
+                  {suggestsNote(p, d) ? (
+                    <SuggestionChip
+                      p={p}
+                      label={p.suggested_note!}
+                      onClick={() =>
+                        patch(p.id, { note: withSuggestedNote(d.note, p.suggested_note) })
+                      }
+                    />
+                  ) : null}
+                </div>
+                <div className="mb-1 lg:mb-0">
                   <Select
                     value={d.category_id || "__none__"}
                     onValueChange={(v) => patch(p.id, { category_id: v === "__none__" ? "" : v })}
@@ -438,24 +514,47 @@ export function PendingLineTable({
                     type="button"
                     size="sm"
                     variant={d.location ? "secondary" : "outline"}
-                    className="h-8 w-full justify-start truncate"
+                    className="h-8 w-full justify-start truncate lg:w-9 lg:justify-center"
+                    title={placeLabel}
+                    aria-label={placeLabel}
                     onClick={() => setPlaceFor(p.id)}
                   >
-                    <MapPin className="mr-1 h-3.5 w-3.5 shrink-0" />
-                    <span className="truncate">
-                      {d.location?.label ??
-                        (d.location
-                          ? (accuracy ?? t("loc.title"))
-                          : t("statements.table.place_pick"))}
-                    </span>
+                    <MapPin className="mr-1 h-3.5 w-3.5 shrink-0 lg:mr-0" />
+                    <span className="truncate lg:hidden">{placeLabel}</span>
                   </Button>
+                  {suggestsPlace(p, d) ? (
+                    <SuggestionChip
+                      p={p}
+                      label={p.suggested_location!.label ?? t("loc.title")}
+                      onClick={() => patch(p.id, { location: p.suggested_location })}
+                    />
+                  ) : null}
                 </div>
                 <div className="mb-1 lg:mb-0">
+                  <Button
+                    asChild
+                    size="sm"
+                    variant="outline"
+                    className="h-8 w-full justify-start lg:w-9 lg:justify-center"
+                    title={t("pending.table.split")}
+                    aria-label={t("pending.table.split")}
+                  >
+                    <Link to="/add" search={splitSearch(p, d) as never}>
+                      <Split className="mr-1 h-3.5 w-3.5 shrink-0 lg:mr-0" />
+                      <span className="truncate lg:hidden">{t("pending.table.split")}</span>
+                    </Link>
+                  </Button>
+                </div>
+                <div className="mb-1 flex items-center gap-1 lg:mb-0">
+                  <span className="text-xs text-muted-foreground">{sym}</span>
                   <Input
-                    className="h-8 text-right"
+                    className="h-8 flex-1 text-right tabular-nums"
                     inputMode="decimal"
                     value={d.amount}
-                    onChange={(e) => patch(p.id, { amount: e.target.value })}
+                    onChange={(e) =>
+                      patch(p.id, { amount: e.target.value.replace(/[^0-9.,]/g, "") })
+                    }
+                    onBlur={() => patch(p.id, { amount: settleAmount(d.amount) })}
                   />
                 </div>
                 {d.error ? (
