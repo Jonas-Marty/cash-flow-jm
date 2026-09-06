@@ -34,3 +34,4 @@ dist-ssr
 # Dev environment (scripts/dev/*)
 screenshots/
 .env.dev-supabase
+.env.dev-app
