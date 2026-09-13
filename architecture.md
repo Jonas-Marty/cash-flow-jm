@@ -349,6 +349,11 @@ Every public table carries a nullable `user_id UUID`. To plug in Keycloak/OIDC:
 
 No schema change required for the switch.
 
+Encryption at rest with a per-user key (device key + recovery code, pgcrypto blobs behind
+same-name views) was analysed on 2026-09-12/13 and **postponed**. The full design record,
+including the SQL/app inventory, performance estimate and phased plan, lives in
+[`docs/encryption-at-rest.md`](./docs/encryption-at-rest.md).
+
 ## 7. Change log
 
 ### 2026-09-04 — Split groups: deferred validation, atomic group save
