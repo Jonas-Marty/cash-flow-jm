@@ -446,11 +446,16 @@ export function RecurringRulesCard() {
     // Apply the explicit backfill choice when the user actually saw the block
     // (fresh past mode for new/edited rules without history, or gap mode for
     // edits that already have posted occurrences).
+    // A failure here used to be reported and then immediately buried under the
+    // "saved" toast, which is how a backfill that never ran looked like nothing
+    // happening at all. The rule really is saved, so say so, but say the rest.
+    let backfillFailed = false;
     if (savedId && draft.starts_on < todayStr() && (freshPastMode || gapPastMode)) {
       try {
         await applyRecurringRuleBackfill(savedId, draft.backfill);
       } catch (e) {
-        toast.error((e as Error).message);
+        backfillFailed = true;
+        toast.error(t("recurring.toast.backfill_failed", { msg: (e as Error).message }));
       }
     }
     // Process to generate future pending occurrences immediately
@@ -467,7 +472,7 @@ export function RecurringRulesCard() {
         toast.error((e as Error).message);
       }
     }
-    toast.success(t("recurring.toast.saved"));
+    if (!backfillFailed) toast.success(t("recurring.toast.saved"));
     setOpen(false);
     setPendingConfirm(null);
     qc.invalidateQueries();

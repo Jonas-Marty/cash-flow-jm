@@ -3,7 +3,7 @@ import { Link as RouterLink } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Trash2, X, Search, ShoppingBag, CalendarDays, Plane, Package, Pencil } from "lucide-react";
+import { Trash2, X, Search, ShoppingBag, CalendarDays, Plane, Package, Pencil, ArrowRight } from "lucide-react";
 
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,7 @@ import {
 } from "@/lib/links";
 import { fetchAccounts, fetchCategories, fetchSettings, fetchTransactions, fmtMoney, type Transaction } from "@/lib/finance";
 import { supabase } from "@/integrations/supabase/client";
+import { EntityVisual } from "@/components/EntityVisual";
 
 export const KIND_ICON: Record<TransactionLinkKind, React.ComponentType<{ className?: string }>> = {
   purchase: ShoppingBag,
@@ -72,6 +73,49 @@ export function TransactionLinkSheet({ linkId, open, onOpenChange }: Props) {
     () => new Map((categoriesQ.data ?? []).map((c) => [c.id, c])),
     [categoriesQ.data],
   );
+
+  /**
+   * Date · account · category for one row, each entity with its own icon. The
+   * account matters here: a linked purchase is usually split across cards, and
+   * which one paid is the thing being reconciled. Transfers show both ends.
+   */
+  const txMeta = (tx: Transaction, textClass = "text-xs") => {
+    const src = accountById.get(tx.source_account_id);
+    const dst = tx.destination_account_id ? accountById.get(tx.destination_account_id) : undefined;
+    const cat = tx.category_id ? categoryById.get(tx.category_id) : undefined;
+    return (
+      <div className={`flex flex-wrap items-center gap-x-1.5 gap-y-1 text-muted-foreground ${textClass}`}>
+        <span>{format(new Date(tx.occurred_on), dateFmt, { locale })}</span>
+        {src && (
+          <>
+            <span aria-hidden>·</span>
+            <span className="flex min-w-0 items-center gap-1">
+              <EntityVisual entity={src} size="xs" />
+              <span className="truncate">{src.name}</span>
+            </span>
+          </>
+        )}
+        {dst && (
+          <>
+            <ArrowRight className="h-3 w-3 shrink-0" aria-hidden />
+            <span className="flex min-w-0 items-center gap-1">
+              <EntityVisual entity={dst} size="xs" />
+              <span className="truncate">{dst.name}</span>
+            </span>
+          </>
+        )}
+        {cat && (
+          <>
+            <span aria-hidden>·</span>
+            <span className="flex min-w-0 items-center gap-1">
+              <EntityVisual entity={cat} size="xs" />
+              <span className="truncate">{cat.name}</span>
+            </span>
+          </>
+        )}
+      </div>
+    );
+  };
 
   /** Per-currency signed total. Transfers contribute 0 (excluded). */
   const totals = React.useMemo(() => {
@@ -311,9 +355,7 @@ export function TransactionLinkSheet({ linkId, open, onOpenChange }: Props) {
                                 <div className="flex w-full items-center justify-between gap-2">
                                   <div className="min-w-0 flex-1">
                                     <div className="truncate text-sm">{tx.description || cat || tx.type}</div>
-                                    <div className="text-[11px] text-muted-foreground">
-                                      {format(new Date(tx.occurred_on), dateFmt, { locale })} · {cat}
-                                    </div>
+                                    {txMeta(tx, "text-[11px]")}
                                   </div>
                                   <div className="text-sm tabular-nums">{fmtMoney(Number(tx.amount), sym)}</div>
                                 </div>
@@ -344,11 +386,10 @@ export function TransactionLinkSheet({ linkId, open, onOpenChange }: Props) {
                                 {tx.description || cat || tx.type}
                               </RouterLink>
                             </div>
-                            <div className="text-xs text-muted-foreground">
-                              {format(new Date(tx.occurred_on), dateFmt, { locale })}
-                              {cat ? ` · ${cat}` : ""}
-                              {tx.type === "transfer" && <Badge variant="secondary" className="ml-1.5 text-[10px]">{t("links.transfer_excluded")}</Badge>}
-                            </div>
+                            {txMeta(tx)}
+                            {tx.type === "transfer" && (
+                              <Badge variant="secondary" className="mt-1 text-[10px]">{t("links.transfer_excluded")}</Badge>
+                            )}
                           </div>
                           <div className={`tabular-nums font-medium ${tone}`}>
                             {sign}{fmtMoney(Math.abs(Number(tx.amount)), sym)}
