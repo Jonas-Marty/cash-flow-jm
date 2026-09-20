@@ -46,7 +46,7 @@ import { LocationPeekDialog } from "@/components/LocationPeekDialog";
 import { locationFromRow, type TxLocation } from "@/lib/location";
 
 
-const SORT_VALUES = ["date_desc", "date_asc", "amount_desc", "amount_asc"] as const;
+const SORT_VALUES = ["date_desc", "date_asc", "created_desc", "amount_desc", "amount_asc"] as const;
 const OP_VALUES = ["any", "lt", "lte", "eq", "gte", "gt", "around"] as const;
 const REIMB_VALUES = ["any", "open", "settled", "cancelled", "all"] as const;
 const TYPE_VALUES = ["expense", "income", "transfer"] as const;
@@ -59,6 +59,7 @@ const searchSchema = z.object({
   accts: stringArray,
   cats: stringArray,
   tags: stringArray,
+  rules: stringArray,
   from: fallback(z.string(), "").default(""),
   to: fallback(z.string(), "").default(""),
   op: fallback(z.enum(OP_VALUES), "any").default("any"),
@@ -71,6 +72,7 @@ const searchSchema = z.object({
 
 const SEARCH_DEFAULTS = {
   q: "", types: [] as TxType[], accts: [] as string[], cats: [] as string[], tags: [] as string[],
+  rules: [] as string[],
   from: "", to: "", op: "any" as AmountOp, val: "", tol: 0.15,
   sort: "date_desc" as SortKey, reimb: "any" as (typeof REIMB_VALUES)[number],
   view: "cards",
@@ -83,7 +85,7 @@ export const Route = createFileRoute("/transactions")({
   component: TransactionsPage,
 });
 
-type SortKey = "date_desc" | "date_asc" | "amount_desc" | "amount_asc";
+type SortKey = (typeof SORT_VALUES)[number];
 
 const NO_CATEGORY = "__none__";
 
@@ -239,6 +241,7 @@ function TransactionsPage() {
   const filterAccounts = s.accts as string[];
   const filterCategories = s.cats as string[];
   const filterTags = s.tags as string[];
+  const filterRules = s.rules as string[];
   const search = s.q as string;
   const from = s.from ? new Date(`${s.from}T00:00:00`) : null;
   const to = s.to ? new Date(`${s.to}T00:00:00`) : null;
@@ -252,7 +255,21 @@ function TransactionsPage() {
   const setFilterAccounts = (v: string[]) => patchSearch({ accts: v });
   const setFilterCategories = (v: string[]) => patchSearch({ cats: v });
   const setFilterTags = (v: string[]) => patchSearch({ tags: v });
-  const setSearch = (v: string) => patchSearch({ q: v });
+  const setFilterRules = (v: string[]) => patchSearch({ rules: v });
+  /**
+   * The search box reads from local state rather than straight from the URL.
+   * Navigation is asynchronous, so a controlled input bound to `s.q` has its
+   * DOM value rewritten a tick after each keystroke; the browser then drops
+   * the caret at the end, and the next character lands there instead of where
+   * the user was typing.
+   */
+  const [searchDraft, setSearchDraft] = React.useState(search);
+  const pushedSearch = React.useRef(search);
+  const setSearch = (v: string) => {
+    setSearchDraft(v);
+    pushedSearch.current = v;
+    patchSearch({ q: v });
+  };
   const setFrom = (d: Date | null) => patchSearch({ from: d ? format(d, "yyyy-MM-dd") : "" });
   const setTo = (d: Date | null) => patchSearch({ to: d ? format(d, "yyyy-MM-dd") : "" });
   const setAmountOp = (v: AmountOp) => patchSearch({ op: v });
@@ -265,6 +282,19 @@ function TransactionsPage() {
 
 
   const searchRef = React.useRef<HTMLInputElement>(null);
+  /**
+   * Adopt `q` when it changed for some reason other than typing here — history
+   * navigation, mostly. Never while the box has focus: an in-flight navigation
+   * resolving mid-word would otherwise rewind the text under the caret.
+   * Callers that clear the box on purpose reset the draft themselves.
+   */
+  React.useEffect(() => {
+    if (search === pushedSearch.current) return;
+    if (typeof document !== "undefined" && document.activeElement === searchRef.current) return;
+    pushedSearch.current = search;
+    setSearchDraft(search);
+  }, [search]);
+
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tgt = e.target as HTMLElement | null;
@@ -351,6 +381,7 @@ function TransactionsPage() {
         const txTags = tagsByTx.get(t.id) ?? [];
         if (!filterTags.some((tg) => txTags.includes(tg))) return false;
       }
+      if (filterRules.length && !(t.recurring_rule_id && filterRules.includes(t.recurring_rule_id))) return false;
       if (filterReimb !== "any") {
         if (!t.is_reimbursable) return false;
         if (filterReimb !== "all" && t.reimbursable_status !== filterReimb) return false;
@@ -367,13 +398,14 @@ function TransactionsPage() {
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [txQ.data, filterTypes, filterAccounts, filterCategories, filterTags, filterReimb, fromStr, toStr,
+  }, [txQ.data, filterTypes, filterAccounts, filterCategories, filterTags, filterRules, filterReimb, fromStr, toStr,
       amountOp, amountTarget, tolerance, tokens, accountById, categoryById, tagsByTx, splitGroupTotals]);
 
   const sorted = React.useMemo(() => {
     const arr = filtered.slice();
     switch (sort) {
       case "date_asc": arr.sort((a, b) => (a.occurred_on < b.occurred_on ? -1 : a.occurred_on > b.occurred_on ? 1 : 0)); break;
+      case "created_desc": arr.sort((a, b) => b.created_at.localeCompare(a.created_at)); break;
       case "amount_desc": arr.sort((a, b) => Math.abs(Number(b.amount)) - Math.abs(Number(a.amount))); break;
       case "amount_asc": arr.sort((a, b) => Math.abs(Number(a.amount)) - Math.abs(Number(b.amount))); break;
       default: arr.sort((a, b) => (a.occurred_on > b.occurred_on ? -1 : a.occurred_on < b.occurred_on ? 1 : 0));
@@ -555,6 +587,12 @@ function TransactionsPage() {
     label: `#${t}`,
     keywords: t,
   }));
+  // Archived rules stay listed: their posted transactions are still here.
+  const ruleOptions: MSCOption[] = (rulesQ.data ?? []).map((r) => ({
+    value: r.id,
+    label: r.archived ? `${r.name} (${tr("recurring.section_archived")})` : r.name,
+    keywords: r.name,
+  }));
 
   // ----- Quick range presets -----
   const setRange = (preset: "this_month" | "last_month" | "last_7" | "last_30" | "this_year") => {
@@ -568,12 +606,16 @@ function TransactionsPage() {
     patchSearch({ from: format(f, "yyyy-MM-dd"), to: format(t, "yyyy-MM-dd") });
   };
 
+  // Layout is a display preference, not a filter, so it survives a reset.
   const clearAll = () => {
-    navigate({ search: {} as never, replace: true });
+    pushedSearch.current = "";
+    setSearchDraft("");
+    navigate({ search: { view } as never, replace: true });
   };
 
   const activeFilterCount =
     filterTypes.length + filterAccounts.length + filterCategories.length + filterTags.length +
+    filterRules.length +
     (fromStr ? 1 : 0) + (toStr ? 1 : 0) + (amountOp !== "any" && amountTarget != null ? 1 : 0) +
     (search.trim() ? 1 : 0) + (filterReimb !== "any" ? 1 : 0);
 
@@ -600,7 +642,7 @@ function TransactionsPage() {
           <Input
             ref={searchRef}
             placeholder={tr("tx.search_placeholder")}
-            value={search}
+            value={searchDraft}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Escape") setSearch(""); }}
           />
@@ -638,6 +680,15 @@ function TransactionsPage() {
               value={filterTags}
               onChange={setFilterTags}
               placeholder={tr("tx.all_tags")}
+              searchPlaceholder={tr("msc.search")}
+              emptyText={tr("msc.empty")}
+              selectedLabel={(n) => tr("msc.n_selected", { n })}
+            />
+            <MultiSelectCombobox
+              options={ruleOptions}
+              value={filterRules}
+              onChange={setFilterRules}
+              placeholder={tr("tx.all_rules")}
               searchPlaceholder={tr("msc.search")}
               emptyText={tr("msc.empty")}
               selectedLabel={(n) => tr("msc.n_selected", { n })}
@@ -778,6 +829,7 @@ function TransactionsPage() {
                 <SelectContent>
                   <SelectItem value="date_desc">{tr("tx.sort.newest")}</SelectItem>
                   <SelectItem value="date_asc">{tr("tx.sort.oldest")}</SelectItem>
+                  <SelectItem value="created_desc">{tr("tx.sort.created_desc")}</SelectItem>
                   <SelectItem value="amount_desc">{tr("tx.sort.amount_desc")}</SelectItem>
                   <SelectItem value="amount_asc">{tr("tx.sort.amount_asc")}</SelectItem>
                 </SelectContent>
@@ -836,6 +888,11 @@ function TransactionsPage() {
             {filterTags.map((v) => (
               <FilterPill key={`tg-${v}`} onRemove={() => setFilterTags(filterTags.filter((x) => x !== v))}>
                 {`#${v}`}
+              </FilterPill>
+            ))}
+            {filterRules.map((v) => (
+              <FilterPill key={`r-${v}`} onRemove={() => setFilterRules(filterRules.filter((x) => x !== v))}>
+                {tr("tx.search.label.rule")}: {ruleById.get(v)?.name ?? v}
               </FilterPill>
             ))}
             {amountOp !== "any" && amountTarget != null && (
