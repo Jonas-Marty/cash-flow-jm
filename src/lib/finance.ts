@@ -366,6 +366,13 @@ export interface RecurringOccurrence {
   status: OccurrenceStatus;
   transaction_id: string | null;
   posted_at: string | null;
+  /** Bill proposal from an outside system, see lib/recurringProposal. */
+  proposed_amount?: number | null;
+  proposed_occurred_on?: string | null;
+  proposal_source?: string | null;
+  proposal_ref?: string | null;
+  proposal_info?: string | null;
+  proposed_at?: string | null;
 }
 
 export interface Settings {
@@ -893,6 +900,66 @@ export async function postOccurrence(occ: RecurringOccurrence & { rule: Recurrin
     .update({ status: "posted", transaction_id: tx.id, posted_at: new Date().toISOString() })
     .eq("id", occ.id);
   if (error) throw error;
+}
+
+/** Drop a bill proposal; the occurrence falls back to the rule's estimate. */
+export async function discardOccurrenceProposal(id: string): Promise<void> {
+  const { CLEARED_PROPOSAL } = await import("./recurringProposal");
+  const { error } = await supabase
+    .from("recurring_occurrences")
+    .update(CLEARED_PROPOSAL)
+    .eq("id", id)
+    .eq("status", "pending");
+  if (error) throw error;
+}
+
+type ProposalFields = Pick<
+  RecurringOccurrence,
+  "proposed_amount" | "proposed_occurred_on" | "proposal_source" | "proposal_ref" | "proposal_info" | "proposed_at"
+>;
+
+/** Bill proposals sitting on a rule's pending occurrences. */
+export async function fetchPendingProposals(ruleId: string): Promise<ProposalFields[]> {
+  const { PROPOSAL_COLUMNS } = await import("./recurringProposal");
+  const { data, error } = await supabase
+    .from("recurring_occurrences")
+    .select(PROPOSAL_COLUMNS)
+    .eq("rule_id", ruleId)
+    .eq("status", "pending")
+    .not("proposed_at", "is", null);
+  if (error) throw error;
+  return (data ?? []) as ProposalFields[];
+}
+
+/**
+ * Saving a rule regenerates its pending occurrences, which would silently drop
+ * a bill proposal the phone already delivered. Put each one back on the
+ * occurrence it now belongs to — unless that one is no longer pending, or the
+ * rule stopped taking proposals by getting a fixed amount.
+ */
+export async function reattachProposals(
+  rule: { id: string; is_variable_amount: boolean; recurrence_interval: number },
+  proposals: ProposalFields[],
+): Promise<void> {
+  if (proposals.length === 0 || !rule.is_variable_amount) return;
+  const { pickOccurrenceForBill } = await import("./recurringProposal");
+  const { data, error } = await supabase
+    .from("recurring_occurrences")
+    .select("id, effective_on, status, proposed_at")
+    .eq("rule_id", rule.id);
+  if (error) throw error;
+  const occs = data ?? [];
+  for (const p of proposals) {
+    if (!p.proposed_occurred_on) continue;
+    const target = pickOccurrenceForBill(occs, p.proposed_occurred_on, rule.recurrence_interval);
+    if (!target || target.status !== "pending") continue;
+    const { error: updErr } = await supabase
+      .from("recurring_occurrences")
+      .update(p)
+      .eq("id", target.id)
+      .eq("status", "pending");
+    if (updErr) throw updErr;
+  }
 }
 
 export async function skipOccurrence(id: string): Promise<void> {

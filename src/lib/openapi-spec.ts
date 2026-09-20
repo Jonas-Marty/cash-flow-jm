@@ -27,6 +27,7 @@ security:
 tags:
   - name: Transactions
   - name: Pending transactions
+  - name: Recurring rules
   - name: Account statements
   - name: Accounts
   - name: Categories
@@ -163,6 +164,141 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
           description: The pending transaction is already confirmed
+  /api/public/recurring-rules:
+    get:
+      tags: [Recurring rules]
+      summary: List recurring rules
+      description: |
+        Non-archived rules unless \`include_archived=true\`. \`accepts_proposals\`
+        is true for the rules a bill proposal may target (variable amount, not
+        archived); \`next_pending_occurrence\` is the next entry still waiting to
+        be posted.
+      parameters:
+        - in: query
+          name: include_archived
+          schema: { type: boolean }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recurring_rules:
+                    type: array
+                    items: { $ref: '#/components/schemas/RecurringRule' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /api/public/recurring-proposals:
+    get:
+      tags: [Recurring rules]
+      summary: Look up bill proposals
+      description: |
+        What became of proposals sent earlier: \`status\` is the occurrence's
+        (\`pending\` | \`posted\` | \`skipped\`), and \`transaction_id\` is set once
+        the user posted it. A ref that is missing from a filtered response was
+        discarded, or its occurrence was removed.
+      parameters:
+        - in: query
+          name: external_source
+          schema: { type: string }
+        - in: query
+          name: external_ref
+          description: One ref, or several separated by commas (max 200).
+          schema: { type: string }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recurring_proposals:
+                    type: array
+                    items: { $ref: '#/components/schemas/RecurringProposal' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    post:
+      tags: [Recurring rules]
+      summary: Propose amount and date for a recurring entry
+      description: |
+        A bill arrived: proposes its amount and date for the matching entry of a
+        variable-amount recurring rule. Nothing is posted — the user sees the
+        values, marked as provided by \`external_source\`, and posts by hand.
+
+        The entry is the first occurrence of the rule scheduled no more than 7
+        days before \`occurred_on\` and no further ahead than one interval. A
+        newer proposal on the same pending entry replaces the older one.
+
+        Refused with 409 when that entry is already posted (\`code:
+        already_posted\`, with \`transaction_id\` — edit the transaction in the
+        app instead) or skipped (\`code: skipped\`). Refused with 422 for a
+        fixed-amount (\`fixed_amount\`) or archived (\`rule_archived\`) rule.
+        The same \`(external_source, external_ref)\` again returns the first
+        result with \`deduplicated: true\`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RecurringProposalInput' }
+      responses:
+        '200':
+          description: Existing proposal returned (deduplicated)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recurring_proposal: { $ref: '#/components/schemas/RecurringProposal' }
+                  deduplicated: { type: boolean }
+        '201':
+          description: Proposal stored on the entry
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recurring_proposal: { $ref: '#/components/schemas/RecurringProposal' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404':
+          description: Rule not found (\`rule_not_found\`) or no scheduled entry near the date (\`no_occurrence\`)
+        '409':
+          description: The entry is already posted or skipped
+        '422':
+          description: The rule does not accept proposals
+    delete:
+      tags: [Recurring rules]
+      summary: Withdraw a bill proposal
+      description: |
+        Clears a proposal, identified by \`occurrence_id\` or by the
+        \`(external_source, external_ref)\` pair. Refused with 409 once the entry
+        is posted.
+      parameters:
+        - in: query
+          name: occurrence_id
+          schema: { type: string, format: uuid }
+        - in: query
+          name: external_source
+          schema: { type: string }
+        - in: query
+          name: external_ref
+          schema: { type: string }
+      responses:
+        '200':
+          description: Cleared
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted: { type: boolean }
+                  occurrence_id: { type: string, format: uuid }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: The entry is already posted
   /api/public/account-statements:
     get:
       tags: [Account statements]
@@ -527,6 +663,55 @@ components:
         reject_reason: { type: string, nullable: true }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+    RecurringRule:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        type: { $ref: '#/components/schemas/TransactionType' }
+        amount: { type: number, nullable: true }
+        estimated_amount: { type: number, nullable: true }
+        is_variable_amount: { type: boolean }
+        is_variable_date: { type: boolean }
+        auto_post: { type: boolean }
+        source_account_id: { type: string, format: uuid }
+        category_id: { type: string, format: uuid, nullable: true }
+        recurrence_interval: { type: integer, description: Months between entries }
+        starts_on: { type: string, format: date }
+        ends_on: { type: string, format: date, nullable: true }
+        archived: { type: boolean }
+        accepts_proposals: { type: boolean }
+        next_pending_occurrence:
+          type: object
+          nullable: true
+          properties:
+            due_on: { type: string, format: date }
+            effective_on: { type: string, format: date }
+    RecurringProposalInput:
+      type: object
+      required: [recurring_rule_id, amount, occurred_on, external_source, external_ref]
+      properties:
+        recurring_rule_id: { type: string, format: uuid }
+        amount: { type: number, exclusiveMinimum: 0 }
+        occurred_on: { type: string, format: date, description: The bill's date; pre-fills the transaction date }
+        external_source: { type: string, maxLength: 120, description: Shown to the user as the provider, e.g. FinReader }
+        external_ref: { type: string, maxLength: 200 }
+        external_info: { type: string, maxLength: 2000, nullable: true }
+    RecurringProposal:
+      type: object
+      properties:
+        occurrence_id: { type: string, format: uuid }
+        recurring_rule_id: { type: string, format: uuid }
+        rule_name: { type: string, nullable: true }
+        due_on: { type: string, format: date }
+        effective_on: { type: string, format: date }
+        status: { type: string, enum: [pending, posted, skipped] }
+        transaction_id: { type: string, format: uuid, nullable: true }
+        amount: { type: number, nullable: true }
+        occurred_on: { type: string, format: date, nullable: true }
+        external_source: { type: string, nullable: true }
+        external_ref: { type: string, nullable: true }
+        proposed_at: { type: string, format: date-time, nullable: true }
     AccountStatementInput:
       type: object
       required: [account_id, as_of, statement_balance]

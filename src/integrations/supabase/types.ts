@@ -836,6 +836,12 @@ export type Database = {
           effective_on: string
           id: string
           posted_at: string | null
+          proposal_info: string | null
+          proposal_ref: string | null
+          proposal_source: string | null
+          proposed_amount: number | null
+          proposed_at: string | null
+          proposed_occurred_on: string | null
           rule_id: string
           status: Database["public"]["Enums"]["occurrence_status"]
           transaction_id: string | null
@@ -847,6 +853,12 @@ export type Database = {
           effective_on: string
           id?: string
           posted_at?: string | null
+          proposal_info?: string | null
+          proposal_ref?: string | null
+          proposal_source?: string | null
+          proposed_amount?: number | null
+          proposed_at?: string | null
+          proposed_occurred_on?: string | null
           rule_id: string
           status?: Database["public"]["Enums"]["occurrence_status"]
           transaction_id?: string | null
@@ -858,6 +870,12 @@ export type Database = {
           effective_on?: string
           id?: string
           posted_at?: string | null
+          proposal_info?: string | null
+          proposal_ref?: string | null
+          proposal_source?: string | null
+          proposed_amount?: number | null
+          proposed_at?: string | null
+          proposed_occurred_on?: string | null
           rule_id?: string
           status?: Database["public"]["Enums"]["occurrence_status"]
           transaction_id?: string | null

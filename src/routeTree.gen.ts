@@ -26,6 +26,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as EditIdRouteImport } from './routes/edit.$id'
 import { Route as ApiPublicVersionRouteImport } from './routes/api.public.version'
 import { Route as ApiPublicTransactionsRouteImport } from './routes/api.public.transactions'
+import { Route as ApiPublicRecurringRulesRouteImport } from './routes/api.public.recurring-rules'
+import { Route as ApiPublicRecurringProposalsRouteImport } from './routes/api.public.recurring-proposals'
 import { Route as ApiPublicPruneAuditRouteImport } from './routes/api.public.prune-audit'
 import { Route as ApiPublicProcessRecurringRouteImport } from './routes/api.public.process-recurring'
 import { Route as ApiPublicPendingTransactionsRouteImport } from './routes/api.public.pending-transactions'
@@ -123,6 +125,17 @@ const ApiPublicTransactionsRoute = ApiPublicTransactionsRouteImport.update({
   path: '/api/public/transactions',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicRecurringRulesRoute = ApiPublicRecurringRulesRouteImport.update({
+  id: '/api/public/recurring-rules',
+  path: '/api/public/recurring-rules',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicRecurringProposalsRoute =
+  ApiPublicRecurringProposalsRouteImport.update({
+    id: '/api/public/recurring-proposals',
+    path: '/api/public/recurring-proposals',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicPruneAuditRoute = ApiPublicPruneAuditRouteImport.update({
   id: '/api/public/prune-audit',
   path: '/api/public/prune-audit',
@@ -209,6 +222,8 @@ export interface FileRoutesByFullPath {
   '/api/public/pending-transactions': typeof ApiPublicPendingTransactionsRoute
   '/api/public/process-recurring': typeof ApiPublicProcessRecurringRoute
   '/api/public/prune-audit': typeof ApiPublicPruneAuditRoute
+  '/api/public/recurring-proposals': typeof ApiPublicRecurringProposalsRoute
+  '/api/public/recurring-rules': typeof ApiPublicRecurringRulesRoute
   '/api/public/transactions': typeof ApiPublicTransactionsRoute
   '/api/public/version': typeof ApiPublicVersionRoute
 }
@@ -239,6 +254,8 @@ export interface FileRoutesByTo {
   '/api/public/pending-transactions': typeof ApiPublicPendingTransactionsRoute
   '/api/public/process-recurring': typeof ApiPublicProcessRecurringRoute
   '/api/public/prune-audit': typeof ApiPublicPruneAuditRoute
+  '/api/public/recurring-proposals': typeof ApiPublicRecurringProposalsRoute
+  '/api/public/recurring-rules': typeof ApiPublicRecurringRulesRoute
   '/api/public/transactions': typeof ApiPublicTransactionsRoute
   '/api/public/version': typeof ApiPublicVersionRoute
 }
@@ -270,6 +287,8 @@ export interface FileRoutesById {
   '/api/public/pending-transactions': typeof ApiPublicPendingTransactionsRoute
   '/api/public/process-recurring': typeof ApiPublicProcessRecurringRoute
   '/api/public/prune-audit': typeof ApiPublicPruneAuditRoute
+  '/api/public/recurring-proposals': typeof ApiPublicRecurringProposalsRoute
+  '/api/public/recurring-rules': typeof ApiPublicRecurringRulesRoute
   '/api/public/transactions': typeof ApiPublicTransactionsRoute
   '/api/public/version': typeof ApiPublicVersionRoute
 }
@@ -302,6 +321,8 @@ export interface FileRouteTypes {
     | '/api/public/pending-transactions'
     | '/api/public/process-recurring'
     | '/api/public/prune-audit'
+    | '/api/public/recurring-proposals'
+    | '/api/public/recurring-rules'
     | '/api/public/transactions'
     | '/api/public/version'
   fileRoutesByTo: FileRoutesByTo
@@ -332,6 +353,8 @@ export interface FileRouteTypes {
     | '/api/public/pending-transactions'
     | '/api/public/process-recurring'
     | '/api/public/prune-audit'
+    | '/api/public/recurring-proposals'
+    | '/api/public/recurring-rules'
     | '/api/public/transactions'
     | '/api/public/version'
   id:
@@ -362,6 +385,8 @@ export interface FileRouteTypes {
     | '/api/public/pending-transactions'
     | '/api/public/process-recurring'
     | '/api/public/prune-audit'
+    | '/api/public/recurring-proposals'
+    | '/api/public/recurring-rules'
     | '/api/public/transactions'
     | '/api/public/version'
   fileRoutesById: FileRoutesById
@@ -393,6 +418,8 @@ export interface RootRouteChildren {
   ApiPublicPendingTransactionsRoute: typeof ApiPublicPendingTransactionsRoute
   ApiPublicProcessRecurringRoute: typeof ApiPublicProcessRecurringRoute
   ApiPublicPruneAuditRoute: typeof ApiPublicPruneAuditRoute
+  ApiPublicRecurringProposalsRoute: typeof ApiPublicRecurringProposalsRoute
+  ApiPublicRecurringRulesRoute: typeof ApiPublicRecurringRulesRoute
   ApiPublicTransactionsRoute: typeof ApiPublicTransactionsRoute
   ApiPublicVersionRoute: typeof ApiPublicVersionRoute
 }
@@ -518,6 +545,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicTransactionsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/recurring-rules': {
+      id: '/api/public/recurring-rules'
+      path: '/api/public/recurring-rules'
+      fullPath: '/api/public/recurring-rules'
+      preLoaderRoute: typeof ApiPublicRecurringRulesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/recurring-proposals': {
+      id: '/api/public/recurring-proposals'
+      path: '/api/public/recurring-proposals'
+      fullPath: '/api/public/recurring-proposals'
+      preLoaderRoute: typeof ApiPublicRecurringProposalsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/prune-audit': {
       id: '/api/public/prune-audit'
       path: '/api/public/prune-audit'
@@ -625,6 +666,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicPendingTransactionsRoute: ApiPublicPendingTransactionsRoute,
   ApiPublicProcessRecurringRoute: ApiPublicProcessRecurringRoute,
   ApiPublicPruneAuditRoute: ApiPublicPruneAuditRoute,
+  ApiPublicRecurringProposalsRoute: ApiPublicRecurringProposalsRoute,
+  ApiPublicRecurringRulesRoute: ApiPublicRecurringRulesRoute,
   ApiPublicTransactionsRoute: ApiPublicTransactionsRoute,
   ApiPublicVersionRoute: ApiPublicVersionRoute,
 }

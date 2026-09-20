@@ -207,6 +207,15 @@ Resolution happens client-side at post time and the **already-resolved** strings
 
 The model would need to be split if (a) a single rule needed multiple bills per period, or (b) the period were decoupled from the cadence (e.g. post in May for Jan–Mar). Neither is on the table today.
 
+**Bill proposals** (`src/lib/recurringProposal.ts`, `/api/public/recurring-proposals`): an outside system that sees the bill — FinReader, reading the phone's notifications — may propose the **amount and date** of a not-yet-posted occurrence. Nothing is posted; the proposal lives in `recurring_occurrences.proposed_amount`, `proposed_occurred_on`, `proposal_source`, `proposal_ref`, `proposal_info`, `proposed_at` (all set or all NULL) and only pre-fills what the user sees:
+
+- `UpcomingCard` fills the amount field and shows "Bill 15.09. · CHF 2'691.72 from FinReader"; `PostOccurrenceDialog` starts with the proposed amount and date, says who provided them and when, shows the raw notification text, warns when the amount is outside ½×–2× of `estimated_amount`, and offers "Discard suggestion".
+- **Variable-amount rules only.** A fixed amount is the user's own statement of what the bill costs; the API answers 422 `fixed_amount`.
+- **Which occurrence:** the first one, of any status, scheduled no more than 7 days before the bill's date and no further ahead than one interval. Any status on purpose: when that one is already **posted**, the bill came late and is refused with 409 `already_posted` plus the `transaction_id`, so the phone can send the user to edit that transaction by hand — it is never moved to next month. Skipped → 409 `skipped`.
+- A newer proposal on the same pending occurrence replaces the older one (a corrected bill). The same `(external_source, external_ref)` again is idempotent.
+- The columns stay after posting: they record where the transaction's numbers came from, and let the phone look up what became of its proposal.
+- Saving a rule deletes and regenerates its pending occurrences; `reattachProposals` puts each proposal back on the occurrence it now belongs to (dropped if the rule got a fixed amount).
+
 ### 3.7 Shared / split expenses
 
 Shared costs (split rent, joint subscriptions, group dinners) are modelled with the **reimbursement rule** from §3.2 — no new schema, no new transaction type. Pattern:
@@ -355,6 +364,12 @@ including the SQL/app inventory, performance estimate and phased plan, lives in
 [`docs/encryption-at-rest.md`](./docs/encryption-at-rest.md).
 
 ## 7. Change log
+
+### 2026-09-15 — Bill proposals on recurring occurrences
+
+- Migration `20260915120000_recurring_occurrence_proposals.sql`: proposal columns on `recurring_occurrences` (see §3.6 "Bill proposals").
+- Public API: `GET /api/public/recurring-rules` (for the phone's rule picker, with `accepts_proposals` and `next_pending_occurrence`) and `GET/POST/DELETE /api/public/recurring-proposals`.
+- UI: upcoming card and post dialog show and pre-fill the proposal; posting stays manual.
 
 ### 2026-09-04 — Split groups: deferred validation, atomic group save
 

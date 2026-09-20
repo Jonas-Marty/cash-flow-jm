@@ -8,9 +8,10 @@ import { DateInput } from "@/components/DateInput";
 import { useI18n } from "@/i18n";
 import { useQuery } from "@tanstack/react-query";
 import {
-  fetchSettings, postOccurrence,
+  discardOccurrenceProposal, fetchSettings, fmtMoney, postOccurrence,
   type RecurringOccurrence, type RecurringRule,
 } from "@/lib/finance";
+import { proposalDeviates } from "@/lib/recurringProposal";
 import { interpolate, resolveFormatLocale, describeTokens } from "@/lib/placeholders";
 import { periodBoundsForDue, parseISODate, type RuleShape } from "@/lib/recurrence";
 import { toast } from "sonner";
@@ -35,7 +36,7 @@ interface Props {
 }
 
 export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate, initialAmount, initialDescription, initialNote, onClose, onPosted }: Props) {
-  const { t, lang } = useI18n();
+  const { t, lang, locale } = useI18n();
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
 
   const [date, setDate] = React.useState<string>("");
@@ -61,7 +62,8 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
 
   React.useEffect(() => {
     if (!occurrence) return;
-    setDate(occurrence.effective_on);
+    const proposal = proposalOf(occurrence);
+    setDate(proposal?.date ?? occurrence.effective_on);
     setDescription(initialDescription ?? occurrence.rule.description ?? "");
     setNote(initialNote ?? occurrence.rule.note ?? "");
     setSliceFields(
@@ -72,6 +74,8 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
     if (occurrence.rule.is_variable_amount) {
       if (initialAmount && initialAmount.trim() !== "") {
         setAmount(initialAmount);
+      } else if (proposal) {
+        setAmount(proposal.amount.toFixed(2));
       } else if (occurrence.rule.estimated_amount != null) {
         setAmount(String(occurrence.rule.estimated_amount));
       } else {
@@ -127,6 +131,22 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
           : {}),
       });
       toast.success(t("recurring.toast.posted"));
+      onPosted();
+      onClose();
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const proposal = proposalOf(occurrence);
+  const symbol = settingsQ.data?.currency_symbol ?? "CHF";
+  const onDiscardProposal = async () => {
+    setBusy(true);
+    try {
+      await discardOccurrenceProposal(occurrence.id);
+      toast.success(t("recurring.proposal.discarded"));
       onPosted();
       onClose();
     } catch (e) {
@@ -195,6 +215,32 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
           <DialogTitle>{t("recurring.post_dialog.title")} — {r.name}</DialogTitle>
         </DialogHeader>
         <div className="grid gap-3">
+          {proposal && (
+            <div className="rounded-md border border-primary/40 bg-primary/5 p-2 text-xs">
+              <div>
+                {t("recurring.proposal.provided", {
+                  amount: fmtMoney(proposal.amount, symbol),
+                  date: format(parseISO(proposal.date), "PP", { locale }),
+                  source: proposal.source,
+                  at: format(parseISO(proposal.at), "PPp", { locale }),
+                })}
+              </div>
+              {proposalDeviates(proposal.amount, r.estimated_amount) && (
+                <div className="mt-1 font-medium text-destructive">
+                  {t("recurring.proposal.deviates", { estimate: fmtMoney(Number(r.estimated_amount), symbol) })}
+                </div>
+              )}
+              {occurrence.proposal_info && (
+                <details className="mt-1">
+                  <summary className="cursor-pointer text-muted-foreground">{t("recurring.proposal.raw")}</summary>
+                  <div className="mt-1 whitespace-pre-wrap font-mono">{occurrence.proposal_info}</div>
+                </details>
+              )}
+              <Button size="sm" variant="ghost" className="mt-1 h-7 px-2" onClick={onDiscardProposal} disabled={busy}>
+                {t("recurring.proposal.discard")}
+              </Button>
+            </div>
+          )}
           <div>
             <Label className="text-xs">{t("recurring.post_dialog.date")}</Label>
             <DateInput
@@ -330,4 +376,19 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
       </DialogContent>
     </Dialog>
   );
+}
+
+/**
+ * The bill proposal on an occurrence, if there is one to use: only
+ * variable-amount rules take one, and the dialog never posts it by itself.
+ */
+function proposalOf(occ: Occ | null) {
+  if (!occ || !occ.rule.is_variable_amount) return null;
+  if (!occ.proposed_at || occ.proposed_amount == null || !occ.proposed_occurred_on) return null;
+  return {
+    amount: Number(occ.proposed_amount),
+    date: occ.proposed_occurred_on,
+    source: occ.proposal_source ?? "",
+    at: occ.proposed_at,
+  };
 }

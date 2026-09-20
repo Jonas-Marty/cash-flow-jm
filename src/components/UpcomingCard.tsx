@@ -98,7 +98,11 @@ export function UpcomingCard({ symbol }: { symbol: string }) {
           const sign = o.rule.type === "expense" ? "-" : o.rule.type === "income" ? "+" : "";
           const tone = o.rule.type === "expense" ? "text-destructive" : o.rule.type === "income" ? "text-success" : "text-muted-foreground";
           const isVar = o.rule.is_variable_amount;
-          const inputVal = amounts[o.id] ?? "";
+          const proposal = isVar && o.proposed_at && o.proposed_amount != null && o.proposed_occurred_on
+            ? { amount: Number(o.proposed_amount), date: o.proposed_occurred_on, source: o.proposal_source ?? "" }
+            : null;
+          // A bill proposal pre-fills the field; anything typed wins.
+          const inputVal = amounts[o.id] ?? (proposal ? proposal.amount.toFixed(2) : "");
           const canPost = !isVar || (inputVal !== "" && Number(inputVal) > 0);
           return (
             <div key={o.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
@@ -107,8 +111,22 @@ export function UpcomingCard({ symbol }: { symbol: string }) {
                   <span className="truncate text-sm font-medium">{o.rule.name}</span>
                   <Badge variant="outline" className={cn("text-[10px]", late && "border-destructive text-destructive")}>{label}</Badge>
                   {isVar && <Badge variant="outline" className="text-[10px]">{t("recurring.variable_badge")}</Badge>}
+                  {proposal && (
+                    <Badge variant="secondary" className="text-[10px]" title={o.proposal_info ?? undefined}>
+                      {t("recurring.proposal.badge", { source: proposal.source })}
+                    </Badge>
+                  )}
                 </div>
                 <div className="text-xs text-muted-foreground">{format(eff, "PP", { locale })}</div>
+                {proposal && (
+                  <div className="text-xs text-muted-foreground">
+                    {t("recurring.proposal.line", {
+                      date: format(parseISO(proposal.date), "PP", { locale }),
+                      amount: fmtMoney(proposal.amount, symbol),
+                      source: proposal.source,
+                    })}
+                  </div>
+                )}
               </div>
               {isVar ? (
                 <Input

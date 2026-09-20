@@ -19,7 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   fetchAccounts, fetchCategories, fetchRecurringRules,
   describeSchedule, previewRecurringRule, archiveRecurringRule, applyRecurringRuleBackfill, fetchSettings, fetchTransactions,
-  fetchOccurrencesForRule, createPendingOccurrence, deletePendingOccurrence,
+  fetchOccurrencesForRule, createPendingOccurrence, deletePendingOccurrence, fetchPendingProposals, reattachProposals,
   type RecurringRule, type RecurringOccurrence, type DayRuleV2, type WeekendAdjustV2, type TxType,
 } from "@/lib/finance";
 import { PostOccurrenceDialog } from "@/components/PostOccurrenceDialog";
@@ -411,6 +411,7 @@ export function RecurringRulesCard() {
       is_split: draft.is_split,
     };
     let savedId: string | undefined = draft.id;
+    let keptProposals: Awaited<ReturnType<typeof fetchPendingProposals>> = [];
     if (isNew) {
       const { data, error } = await supabase.from("recurring_rules").insert(payload).select("id").single();
       if (error) { toast.error(error.message); return; }
@@ -418,6 +419,11 @@ export function RecurringRulesCard() {
     } else {
       const { error } = await supabase.from("recurring_rules").update(payload).eq("id", draft.id!);
       if (error) { toast.error(error.message); return; }
+      try {
+        keptProposals = await fetchPendingProposals(draft.id!);
+      } catch (e) {
+        toast.error((e as Error).message); return;
+      }
       // Schedule/amount/account/etc. may have changed — wipe pending occurrences
       // so they get regenerated from the new rule. Posted ones stay (they have
       // real transactions attached).
@@ -451,6 +457,16 @@ export function RecurringRulesCard() {
     try {
       await supabase.rpc("process_recurring_rules", { p_today: todayStr() });
     } catch { /* non-fatal */ }
+    if (savedId && keptProposals.length > 0) {
+      try {
+        await reattachProposals(
+          { id: savedId, is_variable_amount: draft.is_variable_amount, recurrence_interval: draft.recurrence_interval },
+          keptProposals,
+        );
+      } catch (e) {
+        toast.error((e as Error).message);
+      }
+    }
     toast.success(t("recurring.toast.saved"));
     setOpen(false);
     setPendingConfirm(null);

@@ -7,7 +7,7 @@ import * as z from "zod";
  * — the user fills it in during the confirmation step in the app.
  */
 
-const amountSchema = z
+export const amountSchema = z
   .union([z.number(), z.string()])
   .transform((v, ctx) => {
     const n = typeof v === "number" ? v : Number(String(v).replace(",", "."));
@@ -18,11 +18,11 @@ const amountSchema = z
     return Math.round(n * 100) / 100;
   });
 
-const isoDate = z
+export const isoDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format");
 
-const trimmedNullable = (max: number) =>
+export const trimmedNullable = (max: number) =>
   z
     .string()
     .max(max)
