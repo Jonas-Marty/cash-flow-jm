@@ -130,7 +130,11 @@ can reach the Supabase containers (Kong, Postgres, etc.) by service name.
 
 1. Stand up your Supabase stack (Kong gateway, Postgres, GoTrue, etc.) on a
    Docker network — e.g. the official `supabase/docker` compose project. Note
-   the network name.
+   the network name. The app only needs five of the upstream services;
+   `docker-compose.prod-supabase.yml` is the trimmed stack the reference
+   deployment runs (~0.8 GB instead of ~2.1 GB), and
+   [`docs/supabase-stack-trim.md`](./docs/supabase-stack-trim.md) explains what
+   was dropped and how it was applied.
 2. Create a `.env` file next to `docker-compose.yml`:
 
    ```bash
