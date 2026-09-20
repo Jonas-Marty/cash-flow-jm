@@ -134,7 +134,8 @@ can reach the Supabase containers (Kong, Postgres, etc.) by service name.
    `docker-compose.prod-supabase.yml` is the trimmed stack the reference
    deployment runs (~0.8 GB instead of ~2.1 GB), and
    [`docs/supabase-stack-trim.md`](./docs/supabase-stack-trim.md) explains what
-   was dropped and how it was applied.
+   was dropped and how it was applied. `docker-compose.dev-supabase.yml` is the
+   smaller throwaway variant the dev environment runs (section 8).
 2. Create a `.env` file next to `docker-compose.yml`:
 
    ```bash
