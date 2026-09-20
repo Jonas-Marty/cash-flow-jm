@@ -621,7 +621,10 @@ function SettingsPage() {
             </div>
 
             {(() => {
-              const cats = categoriesQ.data ?? [];
+              // Scopes are envelopes too, but they belong to /scopes: they are
+              // funded on close and take no part in the monthly plan, so they
+              // would only inflate the group sums and the balance card above.
+              const cats = (categoriesQ.data ?? []).filter((c) => !c.is_scope);
               const grps = groupsQ.data ?? [];
               // Rows lay out against the *card* width (container query), not the
               // viewport — the settings column is much narrower than the screen.

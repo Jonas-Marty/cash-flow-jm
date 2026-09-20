@@ -64,6 +64,8 @@ export interface CategoryMonthRow {
   group_name: string | null;
   kind: GroupKind;
   is_savings: boolean;
+  /** Scope envelopes sit outside the monthly budget — see budgetSummary. */
+  is_scope: boolean;
   sort_order: number;
   group_sort_order: number;
   allocated: number;

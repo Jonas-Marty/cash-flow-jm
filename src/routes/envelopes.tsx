@@ -239,6 +239,9 @@ function EnvelopesPage() {
   const groups = React.useMemo(() => {
     const map = new Map<string, { name: string; kind: CategoryMonthRow["kind"]; rows: CategoryMonthRow[] }>();
     for (const r of effectiveRows) {
+      // Scopes are managed on /scopes and sit outside the month, which is also
+      // how MonthBudgetSummary above counts them.
+      if (r.is_scope) continue;
       const key = r.group_id ?? `__${r.kind}__`;
       if (!map.has(key)) {
         map.set(key, {

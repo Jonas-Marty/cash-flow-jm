@@ -29,6 +29,10 @@ export function computeMonthTotals(
   let savingsTarget = 0;
 
   for (const r of rows) {
+    // A scope (a holiday, a camp) is funded in one move from its funding
+    // envelope when it closes. Its plan and its spending are deliberately kept
+    // out of the ordinary month, so counting either here double-counts it.
+    if (r.is_scope) continue;
     const allocated = Number(r.allocated) || 0;
     const actual = Number(r.spent_or_received) || 0;
     const pending = pendingMap.get(r.category_id);

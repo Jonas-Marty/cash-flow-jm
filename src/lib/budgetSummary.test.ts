@@ -18,6 +18,7 @@ function row(p: Partial<CategoryMonthRow> & { category_id: string; kind: Categor
     group_id: p.group_id ?? null,
     group_name: p.group_name ?? null,
     is_savings: p.is_savings ?? (p.kind === "savings"),
+    is_scope: p.is_scope ?? false,
     sort_order: p.sort_order ?? 0,
     group_sort_order: p.group_sort_order ?? 0,
   };
@@ -33,6 +34,44 @@ describe("computeMonthTotals", () => {
     expect(t.savingsTarget).toBe(0);
     expect(t.projectedNet).toBe(0);
     expect(t.plannedNet).toBe(0);
+  });
+
+  it("leaves scope envelopes out of every bucket", () => {
+    // A holiday scope is funded from its funding envelope when it closes, so
+    // counting its plan inside the month would charge the user twice.
+    const rows = [
+      row({ category_id: "salary", kind: "income", allocated: 5000, spent_or_received: 5000 }),
+      row({ category_id: "rent", kind: "expense", allocated: 1500, spent_or_received: 1500 }),
+      row({ category_id: "holiday", kind: "savings", allocated: 1000, spent_or_received: 0, is_scope: true }),
+    ];
+    const t = computeMonthTotals(rows, noPending);
+    expect(t.savingsTarget).toBe(0);
+    expect(t.plannedNet).toBe(3500);
+    expect(t.projectedNet).toBe(3500);
+  });
+
+  it("still counts an ordinary savings envelope that is not a scope", () => {
+    const withScope = computeMonthTotals(
+      [row({ category_id: "holiday", kind: "savings", allocated: 1000, is_scope: true })],
+      noPending,
+    );
+    const withoutScope = computeMonthTotals(
+      [row({ category_id: "buffer", kind: "savings", allocated: 1000 })],
+      noPending,
+    );
+    expect(withScope.savingsTarget).toBe(0);
+    expect(withoutScope.savingsTarget).toBe(1000);
+  });
+
+  it("ignores a scope's own spending as well as its plan", () => {
+    const rows = [
+      row({ category_id: "salary", kind: "income", allocated: 4000, spent_or_received: 4000 }),
+      row({ category_id: "holiday", kind: "expense", allocated: 800, spent_or_received: 750, is_scope: true }),
+    ];
+    const t = computeMonthTotals(rows, noPending);
+    expect(t.expenseAllocated).toBe(0);
+    expect(t.expenseSpent).toBe(0);
+    expect(t.projectedNet).toBe(4000);
   });
 
   it("aggregates income / expense / savings into the right buckets", () => {

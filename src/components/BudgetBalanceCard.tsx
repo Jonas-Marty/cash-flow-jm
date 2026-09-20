@@ -18,6 +18,9 @@ interface PlanTotals {
  * Computes income − expenses − savings from the *default* allocation
  * stored on `categories.allocated_budget`. This reflects "the plan",
  * independent of any month-specific override in `category_budgets`.
+ *
+ * Scope envelopes are excluded: they are funded from their funding envelope
+ * at close time and do not participate in the monthly plan.
  */
 export function BudgetBalanceCard({
   categories, groups, symbol,
@@ -37,6 +40,9 @@ export function BudgetBalanceCard({
     let income = 0, expense = 0, savings = 0;
     for (const c of categories) {
       if (c.archived) continue;
+      // Scopes are funded from an envelope when they close; they never take
+      // part in the monthly plan. See budgetSummary.computeMonthTotals.
+      if (c.is_scope) continue;
       const v = Number(c.allocated_budget) || 0;
       let kind: "income" | "expense" | "savings";
       if (c.is_savings) kind = "savings";
