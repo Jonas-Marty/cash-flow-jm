@@ -1,0 +1,118 @@
+# Can a stranger answer these from the guide alone?
+#
+# Every question here is pinned to a fact this documentation audit had to fix.
+# The reader agent sees only the published pages — no repository, no prior
+# knowledge it is allowed to lean on — so a page that stops stating the answer
+# fails the run and names itself.
+#
+# Costs real money per run. Run it before a release or when a feature changes,
+# never on every commit:
+#
+#   cd help-site && npx blume eval
+#
+questions:
+  # The claim that was false in the privacy notice for months.
+  - id: third-parties
+    question: Does this app send any of my data to third parties, and which ones?
+    expected:
+      - Place search and address lookup go to OpenStreetMap Nominatim, with Photon (Komoot) as a fallback
+      - Those two are called by the server on the user's behalf, so the service sees the server's address rather than the user's
+      - Map tiles are loaded by the browser from tile.openstreetmap.org, which exposes the user's own IP address
+    routes: /location
+
+  # "Mark settled" survived in six places after being removed from the app.
+  - id: closing-an-iou
+    question: How many ways are there to close an IOU, and what are they?
+    expected:
+      - There are exactly three
+      - Record a repayment when real money moved
+      - Write off the rest when you will not be repaid, or when you got back more than you paid
+      - Cancel it when it should never have been flagged as an IOU
+    routes: /iou-actions
+
+  # The guide documented the bug that was fixed, not the fix.
+  - id: rolling-envelopes
+    question: Do savings envelopes get a monthly allocation, or do they only accumulate what is left over?
+    expected:
+      - They are allocated every month, exactly like any other envelope
+      - The rolls-over setting decides only what happens to the remainder at month end
+      - With it on the remainder stays and accumulates instead of being swept away
+    routes: /concepts
+
+  # The guide promised a manual month-end action that never existed.
+  - id: month-end
+    question: What do I have to do at the end of the month for leftover budget to be swept?
+    expected:
+      - Nothing; the sweep is computed automatically
+      - Overspending is deducted from the savings target the same way leftover money is added to it
+    routes:
+      - /workflows
+      - /concepts
+
+  # The in-app help index taught a header no route reads.
+  - id: api-auth
+    question: What HTTP header do I use to authenticate against the public API?
+    expected:
+      - An Authorization header carrying a Bearer token
+      - The token is created in Settings under API tokens
+    routes: /api
+
+  # No document stated either limit; both change how you build a client.
+  - id: api-limits
+    question: Can I issue an API token that is only allowed to read, and will the API rate-limit me?
+    expected:
+      - There are no scopes, so any valid token can do everything the API offers on that account
+      - There is no rate limiting
+    routes: /api
+
+  # The statements page said "nothing else from your ledger", which was untrue.
+  - id: statement-privacy
+    question: If I import a bank statement, what exactly reaches my AI provider?
+    expected:
+      - CSV and TSV files are read locally and never reach a provider at all
+      - A PDF has its text extracted and sent; an image is sent as a picture
+      - A second pass runs afterwards that also sends a snapshot of the ledger — accounts, categories and recent transactions
+    routes: /statements
+
+  # The only AI call the user does not trigger, previously undocumented.
+  - id: unattended-ai
+    question: Is there any AI request this app makes that I did not personally trigger?
+    expected:
+      - Yes, the suggestions for pending transactions run automatically when an uncategorised row arrives
+      - The raw notification text from the capturing device is part of what is sent
+    routes:
+      - /ai
+      - /finreader
+
+  # "Off" does not mean nothing is sent, which is surprising and important.
+  - id: context-off
+    question: If I set an AI connection's context level to Off, does that guarantee none of my financial data is sent?
+    expected:
+      - No — the pending-suggestions pass raises Off to Compact because it needs the category list
+      - Line classification always sends the Full briefing regardless of the setting
+    routes: /ai
+
+  # The feature had no documentation at all before this audit.
+  - id: location-default
+    question: Does the app record where I made a purchase?
+    expected:
+      - Only if you switch it on; it is off by default
+      - The setting is Capture location in Settings
+      - Automatic capture only happens for new transactions dated today
+    routes: /location
+
+  # The activity log keeps message previews and nothing prunes it.
+  - id: ai-log-retention
+    question: Is the AI activity log deleted automatically after a while?
+    expected:
+      - No, it is kept until you clear it yourself
+      - The button to clear it is on the AI activity log in Settings
+    routes: /ai
+
+  # Attachments were described as uploaded, which they never were.
+  - id: nextcloud
+    question: When I attach a Nextcloud file to a transaction, where is the file stored?
+    expected:
+      - It stays in Nextcloud; nothing is uploaded or copied into this app
+      - Only a link to the file is stored
+    routes: /workflows

@@ -47,6 +47,28 @@ described, every metric named in the README, every page reachable from
 privacy notice. `help-site/known-issues.json` lists what is knowingly
 outstanding; an empty list is the goal.
 
+## Can a reader actually answer things?
+
+`evals.yaml` holds twelve questions, each pinned to a fact this documentation
+had to be corrected on. An agent answers each one using **only** the published
+pages — no repository, no prior knowledge it is allowed to lean on — and a
+second one grades the answer against the facts listed. "The documentation
+doesn't say" fails.
+
+```bash
+npx blume eval            # ~4 min, ~$2.75, needs the Claude Code CLI
+npx blume eval --verbose  # print the reader's full answer under each failure
+```
+
+This is the only check that tests whether the prose *works*. Every structural
+check in `docsParity.test.ts` passed the whole time the guide was telling people
+to click a button that had been removed.
+
+It costs real money per run, so it is **not** part of `npm run check`. Run it
+before a release, or after changing a feature one of the questions covers.
+
+Last full run: **12/12 passed**, average score 0.98.
+
 ## Writing: German is the source
 
 German is `defaultLocale`, so **German is where you write**. English is
