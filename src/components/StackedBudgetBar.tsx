@@ -10,9 +10,16 @@ export interface StackedBudgetBarProps {
 
 /**
  * Stacked progress bar:
- *  - committed segment (success / warning when projected ≥80%)
- *  - pending segment (warning / orange)
+ *  - committed segment (success, or destructive once projected exceeds allocated)
+ *  - pending segment: the same colour, lighter — pending money is the same kind of
+ *    thing as spent money, just not settled. It used to be amber, which read as a
+ *    warning about money that is merely expected.
  *  - over-projected tail (destructive) when projected > allocated
+ *
+ * There is no "approaching budget" amber band. Spending exactly your budget is the
+ * plan working, not a problem, so anything at or under allocated is green and only
+ * going over turns red.
+ *
  * Scale: 0 .. max(allocated, projected). When over, the bar fills 100%
  * and the destructive segment marks the overshoot.
  */
@@ -22,13 +29,11 @@ export function StackedBudgetBar({ allocated, committed, pending, className }: S
   const projected = safeCommitted + safePending;
   const denom = Math.max(allocated, projected, 1);
 
-  const over = allocated > 0 && projected > allocated;
-  const projectedRatio = projected / allocated; // for tone selection only
+  // Strictly over: at exactly the allocated amount the plan held, so it stays green.
+  const over = allocated > 0 && projected > allocated + 0.005;
 
-  // Committed tone: green normally, warning at ≥80% projected, destructive when projected over.
-  let committedTone = "bg-success";
-  if (over) committedTone = "bg-destructive";
-  else if (allocated > 0 && projectedRatio >= 0.8) committedTone = "bg-warning";
+  const committedTone = over ? "bg-destructive" : "bg-success";
+  const pendingTone = over ? "bg-destructive/45" : "bg-success/45";
 
   // Widths are relative to denom so segments add up correctly even when over.
   // When over: render committed (capped at allocated), then pending up to allocated, then a destructive tail = overshoot.
@@ -56,7 +61,7 @@ export function StackedBudgetBar({ allocated, committed, pending, className }: S
         <div className={cn("h-full transition-all", committedTone)} style={{ width: `${committedW}%` }} />
       )}
       {pendingW > 0 && (
-        <div className="h-full bg-warning/70 transition-all" style={{ width: `${pendingW}%` }} />
+        <div className={cn("h-full transition-all", pendingTone)} style={{ width: `${pendingW}%` }} />
       )}
       {overW > 0 && (
         <div className="h-full bg-destructive transition-all" style={{ width: `${overW}%` }} />

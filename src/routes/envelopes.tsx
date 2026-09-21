@@ -152,7 +152,12 @@ function EnvelopesPage() {
 
   const setMonth = React.useCallback(
     (d: Date) => {
-      navigate({ search: () => ({ month: monthParam(startOfMonth(d)), asOf: "" }), replace: true });
+      navigate({
+        // Keep `view`: stepping the month must not throw you out of the table. Drop
+        // `asOf` so the balances follow the month, which is the point of deriving it.
+        search: (prev) => ({ ...prev, month: monthParam(startOfMonth(d)), asOf: "" }),
+        replace: true,
+      });
     },
     [navigate],
   );
@@ -167,9 +172,15 @@ function EnvelopesPage() {
     [navigate],
   );
 
-  // Twelve columns ending at the month you are on, so stepping the month scrolls the
-  // window rather than jumping somewhere unrelated.
-  const gridMonths = React.useMemo(() => monthWindow(month, 12), [month]);
+  // Twelve columns ending at this month, or at the selected one when that is further
+  // ahead — so selecting an earlier column reads history in place instead of sliding
+  // the whole table, while stepping past today extends into the future and makes
+  // those months reachable for planning.
+  const gridMonths = React.useMemo(() => {
+    const now = startOfMonth(new Date());
+    const w = monthWindow(month > now ? month : now, 12);
+    return month < w[0] ? monthWindow(month, 12) : w;
+  }, [month]);
   const gridTo = monthKey(gridMonths[gridMonths.length - 1]);
   const budgetRangeQ = useQuery({
     // Every row up to the right edge, not just the visible window: the value an
@@ -488,6 +499,7 @@ function EnvelopesPage() {
                   <BudgetGrid
                     months={gridMonths}
                     selectedMonth={month}
+                    onSelectMonth={setMonth}
                     categories={categoriesQ.data ?? []}
                     groups={groupsQ.data ?? []}
                     stored={budgetRangeQ.data ?? []}
@@ -505,7 +517,9 @@ function EnvelopesPage() {
                 const d = pendingDeltaForRow(p, g.kind);
                 return s + (g.kind === "income" ? d : Math.max(0, d));
               }, 0);
-              const overProjected = g.kind === "expense" && totalAlloc > 0 && totalActual + totalPending > totalAlloc;
+              // Tolerance, not a bare `>`: spending exactly the budget is the plan working,
+              // and float noise on a sum of decimals would otherwise paint it as overspent.
+              const overProjected = g.kind === "expense" && totalAlloc > 0 && totalActual + totalPending > totalAlloc + 0.005;
               const remaining = totalAlloc - totalActual - totalPending;
               // Savings groups show the sum of cumulative envelope balances,
               // not the (usually zero) monthly allocation.
@@ -655,7 +669,7 @@ function EnvelopesPage() {
                   );
                 } else {
                   const projected = actual + pendingPos;
-                  const overProjected = allocated > 0 && projected > allocated;
+                  const overProjected = allocated > 0 && projected > allocated + 0.005;
                   const remainingProjected = allocated - projected;
                   const cat = categoriesById.get(r.category_id);
                   const groupOverride = r.group_id ? groupSweepById.get(r.group_id) ?? null : null;

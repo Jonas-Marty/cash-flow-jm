@@ -808,6 +808,21 @@ function SettingsPage() {
                       })}
                     </p>
                   )}
+                  {/* Column headings. Only once the row lays out horizontally — below
+                      that the row stacks and the labels would not line up with
+                      anything. Widths mirror renderRow exactly. */}
+                  <div className="hidden items-center justify-between gap-2 border-b pb-1 text-xs font-medium text-muted-foreground @2xl/env:flex">
+                    <div className="min-w-0 flex-1">{tr("settings.col.envelope")}</div>
+                    <div className="flex flex-nowrap items-center justify-end gap-2">
+                      <div className="w-40 shrink-0">{tr("settings.col.group")}</div>
+                      <div className="w-9 shrink-0 truncate text-center" title={tr("settings.savings_envelope")}>
+                        {tr("settings.col.rolls_over")}
+                      </div>
+                      <div className="w-28 shrink-0 truncate text-right">{tr("settings.monthly_budget")}</div>
+                      <div className="w-28 shrink-0 truncate text-right">{tr("settings.opening_balance")}</div>
+                      <div className="w-[168px] shrink-0" aria-hidden />
+                    </div>
+                  </div>
                   {sections}
                 </div>
               );

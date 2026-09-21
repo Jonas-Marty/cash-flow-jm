@@ -23,9 +23,16 @@ Your monthly budget view. Each envelope shows planned vs spent vs remaining. Use
 
 The arrows step through months, and the month name opens a picker. **Tap the planned amount to change that month's budget** — in any month, including one that has already ended.
 
-On a wide screen you can switch to the **table view** from the top right: envelopes down, twelve months across. It shows what an envelope has done over the year and lets you plan several months in one pass. Enter saves one month, ⌘/Ctrl + Enter carries the value right to the edge, and the icon in a column heading copies that whole column from the month before it. Each of these can be undone straight afterwards.
+On a wide screen you can switch to the **table view** from the top right: envelopes down, twelve months across. It shows what an envelope has done over the year and lets you plan several months in one pass.
 
-Italic figures in the table are **not decided yet**: nothing is stored for that month, and the number shows what it would inherit from the month before. A future month only counts towards the projection once you have set it.
+- **Enter** saves that one month; **⌘/Ctrl + Enter** carries the value to the right edge.
+- The **arrow** in a column heading carries that whole month into every later month. This is how you set up January and everything after it while it is still December.
+- Hovering either arrow previews the change: every affected cell shows its old value struck through next to the new one.
+- Clicking a **month name** selects it — the figures above the table follow your selection, and `<` and `>` move it without leaving the table.
+
+Each of these can be undone straight afterwards.
+
+Figures with a dotted underline are **not decided yet**: nothing is stored for that month, and the number shows what it would inherit from the month before. They edit like any other cell. A future month only counts towards the projection once you have set it.
 
 *Balances as of* sets the date the balances are read at. It follows the month you are viewing: a past month reads at its last day, the current month reads today, and a future month reads as a **projection** to its end. You can always set a date of your own.
 

@@ -23,9 +23,16 @@ Monatsansicht deiner Umschläge: geplant vs. ausgegeben vs. übrig. Mit *Umverte
 
 Mit den Pfeilen wechselst du den Monat, über den Monatsnamen wählst du direkt einen aus. **Tippe auf den geplanten Betrag, um das Budget dieses Monats zu ändern** — in jedem Monat, auch in einem vergangenen.
 
-Auf einem breiten Bildschirm kannst du oben rechts auf die **Tabellenansicht** umschalten: Umschläge untereinander, zwölf Monate nebeneinander. Damit siehst du die Entwicklung eines Umschlags über das Jahr und planst mehrere Monate am Stück. Enter speichert einen Monat, ⌘/Strg + Enter überträgt den Wert nach rechts bis zum Rand, und über das Symbol in der Spaltenüberschrift übernimmst du eine ganze Spalte aus dem Vormonat. Jede dieser Aktionen lässt sich direkt danach rückgängig machen.
+Auf einem breiten Bildschirm kannst du oben rechts auf die **Tabellenansicht** umschalten: Umschläge untereinander, zwölf Monate nebeneinander. Damit siehst du die Entwicklung eines Umschlags über das Jahr und planst mehrere Monate am Stück.
 
-Kursive Werte in der Tabelle sind **noch nicht festgelegt**: für diesen Monat ist nichts gespeichert, und die Zahl zeigt, was er vom Vormonat erben würde. Ein künftiger Monat zählt erst dann in die Prognose, wenn du ihn festgelegt hast.
+- **Enter** speichert den einzelnen Monat, **⌘/Strg + Enter** überträgt den Wert bis zum rechten Rand.
+- Der **Pfeil** in einer Spaltenüberschrift überträgt den ganzen Monat in alle folgenden Monate. So legst du im Dezember den Januar und alles danach an.
+- Wenn du mit der Maus über einen dieser Pfeile fährst, zeigen die betroffenen Zellen vorher an, was sich ändern würde: der alte Wert durchgestrichen, der neue daneben.
+- Ein Klick auf den **Monatsnamen** wählt diesen Monat aus — die Kennzahlen oberhalb der Tabelle beziehen sich darauf, und die Pfeiltasten `<` und `>` verschieben die Auswahl, ohne die Tabelle zu verlassen.
+
+Jede dieser Aktionen lässt sich direkt danach rückgängig machen.
+
+Gepunktet unterstrichene Werte sind **noch nicht festgelegt**: für diesen Monat ist nichts gespeichert, und die Zahl zeigt, was er vom Vormonat erben würde. Bearbeiten kannst du sie ganz normal. Ein künftiger Monat zählt erst dann in die Prognose, wenn du ihn festgelegt hast.
 
 *Stand per* bestimmt, auf welchen Tag sich die Salden beziehen. Das Feld folgt dem gewählten Monat: ein vergangener Monat zeigt den Stand an seinem letzten Tag, der laufende Monat zeigt heute, ein künftiger Monat zeigt eine **Prognose** auf sein Ende. Du kannst jederzeit ein eigenes Datum setzen.
 

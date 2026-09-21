@@ -71,8 +71,9 @@ export interface ResolvedCell {
   amount: number;
   /**
    * True when no row exists for this month and the figure shown is what the month
-   * *would* inherit. Nothing has been decided and nothing has been written — the grid
-   * greys these so a blank is never mistaken for a budget of zero.
+   * *would* inherit. Nothing has been decided and nothing has been written. The grid
+   * marks these with a dotted underline — showing the figure so a blank is never read
+   * as zero, but not dimming it, which read as "you cannot edit this".
    */
   inherited: boolean;
 }
@@ -124,4 +125,62 @@ export function resolveCells(
     }
   }
   return out;
+}
+
+/**
+ * Whether committing `next` into a cell is actually a change worth writing.
+ *
+ * Deliberately ignores whether a row exists. Focusing a cell and tabbing away is not
+ * a decision, and treating an undecided cell as always-dirty meant moving across the
+ * table silently materialised every month it touched — complete with a toast claiming
+ * the budget had been updated.
+ */
+export function isBudgetChange(before: ResolvedCell | undefined, next: number): boolean {
+  if (!before) return true;
+  return Math.abs(before.amount - next) >= 0.005;
+}
+
+/**
+ * Whether a *bulk* fill should write this cell.
+ *
+ * Unlike a single commit, filling right exists precisely to decide undecided months,
+ * so an inherited cell is written even when the number does not change — that is the
+ * difference between "this month happens to inherit 600" and "this month is 600".
+ */
+export function needsBulkWrite(before: ResolvedCell | undefined, next: number): boolean {
+  if (!before || before.inherited) return true;
+  return Math.abs(before.amount - next) >= 0.005;
+}
+
+/** Which cells a hovered bulk action would change, and to what. */
+export type GridPreview =
+  | { kind: "row"; categoryId: string; fromCol: number; value: number }
+  | { kind: "fill"; fromCol: number }
+  | { kind: "copy"; fromCol: number };
+
+/**
+ * The value a cell would take if the hovered action were taken; `null` if untouched.
+ *
+ * `row`  — one envelope, from `fromCol` rightwards, inclusive.
+ * `fill` — every envelope, strictly right of `fromCol`, taking that column's value.
+ * `copy` — every envelope, `fromCol` only, taking the column to its left.
+ */
+export function previewValueFor(
+  preview: GridPreview | null,
+  categoryId: string,
+  col: number,
+  monthKeys: string[],
+  resolved: Map<string, ResolvedCell>,
+): number | null {
+  if (!preview) return null;
+  if (preview.kind === "row") {
+    if (preview.categoryId !== categoryId || col < preview.fromCol) return null;
+    return preview.value;
+  }
+  if (preview.kind === "fill") {
+    if (col <= preview.fromCol) return null;
+    return resolved.get(cellId(categoryId, monthKeys[preview.fromCol]))?.amount ?? null;
+  }
+  if (col !== preview.fromCol || preview.fromCol === 0) return null;
+  return resolved.get(cellId(categoryId, monthKeys[preview.fromCol - 1]))?.amount ?? null;
 }

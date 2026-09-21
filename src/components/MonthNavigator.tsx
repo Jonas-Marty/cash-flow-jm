@@ -57,7 +57,7 @@ export function MonthNavigator({
 
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="sm" className="font-medium" aria-label={t("env.month.pick")}>
+          <Button variant="ghost" size="sm" className="text-base font-semibold sm:text-lg" aria-label={t("env.month.pick")}>
             {format(month, "MMMM yyyy", { locale })}
           </Button>
         </PopoverTrigger>

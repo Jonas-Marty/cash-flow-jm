@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { buildGridGroups, cellId, effectiveKind, monthWindow, resolveCells } from "./budgetGrid";
+import {
+  buildGridGroups,
+  cellId,
+  effectiveKind,
+  isBudgetChange,
+  monthWindow,
+  needsBulkWrite,
+  previewValueFor,
+  resolveCells,
+} from "./budgetGrid";
 import type { Category, CategoryBudgetCell, CategoryGroup, GroupKind } from "./finance";
 
 const cat = (over: Partial<Category> & { id: string }): Category =>
@@ -142,5 +151,101 @@ describe("resolveCells", () => {
     const rent = cat({ id: "rent", allocated_budget: 1500 });
     const out = resolveCells([food, rent], [cell("2026-01-01", 600)], months);
     expect(out.get(cellId("rent", "2026-01-01"))).toEqual({ amount: 1500, inherited: true });
+  });
+});
+
+describe("isBudgetChange", () => {
+  const stored = { amount: 600, inherited: false };
+  const undecided = { amount: 600, inherited: true };
+
+  it("is false when the value is unchanged, whether or not a row exists", () => {
+    // The regression: focusing an undecided cell and tabbing away used to count as a
+    // change, so moving across the table materialised months and toasted about it.
+    expect(isBudgetChange(stored, 600)).toBe(false);
+    expect(isBudgetChange(undecided, 600)).toBe(false);
+  });
+
+  it("is true for a real change in either direction", () => {
+    expect(isBudgetChange(stored, 640)).toBe(true);
+    expect(isBudgetChange(undecided, 0)).toBe(true);
+  });
+
+  it("ignores float noise below half a cent", () => {
+    expect(isBudgetChange(stored, 600.004)).toBe(false);
+    expect(isBudgetChange(stored, 600.006)).toBe(true);
+  });
+
+  it("treats a cell with no resolution at all as a change", () => {
+    expect(isBudgetChange(undefined, 0)).toBe(true);
+  });
+});
+
+describe("needsBulkWrite", () => {
+  it("writes an undecided cell even when the number is the same", () => {
+    // Filling right exists to *decide* months, so "inherits 600" must become "is 600".
+    expect(needsBulkWrite({ amount: 600, inherited: true }, 600)).toBe(true);
+  });
+
+  it("skips a stored cell that already holds the value", () => {
+    expect(needsBulkWrite({ amount: 600, inherited: false }, 600)).toBe(false);
+  });
+
+  it("writes a stored cell that differs", () => {
+    expect(needsBulkWrite({ amount: 600, inherited: false }, 640)).toBe(true);
+  });
+});
+
+describe("previewValueFor", () => {
+  const keys = ["2026-01-01", "2026-02-01", "2026-03-01"];
+  const resolved = new Map([
+    [cellId("food", "2026-01-01"), { amount: 100, inherited: false }],
+    [cellId("food", "2026-02-01"), { amount: 200, inherited: false }],
+    [cellId("food", "2026-03-01"), { amount: 300, inherited: false }],
+  ]);
+  const pv = (p: Parameters<typeof previewValueFor>[0], id: string, col: number) =>
+    previewValueFor(p, id, col, keys, resolved);
+
+  it("returns null when nothing is hovered", () => {
+    expect(pv(null, "food", 0)).toBeNull();
+  });
+
+  describe("row fill", () => {
+    const p = { kind: "row", categoryId: "food", fromCol: 1, value: 999 } as const;
+
+    it("covers the source column and everything right of it", () => {
+      expect(pv(p, "food", 1)).toBe(999);
+      expect(pv(p, "food", 2)).toBe(999);
+    });
+
+    it("leaves columns to the left alone", () => {
+      expect(pv(p, "food", 0)).toBeNull();
+    });
+
+    it("leaves other envelopes alone", () => {
+      expect(pv(p, "rent", 2)).toBeNull();
+    });
+  });
+
+  describe("column fill", () => {
+    const p = { kind: "fill", fromCol: 0 } as const;
+
+    it("takes the source column's value, strictly to its right", () => {
+      expect(pv(p, "food", 0)).toBeNull();
+      expect(pv(p, "food", 1)).toBe(100);
+      expect(pv(p, "food", 2)).toBe(100);
+    });
+  });
+
+  describe("copy from previous", () => {
+    it("touches only the target column, taking the one to its left", () => {
+      const p = { kind: "copy", fromCol: 2 } as const;
+      expect(pv(p, "food", 0)).toBeNull();
+      expect(pv(p, "food", 1)).toBeNull();
+      expect(pv(p, "food", 2)).toBe(200);
+    });
+
+    it("is inert on the leftmost column, which has no previous", () => {
+      expect(pv({ kind: "copy", fromCol: 0 }, "food", 0)).toBeNull();
+    });
   });
 });
