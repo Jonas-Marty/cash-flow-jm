@@ -136,9 +136,11 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       { name: "twitter:title", content: "Cashflow — Personal Finance" },
       { property: "og:description", content: "Track daily cash flow, envelope budgets, and credit-card liabilities." },
       { name: "twitter:description", content: "Track daily cash flow, envelope budgets, and credit-card liabilities." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/82b6ea51-4032-4d11-8a80-af7194ddb3a5/id-preview-0f7cdb6f--dc583b35-4198-44ed-820e-de70acfe1c58.lovable.app-1777208399385.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/82b6ea51-4032-4d11-8a80-af7194ddb3a5/id-preview-0f7cdb6f--dc583b35-4198-44ed-820e-de70acfe1c58.lovable.app-1777208399385.png" },
-      { name: "twitter:card", content: "summary_large_image" },
+      // No og:image. The one that used to sit here was a Lovable preview
+      // screenshot on a bucket we do not control — an outdated picture of a
+      // different app, which its owner could replace at any time. A card with
+      // no image beats a card showing someone else's.
+      { name: "twitter:card", content: "summary" },
       { property: "og:type", content: "website" },
     ],
     links: [{ rel: "stylesheet", href: appCss }],

@@ -29,7 +29,7 @@ type Content = {
 
 const EN: Content = {
   title: "Privacy Policy & GDPR / DSGVO Notice",
-  updated: "Last updated: 2026-06-04",
+  updated: "Last updated: 2026-09-22",
   intro:
     "This document explains how personal data is processed in this self-hosted Cashflow instance, in line with the EU General Data Protection Regulation (GDPR) and the Swiss Federal Act on Data Protection (FADP / revDSG).",
   warning:
@@ -48,7 +48,7 @@ const EN: Content = {
     {
       id: "data-collected",
       title: "3. Data we collect",
-      body: "**Account data:** email address and a hashed password.\n\n**Application data:** everything you enter into the app — accounts, transactions, amounts, descriptions, notes, tags, attachments, recurring rules, scopes, IOUs, settings.\n\n**Operational data:** request logs (timestamp, request id, HTTP method, path, status, duration, best-effort user id), audit logs of database changes, authentication events (login / logout / token refresh).\n\nNo tracking cookies, no analytics SDKs, no advertising identifiers.",
+      body: "**Account data:** email address and a hashed password.\n\n**Application data:** everything you enter into the app — accounts, transactions, amounts, descriptions, notes, tags, attachments, recurring rules, scopes, IOUs, settings.\n\n**Location data (opt-in, off by default):** if you switch on *Capture location* in Settings, a transaction can carry GPS coordinates, an accuracy radius in metres, a place label and how the point was obtained (device, map pin or search). Coordinates are stored to six decimal places, which is precise to roughly a handbreadth. The same fields can be sent by an API client alongside an imported transaction.\n\n**Operational data:** request logs (timestamp, request id, HTTP method, path, status, duration, best-effort user id), audit logs of database changes, authentication events (login / logout / token refresh).\n\nNo tracking cookies, no analytics SDKs, no advertising identifiers.",
     },
     {
       id: "purpose",
@@ -63,7 +63,7 @@ const EN: Content = {
     {
       id: "sharing",
       title: "6. Sharing with third parties",
-      body: "Your data is **not sold** and **not shared** with third parties for marketing or profiling. Data leaves the server only if you explicitly trigger it — for example by:\n- Connecting Nextcloud for attachments (attachments are then stored in **your** Nextcloud).\n- Using the public REST API with your own tokens.\n- Exporting your data.\n\nNo subprocessors are used.",
+      body: "Your data is **not sold** and **not shared** with third parties for marketing or profiling, and no third party receives your transactions, amounts or balances.\n\n**You trigger these yourself:**\n- Connecting Nextcloud for attachments (the file stays in **your** Nextcloud; this app only stores a link to it).\n- Configuring an AI connection — see section 6a for exactly what each feature sends.\n- Using the public REST API with your own tokens.\n- Exporting your data.\n\n**These happen without a separate confirmation**, because they are part of a feature you switched on. They are listed here rather than left implied:\n\n| Service | Called by | Receives | When |\n| --- | --- | --- | --- |\n| [Nominatim](https://nominatim.openstreetmap.org) (OpenStreetMap) | our server | your search text, or the exact coordinates of a pin | every place search, and every time a location is captured or moved |\n| [Photon](https://photon.komoot.io) (Komoot) | our server | the same, as a fallback when Nominatim fails | as above |\n| [tile.openstreetmap.org](https://tile.openstreetmap.org) | **your browser** | **your IP address** and the map area shown | whenever a map is displayed |\n| [api.frankfurter.dev](https://api.frankfurter.dev) (ECB rates) | **your browser** | **your IP address**; no account data | on the dashboard, Envelopes and Add, when you hold more than one currency |\n| [unpkg.com](https://unpkg.com) | **your browser** | **your IP address** | only if you open the API documentation page |\n| [openstreetmap.org](https://www.openstreetmap.org) | **your browser** | **your IP address** and the coordinates, in the link | only if you click *open in OpenStreetMap* |\n\nThe two geocoding lookups are made **by the server on your behalf**, so OpenStreetMap and Komoot see this server\u2019s address rather than yours. The four browser-side rows do expose your own IP address to the service named.\n\nNo other processors are used, and none of these receive financial data.",
     },
     {
       id: "ai",
@@ -95,7 +95,7 @@ const EN: Content = {
 
 const DE: Content = {
   title: "Datenschutzerklärung & DSGVO-Hinweis",
-  updated: "Stand: 2026-06-04",
+  updated: "Stand: 2026-09-22",
   intro:
     "Dieses Dokument beschreibt, wie personenbezogene Daten in dieser selbst gehosteten Cashflow-Instanz verarbeitet werden — im Sinne der EU-Datenschutz-Grundverordnung (DSGVO) und des revidierten Schweizer Datenschutzgesetzes (revDSG).",
   warning:
@@ -114,7 +114,7 @@ const DE: Content = {
     {
       id: "data-collected",
       title: "3. Erhobene Daten",
-      body: "**Account-Daten:** E-Mail-Adresse und gehashtes Passwort.\n\n**Anwendungsdaten:** alles, was du in der App eingibst — Konten, Buchungen, Beträge, Beschreibungen, Notizen, Tags, Anhänge, wiederkehrende Regeln, Scopes, IOUs, Einstellungen.\n\n**Betriebsdaten:** Request-Logs (Zeitstempel, Request-ID, HTTP-Methode, Pfad, Status, Dauer, sofern möglich User-ID), Audit-Logs von Datenbankänderungen, Authentifizierungsereignisse (Login / Logout / Token-Refresh).\n\nKeine Tracking-Cookies, keine Analytics-SDKs, keine Werbe-IDs.",
+      body: "**Account-Daten:** E-Mail-Adresse und gehashtes Passwort.\n\n**Anwendungsdaten:** alles, was du in der App eingibst — Konten, Buchungen, Beträge, Beschreibungen, Notizen, Tags, Anhänge, wiederkehrende Regeln, Scopes, IOUs, Einstellungen.\n\n**Standortdaten (opt-in, standardmäßig aus):** Wenn du in den Einstellungen *Ort erfassen* aktivierst, kann eine Buchung GPS-Koordinaten, einen Genauigkeitsradius in Metern, eine Ortsbezeichnung und die Herkunft des Punktes (Gerät, Karten-Pin oder Suche) tragen. Koordinaten werden mit sechs Nachkommastellen gespeichert, also etwa handbreit genau. Dieselben Felder kann auch ein API-Client zu einer importierten Buchung mitschicken.\n\n**Betriebsdaten:** Request-Logs (Zeitstempel, Request-ID, HTTP-Methode, Pfad, Status, Dauer, sofern möglich User-ID), Audit-Logs von Datenbankänderungen, Authentifizierungsereignisse (Login / Logout / Token-Refresh).\n\nKeine Tracking-Cookies, keine Analytics-SDKs, keine Werbe-IDs.",
     },
     {
       id: "purpose",
@@ -129,7 +129,7 @@ const DE: Content = {
     {
       id: "sharing",
       title: "6. Weitergabe an Dritte",
-      body: "Deine Daten werden **nicht verkauft** und **nicht für Marketing oder Profilbildung** an Dritte weitergegeben. Daten verlassen den Server nur, wenn du es aktiv auslöst — z. B. durch:\n- Verbinden von Nextcloud für Anhänge (Anhänge liegen dann in **deiner** Nextcloud).\n- Nutzung der öffentlichen REST-API mit eigenen Tokens.\n- Export deiner Daten.\n\nEs werden keine Auftragsverarbeiter eingesetzt.",
+      body: "Deine Daten werden **nicht verkauft** und **nicht für Marketing oder Profilbildung** an Dritte weitergegeben. Kein Dritter erhält deine Buchungen, Beträge oder Salden.\n\n**Das löst du selbst aus:**\n- Verbinden von Nextcloud für Anhänge (die Datei bleibt in **deiner** Nextcloud; diese App speichert nur einen Link darauf).\n- Einrichten einer KI-Verbindung — was dabei genau gesendet wird, steht in Abschnitt 6a.\n- Nutzung der öffentlichen REST-API mit eigenen Tokens.\n- Export deiner Daten.\n\n**Das geschieht ohne gesonderte Rückfrage**, weil es zu einer von dir aktivierten Funktion gehört. Es wird hier aufgeführt, statt stillschweigend vorausgesetzt:\n\n| Dienst | Aufgerufen von | Erhält | Wann |\n| --- | --- | --- | --- |\n| [Nominatim](https://nominatim.openstreetmap.org) (OpenStreetMap) | unserem Server | deinen Suchtext bzw. die exakten Koordinaten eines Pins | bei jeder Ortssuche und jedes Mal, wenn ein Ort erfasst oder verschoben wird |\n| [Photon](https://photon.komoot.io) (Komoot) | unserem Server | dasselbe, als Fallback wenn Nominatim ausfällt | wie oben |\n| [tile.openstreetmap.org](https://tile.openstreetmap.org) | **deinem Browser** | **deine IP-Adresse** und den gezeigten Kartenausschnitt | sobald eine Karte angezeigt wird |\n| [api.frankfurter.dev](https://api.frankfurter.dev) (EZB-Kurse) | **deinem Browser** | **deine IP-Adresse**; keine Kontodaten | auf Übersicht, Budgets und Neu, wenn du mehr als eine Währung führst |\n| [unpkg.com](https://unpkg.com) | **deinem Browser** | **deine IP-Adresse** | nur wenn du die API-Dokumentation öffnest |\n| [openstreetmap.org](https://www.openstreetmap.org) | **deinem Browser** | **deine IP-Adresse** und die Koordinaten im Link | nur wenn du *in OpenStreetMap öffnen* anklickst |\n\nDie beiden Geocoding-Abfragen stellt **der Server stellvertretend für dich**, OpenStreetMap und Komoot sehen also die Adresse dieses Servers und nicht deine. Bei den vier browserseitigen Zeilen wird deine eigene IP-Adresse dem genannten Dienst bekannt.\n\nWeitere Auftragsverarbeiter werden nicht eingesetzt, und keiner der genannten Dienste erhält Finanzdaten.",
     },
     {
       id: "ai",

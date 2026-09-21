@@ -22,14 +22,7 @@
       "cash-flow-jm.lovable.app": "Stale server URL declared in the OpenAPI spec, not a host we contact. The banned-phrase check on `lovable.app` forces its removal in stage 7; delete this entry with it."
     },
     "undisclosed": {
-      "$comment": "REAL third parties that privacy.tsx does not yet mention. Stage 1 empties this.",
-      "nominatim.openstreetmap.org": "Server-side geocoding; receives search text and exact coordinates.",
-      "photon.komoot.io": "Server-side geocoding fallback; same payload.",
-      "tile.openstreetmap.org": "Browser-side map tiles; receives the reader's own IP.",
-      "unpkg.com": "Browser-side Swagger UI assets; receives the reader's IP and can execute JS.",
-      "www.openstreetmap.org": "Click-out link carrying coordinates in the URL.",
-      "api.frankfurter.dev": "Browser-side FX rates on the dashboard, /envelopes and /add; receives the reader's IP on page load.",
-      "pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev": "Open Graph image URL left over from Lovable; fetched by social crawlers, not users. Should be self-hosted or dropped."
+      "$comment": "Empty since stage 1: privacy.tsx section 6 now names every host the code contacts, in both locales. A new entry here means a third party was added without disclosing it."
     }
   },
 
