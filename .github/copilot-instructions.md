@@ -2,7 +2,7 @@
 
 These rules apply to **any** AI assistant (GitHub Copilot, Cursor, Claude, Codex, etc.) editing this repo. The project is built and primarily edited inside [Lovable](https://lovable.dev), so all changes must remain **Lovable-compliant**: they must build, run, and round-trip through Lovable's bidirectional GitHub sync without breaking the platform's conventions.
 
-Read [`architecture.md`](../architecture.md) and [`.lovable/plan.md`](../.lovable/plan.md) before non-trivial work — they are the source of truth for the domain model and in-flight plans. Update `architecture.md` in the same change set as any new feature, schema change, or business-rule decision.
+Read [`architecture.md`](../architecture.md) before non-trivial work — they are the source of truth for the domain model and in-flight plans. Update `architecture.md` in the same change set as any new feature, schema change, or business-rule decision.
 
 ---
 
@@ -150,7 +150,7 @@ The TanStack code-splitter and server-fn transformer are stricter than the bundl
 ## 12. Workflow expectations
 
 1. **Discuss first** for broad/ambiguous requests; implement directly for narrow ones.
-2. **Plan before sweeping refactors.** Big plans go in `.lovable/plan.md`.
+2. **Plan before sweeping refactors.** Record the outcome in `architecture.md`, not in a scratch plan file.
 3. **Read before edit.** Have file contents in context before patching.
 4. **Small, focused components.** Refactor when files balloon.
 5. **Verify changes.** Check build output, console, network, and the preview before claiming done.
@@ -167,6 +167,5 @@ The TanStack code-splitter and server-fn transformer are stricter than the bundl
 
 ## 14. When in doubt
 
-- Search the official Lovable docs: <https://docs.lovable.dev/>.
-- Re-read `architecture.md` and `.lovable/plan.md`.
+- Re-read `architecture.md`.
 - Prefer the smallest change that satisfies the request, in frontend code, with no schema impact, unless the user asked otherwise.
