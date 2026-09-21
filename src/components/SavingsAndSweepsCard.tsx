@@ -12,7 +12,7 @@ import {
   fetchCategories,
   fetchCategoryGroups,
   fetchSettings,
-  fetchReconciliationSummary,
+  fetchEnvelopeReconciliation,
   setDefaultSweepTarget,
   setCategorySweepTarget,
   setGroupSweepTarget,
@@ -29,7 +29,7 @@ export function SavingsAndSweepsCard() {
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const cats = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   const groups = useQuery({ queryKey: ["category_groups"], queryFn: fetchCategoryGroups });
-  const reconQ = useQuery({ queryKey: ["reconciliation"], queryFn: () => fetchReconciliationSummary() });
+  const reconQ = useQuery({ queryKey: ["reconciliation"], queryFn: () => fetchEnvelopeReconciliation() });
 
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
   const savings: Category[] = (cats.data ?? []).filter((c) => c.rolls_over && !c.archived);
@@ -68,8 +68,8 @@ export function SavingsAndSweepsCard() {
   });
 
   const recon = reconQ.data;
-  const driftAbs = recon ? Math.abs(Number(recon.drift)) : 0;
-  const driftOk = driftAbs < 0.005;
+  const residualAbs = recon ? Math.abs(Number(recon.residual)) : 0;
+  const balanced = residualAbs < 0.005;
 
   return (
     <Card>
@@ -98,15 +98,19 @@ export function SavingsAndSweepsCard() {
           <div className="rounded-md border p-3 space-y-1.5 text-sm">
             <div className="font-medium">{tr("settings.savings.reconciliation")}</div>
             <div className="flex justify-between"><span className="text-muted-foreground">{tr("settings.savings.accounts_total")}</span><span className="tabular-nums">{fmtMoney(Number(recon.accounts_total), symbol)}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">{tr("settings.savings.savings_total")}</span><span className="tabular-nums">{fmtMoney(Number(recon.savings_total), symbol)}</span></div>
-            <div className="flex justify-between"><span className="text-muted-foreground">{tr("settings.savings.unswept")}</span><span className="tabular-nums">{fmtMoney(Number(recon.unswept_current_month), symbol)}</span></div>
+            <div className="mt-1 border-t pt-1.5 text-xs text-muted-foreground">{tr("settings.savings.held_in")}</div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{tr("settings.savings.rollover_total")}</span><span className="tabular-nums">{fmtMoney(Number(recon.rollover_total), symbol)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{tr("settings.savings.expense_open")}</span><span className="tabular-nums">{fmtMoney(Number(recon.expense_open), symbol)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{tr("settings.savings.income_open")}</span><span className="tabular-nums">{fmtMoney(Number(recon.income_open), symbol)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{tr("settings.savings.outstanding")}</span><span className="tabular-nums">{fmtMoney(Number(recon.outstanding_reimbursements), symbol)}</span></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">{tr("settings.savings.unallocated")}</span><span className="tabular-nums">{fmtMoney(Number(recon.unallocated), symbol)}</span></div>
             <div className="flex justify-between border-t pt-1.5">
-              <span className="font-medium">{tr("settings.savings.drift")}</span>
-              <span className={cn("tabular-nums font-semibold", driftOk ? "text-success" : "text-warning")}>
-                {driftOk ? tr("settings.savings.drift_ok") : fmtMoney(Number(recon.drift), symbol)}
+              <span className="font-medium">{tr("settings.savings.residual")}</span>
+              <span className={cn("tabular-nums font-semibold", balanced ? "text-success" : "text-warning")}>
+                {balanced ? tr("settings.savings.residual_ok") : fmtMoney(Number(recon.residual), symbol)}
               </span>
             </div>
-            {!driftOk && <p className="text-xs text-muted-foreground">{tr("settings.savings.drift_help")}</p>}
+            {!balanced && <p className="text-xs text-muted-foreground">{tr("settings.savings.residual_help")}</p>}
           </div>
         )}
 

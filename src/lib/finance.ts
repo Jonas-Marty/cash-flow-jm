@@ -86,11 +86,29 @@ export interface CategorySavingsBalance {
   from_allocations: number;
 }
 
-export interface ReconciliationSummary {
+/**
+ * Every term of "each franc in an account sits in exactly one envelope":
+ *
+ *   accounts_total = rollover_total + expense_open + income_open
+ *                  + outstanding_reimbursements + unallocated + residual
+ *
+ * `residual` is what the model cannot yet account for and is the number to
+ * watch — it only reaches zero once opening balances are assigned and income
+ * variance is swept.
+ */
+export interface EnvelopeReconciliation {
   accounts_total: number;
-  savings_total: number;
-  unswept_current_month: number;
-  drift: number;
+  /** Envelopes that carry forward, scopes included. */
+  rollover_total: number;
+  /** Current month's remainder on envelopes that reset; earlier months are swept. */
+  expense_open: number;
+  /** Income received this month minus income planned. Negative until payday. */
+  income_open: number;
+  /** Laid out for someone else and not back yet — an asset in transit. */
+  outstanding_reimbursements: number;
+  /** Uncategorised flow, transfer FX, and planned income never assigned. */
+  unallocated: number;
+  residual: number;
 }
 
 export interface CategoryReallocation {
@@ -1048,11 +1066,11 @@ export async function fetchSavingsBalanceSeries(
   return (data || []) as SavingsBalancePoint[];
 }
 
-export async function fetchReconciliationSummary(asOf?: string): Promise<ReconciliationSummary | null> {
+export async function fetchEnvelopeReconciliation(asOf?: string): Promise<EnvelopeReconciliation | null> {
   const date = asOf ?? todayISO();
-  const { data, error } = await supabase.rpc("reconciliation_summary", { p_as_of: date });
+  const { data, error } = await supabase.rpc("envelope_reconciliation", { p_as_of: date });
   if (error) throw error;
-  const rows = (data || []) as ReconciliationSummary[];
+  const rows = (data || []) as EnvelopeReconciliation[];
   return rows[0] ?? null;
 }
 

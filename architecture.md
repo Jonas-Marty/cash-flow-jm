@@ -365,6 +365,21 @@ including the SQL/app inventory, performance estimate and phased plan, lives in
 
 ## 7. Change log
 
+### 2026-09-21 — envelope_reconciliation: show the books balancing
+
+- Migration `20260921200000_envelope_reconciliation.sql`: new
+  `envelope_reconciliation(p_as_of)` returning every term of
+  `accounts_total = rollover_total + expense_open + income_open +
+  outstanding_reimbursements + unallocated + residual`, plus index
+  `idx_tx_user_cat_date`. Replaces `reconciliation_summary`, whose `drift`
+  compared accounts against envelopes that had never been allocated anything.
+- Additive: no balance changes. `residual` is deliberately still large — it is
+  exactly the unassigned account opening balances plus income variance over
+  elapsed months, the two things opening balances and income sweeps will absorb.
+- The open-month windows clip at `p_as_of` like `accounts_total` does; reading
+  the whole calendar month made a mid-month reconciliation count spending that
+  had not happened yet.
+
 ### 2026-09-21 — Rolling envelopes are allocated; one savings balance
 
 - Migration `20260921160000_allocate_rollover_envelopes.sql`: `ensure_month_budgets` now skips

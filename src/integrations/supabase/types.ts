@@ -1860,13 +1860,16 @@ export type Database = {
         Args: { p_orig: string }
         Returns: undefined
       }
-      reconciliation_summary: {
+      envelope_reconciliation: {
         Args: { p_as_of: string }
         Returns: {
           accounts_total: number
-          drift: number
-          savings_total: number
-          unswept_current_month: number
+          expense_open: number
+          income_open: number
+          outstanding_reimbursements: number
+          residual: number
+          rollover_total: number
+          unallocated: number
         }[]
       }
       save_split_group: {
