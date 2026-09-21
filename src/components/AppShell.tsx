@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useI18n, LANGUAGES, type Lang } from "@/i18n";
+import { helpUrl } from "@/lib/helpUrl";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -30,6 +31,8 @@ type Tab = {
   icon: typeof LayoutDashboard;
   exact?: boolean;
   primary?: boolean;
+  /** Set when the entry leaves the app — the guide is its own static site. */
+  external?: boolean;
 };
 const tabs: Tab[] = [
   { to: "/", labelKey: "nav.dashboard", icon: LayoutDashboard, exact: true },
@@ -55,7 +58,7 @@ const mobileMoreItems: Tab[] = [
   { to: "/statements", labelKey: "nav.statements", icon: FileText },
   { to: "/links", labelKey: "nav.links", icon: Link2 },
   { to: "/assistant", labelKey: "nav.assistant", icon: Sparkles },
-  { to: "/help", labelKey: "nav.help", icon: HelpCircle },
+  { to: "/help", labelKey: "nav.help", icon: HelpCircle, external: true },
   { to: "/settings", labelKey: "nav.settings", icon: SettingsIcon },
 ];
 
@@ -69,7 +72,7 @@ const mobileTabs: MobileTab[] = [
 
 export function AppShell({ children, wide = false }: { children: React.ReactNode; wide?: boolean }) {
   const loc = useLocation();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { user } = useAuth();
   const pendingCountQ = useQuery({
     queryKey: ["pending_transactions", "pending", "count"],
@@ -129,7 +132,7 @@ export function AppShell({ children, wide = false }: { children: React.ReactNode
     };
   }, []);
   const moreActive = mobileMoreItems.some((t) =>
-    t.exact ? loc.pathname === t.to : loc.pathname.startsWith(t.to),
+    t.external ? false : t.exact ? loc.pathname === t.to : loc.pathname.startsWith(t.to),
   );
   return (
     <div className="min-h-screen overflow-x-clip bg-background text-foreground">
@@ -143,17 +146,16 @@ export function AppShell({ children, wide = false }: { children: React.ReactNode
           {user && (
             <div className="flex shrink-0 items-center gap-2 border-l pl-3">
               <ActiveScopeChip />
-              <Link
-                to="/help"
-                className={cn(
-                  "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground",
-                  loc.pathname.startsWith("/help") && "bg-accent text-accent-foreground",
-                )}
+              <a
+                href={helpUrl(lang)}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
                 aria-label={t("nav.help")}
                 title={t("nav.help")}
               >
                 <HelpCircle className="h-4 w-4" />
-              </Link>
+              </a>
               <AccountMenu />
             </div>
           )}
@@ -209,31 +211,54 @@ export function AppShell({ children, wide = false }: { children: React.ReactNode
                     >
                       <ul className="flex flex-col">
                         {mobileMoreItems.map((item) => {
-                          const active = item.exact
-                            ? loc.pathname === item.to
-                            : loc.pathname.startsWith(item.to);
+                          const active = item.external
+                            ? false
+                            : item.exact
+                              ? loc.pathname === item.to
+                              : loc.pathname.startsWith(item.to);
                           const ItemIcon = item.icon;
                           const itemBadge = item.to === "/pending" && pendingCount > 0;
+                          const rowClass = cn(
+                            "flex items-center gap-2 rounded-md px-3 py-2 text-sm",
+                            active
+                              ? "bg-accent text-accent-foreground"
+                              : "text-foreground hover:bg-accent hover:text-accent-foreground",
+                          );
+                          const rowBody = (
+                            <>
+                              <ItemIcon className="h-4 w-4" />
+                              <span className="flex-1">{t(item.labelKey)}</span>
+                              {itemBadge && (
+                                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-semibold text-warning-foreground">
+                                  {pendingCount}
+                                </span>
+                              )}
+                            </>
+                          );
                           return (
                             <li key={item.to}>
-                              <Link
-                                to={item.to}
-                                onClick={() => setMoreOpen(false)}
-                                className={cn(
-                                  "flex items-center gap-2 rounded-md px-3 py-2 text-sm",
-                                  active
-                                    ? "bg-accent text-accent-foreground"
-                                    : "text-foreground hover:bg-accent hover:text-accent-foreground",
-                                )}
-                              >
-                                <ItemIcon className="h-4 w-4" />
-                                <span className="flex-1">{t(item.labelKey)}</span>
-                                {itemBadge && (
-                                  <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-warning px-1 text-[10px] font-semibold text-warning-foreground">
-                                    {pendingCount}
-                                  </span>
-                                )}
-                              </Link>
+                              {/* The guide is a separate origin, so it cannot
+                                  go through the router — a <Link> would route
+                                  to the redirect stub and cost a page load. */}
+                              {item.external ? (
+                                <a
+                                  href={helpUrl(lang)}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  onClick={() => setMoreOpen(false)}
+                                  className={rowClass}
+                                >
+                                  {rowBody}
+                                </a>
+                              ) : (
+                                <Link
+                                  to={item.to}
+                                  onClick={() => setMoreOpen(false)}
+                                  className={rowClass}
+                                >
+                                  {rowBody}
+                                </Link>
+                              )}
                             </li>
                           );
                         })}

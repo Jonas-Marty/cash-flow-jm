@@ -32,6 +32,7 @@ import {
   type ReimbursementLink,
 } from "@/lib/finance";
 import { useI18n } from "@/i18n";
+import { helpUrl } from "@/lib/helpUrl";
 import { Plus, Ban, Pencil, MinusCircle, HelpCircle } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { PrivacyValue } from "@/components/DashboardPrivacy";
@@ -395,7 +396,7 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
 }
 
 function IouHelpPopover() {
-  const { t: tr } = useI18n();
+  const { t: tr, lang } = useI18n();
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -417,9 +418,14 @@ function IouHelpPopover() {
           <li>{tr("iou.help.cancel")}</li>
         </ul>
         <div className="mt-3 border-t pt-2 text-xs">
-          <Link to="/help" hash="iou-actions" className="text-primary hover:underline">
+          <a
+            href={helpUrl(lang, "iou-actions")}
+            target="_blank"
+            rel="noreferrer"
+            className="text-primary hover:underline"
+          >
             {tr("iou.help.full_guide")} →
-          </Link>
+          </a>
         </div>
       </PopoverContent>
     </Popover>

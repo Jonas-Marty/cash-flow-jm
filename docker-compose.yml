@@ -36,6 +36,9 @@ services:
       args:
         VITE_SUPABASE_URL: ${VITE_SUPABASE_URL}
         VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY}
+        # Optional: override the guide's origin (defaults to the production
+        # docs site, help.cash-flow.wi-wo.ch).
+        VITE_HELP_URL: ${VITE_HELP_URL:-}
         # Version stamp shown in Settings -> About and at /api/public/version.
         # APP_VERSION defaults to package.json version; set APP_COMMIT in
         # Dokploy (e.g. to the deployed commit SHA) to see the exact build.

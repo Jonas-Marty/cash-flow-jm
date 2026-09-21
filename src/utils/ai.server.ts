@@ -773,7 +773,7 @@ const HELP_INDEX: { section: string; q: string; a: string }[] = [
   { section: "IOUs", q: "What are Open IOUs?", a: "Expenses you marked as reimbursable where someone owes you money. From OpenIOUs card you can Add repayment, Mark settled (paid in full off-app), Book as loss (write off), or Cancel (revert to a normal expense)." },
   { section: "Pending", q: "What are Pending Transactions?", a: "Entries imported from the public API (bank, Nextcloud bridge, etc.) waiting for review. Tabs: Pending, Open IOUs, Rejected, Confirmed." },
   { section: "Insights", q: "Insights page", a: "Overview, Breakdown, Trends, Projection tabs for any period." },
-  { section: "API", q: "How do I use the public API?", a: "Create an API token in Settings → API Tokens, then call /api/public/* with header X-API-Token. See /help for endpoints." },
+  { section: "API", q: "How do I use the public API?", a: "Create an API token in Settings → API Tokens, then call /api/public/* with header X-API-Token. See help.cash-flow.wi-wo.ch/webhooks for endpoints." },
   { section: "Privacy", q: "Where is my data stored?", a: "Data is stored unencrypted on a private homelab server in Switzerland. The server operator can read all entered data — see /privacy for the full GDPR statement." },
   { section: "AI", q: "What does the AI assistant send to my provider?", a: "When you chat, your messages plus tool results (transactions, balances, categories) are sent to the OpenAI-compatible endpoint you configured. Your API token is stored server-side and is readable by the server operator." },
 ];

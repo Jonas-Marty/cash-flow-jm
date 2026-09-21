@@ -37,6 +37,11 @@ ARG VITE_SUPABASE_PUBLISHABLE_KEY
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
 ENV VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
 
+# Where the guide lives. Unset is the normal case — src/lib/helpUrl.ts falls
+# back to the production docs site, which both app environments share.
+ARG VITE_HELP_URL
+ENV VITE_HELP_URL=$VITE_HELP_URL
+
 # Version stamp: semver from package.json unless APP_VERSION is passed, plus
 # the git commit hash and build timestamp. The commit is what answers "is the
 # running container the code I pushed?", so it is worth the git in this stage:

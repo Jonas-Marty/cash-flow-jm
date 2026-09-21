@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Markdown } from "@/components/Markdown";
 import { useI18n, type Lang } from "@/i18n";
+import { helpUrl } from "@/lib/helpUrl";
 import { Shield, AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/privacy")({
@@ -218,9 +219,9 @@ function PrivacyPage() {
 
           <Separator />
           <p className="text-center text-xs text-muted-foreground">
-            <Link to="/help" className="hover:underline">
+            <a href={helpUrl(lang)} className="hover:underline">
               ← {lang === "de" ? "Zur Hilfe" : "Back to help"}
-            </Link>
+            </a>
           </p>
         </div>
       </div>

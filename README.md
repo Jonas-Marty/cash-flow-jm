@@ -377,6 +377,31 @@ testable — see `scripts/dev/scrub-dev.sql`.
 
 ---
 
-## 9. License
+## 9. Help site
+
+The user guide is its own static site at **help.cash-flow.wi-wo.ch**, built
+from `help-site/` with [Blume](https://github.com/haydenbleasel/blume). It
+lives outside the app because it has to be readable before signing in — in the
+app it sat behind the auth gate and a signed-out visitor saw only the login
+screen.
+
+```bash
+cd help-site
+npm install
+npm run dev        # http://localhost:4321
+npx blume build    # -> dist/, served by nginx in the image
+```
+
+Content is German at `help-site/docs/` and English at `help-site/docs/en/`, one
+markdown file per section. `help-site/README.md` has the authoring rules; the
+two that bite are pinned `[#anchor]` markers on every heading and absolute URLs
+for links back into the app.
+
+Deployed as a separate Dokploy compose service in the production environment
+(`./help-site/docker-compose.yml`, `watchPaths: help-site/**`), so docs and app
+deploy independently. The app links in through `src/lib/helpUrl.ts`, and
+`/help` redirects old bookmarks to the matching page.
+
+## 10. License
 
 See repository for license details: https://github.com/Jonas-Marty/cash-flow-jm

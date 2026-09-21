@@ -23,6 +23,7 @@ import {
   type AccountType, type GroupKind,
 } from "@/lib/finance";
 import { useI18n, LANGUAGES, type Lang } from "@/i18n";
+import { helpUrl } from "@/lib/helpUrl";
 import { RecurringRulesCard } from "@/components/RecurringRulesCard";
 import { NextcloudCard } from "@/components/NextcloudCard";
 import { ApiTokensCard } from "@/components/ApiTokensCard";
@@ -1021,7 +1022,7 @@ function AccountCard() {
 }
 
 function IntegrationsCard() {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const isAdminQ = useIsAdmin();
   const qc = useQueryClient();
   const providersQ = useRQ({
@@ -1152,9 +1153,14 @@ function IntegrationsCard() {
             )}
             <p className="text-xs text-muted-foreground">
               {t("settings.integrations.secret_hint")}{" "}
-              <Link to="/help" hash="oidc" className="underline underline-offset-2">
+              <a
+                href={helpUrl(lang, "oidc")}
+                target="_blank"
+                rel="noreferrer"
+                className="underline underline-offset-2"
+              >
                 {t("settings.integrations.secret_help_link")}
-              </Link>
+              </a>
             </p>
             {callbackUrl && (
               <p className="text-xs text-muted-foreground">

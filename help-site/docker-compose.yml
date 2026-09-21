@@ -1,0 +1,25 @@
+# ====================================================================
+# Cashflow help site — help.cash-flow.wi-wo.ch
+#
+# A static Blume build behind nginx. Deliberately separate from the app
+# stack: the docs carry no secrets, need no database, and must stay
+# readable to a signed-out visitor, so nothing here talks to Supabase.
+#
+# DOKPLOY SETUP:
+#   Compose path: ./help-site/docker-compose.yml
+#   Domain:       help.cash-flow.wi-wo.ch -> service `help`, port 80
+#   No environment variables are required.
+# ====================================================================
+
+services:
+  help:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ${HELP_IMAGE:-cash-flow-help:latest}
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

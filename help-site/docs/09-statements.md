@@ -1,0 +1,44 @@
+---
+title: "Auszüge importieren"
+description: "Lade unter „Auszüge“ einen Konto- oder Kreditkartenauszug hoch. Welche Dateitypen kann ich hochladen? Wie importiere ich einen Auszug?"
+sidebar:
+  icon: file-text
+---
+
+Die KI liest die Zeilen aus, danach vergleicht die App sie mit deinen Buchungen und zeigt Fehlendes, Doppeltes oder falsch Gebuchtes.
+
+## Welche Dateitypen kann ich hochladen? [#which-file-types-can-i-upload]
+
+- **PDF** — der digitale Auszug der Bank. Der Text wird lokal extrahiert, nur der Text geht an deinen KI-Endpoint.
+- **Bilder** — PNG, JPEG, WebP oder GIF, z. B. ein **Foto oder Screenshot** eines Papierauszugs oder der Banking-App. Das Bild wird als Bild an den KI-Endpoint geschickt — die Verbindung für *Auszug auslesen* muss also Vision unterstützen.
+
+Ein gescanntes PDF ohne Textebene kann nicht gelesen werden — mach stattdessen ein Foto/Screenshot davon und lade dieses als Bild hoch.
+
+## Wie importiere ich einen Auszug? [#how-do-i-import-one]
+
+1. **Auszüge** öffnen und das passende **Konto** wählen.
+2. Datei wählen (PDF oder Bild).
+3. **Datumstoleranz** setzen (Standard 3 Tage) — Buchungsdaten in App und Bank stimmen selten exakt überein.
+4. **Beträge invertieren** aktivieren, wenn der Auszug Ausgaben positiv darstellt (bei Kreditkarten üblich).
+5. Import starten: Die KI extrahiert die Zeilen, danach vergleicht ein deterministischer Abgleich sie mit deinen Buchungen.
+
+## Wie funktioniert der Abgleich? [#how-does-matching-work]
+
+Der Abgleich passiert im Code, nicht in der KI:
+- **Betrag muss auf den Rappen stimmen.** Splits werden vorher pro Split-Gruppe summiert.
+- **Datum** muss im Toleranzfenster liegen.
+- **Textähnlichkeit** sortiert nur die Kandidaten und entscheidet *exakt* vs. *wahrscheinlich* — sie erzeugt nie allein einen Treffer.
+- Jede Buchung kann **höchstens einmal** zugeordnet werden, gleiche Beträge werden also nie doppelt gematcht.
+
+## Was bedeuten die Gruppen im Ergebnis? [#what-do-the-result-groups-mean]
+
+- **Fehlend** — steht im Auszug, fehlt in der App. Mit einem Klick anlegen (Add-Formular ist vorausgefüllt).
+- **Wahrscheinlich** — vermuteter Treffer; bestätigen oder zurücksetzen.
+- **Zugeordnet** — exakte Treffer, nichts zu tun.
+- **Ignoriert** — Zeilen, die du als irrelevant markiert hast (Gebühren, Saldovorträge).
+- **Nicht im Auszug** — Buchungen in der App im Auszugszeitraum, die der Auszug nicht enthält: meist Duplikat, falsches Datum oder falsches Konto.
+
+## Was wird an den KI-Provider gesendet? [#what-is-sent-to-my-ai-provider]
+
+Der Auszugstext (PDF) bzw. das Bild, dazu Kontowährung und heutiges Datum — sonst nichts aus deinen Daten. Der Abgleich läuft danach ohne KI auf dem Server. Verbindung wählst du unter **Einstellungen → KI-Assistent → Auszug auslesen**; der übliche Fallback auf die nächste aktive Verbindung gilt.
+
