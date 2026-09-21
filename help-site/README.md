@@ -32,11 +32,40 @@ so `04-iou-actions.md` is served at `/iou-actions` and `/en/iou-actions`.
 ```bash
 npm install
 npm run dev       # http://localhost:4321, hot reload
-npx blume build   # -> dist/
-npx blume doctor  # config and content problems
-npx blume audit   # SEO and site health
-npx blume validate # internal, anchor and asset links
+npm run check     # doctor, build, validate, audit, translation drift
+npm run translate # fill in English from German (needs the Claude Code CLI)
 ```
+
+`npm run check` is the gate. It refuses to run `validate` while `blume dev`
+holds `.blume/`, so stop the dev server first.
+
+There is a second gate outside this directory: `src/lib/docsParity.test.ts`
+in the app, run by `npx vitest run`. It compares the two locales section by
+section and checks the docs against the code — that every AI action is
+described, every metric named in the README, every page reachable from
+`helpUrl.ts`, and every external host the code contacts disclosed in the
+privacy notice. `help-site/known-issues.json` lists what is knowingly
+outstanding; an empty list is the goal.
+
+## Writing: German is the source
+
+German is `defaultLocale`, so **German is where you write**. English is
+generated from it by `npm run translate`, which shells out to the Claude Code
+CLI, validates the structure of every reply and writes the file itself.
+
+`blume.translations.json` records the hash of each German page at the moment
+it was translated. Commit it. It is what makes `blume translate --check` able
+to say "this English page is stale" — and what `npm run check` fails on.
+
+Two things it does **not** do:
+
+- It never overwrites an English page it has no ledger entry for. The current
+  English was written by hand and was adopted as-is.
+- It only notices German moving ahead of English. If English is edited
+  directly and German is not, the ledger still reads "up to date" — that
+  exact case is how the reconcile page ended up teaching a retired model in
+  German for weeks. The parity test is what catches it, which is why both
+  gates exist.
 
 ## Two rules worth knowing
 

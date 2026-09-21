@@ -13,7 +13,14 @@ export default defineConfig({
     defaultLocale: "de",
     locales: [
       { code: "de", label: "Deutsch" },
-      { code: "en", label: "English" },
+      {
+        code: "en",
+        label: "English",
+        // Pins register for anything `blume translate` generates later, so a
+        // machine-written page reads like the hand-written ones next to it.
+        style:
+          "British English, second person, plain and concrete. No marketing register, no exclamation marks. Keep Swiss franc amounts and app screen names (Dashboard, Envelopes, Reconcile, Settings) as they are.",
+      },
     ],
     fallbackLocale: "de",
   },

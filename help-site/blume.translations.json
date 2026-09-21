@@ -1,0 +1,44 @@
+{
+  "files": {
+    "docs/01-getting-started.md": {
+      "en": "8fa23428c59b2fb3"
+    },
+    "docs/02-concepts.md": {
+      "en": "37bf0402da02390b"
+    },
+    "docs/03-screens.md": {
+      "en": "a1828d1899035c69"
+    },
+    "docs/04-iou-actions.md": {
+      "en": "156352263016db0f"
+    },
+    "docs/05-workflows.md": {
+      "en": "e269443e9c942293"
+    },
+    "docs/06-faq.md": {
+      "en": "3aa2bafe016b9958"
+    },
+    "docs/07-data-storage.md": {
+      "en": "115c19724bdd8b60"
+    },
+    "docs/08-ai.md": {
+      "en": "576b3f8b8fba02a6"
+    },
+    "docs/09-statements.md": {
+      "en": "fbf9848ee9dcc9bc"
+    },
+    "docs/10-webhooks.md": {
+      "en": "695f0c54d0a826dd"
+    },
+    "docs/11-links.md": {
+      "en": "2d2f72b9d16dcef6"
+    },
+    "docs/12-oidc.md": {
+      "en": "ccd75c95da28bd45"
+    },
+    "docs/index.mdx": {
+      "en": "10b47d10bc9c71ab"
+    }
+  },
+  "version": 1
+}

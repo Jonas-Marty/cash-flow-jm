@@ -6,7 +6,8 @@
     "dev": "blume dev",
     "build": "blume build",
     "doctor": "blume doctor",
-    "check": "blume doctor && blume build && blume validate && blume audit"
+    "check": "blume doctor && blume build && blume validate && blume audit && blume translate --check",
+    "translate": "blume translate --claude"
   },
   "dependencies": {
     "blume": "^1.7.3"
