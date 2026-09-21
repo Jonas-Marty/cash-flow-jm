@@ -770,7 +770,7 @@ export const TOOLS: ToolDef[] = [
 
 const HELP_INDEX: { section: string; q: string; a: string }[] = [
   { section: "Transactions", q: "How do I add a transaction?", a: "Tap the + button (mobile) or the Add tab. Pick expense / income / transfer, fill amount, account and category. You can also ask me to prefill the form from a sentence." },
-  { section: "IOUs", q: "What are Open IOUs?", a: "Expenses you marked as reimbursable where someone owes you money. From OpenIOUs card you can Add repayment, Mark settled (paid in full off-app), Book as loss (write off), or Cancel (revert to a normal expense)." },
+  { section: "IOUs", q: "What are Open IOUs?", a: "Expenses you marked as reimbursable where someone owes you money. There are exactly three ways to close one, from the Open IOUs card: Add repayment (real money moved), Write off (you are not getting the rest back, or you got back more than you paid \u2014 the difference is charged or credited to an envelope), or Cancel (it should never have been flagged; reverts to a normal expense)." },
   { section: "Pending", q: "What are Pending Transactions?", a: "Entries imported from the public API (bank, Nextcloud bridge, etc.) waiting for review. Tabs: Pending, Open IOUs, Rejected, Confirmed." },
   { section: "Insights", q: "Insights page", a: "Overview, Breakdown, Trends, Projection tabs for any period." },
   { section: "API", q: "How do I use the public API?", a: "Create an API token in Settings → API Tokens, then call /api/public/* with header X-API-Token. See help.cash-flow.wi-wo.ch/webhooks for endpoints." },

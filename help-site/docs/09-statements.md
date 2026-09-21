@@ -40,5 +40,9 @@ Der Abgleich passiert im Code, nicht in der KI:
 
 ## Was wird an den KI-Provider gesendet? [#what-is-sent-to-my-ai-provider]
 
-Der Auszugstext (PDF) bzw. das Bild, dazu Kontowährung und heutiges Datum — sonst nichts aus deinen Daten. Der Abgleich läuft danach ohne KI auf dem Server. Verbindung wählst du unter **Einstellungen → KI-Assistent → Auszug auslesen**; der übliche Fallback auf die nächste aktive Verbindung gilt.
+Das hängt vom Dateityp ab. **CSV und TSV werden vollständig lokal gelesen — dabei geht gar nichts an einen Provider.** Bei einem PDF wird die enthaltene Textebene ausgelesen und in Stücken verschickt; bei einem Bild das Bild selbst.
+
+Danach läuft automatisch ein zweiter Durchgang, der Zeilen zu kategorisieren versucht, die der Abgleich keiner Buchung zuordnen konnte. Dieser Durchgang schickt zusätzlich einen **Überblick über dein Kontenbuch** mit — Konten, Kategorien und deine jüngsten Buchungen —, weil er ohne diesen Kontext nicht raten kann, wohin eine Zeile gehört. Der Abgleich selbst läuft ohne KI auf dem Server.
+
+Verbindungen wählst du unter **Einstellungen → KI-Assistent**, getrennt für *Auszug auslesen* und *Zeilen kategorisieren*; der übliche Fallback auf die nächste aktive Verbindung gilt.
 

@@ -43,7 +43,7 @@ The monthly amount you plan to spend in a category. The Envelopes screen shows h
 
 **Example:** You decide to budget CHF 400 for *Groceries* this month. The envelope starts with 400. After you spend 120 at Migros, the envelope shows 280 left. If you later spend 50 at the bakery, it drops to 230. If you receive a CHF 30 reimbursement for a shared dinner (linked to an IOU), the envelope grows back to 260 — because you got some of that grocery money back.
 
-At month-end, whatever is still in the envelope (or the shortfall) is handled by your sweep and rollover settings.
+At month-end a per-category switch, **Rolls over**, decides what happens to the remainder: with it off, whatever is left (or the shortfall) sweeps into your savings category and the envelope starts fresh. With it on, the balance stays put and keeps accumulating. Both kinds are allocated every month.
 
 ## Scope [#scope]
 
@@ -57,7 +57,7 @@ A lens that pre-filters and pre-fills the app — for example a trip, a project,
 
 ## IOU / reimbursable [#iou-reimbursable]
 
-A transaction flagged because someone owes you (or you owe someone). Open IOUs stay visible until you record a repayment, mark them settled, write them off, or cancel them.
+A transaction flagged because someone owes you (or you owe someone). Open IOUs stay visible until you close them — by recording repayments until the amount is covered, by writing the rest off, or by cancelling.
 
 **Example:** You pay CHF 120 for a team dinner with your credit card and your colleague owes you half. You record the expense as CHF 120, toggle **Reimbursable**, enter *Colleague Anna* as counterparty. The full 120 hits your *Restaurant* budget, but an open IOU of 60 shows up on your dashboard. When Anna pays you back via TWINT, you record a repayment — the IOU closes and your *Restaurant* envelope gets credited back 60.
 
@@ -65,7 +65,7 @@ A transaction flagged because someone owes you (or you owe someone). Open IOUs s
 
 An entry imported from outside the app (via the public API or another source) that has not yet been booked. You review it and then confirm or reject.
 
-**Example:** Your bank API pushes a transaction: *Coop, CHF 45.30, 12 June*. It lands in **Pending** because the app does not know which category it belongs to. You open it, assign *Groceries*, and click **Confirm**. Now it becomes a real transaction in your ledger.
+**Example:** FinReader reads your bank's payment notification on your phone and sends it to the app: *Coop, CHF 45.30, 12 June*. It lands in **Pending** because the app does not know which category it belongs to. You open it, assign *Groceries*, and click **Confirm**. Now it becomes a real transaction in your ledger.
 
 ## Recurring rule [#recurring-rule]
 
@@ -82,9 +82,9 @@ A template that posts a transaction on a schedule (rent, salary, subscriptions).
 
 ## Reconciliation [#reconciliation]
 
-Comparing the app's account totals with reality. The Reconcile screen shows any drift between booked balances, savings envelopes, and unswept money.
+The Reconcile screen breaks your account total down into the envelopes holding it: rolling envelopes, this month's remainder on the others, income not yet received, money you are owed, and anything unallocated. The last line is what none of those explain — it should read zero.
 
-**Example:** Your real bank statement says your checking account holds CHF 3,240. The app says CHF 3,440. The reconcile screen shows a CHF 200 drift. You trace it back: you recorded a transfer to savings but forgot to create the matching incoming side. After fixing it, drift is zero and everything lines up.
+**Example:** Your real bank statement says your checking account holds CHF 3,240. The app says CHF 3,440. You recorded a transfer to savings but forgot the matching incoming side, so the app believes in 200 francs that do not exist. Once you fix it, the two sides agree again.
 
 ## Sweep / savings target [#sweep-savings-target]
 
@@ -94,9 +94,11 @@ At month-end, any leftover budget in an envelope can be *swept* into a savings c
 Imagine your *Groceries* envelope had CHF 400 for June. You only spent CHF 350. At the end of June, the remaining CHF 50 can be **swept** into your *Holiday Savings* category (or any savings target you configured). That CHF 50 is now counted as saved, and the *Groceries* envelope resets to zero for the fresh month of July.
 
 **What happens if you overspend?**
-Imagine you budgeted CHF 400 for *Groceries* but spent CHF 450. At month-end the envelope shows −50. Depending on your settings, that shortfall can be left as-is (you start July already 50 in the red), or it can be covered from another envelope via *Reallocate*. The app never silently moves money — you always decide what happens.
+Imagine you budgeted CHF 400 for *Groceries* but spent CHF 450. At month-end the envelope shows −50, and those 50 are **taken out of** the savings target — exactly as leftover money would have been paid into it. A sweep runs in both directions. July starts at 400 again.
 
-Savings categories (like *Holiday Savings* or *Emergency Fund*) are different: they are **running balances**, not monthly envelopes. Money accumulates month after month until you spend from them.
+Envelopes that **roll over** differ at month-end, not at allocation: they are funded every month too, but the remainder is not swept — it stays and accumulates. That is how *Taxes* works: you set aside 600 a month and pay 7,200 once a year, without the bill blowing up that month's budget.
+
+Both sweeps are recomputed on every read and never stored. There is no month-end close to run, and editing an old transaction changes that month's sweep with it.
 
 ## Attachment [#attachment]
 

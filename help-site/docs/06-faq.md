@@ -1,17 +1,17 @@
 ---
 title: "FAQ & Fehlersuche"
-description: "FAQ & Fehlersuche: Eine als abgegolten markierte IOU war nach dem Reload wieder da: Warum ist meine Drift nicht null?"
+description: "Antworten zu Abgleich, übersprungenen wiederkehrenden Buchungen und Umverteilungen — und warum eine Umverteilung das Monatsbudget bewusst nicht anfasst."
 sidebar:
   icon: help-circle
 ---
 
-## Eine als abgegolten markierte IOU war nach dem Reload wieder da [#an-iou-i-marked-as-settled-came-back-after-reload]
+## Eine geschlossene IOU war nach dem Reload wieder offen [#an-iou-i-marked-as-settled-came-back-after-reload]
 
 War ein bekannter Bug und ist behoben: die UI meldet jetzt nur Erfolg, wenn das Update in der Datenbank tatsächlich gelaufen ist. Falls es erneut auftritt, notiere die Buchungs-ID und prüfe, ob die Zeile für deinen User erreichbar ist (RLS / Scope).
 
-## Warum ist meine Drift nicht null? [#why-is-my-reconciliation-drift-not-zero]
+## Warum ist die letzte Zeile im Abgleich nicht null? [#why-is-my-reconciliation-drift-not-zero]
 
-Drift heißt: Summe der Kontostände passt nicht zu Sparständen + ungekehrtem Geld. Typische Ursachen: Übertrag nur einseitig erfasst, Buchung in einer Sparkategorie ohne Sweep, oder Kategorie fälschlich als Sparkategorie markiert. Letzte Bewegungen der betroffenen Konten durchgehen.
+Die Abgleich-Seite zerlegt deine Kontosumme in die Umschläge, die sie halten. Die letzte Zeile ist der Rest, den keiner davon erklärt, und sie sollte null sein. Ist sie es nicht, steht meist Geld auf den Konten, das noch keinem Umschlag gehört: Anfangsbestände, die du in den Einstellungen noch nicht zugewiesen hast, oder Buchungen ohne Kategorie. Prüfe zuerst diese beiden.
 
 ## Wo landen übersprungene wiederkehrende Vorkommen? [#where-do-skipped-recurring-occurrences-go]
 

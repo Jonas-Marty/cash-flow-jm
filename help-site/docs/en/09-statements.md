@@ -38,5 +38,9 @@ Matching is done in code, not by the AI:
 
 ## What is sent to my AI provider? [#what-is-sent-to-my-ai-provider]
 
-The statement text (PDF) or the image itself, plus the account currency and today's date — nothing else from your ledger. Matching happens afterwards on the server without any AI call. Choose the connection under **Settings → AI Assistant → Statement extraction**; the usual fallback to the next enabled connection applies.
+It depends on the file type. **CSV and TSV are read entirely locally — nothing reaches a provider at all.** For a PDF, the embedded text layer is extracted and sent in chunks; for an image, the picture itself.
+
+A second pass then runs automatically to categorise lines that matching could not tie to a transaction. That pass also sends a **snapshot of your ledger** — accounts, categories and your recent transactions — because without that context it cannot guess where a line belongs. Matching itself runs on the server with no AI call.
+
+Choose connections under **Settings → AI Assistant**, separately for *Statement extraction* and *Line classification*; the usual fallback to the next enabled connection applies.
 

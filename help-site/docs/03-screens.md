@@ -40,7 +40,7 @@ Vier Tabs:
 
 ## Abgleich (/reconcile) [#reconcile-reconcile]
 
-Zeigt die Differenz (*Drift*) zwischen Kontosumme und Summe aus Sparzuteilungen plus ungekehrtem Geld. Bei Drift = 0 ist alles erfasst. Monatlich nutzen, um vergessene Sweeps oder Überträge zu finden.
+Zerlegt deine Kontosumme in die Umschläge, die sie halten: übertragende Umschläge, der Rest des laufenden Monats auf den übrigen Umschlägen, noch nicht eingetroffenes Einkommen, Geld das dir geschuldet wird, und alles nicht Zugewiesene. Die letzte Zeile ist das, was keiner davon erklärt — sie sollte null sein. Ist sie es nicht, fehlt irgendwo tatsächlich eine Zuordnung.
 
 ## Scopes (/scopes) [#scopes-scopes]
 

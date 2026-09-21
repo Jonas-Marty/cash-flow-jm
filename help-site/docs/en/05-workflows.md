@@ -10,7 +10,7 @@ sidebar:
 1. Add the expense, toggle **Reimbursable** and pick the counterparty.
 2. It appears under **Open IOUs** on the dashboard.
 3. When you receive the money, click **Add repayment** — the form is pre-filled, just save.
-4. The IOU auto-closes once fully covered. For partial or cash settlements, use *Mark as settled* or *Book as loss* instead.
+4. The IOU auto-closes once fully covered. If you get back less than you paid — or more, say 20.00 against an outlay of 19.50 — **write off the rest**: the difference is charged to or credited to your envelope instead of landing nowhere.
 
 ## Importing transactions via the API [#importing-transactions-via-the-api]
 
@@ -33,5 +33,5 @@ sidebar:
 
 ## Connecting Nextcloud [#connecting-nextcloud]
 
-Open **Settings → Nextcloud** and follow the OAuth flow. Once connected, attachments uploaded to transactions are stored in your Nextcloud and previewable via a file picker.
+Open **Settings → Nextcloud** and follow the OAuth flow. Once connected you can attach files from your Nextcloud to transactions through a file picker. Nothing is uploaded: the file stays where it is and this app stores only a link to it. Deleting the attachment here leaves the file in your Nextcloud.
 

@@ -10,7 +10,7 @@ sidebar:
 1. Buchung erfassen, **Erstattungsfähig** aktivieren, Gegenpartei wählen.
 2. Sie erscheint unter **Offene IOUs** auf der Übersicht.
 3. Wenn das Geld kommt: **Rückzahlung hinzufügen** — Formular ist vorbelegt, nur speichern.
-4. Die IOU schließt automatisch, sobald sie voll gedeckt ist. Für Teilbeträge oder Bargeld nutze stattdessen *Als abgegolten markieren* oder *Als Verlust buchen*.
+4. Die IOU schließt automatisch, sobald sie voll gedeckt ist. Bekommst du weniger zurück als ausgelegt — oder mehr, etwa 20.00 für eine Auslage von 19.50 — dann **schreib den Rest ab**: die Differenz wird deinem Umschlag belastet bzw. gutgeschrieben, statt nirgends zu landen.
 
 ## Buchungen per API importieren [#importing-transactions-via-the-api]
 
@@ -33,5 +33,5 @@ sidebar:
 
 ## Nextcloud verbinden [#connecting-nextcloud]
 
-**Einstellungen → Nextcloud** öffnen und dem OAuth-Flow folgen. Danach werden Anhänge in deiner Nextcloud gespeichert und über einen Dateibrowser eingebunden.
+**Einstellungen → Nextcloud** öffnen und dem OAuth-Flow folgen. Danach kannst du über einen Dateibrowser Dateien aus deiner Nextcloud an Buchungen hängen. Hochgeladen wird nichts: die Datei bleibt, wo sie ist, und diese App speichert nur einen Link darauf. Löschst du den Anhang hier, bleibt die Datei in deiner Nextcloud.
 

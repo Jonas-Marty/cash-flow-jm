@@ -1,17 +1,17 @@
 ---
 title: "FAQ & troubleshooting"
-description: "FAQ & troubleshooting: An IOU I marked as settled came back after reload: Why is my reconciliation drift not zero?"
+description: "Answers on reconciling, skipped recurring occurrences and reallocations — including why a reallocation deliberately leaves the monthly budget alone."
 sidebar:
   icon: help-circle
 ---
 
-## An IOU I marked as settled came back after reload [#an-iou-i-marked-as-settled-came-back-after-reload]
+## An IOU I closed was open again after reload [#an-iou-i-marked-as-settled-came-back-after-reload]
 
 This was a known bug and is now fixed: the UI only confirms success if the database actually updated. If it still happens, take note of the transaction id and check whether the row is reachable for your user (RLS / scope).
 
-## Why is my reconciliation drift not zero? [#why-is-my-reconciliation-drift-not-zero]
+## Why is the last line on Reconcile not zero? [#why-is-my-reconciliation-drift-not-zero]
 
-Drift means the sum of account balances doesn't match the sum of savings buckets + unswept money. Usual causes: a transfer recorded on only one side, a transaction in a savings category that wasn't swept, or a category mis-typed as savings. Walk back through recent transactions in the affected accounts.
+The Reconcile screen breaks your account total down into the envelopes holding it. The last line is whatever none of them explain, and it should read zero. When it does not, there is usually money in your accounts that no envelope owns yet: opening balances you have not assigned in Settings, or transactions with no category. Check those two first.
 
 ## Where do skipped recurring occurrences go? [#where-do-skipped-recurring-occurrences-go]
 

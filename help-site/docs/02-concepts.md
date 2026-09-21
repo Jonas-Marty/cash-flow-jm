@@ -37,7 +37,7 @@ Der monatliche Betrag, den du in einer Kategorie ausgeben willst. Die Budget-Sei
 
 **Beispiel:** Du budgetierst 400 CHF für *Lebensmittel* im Juni. Der Umschlag startet mit 400. Nach dem Einkauf bei Migros für 120 bleiben 280. Wenn du später 50 beim Bäcker ausgibst, sinkt er auf 230. Wenn du eine Rückerstattung von 30 CHF für ein gemeinsames Abendessen bekommst (verknüpft mit einer IOU), wächst der Umschlag wieder auf 260 — weil du einen Teil des Essensgeldes zurückbekommen hast.
 
-Am Monatsende wird das, was noch im Umschlag ist (oder das Defizit), durch deine Sweep- und Rollover-Einstellungen verarbeitet.
+Am Monatsende entscheidet ein Schalter pro Kategorie, **Überträge**, was mit dem Rest passiert: Ist er aus, wird der Rest (oder das Defizit) in die Sparkategorie gekehrt und der Umschlag startet frisch. Ist er an, bleibt der Stand stehen und läuft weiter. Beide Arten bekommen jeden Monat ihre Zuteilung.
 
 ## Scope [#scope]
 
@@ -51,7 +51,7 @@ Ein Filter, der die App vorbelegt — z. B. eine Reise, ein Projekt, ein gemeins
 
 ## IOU / erstattungsfähig [#iou-reimbursable]
 
-Eine Buchung, die markiert wurde, weil dir jemand Geld schuldet (oder umgekehrt). Offene IOUs bleiben sichtbar, bis du eine Rückzahlung erfasst, sie als abgegolten markierst, abschreibst oder stornierst.
+Eine Buchung, die markiert wurde, weil dir jemand Geld schuldet (oder umgekehrt). Offene IOUs bleiben sichtbar, bis du sie schliesst — durch Rückzahlungen, bis der Betrag gedeckt ist, durch Abschreiben, oder durch Stornieren.
 
 **Beispiel:** Du zahlst 120 CHF für ein Team-Abendessen mit deiner Kreditkarte; dein Kollege schuldet dir die Hälfte. Du buchst die Ausgabe als 120 CHF, aktivierst **Erstattungsfähig** und gibst *Kollegin Anna* als Gegenpartei an. Die vollen 120 belasten deinen *Restaurant*-Umschlag, aber eine offene IOU über 60 erscheint auf der Übersicht. Wenn Anna dir via TWINT zurückzahlt, erfasst du die Rückzahlung — die IOU schließt sich und dein *Restaurant*-Umschlag wird um 60 wieder aufgestockt.
 
@@ -59,7 +59,7 @@ Eine Buchung, die markiert wurde, weil dir jemand Geld schuldet (oder umgekehrt)
 
 Ein Eintrag, der aus einem externen System (oder über die öffentliche API) importiert wurde und noch nicht gebucht ist. Du prüfst und bestätigst oder lehnst ab.
 
-**Beispiel:** Deine Bank-API schiebt eine Buchung: *Coop, 45.30 CHF, 12. Juni*. Sie landet unter **Offen**, weil die App noch nicht weiss, welcher Kategorie sie gehört. Du öffnest sie, weist *Lebensmittel* zu und klickst **Bestätigen**. Jetzt ist sie eine echte Buchung in deinem Kontenbuch.
+**Beispiel:** FinReader liest auf deinem Handy die Zahlungsmeldung deiner Bank und schickt sie an die App: *Coop, 45.30 CHF, 12. Juni*. Sie landet unter **Offen**, weil die App noch nicht weiss, welcher Kategorie sie gehört. Du öffnest sie, weist *Lebensmittel* zu und klickst **Bestätigen**. Jetzt ist sie eine echte Buchung in deinem Kontenbuch.
 
 ## Wiederkehrende Regel [#recurring-rule]
 
@@ -76,9 +76,9 @@ Eine Vorlage, die Buchungen nach Zeitplan erzeugt (Miete, Gehalt, Abos). Einzeln
 
 ## Abgleich [#reconciliation]
 
-Vergleich der App-Salden mit der Realität. Die Abgleich-Seite zeigt jede Abweichung zwischen gebuchten Salden, Sparumschlägen und ungekehrtem Geld.
+Die Abgleich-Seite zerlegt deine Kontosumme in die Umschläge, die sie halten: übertragende Umschläge, der Rest des laufenden Monats auf den übrigen Umschlägen, noch nicht eingetroffenes Einkommen, Geld das dir geschuldet wird, und alles nicht Zugewiesene. Die letzte Zeile ist das, was keiner davon erklärt — sie sollte null sein.
 
-**Beispiel:** Dein echter Kontoauszug sagt, dein Giro hat 3,240 CHF. Die App zeigt 3,440 CHF. Der Abgleich zeigt eine Drift von 200 CHF. Du stellst fest: du hast einen Übertrag aufs Sparbuch gebucht, aber die Gegenbuchung vergessen. Nach der Korrektur ist die Drift null — alles stimmt.
+**Beispiel:** Dein echter Kontoauszug sagt, dein Giro hat 3,240 CHF. Die App zeigt 3,440 CHF. Du hast einen Übertrag aufs Sparbuch gebucht, aber die Gegenbuchung vergessen — also kennt die App 200 CHF, die es nicht gibt. Nach der Korrektur stimmen beide Seiten wieder überein.
 
 ## Sweep / Sparziel [#sweep-savings-target]
 
@@ -87,10 +87,12 @@ Am Monatsende kann übriges Budget aus einem Umschlag in eine Sparkategorie *gek
 **Was passiert mit übrigem Geld?**
 Stell dir vor, dein *Lebensmittel*-Umschlag hatte 400 CHF für Juni. Du hast nur 350 ausgegeben. Am Ende des Monats können die verbleibenden 50 CHF per **Sweep** in deine *Urlaubsrücklage* (oder ein anderes konfiguriertes Sparziel) überführt werden. Die 50 CHF gelten dann als gespart, und der *Lebensmittel*-Umschlag wird für den frischen Juli auf null zurückgesetzt.
 
-**Was passicht bei Überziehung?**
-Stell dir vor, du hast 400 CHF für *Lebensmittel* budgetiert, aber 450 ausgegeben. Am Monatsende zeigt der Umschlag −50. Je nach Einstellung bleibt das Defizit bestehen (du startest den Juli bereits mit 50 im Minus), oder es wird durch *Umverteilen* von einem anderen Umschlag gedeckt. Die App verschiebt nie stillschweigend Geld — du entscheidest immer, was passiert.
+**Was passiert bei Überziehung?**
+Stell dir vor, du hast 400 CHF für *Lebensmittel* budgetiert, aber 450 ausgegeben. Am Monatsende zeigt der Umschlag −50, und diese 50 werden dem Sparziel **abgezogen** — genau wie übriges Geld ihm gutgeschrieben würde. Ein Sweep läuft in beide Richtungen. Juli startet wieder bei 400.
 
-Spar-Kategorien (wie *Urlaubsrücklage* oder *Notgroschen*) funktionieren anders: Sie haben einen **laufenden Saldo**, kein Monatsbudget. Geld summiert sich Monat für Monat, bis du daraus ausgibst.
+Umschläge mit **Überträgen** verhalten sich am Monatsende anders, nicht bei der Zuteilung: Auch sie bekommen jeden Monat ihren Betrag, aber der Rest wird nicht gekehrt, sondern bleibt liegen und summiert sich. So funktionieren *Steuern* — du legst monatlich 600 zurück und zahlst einmal im Jahr 7,200, ohne dass die Rechnung dein Monatsbudget sprengt.
+
+Beide Sweeps werden bei jedem Aufruf neu berechnet, nie gespeichert. Es gibt keinen Monatsabschluss, den du anstossen müsstest, und wenn du eine alte Buchung änderst, ändert sich der Sweep jenes Monats mit.
 
 ## Anhang [#attachment]
 

@@ -6,7 +6,6 @@
     "An empty array in every list means the audit is done. Never add an entry to make a",
     "test pass without a line in `why` saying what is wrong and which stage removes it."
   ],
-
   "egressAllowlist": {
     "$comment": "Hosts found in src/ that do NOT need a privacy disclosure, each with the reason.",
     "permanent": {
@@ -24,20 +23,13 @@
       "$comment": "Empty since stage 1: privacy.tsx section 6 now names every host the code contacts, in both locales. A new entry here means a third party was added without disclosing it."
     }
   },
-
   "bannedPhrases": {
     "$comment": "Phrases that must not appear once the audit is done. Stage 2 empties most of this.",
     "pending": {
       "X-API-Token": "No route reads this header; every one reads `authorization`. Stage 5.",
-      "lovable.app": "Stale production server URL in openapi-spec.ts. Stage 7.",
-      "Mark settled": "Removed IOU action. Stage 2.",
-      "Mark as settled": "Removed IOU action. Stage 2.",
-      "Book as loss": "Not the UI's wording; the app says write off / Abschreiben. Stage 2.",
-      "abgegolten markier": "Removed IOU action, German. Stage 2.",
-      "Als Verlust buchen": "Not the UI's wording, German. Stage 2."
+      "lovable.app": "Stale production server URL in openapi-spec.ts. Stage 7."
     }
   },
-
   "localeParity": {
     "$comment": "Known DE/EN content divergences. Stage 3 empties this.",
     "blockCountMismatch": [
@@ -75,25 +67,24 @@
         "08-ai.md",
         "04-iou-actions.md",
         "05-workflows.md",
-        "06-faq.md",
         "07-data-storage.md",
         "09-statements.md",
         "11-links.md",
         "en/03-screens.md",
         "en/05-workflows.md",
-        "en/06-faq.md",
         "en/07-data-storage.md",
         "en/09-statements.md",
         "en/11-links.md"
       ]
     }
   },
-
   "aiActionsUndocumented": {
     "$comment": "AI_ACTIONS ids with no prose on the help site. Stage 8 empties this.",
-    "ids": ["statement_classify", "pending_enrich"]
+    "ids": [
+      "statement_classify",
+      "pending_enrich"
+    ]
   },
-
   "openApiUndocumentedRoutes": {
     "$comment": "Routes that exist but are deliberately absent from the spec.",
     "permanent": {
@@ -102,12 +93,14 @@
       "/api/public/openapi": "The spec document itself."
     }
   },
-
   "metricsUndocumented": {
     "$comment": "Metric series not named in README section 6. Stage 8 empties this.",
-    "names": ["app_audit_events_24h", "app_users_total", "app_transactions_total"]
+    "names": [
+      "app_audit_events_24h",
+      "app_users_total",
+      "app_transactions_total"
+    ]
   },
-
   "blumeAuditBaseline": {
     "$comment": "Recorded so the one standing warning is not normalised into invisibility.",
     "commit": "c9c08b9",
