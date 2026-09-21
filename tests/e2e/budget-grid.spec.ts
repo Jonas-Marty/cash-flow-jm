@@ -18,8 +18,8 @@ const bulkCalls = (calls: CallLog) =>
 const cell = (page: Page, row: number, col: number) =>
   page.locator(`input[data-row="${row}"][data-col="${col}"]`);
 
-async function openGrid(page: Page) {
-  const calls = await stubSupabase(page, DEFAULT_FIXTURES);
+async function openGrid(page: Page, options: { latencyMs?: number } = {}) {
+  const calls = await stubSupabase(page, DEFAULT_FIXTURES, options);
   await page.goto(`/envelopes?view=grid&month=${month(0).slice(0, 7)}`, {
     waitUntil: "networkidle",
   });
@@ -133,6 +133,26 @@ test.describe("budget grid", () => {
     await expect.poll(() => bulkCalls(calls).length).toBe(2);
   });
 
+  test("stepping the month never blanks the table", async ({ page }) => {
+    // Each month is its own query key, so without keepPreviousData the loading flag
+    // flips and a skeleton replaces the whole grid — a visible flicker per step.
+    // The latency matters: answering instantly hides the transition entirely, and
+    // this test passed against the broken code until it was added.
+    await openGrid(page, { latencyMs: 250 });
+    const cells = page.locator("input[data-row]");
+    const skeleton = page.locator(".animate-pulse");
+    await expect(cells).toHaveCount(36);
+
+    for (let i = 0; i < 3; i++) {
+      await page.getByRole("button", { name: "Previous month" }).click();
+      // Sampled while the next month is still in flight.
+      await page.waitForTimeout(80);
+      expect(await skeleton.count()).toBe(0);
+      expect(await cells.count()).toBe(36);
+    }
+    await expect(cells).toHaveCount(36);
+  });
+
   test("stepping the month keeps you in the grid", async ({ page }) => {
     // setMonth rebuilt the search params from scratch and dropped `view`, so the
     // chevrons quietly threw you back to the card view.
@@ -153,6 +173,35 @@ test.describe("budget grid", () => {
     await openGrid(page);
     const erasers = page.locator('button[title*="every earlier month"]');
     await expect(erasers.first()).toBeVisible();
+  });
+
+  test("history can be extended one month at a time", async ({ page }) => {
+    // The mirror of trimming. Fixtures store three months, so the button sits on the
+    // column immediately left of the oldest and nowhere else.
+    const calls = await openGrid(page);
+    const extend = page.locator('button[title*="Create "]');
+    await expect(extend).toHaveCount(1);
+
+    await extend.click();
+    await expect.poll(() => bulkCalls(calls).length).toBe(1);
+    const edits = (bulkCalls(calls)[0].body as { p_edits: Array<{ month: string; amount: number }> }).p_edits;
+
+    // One row per envelope, so the new month is complete rather than partial.
+    expect(edits).toHaveLength(3);
+    expect(new Set(edits.map((e) => e.month))).toEqual(new Set([month(-3)]));
+
+    // And the button has moved one column further left, ready to go again.
+    await expect(page.locator('button[title*="Create "]')).toHaveCount(1);
+  });
+
+  test("extending takes its values from the oldest stored month", async ({ page }) => {
+    const calls = await openGrid(page);
+    await page.locator('button[title*="Create "]').click();
+    await expect.poll(() => bulkCalls(calls).length).toBe(1);
+
+    const edits = (bulkCalls(calls)[0].body as { p_edits: Array<{ amount: number }> }).p_edits;
+    // The fixture amounts, not the categories' templates.
+    expect(edits.map((e) => e.amount).sort((a, b) => a - b)).toEqual([600, 1200, 7000]);
   });
 
   test("the eraser is disabled where there is nothing to erase", async ({ page }) => {

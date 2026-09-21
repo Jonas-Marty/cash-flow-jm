@@ -283,3 +283,29 @@ describe("previewValueFor — clearing", () => {
     expect(pv({ kind: "clear", fromCol: 2, through: true }, 1)).toBeNull();
   });
 });
+
+describe("previewValueFor — extending backwards", () => {
+  const keys = ["2026-01-01", "2026-02-01", "2026-03-01"];
+  const resolved = new Map([
+    [cellId("food", "2026-01-01"), { amount: 500, inherited: true }],
+    [cellId("food", "2026-02-01"), { amount: 620, inherited: false }],
+    [cellId("food", "2026-03-01"), { amount: 700, inherited: false }],
+  ]);
+  const pv = (col: number, fromCol: number) =>
+    previewValueFor({ kind: "back", fromCol }, "food", col, keys, resolved);
+
+  it("takes its value from the month to the right, not the template", () => {
+    // Extending backwards continues the history that exists; the template is what a
+    // brand-new envelope gets, which is a different question.
+    expect(pv(0, 0)).toBe(620);
+  });
+
+  it("touches only the column being created", () => {
+    expect(pv(1, 0)).toBeNull();
+    expect(pv(2, 0)).toBeNull();
+  });
+
+  it("is inert on the rightmost column, which has nothing to its right", () => {
+    expect(pv(2, 2)).toBeNull();
+  });
+});

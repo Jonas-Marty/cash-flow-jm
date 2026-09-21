@@ -17,6 +17,17 @@ export const STORAGE_KEY = "sb-e2etest-auth-token";
 
 export const USER_ID = "11111111-1111-1111-1111-111111111111";
 
+export interface StubOptions {
+  /**
+   * Artificial delay on every Supabase answer.
+   *
+   * Without it the stub replies within a tick, so loading states never become
+   * observable and a test asserting "this never shows a skeleton" passes whether or
+   * not the code is correct. Opt in where the test is about a transition.
+   */
+  latencyMs?: number;
+}
+
 export interface Fixtures {
   /** Keyed by RPC name, e.g. `category_month_spending`. */
   rpc?: Record<string, unknown>;
@@ -42,7 +53,11 @@ const json = (route: Route, body: unknown, status = 200) =>
  */
 interface BudgetRow { category_id: string; month: string; amount: number }
 
-export async function stubSupabase(page: Page, fixtures: Fixtures = {}): Promise<CallLog> {
+export async function stubSupabase(
+  page: Page,
+  fixtures: Fixtures = {},
+  options: StubOptions = {},
+): Promise<CallLog> {
   const calls: CallLog = { rpc: [], writes: [] };
 
   /**
@@ -102,6 +117,7 @@ export async function stubSupabase(page: Page, fixtures: Fixtures = {}): Promise
   );
 
   await page.route(`https://${SUPABASE_HOST}/**`, async (route) => {
+    if (options.latencyMs) await new Promise((r) => setTimeout(r, options.latencyMs));
     const url = new URL(route.request().url());
     const method = route.request().method();
     let body: unknown = null;

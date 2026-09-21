@@ -12,6 +12,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { setCategoryBudget, monthKey, type BudgetScope } from "@/lib/finance";
 import { monthStatus } from "@/lib/month";
 import { useI18n } from "@/i18n";
+import { invalidateBudgetQueries } from "@/lib/budgetQueries";
 
 /**
  * The one budget editor. Used from the envelope rows on /envelopes and from the
@@ -65,7 +66,7 @@ export function BudgetEditPopover({
     setSaving(true);
     try {
       await setCategoryBudget(categoryId, monthKey(month), next, scope);
-      await qc.invalidateQueries();
+      await invalidateBudgetQueries(qc);
       setOpen(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));

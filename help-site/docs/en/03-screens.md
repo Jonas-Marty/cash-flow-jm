@@ -28,6 +28,7 @@ On a wide screen you can switch to the **table view** from the top right: envelo
 - **Enter** saves that one month; **⌘/Ctrl + Enter** carries the value to the right edge.
 - The **arrow** in a column heading carries that whole month into every later month. This is how you set up January and everything after it while it is still December.
 - Hovering either arrow previews the change: every affected cell shows its old value struck through next to the new one.
+- The **left arrow**, in the column just before the oldest month, creates that one month from the oldest month's values — extending your history backwards a step at a time. This has consequences too: the new month has already ended, so its sweep is computed and every savings balance since shifts.
 - The **eraser** removes budgets again. On a past month it removes that one and every earlier month — this is how you get rid of budgets created too early by accident. On a future month it removes just that one. A single month in the middle of the past cannot be removed: the next load refills it, because a month with no amount counts as neither an allocation nor towards sweeping.
 - Clicking a **month name** selects it — the figures above the table follow your selection, and `<` and `>` move it without leaving the table.
 

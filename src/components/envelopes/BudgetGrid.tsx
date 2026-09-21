@@ -2,12 +2,13 @@ import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format, isSameMonth } from "date-fns";
 import type { Locale } from "date-fns";
-import { ArrowRight, ChevronsRight, Eraser, Undo2 } from "lucide-react";
+import { ArrowLeftToLine, ArrowRight, ChevronsRight, Eraser, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
+import { invalidateBudgetQueries } from "@/lib/budgetQueries";
 import { monthStatus } from "@/lib/month";
 import {
   fmtMoney,
@@ -91,6 +92,18 @@ export function BudgetGrid({
 
   const selectedCol = months.findIndex((m) => isSameMonth(m, selectedMonth));
 
+  /**
+   * The first month anything is stored for.
+   *
+   * `ensure_month_budgets` backfills from each envelope's own earliest row, so this
+   * is the floor of the whole ledger: nothing before it is created automatically,
+   * and extending backwards means moving it one month at a time.
+   */
+  const earliestStored = React.useMemo(
+    () => stored.reduce<string | null>((min, c) => (min === null || c.month < min ? c.month : min), null),
+    [stored],
+  );
+
   // Open on the month you are actually working in. Without this the table opens on its
   // left edge, a year ago, which is never what you wanted to look at.
   const scrolledFor = React.useRef<string | null>(null);
@@ -121,7 +134,7 @@ export function BudgetGrid({
     setBusy(true);
     try {
       await setCategoryBudgetsBulk(top.edits);
-      await qc.invalidateQueries();
+      await invalidateBudgetQueries(qc);
       undoRef.current.pop();
       setUndoDepth(undoRef.current.length);
     } catch (e) {
@@ -155,7 +168,7 @@ export function BudgetGrid({
       setBusy(true);
       try {
         await setCategoryBudgetsBulk(edits);
-        await qc.invalidateQueries();
+        await invalidateBudgetQueries(qc);
         // Bounded: this is a safety net for the last few actions, not a history.
         undoRef.current = [...undoRef.current.slice(-24), { edits: undo, label }];
         setUndoDepth(undoRef.current.length);
@@ -255,6 +268,33 @@ export function BudgetGrid({
       return;
     }
     void apply(edits, t("budget.grid.cleared", { n: edits.length }));
+  };
+
+  /**
+   * Creates the month immediately before the earliest stored one, from its values.
+   *
+   * The mirror of trimming, and deliberately one month per click: each new month is
+   * in the past, so it is not a blank slate — its sweep gets computed and every
+   * savings balance since moves. Doing several at once would hide that.
+   *
+   * Every visible envelope gets a row, including any whose own history starts later.
+   * A month where only some envelopes have budgets is a state the model does not
+   * otherwise produce, and it would sweep as though the others were planned at zero.
+   */
+  const extendBack = (index: number) => {
+    const source = monthKeys[index + 1];
+    if (!source) return;
+    const edits: BudgetEdit[] = [];
+    for (const c of visible) {
+      const from = resolved.get(cellId(c.id, source));
+      if (!from) continue;
+      edits.push({ categoryId: c.id, month: monthKeys[index], amount: from.amount });
+    }
+    if (!edits.length) {
+      toast.info(t("budget.grid.copy_nothing"));
+      return;
+    }
+    void apply(edits, t("budget.grid.extended", { n: edits.length }));
   };
 
   /** Re-sync one column from the one to its left. */
@@ -359,6 +399,23 @@ export function BudgetGrid({
                   )}
                   {/* Offered only where a deletion survives the next load: trimming
                       the oldest months, or clearing a month that has not happened. */}
+                  {earliestStored !== null && monthKeys[i + 1] === earliestStored && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={busy}
+                      className="h-5 w-5 p-0 opacity-40 hover:opacity-100"
+                      title={t("budget.grid.extend_tip", {
+                        month: label,
+                        source: format(months[i + 1], "MMMM yyyy", { locale }),
+                      })}
+                      onMouseEnter={() => setPreview({ kind: "back", fromCol: i })}
+                      onMouseLeave={() => setPreview(null)}
+                      onClick={() => { setPreview(null); extendBack(i); }}
+                    >
+                      <ArrowLeftToLine className="h-3 w-3" />
+                    </Button>
+                  )}
                   {(() => {
                     const future = monthStatus(m) === "future";
                     const through = !future;

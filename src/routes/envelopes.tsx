@@ -1,6 +1,6 @@
 import * as React from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { format, startOfMonth, endOfMonth, isValid, parseISO } from "date-fns";
 import type { Locale as DateFnsLocale } from "date-fns";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
@@ -189,6 +189,7 @@ function EnvelopesPage() {
     queryKey: ["category_budget_range", gridTo],
     queryFn: () => fetchCategoryBudgetRange("1970-01-01", gridTo),
     enabled: gridView,
+    placeholderData: keepPreviousData,
   });
 
   const setAsOf = React.useCallback(
@@ -201,15 +202,34 @@ function EnvelopesPage() {
     [navigate],
   );
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
-  const rowsQ = useQuery({ queryKey: ["category_month_rows", m], queryFn: () => fetchCategoryMonthRows(m) });
-  const savingsBalanceQ = useQuery({ queryKey: ["savings-balances", asOf], queryFn: () => fetchSavingsBalances(asOf) });
-  const reconQ = useQuery({ queryKey: ["reconciliation", asOf], queryFn: () => fetchEnvelopeReconciliation(asOf) });
+  const rowsQ = useQuery({
+    queryKey: ["category_month_rows", m],
+    queryFn: () => fetchCategoryMonthRows(m),
+    // Keep the month you were looking at on screen while the next one loads.
+    // Without this, every step of the month navigator blanks the page.
+    placeholderData: keepPreviousData,
+  });
+  const savingsBalanceQ = useQuery({
+    queryKey: ["savings-balances", asOf],
+    queryFn: () => fetchSavingsBalances(asOf),
+    placeholderData: keepPreviousData,
+  });
+  const reconQ = useQuery({
+    queryKey: ["reconciliation", asOf],
+    queryFn: () => fetchEnvelopeReconciliation(asOf),
+    placeholderData: keepPreviousData,
+  });
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   const groupsQ = useQuery({ queryKey: ["category_groups"], queryFn: fetchCategoryGroups });
-  const pendingImpactQ = useQuery({ queryKey: ["pending_impact_month", m], queryFn: () => fetchPendingImpactsForMonth(m) });
+  const pendingImpactQ = useQuery({
+    queryKey: ["pending_impact_month", m],
+    queryFn: () => fetchPendingImpactsForMonth(m),
+    placeholderData: keepPreviousData,
+  });
   const txQ = useQuery({
     queryKey: ["envelope_month_tx", format(month, "yyyy-MM")],
     queryFn: () => fetchMonthCategoryTx(month),
+    placeholderData: keepPreviousData,
   });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const reallocQ = useQuery({ queryKey: ["reallocations"], queryFn: fetchReallocations });

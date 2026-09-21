@@ -158,7 +158,9 @@ export type GridPreview =
   | { kind: "fill"; fromCol: number }
   | { kind: "copy"; fromCol: number }
   /** Remove stored rows: `through` clears this month and every earlier one. */
-  | { kind: "clear"; fromCol: number; through: boolean };
+  | { kind: "clear"; fromCol: number; through: boolean }
+  /** Create this month from the one to its right — extending history backwards. */
+  | { kind: "back"; fromCol: number };
 
 /** `"clear"` means the cell loses its row and goes back to undecided. */
 export type PreviewOutcome = number | "clear";
@@ -191,6 +193,10 @@ export function previewValueFor(
   if (preview.kind === "fill") {
     if (col <= preview.fromCol) return null;
     return resolved.get(cellId(categoryId, monthKeys[preview.fromCol]))?.amount ?? null;
+  }
+  if (preview.kind === "back") {
+    if (col !== preview.fromCol || preview.fromCol + 1 >= monthKeys.length) return null;
+    return resolved.get(cellId(categoryId, monthKeys[preview.fromCol + 1]))?.amount ?? null;
   }
   if (col !== preview.fromCol || preview.fromCol === 0) return null;
   return resolved.get(cellId(categoryId, monthKeys[preview.fromCol - 1]))?.amount ?? null;
