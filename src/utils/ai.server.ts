@@ -3,6 +3,8 @@
 // against the user-scoped Supabase client (RLS applies).
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { HELP_BASE } from "@/lib/helpUrl";
+import { getHelpSections, rankHelpSections } from "@/lib/helpSearch";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { buildSystemPrompt } from "@/lib/ai/systemPrompt";
 import type { AIHealthMode, AIHealthProbe, AssistantAction, AIEndpointOfflinePayload } from "@/lib/ai/types";
@@ -651,7 +653,7 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: "search_help",
-    description: "Search the in-app help/wiki content by keyword. Use this to answer 'how do I…' or privacy/GDPR questions.",
+    description: "Search the user guide by keyword. Use this to answer 'how do I…' or privacy/GDPR questions. Returns whole pages from the published guide, German and English, each with its URL — cite that URL when you use one.",
     parameters: {
       type: "object",
       properties: { query: { type: "string" } },
@@ -659,9 +661,18 @@ export const TOOLS: ToolDef[] = [
       additionalProperties: false,
     },
     exec: async (a) => {
-      const q = (str(a.query) || "").toLowerCase();
-      const hits = HELP_INDEX.filter((h) => h.q.toLowerCase().includes(q) || h.a.toLowerCase().includes(q)).slice(0, 6);
-      return { ok: true, data: hits };
+      const q = str(a.query) || "";
+      try {
+        const hits = rankHelpSections(await getHelpSections(), q);
+        return { ok: true, data: hits };
+      } catch (err) {
+        // The guide is a separate deployment. If it is unreachable, say so
+        // rather than letting the model invent an answer about the app.
+        return {
+          ok: false,
+          error: `The help site is unreachable, so I cannot look that up right now. It is at ${HELP_BASE}. (${err instanceof Error ? err.message : String(err)})`,
+        };
+      }
     },
   },
   {
@@ -768,15 +779,6 @@ export const TOOLS: ToolDef[] = [
 // Help index (mirrors the static help.tsx sections)
 // ---------------------------------------------------------------------------
 
-const HELP_INDEX: { section: string; q: string; a: string }[] = [
-  { section: "Transactions", q: "How do I add a transaction?", a: "Tap the + button (mobile) or the Add tab. Pick expense / income / transfer, fill amount, account and category. You can also ask me to prefill the form from a sentence." },
-  { section: "IOUs", q: "What are Open IOUs?", a: "Expenses you marked as reimbursable where someone owes you money. There are exactly three ways to close one, from the Open IOUs card: Add repayment (real money moved), Write off (you are not getting the rest back, or you got back more than you paid \u2014 the difference is charged or credited to an envelope), or Cancel (it should never have been flagged; reverts to a normal expense)." },
-  { section: "Pending", q: "What are Pending Transactions?", a: "Entries imported from the public API (bank, Nextcloud bridge, etc.) waiting for review. Tabs: Pending, Open IOUs, Rejected, Confirmed." },
-  { section: "Insights", q: "Insights page", a: "Overview, Breakdown, Trends, Projection tabs for any period." },
-  { section: "API", q: "How do I use the public API?", a: "Create an API token in Settings → API Tokens, then call /api/public/* with header X-API-Token. See help.cash-flow.wi-wo.ch/webhooks for endpoints." },
-  { section: "Privacy", q: "Where is my data stored?", a: "Data is stored unencrypted on a private homelab server in Switzerland. The server operator can read all entered data — see /privacy for the full GDPR statement." },
-  { section: "AI", q: "What does the AI assistant send to my provider?", a: "When you chat, your messages plus tool results (transactions, balances, categories) are sent to the OpenAI-compatible endpoint you configured. Your API token is stored server-side and is readable by the server operator." },
-];
 
 // ---------------------------------------------------------------------------
 // OpenAI-compatible chat client (tool-calling loop)

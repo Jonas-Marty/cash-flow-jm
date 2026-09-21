@@ -26,7 +26,6 @@
   "bannedPhrases": {
     "$comment": "Phrases that must not appear once the audit is done. Stage 2 empties most of this.",
     "pending": {
-      "X-API-Token": "No route reads this header; every one reads `authorization`. Stage 5.",
       "lovable.app": "Stale production server URL in openapi-spec.ts. Stage 7."
     }
   },
