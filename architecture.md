@@ -461,6 +461,12 @@ including the SQL/app inventory, performance estimate and phased plan, lives in
 
 ## 7. Change log
 
+> Entries below are **append-only history**: what was decided and why, as of
+> that date. They are deliberately not updated when behaviour changes later —
+> a change-log entry that describes today's code is no longer a record of
+> anything. Sections 1–6 are the maintained description; if the two disagree,
+> the sections above win. The same goes for the design records under `docs/`.
+
 ### 2026-09-22 — Scope remaining, and docs that match the code
 
 - `add.tsx` impact preview: a scope's remaining budget is `allocated_budget + from_transactions`,

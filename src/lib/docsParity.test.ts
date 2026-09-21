@@ -300,6 +300,35 @@ describe("code and docs agree", () => {
     expect(failures).toEqual([]);
   });
 
+  it("calls each IOU action what the buttons call it", () => {
+    // The guide said "Stornieren" while the button said "Verwerfen", so a
+    // reader following the instructions was hunting for a word that is not
+    // in the app. Button labels win; the guide follows them.
+    const i18n = readRepoFile("src/i18n/index.tsx");
+    const label = (key: string, nth: number) => {
+      const hits = [...i18n.matchAll(new RegExp(`"${key}":\\s*"([^"]+)"`, "g"))];
+      return hits[nth]?.[1];
+    };
+    const pages = {
+      de: { page: readDocPage(DOCS_DE, "04-iou-actions.md"), nth: 0 },
+      en: { page: readDocPage(DOCS_EN, "04-iou-actions.md"), nth: 1 },
+    };
+    const keys = ["iou.add_repayment", "iou.writeoff.action", "dash.reimb.mark_cancelled"];
+
+    const failures: string[] = [];
+    for (const [locale, { page, nth }] of Object.entries(pages)) {
+      const headings = page.sections.map((s) => s.title);
+      for (const key of keys) {
+        const wanted = label(key, nth);
+        expect(wanted, `${key} not found in i18n`).toBeTruthy();
+        if (!headings.some((h) => h.includes(wanted!))) {
+          failures.push(`${locale}: no heading matches the button "${wanted}" (${key})`);
+        }
+      }
+    }
+    expect(failures).toEqual([]);
+  });
+
   it("keeps the reconciliation anchor even as the wording moves on", () => {
     // `#why-is-my-reconciliation-drift-not-zero` is linked from outside. The
     // prose above it changes in stage 2; the anchor must not, which is why the
