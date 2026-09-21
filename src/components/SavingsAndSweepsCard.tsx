@@ -43,7 +43,7 @@ export function SavingsAndSweepsCard() {
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["settings"] });
       await qc.invalidateQueries({ queryKey: ["reconciliation"] });
-      await qc.invalidateQueries({ queryKey: ["savings-balances-v2"] });
+      await qc.invalidateQueries({ queryKey: ["savings-balances"] });
       toast.success(tr("common.save"));
     },
     onError: (e: Error) => toast.error(e.message),
@@ -53,7 +53,7 @@ export function SavingsAndSweepsCard() {
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["categories"] });
       await qc.invalidateQueries({ queryKey: ["reconciliation"] });
-      await qc.invalidateQueries({ queryKey: ["savings-balances-v2"] });
+      await qc.invalidateQueries({ queryKey: ["savings-balances"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -62,7 +62,7 @@ export function SavingsAndSweepsCard() {
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["category_groups"] });
       await qc.invalidateQueries({ queryKey: ["reconciliation"] });
-      await qc.invalidateQueries({ queryKey: ["savings-balances-v2"] });
+      await qc.invalidateQueries({ queryKey: ["savings-balances"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });

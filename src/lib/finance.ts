@@ -72,7 +72,7 @@ export interface CategoryMonthRow {
   spent_or_received: number;
   variance: number;
 }
-export interface CategorySavingsBalanceV2 {
+export interface CategorySavingsBalance {
   category_id: string;
   name: string;
   archived: boolean;
@@ -306,10 +306,6 @@ export async function restorePendingTransaction(pendingId: string): Promise<void
 }
 export type DayRule = "FixedDay" | "LastDay" | "FirstDay";
 export type WeekendAdjust = "None" | "PreviousBusinessDay" | "NextBusinessDay";
-/** @deprecated use `DayRule` — kept only for backwards imports. */
-export type DayRuleV2 = DayRule;
-/** @deprecated use `WeekendAdjust` — kept only for backwards imports. */
-export type WeekendAdjustV2 = WeekendAdjust;
 export type OccurrenceStatus = "pending" | "posted" | "skipped";
 
 export interface RecurringRule {
@@ -326,10 +322,10 @@ export interface RecurringRule {
   note: string | null;
   // Recurrence engine v2 fields
   recurrence_interval: number; // 1..12 (months)
-  execution_day_rule: DayRuleV2;
+  execution_day_rule: DayRule;
   execution_day_of_month: number | null;
-  execution_weekend_adjustment: WeekendAdjustV2;
-  period_day_rule: DayRuleV2;
+  execution_weekend_adjustment: WeekendAdjust;
+  period_day_rule: DayRule;
   period_day_of_month: number | null;
   period_offset: number; // -3..3
   starts_on: string;
@@ -965,10 +961,10 @@ export interface RecurringPreviewRow {
 
 export async function previewRecurringRule(input: {
   recurrence_interval: number;
-  execution_day_rule: DayRuleV2;
+  execution_day_rule: DayRule;
   execution_day_of_month: number | null;
-  execution_weekend_adjustment: WeekendAdjustV2;
-  period_day_rule: DayRuleV2;
+  execution_weekend_adjustment: WeekendAdjust;
+  period_day_rule: DayRule;
   period_day_of_month: number | null;
   period_offset: number;
   starts_on: string;
@@ -1021,11 +1017,11 @@ export function describeSchedule(r: RecurringRule, t: (k: string, v?: Record<str
 
 // --- Savings reallocations & sweeps ---
 
-export async function fetchSavingsBalancesV2(asOf?: string): Promise<CategorySavingsBalanceV2[]> {
+export async function fetchSavingsBalances(asOf?: string): Promise<CategorySavingsBalance[]> {
   const date = asOf ?? todayISO();
-  const { data, error } = await supabase.rpc("category_savings_balance_v2", { p_as_of: date });
+  const { data, error } = await supabase.rpc("category_savings_balance", { p_as_of: date });
   if (error) throw error;
-  return (data || []) as CategorySavingsBalanceV2[];
+  return (data || []) as CategorySavingsBalance[];
 }
 
 export interface SavingsBalancePoint {

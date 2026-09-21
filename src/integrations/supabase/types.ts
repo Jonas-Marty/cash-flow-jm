@@ -531,7 +531,7 @@ export type Database = {
             foreignKeyName: "categories_funding_category_id_fkey"
             columns: ["funding_category_id"]
             isOneToOne: false
-            referencedRelation: "category_savings_balance"
+            referencedRelation: "categories"
             referencedColumns: ["category_id"]
           },
           {
@@ -577,7 +577,7 @@ export type Database = {
             foreignKeyName: "category_budgets_category_id_fkey"
             columns: ["category_id"]
             isOneToOne: false
-            referencedRelation: "category_savings_balance"
+            referencedRelation: "categories"
             referencedColumns: ["category_id"]
           },
         ]
@@ -824,7 +824,7 @@ export type Database = {
             foreignKeyName: "pending_transactions_suggested_category_id_fkey"
             columns: ["suggested_category_id"]
             isOneToOne: false
-            referencedRelation: "category_savings_balance"
+            referencedRelation: "categories"
             referencedColumns: ["category_id"]
           },
         ]
@@ -1111,7 +1111,7 @@ export type Database = {
             foreignKeyName: "settings_active_scope_id_fkey"
             columns: ["active_scope_id"]
             isOneToOne: false
-            referencedRelation: "category_savings_balance"
+            referencedRelation: "categories"
             referencedColumns: ["category_id"]
           },
         ]
@@ -1203,7 +1203,7 @@ export type Database = {
             foreignKeyName: "statement_import_lines_suggested_category_id_fkey"
             columns: ["suggested_category_id"]
             isOneToOne: false
-            referencedRelation: "category_savings_balance"
+            referencedRelation: "categories"
             referencedColumns: ["category_id"]
           },
         ]
@@ -1555,7 +1555,7 @@ export type Database = {
             foreignKeyName: "transactions_category_id_fkey"
             columns: ["category_id"]
             isOneToOne: false
-            referencedRelation: "category_savings_balance"
+            referencedRelation: "categories"
             referencedColumns: ["category_id"]
           },
           {
@@ -1583,7 +1583,7 @@ export type Database = {
             foreignKeyName: "transactions_fee_category_id_fkey"
             columns: ["fee_category_id"]
             isOneToOne: false
-            referencedRelation: "category_savings_balance"
+            referencedRelation: "categories"
             referencedColumns: ["category_id"]
           },
           {
@@ -1704,41 +1704,6 @@ export type Database = {
         }
         Relationships: []
       }
-      category_savings_balance: {
-        Row: {
-          allocated_total: number | null
-          balance: number | null
-          category_id: string | null
-          group_id: string | null
-          name: string | null
-          spent_total: number | null
-        }
-        Insert: {
-          allocated_total?: never
-          balance?: never
-          category_id?: string | null
-          group_id?: string | null
-          name?: string | null
-          spent_total?: never
-        }
-        Update: {
-          allocated_total?: never
-          balance?: never
-          category_id?: string | null
-          group_id?: string | null
-          name?: string | null
-          spent_total?: never
-        }
-        Relationships: [
-          {
-            foreignKeyName: "categories_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "category_groups"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Functions: {
       account_balances_as_of: {
@@ -1792,12 +1757,13 @@ export type Database = {
           name: string
         }[]
       }
-      category_savings_balance_v2: {
+      category_savings_balance: {
         Args: { p_as_of: string }
         Returns: {
           archived: boolean
           category_id: string
           cumulative_balance: number
+          from_allocations: number
           from_reallocations: number
           from_sweeps: number
           from_transactions: number

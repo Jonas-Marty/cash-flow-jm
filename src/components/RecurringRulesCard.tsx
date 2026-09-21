@@ -20,7 +20,7 @@ import {
   fetchAccounts, fetchCategories, fetchRecurringRules,
   describeSchedule, previewRecurringRule, archiveRecurringRule, applyRecurringRuleBackfill, fetchSettings, fetchTransactions,
   fetchOccurrencesForRule, createPendingOccurrence, deletePendingOccurrence, fetchPendingProposals, reattachProposals,
-  type RecurringRule, type RecurringOccurrence, type DayRuleV2, type WeekendAdjustV2, type TxType,
+  type RecurringRule, type RecurringOccurrence, type DayRule, type WeekendAdjust, type TxType,
 } from "@/lib/finance";
 import { PostOccurrenceDialog } from "@/components/PostOccurrenceDialog";
 import { Link } from "@tanstack/react-router";
@@ -48,10 +48,10 @@ type Draft = {
   description: string;
   note: string;
   recurrence_interval: number; // 1..12
-  execution_day_rule: DayRuleV2;
+  execution_day_rule: DayRule;
   execution_day_of_month: string;
-  execution_weekend_adjustment: WeekendAdjustV2;
-  period_day_rule: DayRuleV2;
+  execution_weekend_adjustment: WeekendAdjust;
+  period_day_rule: DayRule;
   period_day_of_month: string;
   period_offset: number; // -3..3
   starts_on: string;
@@ -792,7 +792,7 @@ export function RecurringRulesCard() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs">{t("recurring.field.day_rule")}</Label>
-                  <Select value={draft.execution_day_rule} onValueChange={(v) => setDraft({ ...draft, execution_day_rule: v as DayRuleV2 })}>
+                  <Select value={draft.execution_day_rule} onValueChange={(v) => setDraft({ ...draft, execution_day_rule: v as DayRule })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="FixedDay">{t("recurring.day_rule.fixed_day")}</SelectItem>
@@ -810,7 +810,7 @@ export function RecurringRulesCard() {
               </div>
               <div>
                 <Label className="text-xs">{t("recurring.field.weekend")}</Label>
-                <Select value={draft.execution_weekend_adjustment} onValueChange={(v) => setDraft({ ...draft, execution_weekend_adjustment: v as WeekendAdjustV2 })}>
+                <Select value={draft.execution_weekend_adjustment} onValueChange={(v) => setDraft({ ...draft, execution_weekend_adjustment: v as WeekendAdjust })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="None">{t("recurring.weekend.none")}</SelectItem>
@@ -825,7 +825,7 @@ export function RecurringRulesCard() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs">{t("recurring.field.period_day_rule")}</Label>
-                  <Select value={draft.period_day_rule} onValueChange={(v) => setDraft({ ...draft, period_day_rule: v as DayRuleV2 })}>
+                  <Select value={draft.period_day_rule} onValueChange={(v) => setDraft({ ...draft, period_day_rule: v as DayRule })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="FixedDay">{t("recurring.day_rule.fixed_day")}</SelectItem>

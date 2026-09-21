@@ -28,7 +28,7 @@ import {
   fetchAccountBalances, fetchCategoryMonthRows, monthKey,
   type AccountBalance, type CategoryMonthRow,
 } from "@/lib/finance";
-import { fetchSavingsBalancesV2, type CategorySavingsBalanceV2 } from "@/lib/finance";
+import { fetchSavingsBalances, type CategorySavingsBalance } from "@/lib/finance";
 import { markPendingConfirmed } from "@/lib/finance";
 import { EntityVisual } from "@/components/EntityVisual";
 import { AlertTriangle, Link as LinkIcon } from "lucide-react";
@@ -598,8 +598,8 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
   // Cumulative savings envelope balances — savings categories show accumulated
   // money in the impact preview instead of a monthly remaining figure.
   const savingsBalancesQ = useQuery({
-    queryKey: ["savings_balances_v2"],
-    queryFn: () => fetchSavingsBalancesV2(),
+    queryKey: ["savings-balances"],
+    queryFn: () => fetchSavingsBalances(),
   });
 
   // Duplicate-warning: same source account + same date + same amount.
@@ -2370,7 +2370,7 @@ function ImpactPreview({
   categoryById: Map<string, { id: string; name: string; allocated_budget: number; is_scope?: boolean }>;
   balances: AccountBalance[] | null;
   categoryRows: CategoryMonthRow[] | null;
-  savingsBalances: CategorySavingsBalanceV2[] | null;
+  savingsBalances: CategorySavingsBalance[] | null;
   mainCode: string;
   mainSymbol: string;
   fxRates: FxRates | undefined;
@@ -2478,7 +2478,7 @@ function ImpactPreview({
     isSavings: boolean; savedBefore: number; savedAfter: number; isScope: boolean;
   };
   const catImpacts = new Map<string, number>();
-  // Savings envelopes follow the DB convention in category_savings_balance_v2:
+  // Savings envelopes follow the DB convention in category_savings_balance:
   // income credits the envelope (+), expense withdraws from it (−) — the
   // opposite sign of the month "spent" convention above.
   const savImpacts = new Map<string, number>();

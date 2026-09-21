@@ -323,7 +323,7 @@ Deferred: the feedback loop and gated auto-apply, see
 |---|---|---|
 | `account_balances` | view | Per-account computed balance. |
 | `category_month_spending(p_month DATE)` | function | Per-envelope row for the given month: `allocated`, `spent_or_received`, `variance`, plus group metadata (`group_id`, `group_name`, `kind`, `rolls_over`, sort orders). |
-| `category_savings_balance` | view | All-time `allocated_total`, `spent_total`, `balance` for every `rolls_over = true` category. |
+| `category_savings_balance(p_as_of DATE)` | function | Balance of every `rolls_over = true` envelope as of a date, with its provenance: `from_allocations`, `from_transactions`, `from_reallocations`, `from_sweeps`. |
 | `ensure_month_budgets(p_month DATE)` | function | Idempotently copies the most recent prior budget into the given month for every active category. Called by the UI before reading month rows. |
 | `sync_transaction_tags()` | trigger function | Re-derives `transaction_tags` from the note on insert/update. |
 | `update_updated_at_column()` | trigger function | Sets `updated_at = now()` on update; attached to all mutable tables. |
@@ -364,6 +364,18 @@ including the SQL/app inventory, performance estimate and phased plan, lives in
 [`docs/encryption-at-rest.md`](./docs/encryption-at-rest.md).
 
 ## 7. Change log
+
+### 2026-09-21 — Rolling envelopes are allocated; one savings balance
+
+- Migration `20260921160000_allocate_rollover_envelopes.sql`: `ensure_month_budgets` now skips
+  only scopes, the `cleanup_budgets_on_savings_flip` trigger is gone, past months are backfilled
+  idempotently from `allocated_budget`, and `category_savings_balance` gained `from_allocations`.
+  Rolling envelopes had never received an allocation, so each one sat at minus its own spending
+  (Lebensmittel −946.75 → +303.25). See §3.3, §3.4.
+- Migration `20260921180000_one_savings_balance.sql`: the `category_savings_balance` **view** is
+  dropped — it read allocations from `category_budgets`, which rolling envelopes never had, so
+  its balance was structurally wrong — and `category_savings_balance_v2` takes the freed name.
+  One balance, one source of truth. `DayRuleV2` / `WeekendAdjustV2` aliases removed too.
 
 ### 2026-09-21 — `is_savings` renamed to `rolls_over`
 

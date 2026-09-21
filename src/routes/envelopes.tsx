@@ -15,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/i18n";
 import {
   fetchCategoryMonthRows,
-  fetchSavingsBalancesV2,
+  fetchSavingsBalances,
   fetchSettings,
   fetchAccounts,
   fmtMoney,
@@ -93,7 +93,7 @@ function EnvelopesPage() {
   );
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const rowsQ = useQuery({ queryKey: ["category_month_rows", m], queryFn: () => fetchCategoryMonthRows(m) });
-  const savingsV2Q = useQuery({ queryKey: ["savings-balances-v2", asOf], queryFn: () => fetchSavingsBalancesV2(asOf) });
+  const savingsBalanceQ = useQuery({ queryKey: ["savings-balances", asOf], queryFn: () => fetchSavingsBalances(asOf) });
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   const groupsQ = useQuery({ queryKey: ["category_groups"], queryFn: fetchCategoryGroups });
   const pendingImpactQ = useQuery({ queryKey: ["pending_impact_month", m], queryFn: () => fetchPendingImpactsForMonth(m) });
@@ -107,9 +107,9 @@ function EnvelopesPage() {
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
   const mainCode = settingsQ.data?.currency_code ?? "CHF";
   const rows = rowsQ.data ?? [];
-  const savingsV2Map = React.useMemo(
-    () => new Map((savingsV2Q.data ?? []).map((s) => [s.category_id, s])),
-    [savingsV2Q.data],
+  const savingsBalanceMap = React.useMemo(
+    () => new Map((savingsBalanceQ.data ?? []).map((s) => [s.category_id, s])),
+    [savingsBalanceQ.data],
   );
   const categoriesById = React.useMemo(
     () => new Map((categoriesQ.data ?? []).map((c) => [c.id, c])),
@@ -304,7 +304,7 @@ function EnvelopesPage() {
               </div>
               <PrivacyValue className="text-lg font-bold tabular-nums">
                 {fmtMoney(
-                  (savingsV2Q.data ?? []).reduce((s, r) => s + Number(r.cumulative_balance), 0),
+                  (savingsBalanceQ.data ?? []).reduce((s, r) => s + Number(r.cumulative_balance), 0),
                   symbol,
                 )}
               </PrivacyValue>
@@ -339,7 +339,7 @@ function EnvelopesPage() {
               // Savings groups show the sum of cumulative envelope balances,
               // not the (usually zero) monthly allocation.
               const totalSaved = g.rows.reduce((s, r) => {
-                const v2 = savingsV2Map.get(r.category_id);
+                const v2 = savingsBalanceMap.get(r.category_id);
                 return s + Number(v2?.cumulative_balance ?? 0);
               }, 0);
               return (
@@ -400,7 +400,7 @@ function EnvelopesPage() {
 
                 let header: React.ReactNode;
                 if (rowKind === "savings") {
-                  const v2 = savingsV2Map.get(r.category_id);
+                  const v2 = savingsBalanceMap.get(r.category_id);
                   const balance = Number(v2?.cumulative_balance ?? 0);
                   const monthly = v2 ? Number(v2.month_activity) : 0;
                   header = (

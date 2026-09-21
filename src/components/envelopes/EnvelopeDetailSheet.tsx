@@ -21,7 +21,7 @@ import { useI18n } from "@/i18n";
 import { supabase } from "@/integrations/supabase/client";
 import {
   fetchSavingsBalanceSeries,
-  fetchSavingsBalancesV2,
+  fetchSavingsBalances,
   fetchReallocations,
   fetchCategories,
   fmtMoney,
@@ -77,8 +77,8 @@ export function EnvelopeDetailSheet({
     enabled,
   });
   const balQ = useQuery({
-    queryKey: ["savings-balances-v2", asOf],
-    queryFn: () => fetchSavingsBalancesV2(asOf),
+    queryKey: ["savings-balances", asOf],
+    queryFn: () => fetchSavingsBalances(asOf),
     enabled,
   });
   const txQ = useQuery({
