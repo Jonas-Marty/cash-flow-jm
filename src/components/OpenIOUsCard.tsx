@@ -150,6 +150,10 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
       note,
     });
     if (tx.reimbursable_counterparty) params.set("counterparty", tx.reimbursable_counterparty);
+    // Carry the original's envelope over. A refund landing on a different
+    // envelope (or none) leaves the original over-stating its cost and the
+    // difference stranded outside the budget.
+    if (tx.category_id) params.set("category", tx.category_id);
     return `/add?${params.toString()}`;
   };
 

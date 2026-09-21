@@ -66,3 +66,44 @@ export function findSubsetSumMatch(
 
   return best;
 }
+
+/**
+ * Spread a settling transaction's amount across the reimbursables it settles.
+ *
+ * Each link is capped at the original's own remaining, and the running total is
+ * capped at what the settling transaction actually pays. Recording the
+ * original's full remaining when a smaller refund arrived is what silently
+ * flipped partially-repaid IOUs to "settled" and dropped them off the
+ * dashboard, so the cap is the correctness guarantee — not a convenience.
+ *
+ * Selections are consumed in the order given; pass them in the order the user
+ * sees them so the leftover lands on the last row.
+ */
+export function clampLinkAmounts(
+  selections: Array<{ id: string; amount: number }>,
+  settlingAmount: number,
+): Array<{ id: string; amount: number }> {
+  if (!isFinite(settlingAmount) || settlingAmount <= 0) return [];
+  let budget = settlingAmount;
+  const out: Array<{ id: string; amount: number }> = [];
+  for (const s of selections) {
+    if (budget <= 0.005) break;
+    if (!isFinite(s.amount) || s.amount <= 0) continue;
+    const amount = Math.round(Math.min(s.amount, budget) * 100) / 100;
+    if (amount <= 0) continue;
+    out.push({ id: s.id, amount });
+    budget -= amount;
+  }
+  return out;
+}
+
+/** Remaining settling amount once `selected` has been allocated. Used to cap
+ *  the default when the user ticks one more candidate. */
+export function unallocatedSettlingAmount(
+  selected: Record<string, number>,
+  settlingAmount: number,
+): number {
+  const used = Object.values(selected).reduce((s, v) => s + (Number(v) || 0), 0);
+  const left = (isFinite(settlingAmount) ? settlingAmount : 0) - used;
+  return left > 0 ? left : 0;
+}

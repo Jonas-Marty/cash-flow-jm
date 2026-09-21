@@ -54,7 +54,10 @@ import { AttachmentsSection, type DraftAttachment } from "@/components/Attachmen
 import { TransactionStatementRow } from "@/components/StatementDocLink";
 import { Markdown } from "@/components/Markdown";
 import { useFxRates, convert } from "@/lib/fx";
-import { findSubsetSumMatch, defaultTolerance, REIMB_MATCH_MAX_CANDIDATES } from "@/lib/reimbMatch";
+import {
+  findSubsetSumMatch, defaultTolerance, REIMB_MATCH_MAX_CANDIDATES,
+  clampLinkAmounts, unallocatedSettlingAmount,
+} from "@/lib/reimbMatch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 import type { FxRates } from "@/lib/fx";
@@ -1053,9 +1056,14 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
       fee_transaction_id: type === "transfer" && feeAmtNum > 0 ? feeTxId : null,
       ...locationToColumns(location),
     };
-    const selectedLinks = Object.entries(linkSelections)
-      .map(([id, amt2]) => ({ id, amount: Number(amt2) }))
-      .filter((x) => x.id && Number.isFinite(x.amount) && x.amount > 0);
+    // Never claim more than this transaction actually pays: an over-stated
+    // link flips the original to "settled" and the IOU silently disappears.
+    const selectedLinks = clampLinkAmounts(
+      Object.entries(linkSelections)
+        .map(([id, amt2]) => ({ id, amount: Number(amt2) }))
+        .filter((x) => x.id && Number.isFinite(x.amount) && x.amount > 0),
+      amountNum ?? 0,
+    );
     if (isEdit && editId) {
       const { error } = await supabase.from("transactions").update(payload).eq("id", editId);
       if (error) { setSaving(false); toast.error(error.message); return; }
@@ -1968,7 +1976,7 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
                                 linkSelectionsTouchedRef.current = true;
                                 setLinkSelections((cur) => {
                                   const next = { ...cur };
-                                  if (v) next[t.id] = rem;
+                                  if (v) next[t.id] = Math.min(rem, unallocatedSettlingAmount(cur, incomeAmt));
                                   else delete next[t.id];
                                   return next;
                                 });
@@ -2010,7 +2018,10 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
                           onClick={() => {
                             linkSelectionsTouchedRef.current = true;
                             const next: Record<string, number> = {};
-                            suggestedMatch.ids.forEach((id) => { next[id] = remainingByOrig.get(id) ?? 0; });
+                            clampLinkAmounts(
+                              suggestedMatch.ids.map((id) => ({ id, amount: remainingByOrig.get(id) ?? 0 })),
+                              incomeAmt,
+                            ).forEach((x) => { next[x.id] = x.amount; });
                             setLinkSelections(next);
                           }}
                         >
@@ -2024,7 +2035,10 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
                         onClick={() => {
                           linkSelectionsTouchedRef.current = true;
                           const next: Record<string, number> = {};
-                          linkCandidates.forEach((t) => { next[t.id] = remainingByOrig.get(t.id) ?? 0; });
+                          clampLinkAmounts(
+                            linkCandidates.map((t) => ({ id: t.id, amount: remainingByOrig.get(t.id) ?? 0 })),
+                            incomeAmt,
+                          ).forEach((x) => { next[x.id] = x.amount; });
                           setLinkSelections(next);
                         }}
                       >
