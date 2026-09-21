@@ -398,7 +398,7 @@ function GridCell({
         title={fmtMoney(amount, symbol)}
         onFocus={(e) => { setFocused(true); e.currentTarget.select(); }}
         onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => { setFocused(false); if (!onCommit(draft)) setDraft(String(amount)); }}
+        onBlur={() => { setFocused(false); onPreviewFill(null); if (!onCommit(draft)) setDraft(String(amount)); }}
         onKeyDown={(e) => {
           // Enter commits this cell; Cmd/Ctrl+Enter carries it to the right edge —
           // the same two scopes the popover offers, as the same two gestures.
@@ -435,7 +435,12 @@ function GridCell({
         </div>
       )}
 
-      {focused && previewValue === null && (
+      {/* Rendered on focus alone, never on preview state: gating this on
+          `previewValue === null` made the button unmount the instant hovering it set
+          the preview, so its own onMouseLeave never fired — the preview stuck, and
+          the button could not be clicked at all. A hover target must not be able to
+          remove itself in response to being hovered. */}
+      {focused && (
         <button
           type="button"
           tabIndex={-1}
