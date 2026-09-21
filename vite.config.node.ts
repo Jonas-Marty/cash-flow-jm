@@ -4,6 +4,9 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
-  // Disable the Cloudflare Workers plugin so the SSR bundle targets Node.
-  cloudflare: false,
+  // Skip the nitro deploy plugin so the SSR bundle targets Node rather than
+  // being wrapped for Cloudflare Workers. Spelled `cloudflare: false` until
+  // v2 of the preset removed that option; it still worked through a
+  // compatibility shim, and warned three times per build.
+  nitro: false,
 });
