@@ -1,15 +1,17 @@
 import * as React from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { format, startOfMonth, endOfMonth, addMonths, isValid, parseISO } from "date-fns";
+import { format, startOfMonth, endOfMonth, isValid, parseISO } from "date-fns";
+import type { Locale as DateFnsLocale } from "date-fns";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import * as z from "zod";
-import { ChevronLeft, ChevronRight, ArrowLeftRight, ChevronDown } from "lucide-react";
+import { ArrowLeftRight, ChevronDown, LayoutGrid, Rows3 } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/i18n";
@@ -36,11 +38,25 @@ import { MonthBudgetSummary } from "@/components/MonthBudgetSummary";
 import { ReallocateDialog } from "@/components/ReallocateDialog";
 import { SavingsHistoryCard } from "@/components/envelopes/SavingsHistoryCard";
 import { EnvelopeDetailSheet } from "@/components/envelopes/EnvelopeDetailSheet";
-import { DateInput } from "@/components/DateInput";
+import { DatePicker } from "@/components/DatePicker";
+import { MonthNavigator } from "@/components/MonthNavigator";
+import { BudgetEditPopover } from "@/components/BudgetEditPopover";
+import { defaultAsOfForMonth, monthParam, monthStatus, parseMonthParam } from "@/lib/month";
+import { BudgetGrid } from "@/components/envelopes/BudgetGrid";
+import { monthWindow } from "@/lib/budgetGrid";
+import { fetchCategoryBudgetRange } from "@/lib/finance";
 import { PrivacyValue } from "@/components/DashboardPrivacy";
 
 const searchSchema = z.object({
+  /** `YYYY-MM`. The month whose budgets are shown; absent means the current month. */
+  month: fallback(z.string(), "").default(""),
+  /**
+   * `YYYY-MM-DD`. Present only when pinned by hand — otherwise the balances date is
+   * derived from `month`, so stepping through months moves the balances with them.
+   */
   asOf: fallback(z.string(), "").default(""),
+  /** `grid` opens the category × month table. Cards otherwise, and on a phone. */
+  view: fallback(z.string(), "").default(""),
 });
 
 export const Route = createFileRoute("/envelopes")({
@@ -71,22 +87,103 @@ async function fetchMonthCategoryTx(monthStart: Date): Promise<Transaction[]> {
   return (data || []) as Transaction[];
 }
 
+/**
+ * The month's allocation, rendered as its own edit target.
+ *
+ * Tapping the figure you are already reading is the entire affordance: no edit mode,
+ * no separate screen, and the month is whichever one the page is showing. Scope rows
+ * never reach here — they are filtered out before grouping, and the RPC refuses them
+ * anyway.
+ */
+function EditableAllocation({
+  row,
+  month,
+  locale,
+  symbol,
+  className,
+}: {
+  row: CategoryMonthRow;
+  month: Date;
+  locale?: DateFnsLocale;
+  symbol: string;
+  className?: string;
+}) {
+  const allocated = Number(row.allocated);
+  return (
+    <BudgetEditPopover
+      categoryId={row.category_id}
+      categoryName={row.name}
+      month={month}
+      amount={allocated}
+      locale={locale}
+    >
+      <button
+        type="button"
+        className={cn(
+          "-mx-1 rounded px-1 underline decoration-dotted decoration-muted-foreground/60 underline-offset-4",
+          "hover:bg-accent hover:text-accent-foreground",
+          className,
+        )}
+      >
+        {fmtMoney(allocated, symbol)}
+      </button>
+    </BudgetEditPopover>
+  );
+}
+
 function EnvelopesPage() {
   const { t: tr, locale } = useI18n();
-  const [month, setMonth] = React.useState(() => startOfMonth(new Date()));
-  const m = monthKey(month);
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/envelopes" });
-  const asOfDate = React.useMemo(() => {
+  const month = React.useMemo(() => parseMonthParam(search.month), [search.month]);
+  const m = monthKey(month);
+  const status = monthStatus(month);
+
+  // The balances date follows the month unless it has been pinned by hand: a past month
+  // reads at its close, the current month reads today, a future month reads as a
+  // projection to its end. Stepping the month clears any pin, which is the whole point.
+  const pinned = React.useMemo(() => {
     const parsed = search.asOf ? parseISO(search.asOf) : null;
-    return parsed && isValid(parsed) ? parsed : new Date();
+    return parsed && isValid(parsed) ? parsed : null;
   }, [search.asOf]);
+  const asOfDate = pinned ?? defaultAsOfForMonth(month);
   const asOf = format(asOfDate, "yyyy-MM-dd");
-  const isToday = asOf === format(new Date(), "yyyy-MM-dd");
+  const isProjection = !pinned && status === "future";
+
+  const setMonth = React.useCallback(
+    (d: Date) => {
+      navigate({ search: () => ({ month: monthParam(startOfMonth(d)), asOf: "" }), replace: true });
+    },
+    [navigate],
+  );
+  const gridView = search.view === "grid";
+  const setView = React.useCallback(
+    (v: "cards" | "grid") => {
+      navigate({
+        search: (prev) => ({ ...prev, view: v === "grid" ? "grid" : "" }),
+        replace: true,
+      });
+    },
+    [navigate],
+  );
+
+  // Twelve columns ending at the month you are on, so stepping the month scrolls the
+  // window rather than jumping somewhere unrelated.
+  const gridMonths = React.useMemo(() => monthWindow(month, 12), [month]);
+  const gridTo = monthKey(gridMonths[gridMonths.length - 1]);
+  const budgetRangeQ = useQuery({
+    // Every row up to the right edge, not just the visible window: the value an
+    // undecided month inherits can come from a row older than the first column, and
+    // showing the template instead would be a number the database never produces.
+    queryKey: ["category_budget_range", gridTo],
+    queryFn: () => fetchCategoryBudgetRange("1970-01-01", gridTo),
+    enabled: gridView,
+  });
+
   const setAsOf = React.useCallback(
     (d: Date | null) => {
       navigate({
-        search: () => ({ asOf: d ? format(d, "yyyy-MM-dd") : "" }),
+        search: (prev) => ({ month: prev.month ?? "", asOf: d ? format(d, "yyyy-MM-dd") : "" }),
         replace: true,
       });
     },
@@ -256,18 +353,42 @@ function EnvelopesPage() {
   }, [effectiveRows]);
 
   return (
-    <AppShell>
+    <AppShell wide={gridView}>
       <div className="space-y-4">
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">{tr("env.title")}</h1>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => { setReallocFrom(null); setReallocOpen(true); }}
-          >
-            <ArrowLeftRight className="h-4 w-4 mr-1" />
-            {tr("envelopes.reallocate")}
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="hidden rounded-md border p-0.5 sm:flex">
+              <Button
+                variant={gridView ? "ghost" : "secondary"}
+                size="sm"
+                className="h-7 px-2"
+                aria-label={tr("env.view.cards")}
+                title={tr("env.view.cards")}
+                onClick={() => setView("cards")}
+              >
+                <Rows3 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={gridView ? "secondary" : "ghost"}
+                size="sm"
+                className="h-7 px-2"
+                aria-label={tr("env.view.grid")}
+                title={tr("env.view.grid")}
+                onClick={() => setView("grid")}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setReallocFrom(null); setReallocOpen(true); }}
+            >
+              <ArrowLeftRight className="h-4 w-4 mr-1" />
+              {tr("envelopes.reallocate")}
+            </Button>
+          </div>
         </div>
         {hasForeign && (
           <div className="rounded-md border border-dashed bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
@@ -275,30 +396,27 @@ function EnvelopesPage() {
           </div>
         )}
 
-        <div className="flex items-center justify-between">
-          <Button variant="outline" size="sm" onClick={() => setMonth((m) => addMonths(m, -1))}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <div className="font-medium">{format(month, "MMMM yyyy", { locale })}</div>
-          <Button variant="outline" size="sm" onClick={() => setMonth((m) => addMonths(m, 1))}>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        </div>
+        <MonthNavigator month={month} onChange={setMonth} locale={locale} />
 
         <Card>
           <CardContent className="flex flex-wrap items-center gap-3 py-3">
             <div className="text-sm font-medium">{tr("env.asof.label")}</div>
-            <DateInput
+            <DatePicker
               value={asOfDate}
               onChange={(d) => setAsOf(d)}
               lang={settingsQ.data?.language ?? "de"}
               locale={locale}
-              className="h-9 w-[150px]"
+              className="h-9 w-[170px]"
             />
-            {!isToday && (
+            {pinned && (
               <Button variant="ghost" size="sm" onClick={() => setAsOf(null)}>
-                {tr("env.asof.today")}
+                {status === "current" ? tr("env.asof.today") : tr("env.asof.follow_month")}
               </Button>
+            )}
+            {isProjection && (
+              <Badge variant="outline" title={tr("env.asof.projected_hint")}>
+                {tr("env.asof.projected")}
+              </Badge>
             )}
             <div className="ml-auto text-right">
               <div className="text-xs uppercase tracking-wide text-muted-foreground">
@@ -311,6 +429,11 @@ function EnvelopesPage() {
                 )}
               </PrivacyValue>
             </div>
+            {isProjection && (
+              <p className="w-full text-[11px] leading-snug text-muted-foreground">
+                {tr("env.asof.projected_hint")}
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -356,7 +479,25 @@ function EnvelopesPage() {
               symbol={symbol}
               monthLabel={format(month, "MMMM yyyy", { locale })}
             />
-            {groups.map((g) => {
+            {gridView && (
+              <>
+                <p className="text-xs leading-snug text-muted-foreground">{tr("budget.grid.hint")}</p>
+                {budgetRangeQ.isLoading ? (
+                  <Skeleton className="h-64 w-full" />
+                ) : (
+                  <BudgetGrid
+                    months={gridMonths}
+                    selectedMonth={month}
+                    categories={categoriesQ.data ?? []}
+                    groups={groupsQ.data ?? []}
+                    stored={budgetRangeQ.data ?? []}
+                    symbol={symbol}
+                    locale={locale}
+                  />
+                )}
+              </>
+            )}
+            {!gridView && groups.map((g) => {
               const totalAlloc = g.rows.reduce((s, r) => s + Number(r.allocated), 0);
               const totalActual = g.rows.reduce((s, r) => s + Number(r.spent_or_received), 0);
               const totalPending = g.rows.reduce((s, r) => {
@@ -460,6 +601,12 @@ function EnvelopesPage() {
                           {fmtMoney(balance, symbol)}
                         </PrivacyValue>
                       </div>
+                      {/* The headline is the running balance, so the month's allocation —
+                          the money this envelope lives on — needs its own edit target. */}
+                      <div className="mt-1 text-xs tabular-nums text-muted-foreground">
+                        {tr("envelopes.savings.allocation")}:{" "}
+                        <EditableAllocation row={r} month={month} locale={locale} symbol={symbol} />
+                      </div>
                       {v2 && (
                         <div className="mt-1 text-xs tabular-nums text-muted-foreground flex flex-wrap gap-x-3">
                           <span>{tr("envelopes.savings.month_activity")}: <span className={cn(monthly > 0 ? "text-success" : monthly < 0 ? "text-destructive" : "")}>{monthly >= 0 ? "+" : ""}{fmtMoney(monthly, symbol)}</span></span>
@@ -491,7 +638,7 @@ function EnvelopesPage() {
                         <div className="font-semibold">{r.name}</div>
                         <div className="text-base font-bold tabular-nums">
                           <span className={tone}>{fmtMoney(projected, symbol)}</span>
-                          <span className="text-muted-foreground font-normal"> / {fmtMoney(allocated, symbol)}</span>
+                          <span className="text-muted-foreground font-normal"> / <EditableAllocation row={r} month={month} locale={locale} symbol={symbol} /></span>
                         </div>
                       </div>
                       <div className="mt-1 text-xs tabular-nums text-muted-foreground flex flex-wrap gap-x-2">
@@ -522,7 +669,7 @@ function EnvelopesPage() {
                         <div className="font-semibold">{r.name}</div>
                         <div className="text-base font-bold tabular-nums">
                           <span className={cn(overProjected ? "text-destructive" : "text-foreground")}>{fmtMoney(projected, symbol)}</span>
-                          <span className="text-muted-foreground font-normal"> / {fmtMoney(allocated, symbol)}</span>
+                          <span className="text-muted-foreground font-normal"> / <EditableAllocation row={r} month={month} locale={locale} symbol={symbol} /></span>
                         </div>
                       </div>
                       <StackedBudgetBar className="mt-2 h-1.5" allocated={allocated} committed={actual} pending={pendingPos} />
@@ -644,7 +791,7 @@ function EnvelopesPage() {
           </>
         )}
 
-        <SavingsHistoryCard symbol={symbol} />
+        {!gridView && <SavingsHistoryCard symbol={symbol} />}
       </div>
       <ReallocateDialog
         open={reallocOpen}

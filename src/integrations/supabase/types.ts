@@ -1887,6 +1887,19 @@ export type Database = {
         }
         Returns: string[]
       }
+      set_category_budgets_bulk: {
+        Args: { p_edits: Json }
+        Returns: number
+      }
+      set_category_budget: {
+        Args: {
+          p_amount: number
+          p_category_id: string
+          p_month: string
+          p_scope?: string
+        }
+        Returns: undefined
+      }
       series_step: {
         Args: {
           p_anchor: string

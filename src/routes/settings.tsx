@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, Trash2, ArchiveRestore, Archive, Pin, PinOff, Palette, ChevronUp, ChevronDown, Pencil, AlertTriangle } from "lucide-react";
-import { format } from "date-fns";
+import { format, startOfMonth } from "date-fns";
 
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,10 +18,12 @@ import { IconPicker } from "@/components/IconPicker";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import {
-  fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings,
-  setCategoryOpeningBalance,
+  fetchAccounts, fetchCategories, fetchCategoryGroups, fetchCategoryMonthRows, fetchSettings,
+  monthKey, setCategoryOpeningBalance,
   type AccountType, type GroupKind,
 } from "@/lib/finance";
+import { BudgetEditPopover } from "@/components/BudgetEditPopover";
+import { MonthNavigator } from "@/components/MonthNavigator";
 import { useI18n, LANGUAGES, type Lang } from "@/i18n";
 import { helpUrl } from "@/lib/helpUrl";
 import { RecurringRulesCard } from "@/components/RecurringRulesCard";
@@ -65,6 +67,26 @@ function SettingsPage() {
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   const groupsQ = useQuery({ queryKey: ["category_groups"], queryFn: fetchCategoryGroups });
+
+  // The envelope list edits one month at a time, the same way /envelopes does. Showing
+  // `categories.allocated_budget` here was a quiet lie: that column is the template used
+  // to seed a month with no prior row, and the month in front of you may well differ.
+  const [budgetMonth, setBudgetMonth] = React.useState(() => startOfMonth(new Date()));
+  const budgetMonthKey = monthKey(budgetMonth);
+  const monthRowsQ = useQuery({
+    queryKey: ["category_month_rows", budgetMonthKey],
+    queryFn: () => fetchCategoryMonthRows(budgetMonthKey),
+  });
+  const budgetByCategory = React.useMemo(() => {
+    const map = new Map<string, number>();
+    for (const r of monthRowsQ.data ?? []) map.set(r.category_id, Number(r.allocated));
+    return map;
+  }, [monthRowsQ.data]);
+  const budgetFor = React.useCallback(
+    (c: { id: string; allocated_budget: number | string }) =>
+      budgetByCategory.get(c.id) ?? Number(c.allocated_budget),
+    [budgetByCategory],
+  );
 
   // Currency
   const setCurrency = async (code: string) => {
@@ -183,17 +205,6 @@ function SettingsPage() {
     if (group?.kind === "savings") patch.rolls_over = true;
     const { error } = await supabase.from("categories").update(patch).eq("id", id);
     if (error) return toast.error(error.message);
-    qc.invalidateQueries();
-  };
-  const updateCategoryBudget = async (id: string, value: string) => {
-    const v = Number(value); if (Number.isNaN(v)) return;
-    const { error } = await supabase.from("categories").update({ allocated_budget: v }).eq("id", id);
-    if (error) return toast.error(error.message);
-    // also update current month's budget row so the change reflects immediately
-    const m = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}-01`;
-    await supabase.from("category_budgets").upsert({ category_id: id, month: m, amount: v }, { onConflict: "category_id,month" });
-    // remove any pre-generated future month rows so they get regenerated from the new default
-    await supabase.from("category_budgets").delete().eq("category_id", id).gt("month", m);
     qc.invalidateQueries();
   };
   const toggleArchiveCategory = async (id: string, archived: boolean) => {
@@ -587,10 +598,12 @@ function SettingsPage() {
         <Card>
           <CardHeader><CardTitle className="text-base">{tr("settings.envelopes")}</CardTitle></CardHeader>
           <CardContent className="@container/env space-y-4">
+            <MonthNavigator month={budgetMonth} onChange={setBudgetMonth} locale={locale} />
             <BudgetBalanceCard
               categories={categoriesQ.data ?? []}
               groups={groupsQ.data ?? []}
               symbol={settingsQ.data?.currency_symbol ?? "CHF"}
+              amounts={budgetByCategory}
             />
             <div className="grid gap-2 @2xl/env:grid-cols-[minmax(0,1fr)_180px_180px_auto]">
               <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("common.name")}</Label><Input value={cName} onChange={(e) => setCName(e.target.value)} placeholder="Groceries" /></div>
@@ -685,14 +698,21 @@ function SettingsPage() {
                     <div className="flex items-center gap-1" title={tr("settings.savings_envelope")}>
                       <Switch checked={c.rolls_over} onCheckedChange={() => toggleCategoryRollsOver(c.id, c.rolls_over)} aria-label={tr("settings.savings_envelope")} />
                     </div>
-                    <Input
-                      key={`${c.id}-${c.rolls_over}-${c.allocated_budget}`}
-                      defaultValue={Number(c.allocated_budget).toString()}
-                      inputMode="decimal"
-                      className="w-24 shrink-0 text-right tabular-nums @2xl/env:w-28"
-                      onBlur={(e) => updateCategoryBudget(c.id, e.target.value)}
-                      title={tr("settings.monthly_budget")}
-                    />
+                    <BudgetEditPopover
+                      categoryId={c.id}
+                      categoryName={c.name}
+                      month={budgetMonth}
+                      amount={budgetFor(c)}
+                      locale={locale}
+                    >
+                      <Button
+                        variant="outline"
+                        className="w-24 shrink-0 justify-end text-right font-normal tabular-nums @2xl/env:w-28"
+                        title={tr("settings.monthly_budget")}
+                      >
+                        {fmtMoney(budgetFor(c), settingsQ.data?.currency_symbol ?? "CHF")}
+                      </Button>
+                    </BudgetEditPopover>
                     {/* Only rolling envelopes carry money across months, so an
                         opening balance is meaningless anywhere else. */}
                     {c.rolls_over ? (

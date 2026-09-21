@@ -181,8 +181,14 @@ assigning it moves money between terms and never changes the residual.
 
 Budgets live in `category_budgets(category_id, month, amount)`. Each row = the budget that applied for that envelope in that calendar month.
 
-- Editing the **current** month's budget overwrites only that month's row. Past months stay frozen → the user can always look up "what was my Lebensmittel budget in March?".
-- On first access of a new month, the SQL function `ensure_month_budgets(month)` copies the most recent prior budget per active category into the new month (idempotent). If the category has no prior history, it falls back to `categories.allocated_budget` as a template. Every envelope except scopes gets a row — rolling ones included, since that allocation is the money they live on.
+- **Any month is editable**, past included. `set_category_budget(category_id, month, amount, scope)` is the only writer; `scope` is `month` (that month alone — a correction) or `forward` (that month and every later row, plus `categories.allocated_budget`). `forward` updates existing later rows rather than deleting them for copy-forward to regenerate: deletion made the result depend on which months the user had happened to browse, since viewing a month materialises it.
+- Past months are therefore **not** frozen. Editing one is not cosmetic — per §3.3.1 sweeps are computed at read time, so changing an elapsed month's budget changes that month's sweep and every savings balance since. There is nothing to repair, which is what makes it cheap; the RPC writes an `audit_logs` entry when the edited month has fully elapsed so the change leaves a trace.
+- Scopes are rejected by the RPC, matching `ensure_month_budgets`: they are funded from their funding envelope at close and take no part in the monthly plan.
+- `ensure_month_budgets(month)` **fills every gap up to the current month**, idempotently. Each missing month inherits from *its own* nearest prior row — so an interior gap gets what applied at the time, not today's figure — falling back to `categories.allocated_budget` where the envelope has no history at all. The range is bounded by each envelope's own first budgeted month, so a category created last week does not acquire a year of rows. Every envelope except scopes gets one, rolling ones included, since that allocation is the money they live on.
+- **Gaps in elapsed months are a correctness bug, not cosmetics.** `category_savings_balance` sums allocations over `cb.month <= p_as_of` and computes each elapsed month's sweep from `allocated - spent`; a missing row therefore contributes neither, understating every rolling envelope's balance and pushing `envelope_reconciliation`'s residual off zero. Away from 22 July until 3 December, the old one-month-at-a-time seeding left August through November missing.
+- **Nothing is ever materialised past the current month.** Looking at a month is not deciding it, and the budget grid shows twelve at once. The cap lives in the function, so `ensure_month_budgets` is safe to call with any month and there is one rule rather than a second client-side copy of it. A future month with no row is *undecided*; the grid renders what it would inherit in italics so a blank is never read as zero.
+- Both views resolve a rowless month the same way. `category_month_spending` used to COALESCE straight to `allocated_budget`, which disagreed with the grid's copy-forward for future months; it now takes the nearest prior row first.
+- `set_category_budgets_bulk(p_edits jsonb)` applies many cells as one transaction and one audit entry — fill-right and copy-a-column are one decision each, not twelve. It enforces the same three guards as the single-cell RPC, before any write, so a bad batch is rejected whole. An edit whose `amount` is JSON `null` **clears** the cell: undo has to be able to restore a month to undecided, and writing back the value it happened to inherit would decide it.
 - The `categories.allocated_budget` column is now a *template* used for new months when no prior row exists, and as a sensible default when the UI wants a single number to display in non-month-aware contexts.
 
 A rolling envelope's balance is unaffected by month boundaries: it is `opening_balance` plus every `category_budgets.amount` up to the date, less category-assigned transactions, plus reallocations and swept leftovers. Scopes are excluded from allocation — they are funded from their funding envelope when they close.
@@ -466,6 +472,57 @@ including the SQL/app inventory, performance estimate and phased plan, lives in
 > a change-log entry that describes today's code is no longer a record of
 > anything. Sections 1–6 are the maintained description; if the two disagree,
 > the sections above win. The same goes for the design records under `docs/`.
+
+### 2026-09-22 — Budgets as a grid
+
+- `/envelopes?view=grid` renders envelopes × twelve months. It answers the two things
+  the card view structurally cannot: what one envelope has done across a year, and
+  setting several months at once. Toggle lives in the URL, like `transactions.tsx`;
+  `AppShell wide` follows it; cards stay the default below `sm`.
+- Migration `20260922140000_set_category_budgets_bulk.sql`. One transaction, one audit
+  entry naming the span. Same guards as the single-cell RPC, all evaluated before any
+  write. `amount: null` clears a cell rather than writing zero.
+- **Seeding was capped at the current month** so twelve columns on screen cannot commit
+  a year of budgets by accident. The grid's own reader (`fetchCategoryBudgetRange`)
+  never seeds at all. A future month genuinely has no row until you say so, and so
+  contributes nothing to a projected balance until decided.
+- Migration `20260922160000_backfill_month_budgets.sql` then fixed the other half:
+  seeding one month at a time left gaps whenever the app went unopened for a while,
+  and a month with no row contributes no allocation and no sweep. `ensure_month_budgets`
+  now backfills every gap up to the current month, each from its own nearest prior row.
+  `category_month_spending` gained the same copy-forward fallback so the card view and
+  the grid cannot disagree about a rowless month.
+- Undecided cells render the value they *would* inherit, in italics. `resolveCells`
+  mirrors `ensure_month_budgets`' copy-forward exactly, which is why the range reader
+  fetches history rather than only the visible window — the nearest prior row is often
+  older than the first column.
+- Enter commits one month, ⌘/Ctrl+Enter carries the value to the right edge: the
+  popover's two scopes, as the grid's two gestures.
+- `effectiveKind` extracted to `budgetGrid.ts`; `computePlanTotals` now shares it
+  rather than deriving the rule a second time.
+
+### 2026-09-22 — Any month's budget is editable
+
+- **The restriction was never a rule.** `settings.tsx` hard-coded `new Date()` as the budget write
+  target and deleted every later row, so no other month was *addressable*. Nothing in the schema
+  forbade it: `category_budgets`' only CHECK is day-of-month, RLS is ownership-only, there was no
+  trigger and no server-side guard. `architecture.md` described the accident as design.
+- Migration `20260922120000_set_category_budget.sql`: `set_category_budget(category_id, month,
+  amount, scope)`, the single writer. `scope = 'month'` changes that month alone; `'forward'` also
+  updates every later row and the `allocated_budget` template. Rejects scope envelopes and
+  categories the caller does not own. Replaces three un-transacted client writes with one call.
+- Editing a month that has fully elapsed writes an `audit_logs` entry via `log_audit_event`. Not a
+  guard — a trace. Sweeps are computed at read time (§3.3.1), so the edit silently moves that
+  month's sweep and every savings balance since.
+- `/envelopes` gained the editing and Settings gained the month, so the two halves stopped living
+  apart. `BudgetEditPopover` is shared by both; the scope choice is learned once.
+- The envelopes page's month moved into the URL (`?month=YYYY-MM`), and the balances date now
+  derives from it — past reads at the month's close, the current month reads today, a future month
+  reads as a badged projection to its end. Previously `month` was component state and `asOf` a URL
+  param, and stepping the month left the balances where they were.
+- `BudgetBalanceCard` showed `categories.allocated_budget` while the current month's row could
+  differ. Its totals moved to `computePlanTotals` in `budgetSummary.ts`, which takes that month's
+  amounts, and the card now follows the selected month.
 
 ### 2026-09-22 — Scope remaining, and docs that match the code
 

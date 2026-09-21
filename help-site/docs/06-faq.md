@@ -1,6 +1,6 @@
 ---
 title: "FAQ & Fehlersuche"
-description: "Antworten zu Abgleich, übersprungenen wiederkehrenden Buchungen und Umverteilungen — und warum eine Umverteilung das Monatsbudget bewusst nicht anfasst."
+description: "Antworten zu Abgleich, übersprungenen wiederkehrenden Buchungen, rückwirkend geänderten Budgets und warum Umverteilungen das Monatsbudget nicht anfassen."
 sidebar:
   icon: help-circle
 ---
@@ -17,6 +17,18 @@ Die Abgleich-Seite zerlegt deine Kontosumme in die Umschläge, die sie halten. D
 
 Nirgends — sie werden einfach nicht gepostet. Die Regel läuft mit dem nächsten Termin weiter. Du kannst ein Vorkommen jederzeit später aus der *Anstehend*-Karte posten.
 
+## Kann ich das Budget eines vergangenen Monats ändern? [#can-i-change-a-past-month-s-budget]
+
+**Ja.** Wechsle auf der Budget-Seite zum gewünschten Monat und tippe auf den geplanten Betrag. Du wählst dabei, ob die Änderung nur für diesen Monat gilt oder ab diesem Monat für alle folgenden.
+
+Bei einem abgeschlossenen Monat ist das keine reine Kosmetik, und die App weist dich darauf hin:
+
+- Der **Sweep** dieses Monats wird neu gerechnet. Erhöhst du nachträglich ein Budget, wandert mehr übriges Geld ins Sweep-Ziel.
+- Alle **Rückstellungssaldi seither** verschieben sich entsprechend, weil sie aus den Zuteilungen aufsummiert werden.
+- Die Änderung wird im **Änderungsprotokoll** (Einstellungen → Protokoll) festgehalten.
+
+Nichts wird dabei eingefroren gespeichert und später repariert — die App rechnet diese Werte bei jedem Aufruf neu. Deshalb ist die Korrektur günstig, und deshalb ist sie sofort überall sichtbar.
+
 ## Beeinflussen Umverteilungen das Monatsbudget einer Kategorie? [#do-reallocations-affect-a-category-s-monthly-budget]
 
 **Nein.** Eine Umverteilung (`category_reallocations`) verschiebt nur den **laufenden Saldo** zwischen **Spar-Kategorien**. Die Monatsbudget-Ansicht (Umschläge / Budget-Zusammenfassung) wird ausschliesslich aus echten `transactions`-Zeilen berechnet — Umverteilungen werden dort komplett ignoriert.
@@ -32,7 +44,7 @@ Technisch ja, aber das würde die Bedeutung eines Umschlags ändern. Heute beant
 
 Würden Umverteilungen einbezogen, würde der Umschlag stattdessen sagen *„wie viel Budget hat diese Kategorie nach manuellen Anpassungen am Ende übrig?"* Drei Nebenwirkungen wären abzuwägen:
 - **Doppelzählungs-Risiko.** Ein Scope-Schluss verteilt bereits per Umverteilung; würden Umschläge ebenfalls darauf reagieren, würde derselbe CHF doppelt in Berichten auftauchen, ausser jede Aggregation zieht die Reallocation-Seite explizit wieder ab.
-- **Rückwirkende Drift.** Eine bearbeitete Umverteilung würde stillschweigend die Budgetzahlen vergangener Monate verändern.
+- **Rückwirkende Drift.** Eine bearbeitete Umverteilung würde **stillschweigend** die Budgetzahlen vergangener Monate verändern — als Nebenwirkung einer Buchung, die man für etwas anderes gemacht hat. Das Budget eines vergangenen Monats direkt zu ändern ist etwas anderes: eine bewusste Entscheidung, mit Hinweis und Protokolleintrag.
 - **Auswertungen & Prognose.** Trends, Prognose und die Budget-Balance-Karte müssten zwischen *Cash-Flow-Wahrheit* (nur Buchungen) und *Geplant-vs-angepasst-Wahrheit* (Buchungen + Umverteilungen) wählen.
 
 Deshalb hält Cashflow die beiden Ebenen bewusst getrennt: **Buchungen** treiben Monatsumschläge, **Umverteilungen** treiben Spar-Salden und Scope-Schluss.

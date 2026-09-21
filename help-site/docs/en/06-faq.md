@@ -1,6 +1,6 @@
 ---
 title: "FAQ & troubleshooting"
-description: "Answers on reconciling, skipped recurring occurrences and reallocations — including why a reallocation deliberately leaves the monthly budget alone."
+description: "Answers on reconciling, skipped recurring occurrences, changing a past month's budget, and why reallocations leave the monthly budget alone."
 sidebar:
   icon: help-circle
 ---
@@ -17,6 +17,18 @@ The Reconcile screen breaks your account total down into the envelopes holding i
 
 Nowhere — they are simply not posted. The recurring rule continues with the next scheduled date. You can always post an occurrence later from the Upcoming card.
 
+## Can I change a past month's budget? [#can-i-change-a-past-month-s-budget]
+
+**Yes.** On the Envelopes screen, step to the month you want and tap the planned amount. You choose whether the change applies to that month alone, or to that month and every month after it.
+
+For a month that has already ended this is not cosmetic, and the app says so:
+
+- That month's **sweep** is recalculated. Raise a budget after the fact and more leftover money moves to its sweep target.
+- Every **savings balance since** shifts to match, because those balances are the sum of the allocations.
+- The change is recorded in the **audit log** (Settings → Audit log).
+
+None of this is stored frozen and repaired later — the app recomputes these figures on every read. That is what makes the correction cheap, and why it shows up everywhere at once.
+
 ## Do reallocations affect a category's monthly budget? [#do-reallocations-affect-a-category-s-monthly-budget]
 
 **No.** A reallocation only moves money between **savings** category balances (their running totals). The monthly envelope view (`Envelopes` / budget summary) is computed purely from real `transactions` rows — it ignores `category_reallocations` entirely.
@@ -32,7 +44,7 @@ Technically yes, but it would change the meaning of an envelope. Today an envelo
 
 If reallocations were folded in, an envelope would instead answer *"how much budget did this category end up with after manual adjustments?"* That introduces three side-effects to weigh:
 - **Double counting risk.** A scope close already redistributes via a reallocation; if envelopes also reacted to it, the same CHF would appear twice in reports unless every aggregation explicitly subtracts the reallocation leg.
-- **Historical drift.** Editing a reallocation would silently rewrite past months' budget figures.
+- **Historical drift.** Editing a reallocation would **silently** rewrite past months' budget figures — as a side effect of an entry made for something else. Changing a past month's budget directly is a different thing: a deliberate choice, with a warning and an audit entry.
 - **Insights & projection.** Trends, projections and the budget-balance card would all need to choose between *cash-flow truth* (transactions only) and *planned-vs-adjusted truth* (transactions + reallocations).
 
 For now Cashflow deliberately keeps the two layers separate: **transactions** drive monthly envelopes, **reallocations** drive savings balances and scope closing.

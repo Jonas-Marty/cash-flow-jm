@@ -21,6 +21,14 @@ The form to record a new transaction. Pick type (expense / income / transfer), a
 
 Your monthly budget view. Each envelope shows planned vs spent vs remaining. Use *Reallocate* to move budget between envelopes, and configure rollover and sweep targets in **Settings → Savings & sweeps**.
 
+The arrows step through months, and the month name opens a picker. **Tap the planned amount to change that month's budget** — in any month, including one that has already ended.
+
+On a wide screen you can switch to the **table view** from the top right: envelopes down, twelve months across. It shows what an envelope has done over the year and lets you plan several months in one pass. Enter saves one month, ⌘/Ctrl + Enter carries the value right to the edge, and the icon in a column heading copies that whole column from the month before it. Each of these can be undone straight afterwards.
+
+Italic figures in the table are **not decided yet**: nothing is stored for that month, and the number shows what it would inherit from the month before. A future month only counts towards the projection once you have set it.
+
+*Balances as of* sets the date the balances are read at. It follows the month you are viewing: a past month reads at its last day, the current month reads today, and a future month reads as a **projection** to its end. You can always set a date of your own.
+
 ## Insights (/insights) [#insights-insights]
 
 Analytics in four tabs:
@@ -50,7 +58,7 @@ Create, edit and switch your scopes (trips, projects, shared households). The ac
 
 All configuration:
 - **Accounts** — your real-world accounts.
-- **Categories & envelopes** — what you spend on and your monthly plan.
+- **Categories & envelopes** — what you spend on and your monthly plan. It has its own month stepper: the amounts belong to the month you pick, and you edit them with the same field as on the Envelopes screen.
 - **Savings & sweeps** — where leftover budget goes at month-end.
 - **Recurring rules** — auto-posting transactions.
 - **API tokens** — for the public REST API.

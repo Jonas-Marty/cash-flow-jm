@@ -2,59 +2,35 @@ import * as React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { fmtMoney } from "@/lib/finance";
+import { computePlanTotals } from "@/lib/budgetSummary";
 import { useI18n } from "@/i18n";
 import type { Category, CategoryGroup } from "@/lib/finance";
-
-interface PlanTotals {
-  income: number;
-  expense: number;
-  savings: number;
-  unallocated: number;
-}
 
 /**
  * Plan-balance card shown above the envelopes editor in Settings.
  *
- * Computes income − expenses − savings from the *default* allocation
- * stored on `categories.allocated_budget`. This reflects "the plan",
- * independent of any month-specific override in `category_budgets`.
+ * Computes income − expenses − savings for the month the editor is showing. Pass
+ * `amounts` (category id → that month's `category_budgets.amount`) and the card
+ * reflects that month; omit it and the card falls back to
+ * `categories.allocated_budget`, the template used to seed months with no prior row.
  *
  * Scope envelopes are excluded: they are funded from their funding envelope
  * at close time and do not participate in the monthly plan.
  */
 export function BudgetBalanceCard({
-  categories, groups, symbol,
+  categories, groups, symbol, amounts,
 }: {
   categories: Category[];
   groups: CategoryGroup[];
   symbol: string;
+  /** That month's actual budgets. Falls back to the template per category when absent. */
+  amounts?: Map<string, number>;
 }) {
   const { t } = useI18n();
-  const groupKindById = React.useMemo(() => {
-    const m = new Map<string, "income" | "expense" | "savings">();
-    for (const g of groups) m.set(g.id, g.kind);
-    return m;
-  }, [groups]);
-
-  const totals = React.useMemo<PlanTotals>(() => {
-    let income = 0, expense = 0, savings = 0;
-    for (const c of categories) {
-      if (c.archived) continue;
-      // Scopes are funded from an envelope when they close; they never take
-      // part in the monthly plan. See budgetSummary.computeMonthTotals.
-      if (c.is_scope) continue;
-      const v = Number(c.allocated_budget) || 0;
-      let kind: "income" | "expense" | "savings";
-      if (c.rolls_over) kind = "savings";
-      else kind = (c.group_id && groupKindById.get(c.group_id)) || "expense";
-      // savings rows that lost their group default to "savings" via rolls_over
-      if (kind === "savings" && !c.rolls_over) kind = "expense";
-      if (kind === "income") income += v;
-      else if (kind === "savings") savings += v;
-      else expense += v;
-    }
-    return { income, expense, savings, unallocated: income - expense - savings };
-  }, [categories, groupKindById]);
+  const totals = React.useMemo(
+    () => computePlanTotals(categories, groups, amounts),
+    [categories, groups, amounts],
+  );
 
   let verdictKey: "balanced" | "buffer" | "over" | "ok";
   if (totals.unallocated < -0.5) verdictKey = "over";

@@ -1,11 +1,12 @@
 import { describe, it, expect } from "vitest";
 import {
   computeMonthTotals,
+  computePlanTotals,
   planBalanceVerdict,
   monthVerdict,
   type MonthBudgetTotals,
 } from "./budgetSummary";
-import type { CategoryMonthRow, PendingCategorySigned } from "./finance";
+import type { Category, CategoryGroup, CategoryMonthRow, PendingCategorySigned } from "./finance";
 
 function row(p: Partial<CategoryMonthRow> & { category_id: string; kind: CategoryMonthRow["kind"] }): CategoryMonthRow {
   return {
@@ -158,5 +159,67 @@ describe("monthVerdict", () => {
   });
   it("is 'over' for negative projection with no income reference", () => {
     expect(monthVerdict(totals({ incomeAllocated: 0, projectedNet: -10 }))).toBe("over");
+  });
+});
+describe("computePlanTotals", () => {
+  const groups: CategoryGroup[] = [
+    { id: "gi", name: "Income", kind: "income", sort_order: 0 } as CategoryGroup,
+    { id: "ge", name: "Variable", kind: "expense", sort_order: 1 } as CategoryGroup,
+    { id: "gs", name: "Savings", kind: "savings", sort_order: 2 } as CategoryGroup,
+  ];
+  const cat = (over: Partial<Category> & { id: string }): Category =>
+    ({
+      name: over.id, allocated_budget: 0, archived: false, is_scope: false,
+      rolls_over: false, group_id: null, ...over,
+    }) as Category;
+
+  const base = [
+    cat({ id: "salary", group_id: "gi", allocated_budget: 7000 }),
+    cat({ id: "food", group_id: "ge", allocated_budget: 600 }),
+    cat({ id: "ga", group_id: "gs", allocated_budget: 320, rolls_over: true }),
+  ];
+
+  it("sums the template when no month amounts are given", () => {
+    expect(computePlanTotals(base, groups)).toEqual({
+      income: 7000, expense: 600, savings: 320, unallocated: 6080,
+    });
+  });
+
+  it("prefers the month's amount over the template", () => {
+    const amounts = new Map([["food", 900]]);
+    expect(computePlanTotals(base, groups, amounts)).toMatchObject({
+      expense: 900, unallocated: 5780,
+    });
+  });
+
+  it("keeps a deliberate zero for the month rather than falling back", () => {
+    const amounts = new Map([["food", 0]]);
+    expect(computePlanTotals(base, groups, amounts)).toMatchObject({
+      expense: 0, unallocated: 6680,
+    });
+  });
+
+  it("excludes scopes and archived envelopes", () => {
+    const rows = [
+      ...base,
+      cat({ id: "trip", group_id: "ge", allocated_budget: 5000, is_scope: true }),
+      cat({ id: "old", group_id: "ge", allocated_budget: 400, archived: true }),
+    ];
+    expect(computePlanTotals(rows, groups)).toMatchObject({ expense: 600 });
+  });
+
+  it("treats a rolling envelope in an expense group as savings", () => {
+    const rows = [cat({ id: "holiday", group_id: "ge", allocated_budget: 200, rolls_over: true })];
+    expect(computePlanTotals(rows, groups)).toMatchObject({ savings: 200, expense: 0 });
+  });
+
+  it("treats a non-rolling envelope in a savings group as an expense", () => {
+    const rows = [cat({ id: "odd", group_id: "gs", allocated_budget: 50 })];
+    expect(computePlanTotals(rows, groups)).toMatchObject({ expense: 50, savings: 0 });
+  });
+
+  it("defaults an ungrouped envelope to expense", () => {
+    const rows = [cat({ id: "loose", allocated_budget: 75 })];
+    expect(computePlanTotals(rows, groups)).toMatchObject({ expense: 75 });
   });
 });

@@ -565,16 +565,89 @@ export async function fetchCategoryGroups(): Promise<CategoryGroup[]> {
 export const monthKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 
+/**
+ * Brings budgets up to the current month, filling any gap by copy-forward.
+ *
+ * Away from 22 July until 3 December, this materialises August through November as
+ * well as December, each inheriting from the month before it. Gaps are not cosmetic:
+ * a month with no row contributes no allocation and no sweep, which understates every
+ * rolling envelope's balance.
+ *
+ * Never materialises beyond the current month — a future month is undecided until the
+ * user says otherwise.
+ */
 export async function ensureMonthBudgets(month: string): Promise<void> {
   const { error } = await supabase.rpc("ensure_month_budgets", { p_month: month });
   if (error) throw error;
 }
 
 export async function fetchCategoryMonthRows(month: string): Promise<CategoryMonthRow[]> {
+  // Always safe to call: `ensure_month_budgets` caps itself at the current month, so
+  // viewing a future one materialises nothing, and it backfills any gap up to today.
+  // The cap lives in the database rather than here so there is one rule, not two.
   await ensureMonthBudgets(month);
   const { data, error } = await supabase.rpc("category_month_spending", { p_month: month });
   if (error) throw error;
   return (data || []) as CategoryMonthRow[];
+}
+
+export interface CategoryBudgetCell {
+  category_id: string;
+  /** `YYYY-MM-01`. */
+  month: string;
+  amount: number;
+}
+
+/**
+ * Stored budgets across a window of months.
+ *
+ * Reads the table directly and deliberately never calls `ensure_month_budgets`: the
+ * grid shows what has been decided, and merely opening it must not decide anything.
+ * A month with no row is genuinely undecided — the caller renders what it *would*
+ * inherit, greyed, rather than a zero.
+ */
+export async function fetchCategoryBudgetRange(from: string, to: string): Promise<CategoryBudgetCell[]> {
+  const { data, error } = await supabase
+    .from("category_budgets")
+    .select("category_id, month, amount")
+    .gte("month", from)
+    .lte("month", to)
+    .order("month", { ascending: true });
+  if (error) throw error;
+  return (data || []).map((r) => ({
+    category_id: r.category_id as string,
+    month: String(r.month).slice(0, 10),
+    amount: Number(r.amount),
+  }));
+}
+
+/** One cell's worth of change, as sent to `set_category_budgets_bulk`. */
+export interface BudgetEdit {
+  categoryId: string;
+  /** `YYYY-MM-01`. */
+  month: string;
+  /**
+   * `null` *clears* the cell rather than writing zero.
+   *
+   * Undo needs this: a month with no row was undecided, and restoring it by writing
+   * back the value it happened to inherit would quietly decide it.
+   */
+  amount: number | null;
+}
+
+/**
+ * Applies many budget cells at once, as a single transaction and a single audit entry.
+ *
+ * Fill-right and copy-column are one user action each; sending them as N separate
+ * calls would make a partial failure leave the grid half-changed, and would bury the
+ * audit log under one row per cell.
+ */
+export async function setCategoryBudgetsBulk(edits: BudgetEdit[]): Promise<void> {
+  if (!edits.length) return;
+  const { error } = await supabase.rpc("set_category_budgets_bulk", {
+    p_edits: edits.map((e) => ({ category_id: e.categoryId, month: e.month, amount: e.amount })),
+  });
+  if (error) throw error;
 }
 
 export async function fetchPendingImpactsForMonth(month: string): Promise<PendingCategoryImpact[]> {
@@ -649,10 +722,35 @@ export async function fetchCategoryBudgets(categoryId: string): Promise<Category
   return (data || []) as CategoryBudget[];
 }
 
-export async function upsertCategoryBudget(categoryId: string, month: string, amount: number): Promise<void> {
-  const { error } = await supabase
-    .from("category_budgets")
-    .upsert({ category_id: categoryId, month, amount }, { onConflict: "category_id,month" });
+/**
+ * What a budget edit applies to.
+ *
+ * `month`   — that month alone. A correction to history, or a one-off.
+ * `forward` — that month and every later one. The new normal, and what Settings
+ *             used to do implicitly for the current month.
+ */
+export type BudgetScope = "month" | "forward";
+
+/**
+ * Writes one envelope's budget for one month.
+ *
+ * Goes through the `set_category_budget` RPC rather than touching the table: the
+ * `forward` scope has to update later rows and the template in the same transaction,
+ * and an edit to an already-elapsed month is audited server-side, where the decision
+ * about what counts as elapsed can be made against the database's own clock.
+ */
+export async function setCategoryBudget(
+  categoryId: string,
+  month: string,
+  amount: number,
+  scope: BudgetScope,
+): Promise<void> {
+  const { error } = await supabase.rpc("set_category_budget", {
+    p_category_id: categoryId,
+    p_month: month,
+    p_amount: amount,
+    p_scope: scope,
+  });
   if (error) throw error;
 }
 

@@ -42,6 +42,10 @@ A bucket that groups related categories (e.g. *Food* contains Groceries, Eating 
 
 The monthly amount you plan to spend in a category. The Envelopes screen shows how much is left in each envelope for the current month.
 
+Every month has its own amount. A new month inherits the previous month's figure, and you can change **any month, past ones included**. When you change one, you choose whether it applies to that month alone or to that month and everything after it.
+
+If you have not opened the app for a while, **every skipped month is filled in**: away from late July until early December, August through December each get July's figure. This is not just tidiness — a month with no amount counts as neither an allocation nor towards sweeping, which would leave your savings envelopes reading short.
+
 **Example:** You decide to budget CHF 400 for *Groceries* in June. The envelope starts with 400. After you spend 120 at Migros, the envelope shows 280 left. If you later spend 50 at the bakery, it drops to 230. If you receive a CHF 30 reimbursement for a shared dinner (linked to an IOU), the envelope grows back to 260 — because you got some of that grocery money back.
 
 At month-end a per-category switch, **Rolls over**, decides what happens to the remainder: with it off, whatever is left (or the shortfall) sweeps into your savings category and the envelope starts fresh. With it on, the balance stays put and keeps accumulating. Both kinds are allocated every month.

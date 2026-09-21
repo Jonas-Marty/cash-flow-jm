@@ -21,6 +21,14 @@ Formular für neue Buchungen. Typ (Ausgabe / Einnahme / Übertrag), Betrag, Datu
 
 Monatsansicht deiner Umschläge: geplant vs. ausgegeben vs. übrig. Mit *Umverteilen* verschiebst du Budget; Rollover und Sweep-Ziele konfigurierst du in **Einstellungen → Sparen & Sweeps**.
 
+Mit den Pfeilen wechselst du den Monat, über den Monatsnamen wählst du direkt einen aus. **Tippe auf den geplanten Betrag, um das Budget dieses Monats zu ändern** — in jedem Monat, auch in einem vergangenen.
+
+Auf einem breiten Bildschirm kannst du oben rechts auf die **Tabellenansicht** umschalten: Umschläge untereinander, zwölf Monate nebeneinander. Damit siehst du die Entwicklung eines Umschlags über das Jahr und planst mehrere Monate am Stück. Enter speichert einen Monat, ⌘/Strg + Enter überträgt den Wert nach rechts bis zum Rand, und über das Symbol in der Spaltenüberschrift übernimmst du eine ganze Spalte aus dem Vormonat. Jede dieser Aktionen lässt sich direkt danach rückgängig machen.
+
+Kursive Werte in der Tabelle sind **noch nicht festgelegt**: für diesen Monat ist nichts gespeichert, und die Zahl zeigt, was er vom Vormonat erben würde. Ein künftiger Monat zählt erst dann in die Prognose, wenn du ihn festgelegt hast.
+
+*Stand per* bestimmt, auf welchen Tag sich die Salden beziehen. Das Feld folgt dem gewählten Monat: ein vergangener Monat zeigt den Stand an seinem letzten Tag, der laufende Monat zeigt heute, ein künftiger Monat zeigt eine **Prognose** auf sein Ende. Du kannst jederzeit ein eigenes Datum setzen.
+
 ## Auswertungen (/insights) [#insights-insights]
 
 Vier Tabs:
@@ -50,7 +58,7 @@ Anlegen, bearbeiten und wechseln von Scopes (Reisen, Projekte, gemeinsame Hausha
 
 Sämtliche Konfiguration:
 - **Konten** — deine realen Konten.
-- **Kategorien & Budgets** — Wofür und wie viel.
+- **Kategorien & Budgets** — Wofür und wie viel. Mit eigenem Monatswechsler: die Beträge gehören zum gewählten Monat, geändert wird mit demselben Feld wie auf der Budget-Seite.
 - **Sparen & Sweeps** — wohin Restbudget am Monatsende fließt.
 - **Wiederkehrende Regeln** — automatisches Posten.
 - **API-Tokens** — für die öffentliche REST-API.

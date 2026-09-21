@@ -1,5 +1,6 @@
-import type { CategoryMonthRow, PendingCategorySigned } from "@/lib/finance";
+import type { Category, CategoryGroup, CategoryMonthRow, PendingCategorySigned } from "@/lib/finance";
 import { pendingDeltaForRow } from "@/lib/finance";
+import { effectiveKind } from "@/lib/budgetGrid";
 
 export interface MonthBudgetTotals {
   incomeAllocated: number;
@@ -89,4 +90,47 @@ export function monthVerdict(t: MonthBudgetTotals): BalanceVerdict {
   if (t.projectedNet >= 0) return "ok";
   if (t.incomeAllocated > 0 && t.projectedNet / t.incomeAllocated > -0.05) return "tight";
   return "over";
+}
+
+export interface PlanTotals {
+  income: number;
+  expense: number;
+  savings: number;
+  /** income − expense − savings. Positive means the plan leaves money unassigned. */
+  unallocated: number;
+}
+
+/**
+ * The plan for one month, summed per envelope flavour.
+ *
+ * `amounts` maps category id → that month's `category_budgets.amount`. Anything
+ * missing from it falls back to `categories.allocated_budget`, which is the template
+ * used to seed a month that has no row yet — so an envelope the user has never
+ * budgeted still counts for what it is expected to cost.
+ *
+ * Scope envelopes are excluded: they are funded from their funding envelope when they
+ * close and never take part in the monthly plan, the same rule `computeMonthTotals`
+ * and `ensure_month_budgets` apply.
+ */
+export function computePlanTotals(
+  categories: Category[],
+  groups: CategoryGroup[],
+  amounts?: Map<string, number>,
+): PlanTotals {
+  const groupKindById = new Map<string, CategoryGroup["kind"]>();
+  for (const g of groups) groupKindById.set(g.id, g.kind);
+
+  let income = 0, expense = 0, savings = 0;
+  for (const c of categories) {
+    if (c.archived) continue;
+    if (c.is_scope) continue;
+    // `??` not `||`: a deliberate zero budget for the month must stay zero.
+    const v = amounts?.get(c.id) ?? (Number(c.allocated_budget) || 0);
+
+    const kind = effectiveKind(c, groupKindById);
+    if (kind === "income") income += v;
+    else if (kind === "savings") savings += v;
+    else expense += v;
+  }
+  return { income, expense, savings, unallocated: income - expense - savings };
 }

@@ -41,6 +41,10 @@ Bündelt verwandte Kategorien (z. B. *Essen* enthält Lebensmittel, Restaurant, 
 
 Der monatliche Betrag, den du in einer Kategorie ausgeben willst. Die Budget-Seite zeigt den verbleibenden Stand pro Umschlag.
 
+Jeder Monat hat seinen eigenen Betrag. Ein neuer Monat übernimmt den Betrag des Vormonats, und du kannst **jeden Monat ändern — auch vergangene**. Beim Ändern wählst du, ob nur dieser Monat gilt oder dieser Monat und alle folgenden.
+
+Wenn du die App eine Weile nicht geöffnet hast, werden **alle übersprungenen Monate nachgetragen**: Warst du von Ende Juli bis Anfang Dezember weg, bekommen August bis Dezember den Juli-Betrag. Das ist nicht nur Kosmetik — ein Monat ohne Betrag zählt weder als Zuteilung noch beim Kehren, und deine Rückstellungen wären entsprechend zu tief.
+
 **Beispiel:** Du budgetierst 400 CHF für *Lebensmittel* im Juni. Der Umschlag startet mit 400. Nach dem Einkauf bei Migros für 120 bleiben 280. Wenn du später 50 beim Bäcker ausgibst, sinkt er auf 230. Wenn du eine Rückerstattung von 30 CHF für ein gemeinsames Abendessen bekommst (verknüpft mit einer IOU), wächst der Umschlag wieder auf 260 — weil du einen Teil des Essensgeldes zurückbekommen hast.
 
 Am Monatsende entscheidet ein Schalter pro Kategorie, **Überträge**, was mit dem Rest passiert: Ist er aus, wird der Rest (oder das Defizit) in die Sparkategorie gekehrt und der Umschlag startet frisch. Ist er an, bleibt der Stand stehen und läuft weiter. Beide Arten bekommen jeden Monat ihre Zuteilung.
