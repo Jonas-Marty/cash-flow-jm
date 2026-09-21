@@ -2476,6 +2476,7 @@ function ImpactPreview({
   type CatItem = {
     id: string; name: string; allocated: number; before: number; after: number;
     isSavings: boolean; savedBefore: number; savedAfter: number; isScope: boolean;
+    scopeSpentBefore: number; scopeSpentAfter: number;
   };
   const catImpacts = new Map<string, number>();
   // Savings envelopes follow the DB convention in category_savings_balance:
@@ -2543,6 +2544,11 @@ function ImpactPreview({
   }
   const catRows: CatItem[] = [];
   const savedByCat = new Map((savingsBalances ?? []).map((s) => [s.category_id, Number(s.cumulative_balance) || 0]));
+  // A scope's budget is a target, not money: it is funded from its envelope for
+  // exactly what it spent when it closes, so cumulative_balance nets to ~0 and
+  // would report a fully-spent trip as untouched. Its own spending is
+  // from_transactions (negative for an expense).
+  const scopeSpentByCat = new Map((savingsBalances ?? []).map((s) => [s.category_id, Number(s.from_transactions) || 0]));
   const allCatIds = new Set<string>([...catImpacts.keys(), ...ogCatImpacts.keys()]);
   for (const id of allCatIds) {
     const meta = categoryById.get(id);
@@ -2555,11 +2561,14 @@ function ImpactPreview({
     const savedNow = savedByCat.get(id) ?? 0;
     const savedBefore = savedNow - (ogSavImpactsAll.get(id) ?? 0);
     const savedAfter = savedBefore + (savImpacts.get(id) ?? 0);
+    const scopeSpentNow = scopeSpentByCat.get(id) ?? 0;
+    const scopeSpentBefore = scopeSpentNow - (ogSavImpactsAll.get(id) ?? 0);
+    const scopeSpentAfter = scopeSpentBefore + (savImpacts.get(id) ?? 0);
     catRows.push({
       id, name: meta.name,
       allocated: Number(row?.allocated ?? meta.allocated_budget ?? 0),
       before, after, isSavings, savedBefore, savedAfter,
-      isScope: Boolean(meta.is_scope),
+      isScope: Boolean(meta.is_scope), scopeSpentBefore, scopeSpentAfter,
     });
   }
 
@@ -2619,8 +2628,8 @@ function ImpactPreview({
             // Scopes (trips/projects) are savings envelopes that mostly only
             // get spent from. Show budget left instead of a negative balance:
             // saved balance is ≤ 0 for pure spending, so allocated + saved.
-            const scopeRemBefore = r.allocated + r.savedBefore;
-            const scopeRemAfter = r.allocated + r.savedAfter;
+            const scopeRemBefore = r.allocated + r.scopeSpentBefore;
+            const scopeRemAfter = r.allocated + r.scopeSpentAfter;
             return (
               <li key={"cat-" + r.id} className="flex items-baseline justify-between gap-3">
                 <span className="truncate text-muted-foreground">

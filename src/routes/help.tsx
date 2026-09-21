@@ -168,7 +168,7 @@ const EN: Content = {
         },
         {
           q: "Reconcile (/reconcile)",
-          a: "Shows the difference (*drift*) between your accounts total and the sum of your savings allocations plus unswept money. When drift is zero, everything is accounted for. Use this monthly to catch missed sweeps or forgotten transfers.",
+          a: "Breaks your account total down into the envelopes holding it: rolling envelopes, this month's remainder on monthly envelopes, income not yet received, money you are owed, and anything unallocated. The last line is what none of those explain — it should read zero. If it does not, something is genuinely unaccounted for.",
         },
         {
           q: "Scopes (/scopes)",
@@ -207,7 +207,7 @@ const EN: Content = {
         },
         {
           q: "Monthly close",
-          a: "1. Open **Reconcile**, fix any drift.\n2. Sweep leftover envelope balances to your savings categories.\n3. Review **Insights → Overview** and **Trends** to spot anomalies.\n4. Adjust next month's envelopes if needed.",
+          a: "1. Open **Reconcile** and check that envelopes still add up to your accounts.\n2. Leftovers sweep themselves — once a month is over, whatever is left in (or overspent from) each monthly envelope moves to its sweep target automatically. Nothing to click.\n3. Review **Insights → Overview** and **Trends** to spot anomalies.\n4. Adjust next month's envelopes if needed.",
         },
         {
           q: "Recurring bills",
@@ -562,7 +562,7 @@ const DE: Content = {
       items: [
         { q: "Gemeinsame Ausgabe und Rückzahlung", a: "1. Buchung erfassen, **Erstattungsfähig** aktivieren, Gegenpartei wählen.\n2. Sie erscheint unter **Offene IOUs** auf der Übersicht.\n3. Wenn das Geld kommt: **Rückzahlung hinzufügen** — Formular ist vorbelegt, nur speichern.\n4. Die IOU schließt automatisch, sobald sie voll gedeckt ist. Für Teilbeträge oder Bargeld nutze stattdessen *Als abgegolten markieren* oder *Als Verlust buchen*." },
         { q: "Buchungen per API importieren", a: "1. In **Einstellungen → API-Tokens** ein Token erstellen.\n2. Einträge an `/api/public/pending-transactions` POSTen (Swagger UI unter `/api/public/docs`).\n3. Importe erscheinen in **Offen → Offen**. Prüfen und bestätigen oder ablehnen." },
-        { q: "Monatsabschluss", a: "1. **Abgleich** öffnen, Drift bereinigen.\n2. Restbudgets in Sparkategorien sweepen.\n3. **Auswertungen → Übersicht** und **Trends** prüfen.\n4. Budgets für den nächsten Monat anpassen." },
+        { q: "Monatsabschluss", a: "1. **Abgleich** öffnen und prüfen, ob die Umschläge weiterhin mit den Konten übereinstimmen.\n2. Restbeträge werden automatisch übertragen — sobald ein Monat vorbei ist, fließt der Rest (oder die Überschreitung) jedes Monatsumschlags in seine Sammelkategorie. Es gibt nichts zu klicken.\n3. **Auswertungen → Übersicht** und **Trends** prüfen.\n4. Budgets für den nächsten Monat anpassen." },
         { q: "Wiederkehrende Rechnungen", a: "1. In **Einstellungen → Wiederkehrende Regeln** eine Regel anlegen (Takt, Betrag, Kategorie).\n2. *Anstehend*-Karte zeigt offene Vorkommen.\n3. Jedes Vorkommen einzeln posten, ändern oder überspringen." },
         { q: "Nextcloud verbinden", a: "**Einstellungen → Nextcloud** öffnen und dem OAuth-Flow folgen. Danach werden Anhänge in deiner Nextcloud gespeichert und über einen Dateibrowser eingebunden." },
       ],

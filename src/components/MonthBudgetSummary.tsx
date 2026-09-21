@@ -75,9 +75,12 @@ export function MonthBudgetSummary({
             symbol={symbol}
             kind="expense"
           />
+          {/* A rolling envelope's cost for the month *is* its allocation: the
+              money moves into the envelope on day 1 and the yearly bill it is
+              saving up for must not spike the month it finally lands in. */}
           <SummaryLine
             label={t("settings.kind_savings")}
-            actual={0}
+            actual={totals.savingsTarget}
             allocated={totals.savingsTarget}
             pending={0}
             projected={totals.savingsTarget}

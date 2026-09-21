@@ -96,7 +96,7 @@ Two coordinated fields classify an envelope. They have **distinct, non-overlappi
 | Field | Job |
 |---|---|
 | `category_groups.kind` ∈ {`income`, `expense`, `savings`} | **Taxonomy + default for new envelopes.** Drives the section header on the envelopes screen, and pre-selects the savings toggle when an envelope is created inside that group. Does **not** by itself decide a single envelope's accounting behaviour. |
-| `categories.rolls_over` (boolean) | **Per-envelope behaviour switch.** When true, the envelope accumulates across months (savings balance) and is excluded from monthly spend totals. When false, the envelope behaves as monthly expense or monthly income depending on its group's `kind`. |
+| `categories.rolls_over` (boolean) | **Per-envelope behaviour switch.** Decides what happens to the month-end *remainder*, not whether the envelope is funded — both kinds are allocated every month. True: the remainder carries forward and the month's cost is the allocation rather than the spend. False: the remainder (or overspend) sweeps to the sweep target and the envelope starts fresh. |
 
 #### Effective kind (the one truth)
 
@@ -117,9 +117,38 @@ This rule lives in `category_month_spending(p_month)` (returned as the `kind` co
 |---|---|---|
 | **income** | `received` = sum of income transactions in the month assigned to this envelope. `allocated` = expected income. | `variance = received − allocated`. Positive = over (green), negative = under (red). |
 | **expense** | `spent = Σ(expense.amount) − Σ(income.amount)` for that month. Resets monthly, no rollover. | `variance = allocated − spent`. Bar turns amber at ≥80%, red when over budget. |
-| **savings / Rückstellung** | Accumulates across months. Allocations and bookings are independent of monthly spend totals. | Headline = all-time **balance** = Σ(allocations) − Σ(bookings) from `category_savings_balance`. Negative balance = under-saved (red). Bookings against savings are *excluded* from the month's expense total and never trigger over-budget warnings. |
+| **savings / Rückstellung** (`rolls_over`) | Allocated monthly like any other envelope, but the remainder carries forward instead of being swept. | Headline = **balance** from `category_savings_balance(as_of)` = opening + Σ allocations − Σ bookings ± reallocations + sweeps received. Negative = under-saved (red). Bookings are *excluded* from the month's expense total: the month's cost is the allocation, so the yearly bill the envelope was saving for does not spike the month it lands in. |
 
-The savings concept models things like the SBB GA: you allocate ~320 CHF/month into a Bahnabos envelope; when the yearly bill arrives you book it against Bahnabos paid by your credit card. The card balance moves; the month's expense totals stay flat; the savings balance just absorbs the accumulated allocation.
+The savings concept models things like the SBB GA: you allocate ~320 CHF/month into a Bahnabo envelope; when the yearly bill arrives you book it against Bahnabo paid by your credit card. The card balance moves; the month's expense totals stay flat; the envelope balance absorbs the accumulated allocation.
+
+#### 3.3.1 The balance-sheet identity
+
+Every franc in an account belongs to exactly one envelope. `envelope_reconciliation(p_as_of)`
+returns each term and a `residual` that **must read 0.00 at any date**:
+
+```
+accounts_total = rollover_total          -- envelopes that carry forward, scopes included
+               + expense_open            -- this month's remainder on envelopes that reset
+               + income_open             -- income received this month minus income planned
+               + outstanding_reimbursements
+               + unallocated             -- unassigned openings, uncategorised flow, FX, plan gap
+               + residual                -- 0.00
+```
+
+Two pieces make it hold *continuously* rather than only at month ends:
+
+- **Income envelopes are conduits.** An income envelope holds `received − allocated`, so it
+  starts each month owing the plan (−7,144.47 on the 1st) and settles when the salary lands on
+  the 25th. Without this, envelopes funded on day 1 would exceed the accounts until payday.
+- **Sweeps are computed, never written.** Once a month is fully elapsed, each non-rolling
+  envelope's `allocated − spent` (or, for income, `received − allocated`) is credited to its
+  sweep target at read time. Editing a past transaction changes the sweep on the next read;
+  there is no month-close job and nothing to repair.
+
+`opening_balance` on a rolling envelope is the one piece of stored state that is not derived —
+it is a statement about what the envelope held before the app existed. Whatever is not yet
+assigned sits in `unallocated`, using the same predicate the balance function counts, so
+assigning it moves money between terms and never changes the residual.
 
 #### Allowed / divergent combinations
 
@@ -153,10 +182,10 @@ The savings concept models things like the SBB GA: you allocate ~320 CHF/month i
 Budgets live in `category_budgets(category_id, month, amount)`. Each row = the budget that applied for that envelope in that calendar month.
 
 - Editing the **current** month's budget overwrites only that month's row. Past months stay frozen → the user can always look up "what was my Lebensmittel budget in March?".
-- On first access of a new month, the SQL function `ensure_month_budgets(month)` copies the most recent prior budget per active category into the new month (idempotent). If the category has no prior history, it falls back to `categories.allocated_budget` as a template.
+- On first access of a new month, the SQL function `ensure_month_budgets(month)` copies the most recent prior budget per active category into the new month (idempotent). If the category has no prior history, it falls back to `categories.allocated_budget` as a template. Every envelope except scopes gets a row — rolling ones included, since that allocation is the money they live on.
 - The `categories.allocated_budget` column is now a *template* used for new months when no prior row exists, and as a sensible default when the UI wants a single number to display in non-month-aware contexts.
 
-The savings balance is unaffected by month boundaries — it is computed from the all-time sums of `category_budgets.amount` and category-assigned transactions.
+A rolling envelope's balance is unaffected by month boundaries: it is `opening_balance` plus every `category_budgets.amount` up to the date, less category-assigned transactions, plus reallocations and swept leftovers. Scopes are excluded from allocation — they are funded from their funding envelope when they close.
 
 ### 3.5 Tags
 
@@ -324,7 +353,8 @@ Deferred: the feedback loop and gated auto-apply, see
 | `account_balances` | view | Per-account computed balance. |
 | `category_month_spending(p_month DATE)` | function | Per-envelope row for the given month: `allocated`, `spent_or_received`, `variance`, plus group metadata (`group_id`, `group_name`, `kind`, `rolls_over`, sort orders). |
 | `category_savings_balance(p_as_of DATE)` | function | Balance of every `rolls_over = true` envelope as of a date, with its provenance: `from_allocations`, `from_transactions`, `from_reallocations`, `from_sweeps`. |
-| `ensure_month_budgets(p_month DATE)` | function | Idempotently copies the most recent prior budget into the given month for every active category. Called by the UI before reading month rows. |
+| `ensure_month_budgets(p_month DATE)` | function | Idempotently copies the most recent prior budget into the given month for every active non-scope category. Called by the UI before reading month rows. |
+| `envelope_reconciliation(p_as_of DATE)` | function | Every term of the balance-sheet identity (§3.3.1) plus `residual`, which must be 0.00. |
 | `sync_transaction_tags()` | trigger function | Re-derives `transaction_tags` from the note on insert/update. |
 | `update_updated_at_column()` | trigger function | Sets `updated_at = now()` on update; attached to all mutable tables. |
 | `compute_due_date(p_month, p_rule, p_dom)` | function | Produces the un-adjusted scheduled date for a recurring rule in a given month. Clamps fixed day to month length. |
@@ -364,6 +394,21 @@ including the SQL/app inventory, performance estimate and phased plan, lives in
 [`docs/encryption-at-rest.md`](./docs/encryption-at-rest.md).
 
 ## 7. Change log
+
+### 2026-09-22 — Scope remaining, and docs that match the code
+
+- `add.tsx` impact preview: a scope's remaining budget is `allocated_budget + from_transactions`,
+  not `+ cumulative_balance`. A scope is funded from its envelope for exactly what it spent when
+  it closes, so its cumulative balance nets to ~0 and a fully-spent trip reported its budget as
+  untouched — Greenfield 2026 read "600.00 of 600.00" having spent 502.90, now 97.10. Open
+  scopes are unaffected, which is why this survived: the old formula was right for those.
+- Help no longer promises a manual month-end sweep step; sweeping is computed at read time and
+  there has never been anything to click. The reconcile entry describes the identity instead of
+  the old, uninterpretable "drift".
+- §3.3 rewritten: `rolls_over` decides the fate of the *remainder*, not whether an envelope is
+  funded. New §3.3.1 records the balance-sheet identity, the income conduit, and why sweeps stay
+  computed. §3.4 corrected — the old text described a savings balance built from allocations
+  that rolling envelopes never received.
 
 ### 2026-09-22 — The identity closes: income variance sweeps too
 
