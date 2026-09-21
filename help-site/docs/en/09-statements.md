@@ -1,10 +1,11 @@
 ---
 title: "Statement import"
-description: "Upload a bank or credit-card statement on the Statements screen and let the AI read it, then compare every row against your ledger to find missing,…"
+description: "Upload a statement as PDF, image or CSV, match its rows against your ledger, and see what is missing, duplicated or booked wrong."
 sidebar:
   icon: file-text
 ---
 
+The AI reads the rows; the app then compares them against your transactions and shows what is missing, duplicated or booked wrong.
 ## Which file types can I upload? [#which-file-types-can-i-upload]
 
 - **PDF** — the digital statement from your bank. The text layer is extracted locally and only the text is sent to your AI endpoint.

@@ -1,6 +1,6 @@
 ---
 title: "Core concepts"
-description: "These building blocks work together to give you a complete picture of your money. Account: Transaction: Category"
+description: "Accounts, envelopes, scopes, IOUs and sweeps — the building blocks of the budget, each with a worked example in francs."
 sidebar:
   icon: book-open
 ---

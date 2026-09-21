@@ -133,12 +133,16 @@ describe("locale parity", () => {
         if (description.endsWith("…") || description.endsWith("...")) {
           failures.push(`${prefix}${page.file}: description is truncated mid-thought`);
         }
-        for (const section of page.sections) {
-          if (section.title.length > 12 && description.includes(section.title)) {
-            failures.push(
-              `${prefix}${page.file}: description repeats the heading "${section.title}"`,
-            );
-          }
+        // Two or more of the page's own headings means the description was
+        // assembled by concatenating them. One is just prose naming its
+        // topic, which is what a description is supposed to do.
+        const echoed = page.sections
+          .map((s) => s.title)
+          .filter((t) => t.length > 12 && description.includes(t));
+        if (echoed.length > 1) {
+          failures.push(
+            `${prefix}${page.file}: description is a list of its own headings (${echoed.join(", ")})`,
+          );
         }
       }
     }

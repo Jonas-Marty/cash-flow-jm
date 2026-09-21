@@ -1,6 +1,6 @@
 ---
 title: "Ablauf: IOUs (Schulden / Forderungen)"
-description: "Wenn du eine Buchung als erstattungsfähig markierst, erscheint sie als offene IOU. Rückzahlung hinzufügen: Abschreiben"
+description: "Die drei Wege, eine offene Forderung zu schließen — Rückzahlung erfassen, den Rest abschreiben oder die IOU stornieren — und wann welcher passt."
 sidebar:
   icon: users
 ---

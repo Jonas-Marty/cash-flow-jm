@@ -1,6 +1,6 @@
 ---
 title: "Bildschirme"
-description: "Ein Abschnitt pro Hauptseite der App. Übersicht (/): Buchungen (/transactions): Neu (/add): Budgets (/envelopes)"
+description: "Was jede Hauptseite der App zeigt und wofür du sie benutzt — von der Übersicht über die Budgets bis zum Abgleich und den Einstellungen."
 sidebar:
   icon: layout-dashboard
 ---
@@ -55,6 +55,13 @@ Sämtliche Konfiguration:
 - **Wiederkehrende Regeln** — automatisches Posten.
 - **API-Tokens** — für die öffentliche REST-API.
 - **Nextcloud** — Cloud-Speicher für Anhänge.
+- **KI-Assistent** — Verbindungen zu deinem eigenen Modell und welche Aufgabe an welcher hängt.
+- **KI-Protokoll** — jede Anfrage an deinen Provider, mit Auszügen aus dem Gesendeten.
+- **Webhooks** — eine externe Adresse bei jeder neuen Buchung benachrichtigen.
+- **Integrationen** — Anmeldung über einen OIDC-Provider.
+- **Verknüpfte Konten** — Anmeldeverfahren deines Accounts.
+- **Ort erfassen** — der Schalter für Standortdaten; standardmäßig aus.
 - **Audit-Log** — letzte Änderungen.
 - **Export / Import** — Daten ein-/ausspielen (auch fürs Selbsthosten).
+- **Über** — welche Version und welcher Commit gerade läuft.
 

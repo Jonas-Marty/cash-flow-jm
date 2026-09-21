@@ -1,6 +1,6 @@
 ---
 title: "Transaction links"
-description: "Group several individually-booked transactions that belong to the same real-world purchase (gift cards split across two cards, concert ticket + on-site…"
+description: "Tie several transactions that belong to the same real-world purchase into one group, without changing your budgets or your reports."
 sidebar:
   icon: link-2
 ---

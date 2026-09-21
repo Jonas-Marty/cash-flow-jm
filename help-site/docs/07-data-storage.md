@@ -1,6 +1,6 @@
 ---
 title: "Datenspeicherung & Datenschutz"
-description: "Bitte mach dir bewusst, wo und wie deine Daten gespeichert werden, bevor du Sensibles eingibst. Wo werden meine Daten gespeichert?"
+description: "Wo diese Instanz deine Daten speichert, warum sie unverschlüsselt liegen, was das praktisch bedeutet und wie du stattdessen selbst hostest."
 sidebar:
   icon: shield
 ---

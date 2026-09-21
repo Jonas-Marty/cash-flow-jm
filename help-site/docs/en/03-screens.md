@@ -1,6 +1,6 @@
 ---
 title: "Screens"
-description: "One section per main screen in the app. Dashboard (/): Transactions (/transactions): Add (/add): Envelopes (/envelopes)"
+description: "What each main screen shows and what you use it for — from the dashboard through Envelopes to Reconcile and Settings."
 sidebar:
   icon: layout-dashboard
 ---
@@ -55,6 +55,13 @@ All configuration:
 - **Recurring rules** — auto-posting transactions.
 - **API tokens** — for the public REST API.
 - **Nextcloud** — connect cloud storage for attachments.
+- **AI assistant** — connections to a model of your own, and which task is bound to which.
+- **AI activity log** — every request to your provider, with previews of what was sent.
+- **Webhooks** — notify an external address whenever a transaction is created.
+- **Integrations** — sign-in through an OIDC provider.
+- **Linked accounts** — the sign-in methods on your account.
+- **Capture location** — the switch for location data; off by default.
 - **Audit log** — recent changes.
 - **Export / import** — move your data in or out (also useful for self-hosting).
+- **About** — which version and commit is running.
 

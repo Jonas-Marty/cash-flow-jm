@@ -1,6 +1,6 @@
 ---
 title: "Typische Abläufe"
-description: "Typische Abläufe: Gemeinsame Ausgabe und Rückzahlung: Buchungen per API importieren: Monatsabschluss: Wiederkehrende Rechnungen"
+description: "Durchgespielte Abläufe: geteilte Ausgabe und Rückzahlung, Import per API, Monatsabschluss, wiederkehrende Rechnungen und Nextcloud."
 sidebar:
   icon: list-ordered
 ---

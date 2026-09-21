@@ -1,10 +1,11 @@
 ---
 title: "Workflow: IOUs (money you owe or are owed)"
-description: "When you flag a transaction as reimbursable, it shows up as an Open IOU. Every franc has to land somewhere, so there are exactly three ways to close one:"
+description: "The three ways to close money you are owed — record a repayment, write off the rest, or cancel the IOU — and when each one is right."
 sidebar:
   icon: users
 ---
 
+Every franc has to land somewhere, so there are exactly three ways to close an IOU:
 ## Add repayment [#add-repayment]
 
 Use when **real money actually moved**. Opens the Add form pre-filled with the open amount and counterparty, links the new transaction to the original. Once the linked amount covers the original, it auto-settles.

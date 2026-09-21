@@ -1,6 +1,6 @@
 ---
 title: "Data storage & privacy"
-description: "Be aware where and how your data is stored before entering anything sensitive. Where is my data stored? Is my data encrypted?"
+description: "Where this instance keeps your data, why it is stored unencrypted, what that means in practice, and how to run your own instead."
 sidebar:
   icon: shield
 ---

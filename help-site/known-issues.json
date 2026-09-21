@@ -32,51 +32,12 @@
   },
   "localeParity": {
     "$comment": "Known DE/EN content divergences. Stage 3 empties this.",
-    "blockCountMismatch": [
-      {
-        "file": "02-concepts.md",
-        "anchor": "account",
-        "why": "EN has an 'Opening balance sign' block with no German counterpart. It carries no heading, so anchor checks pass. Stage 3."
-      },
-      {
-        "file": "08-ai.md",
-        "anchor": "what-can-it-do",
-        "why": "EN lists statement reading among the assistant's abilities; DE omits it. Stage 3."
-      },
-      {
-        "file": "04-iou-actions.md",
-        "anchor": "",
-        "why": "DE carries a lede paragraph that EN folded into the frontmatter description. Cosmetic; Stage 3 aligns it."
-      },
-      {
-        "file": "09-statements.md",
-        "anchor": "",
-        "why": "Same lede-vs-description split as 04-iou-actions. Stage 3."
-      },
-      {
-        "file": "08-ai.md",
-        "anchor": "",
-        "why": "Same lede-vs-description split as 04-iou-actions. Stage 3."
-      }
-    ],
+    "blockCountMismatch": [],
     "badDescriptions": {
-      "$comment": "Machine-generated frontmatter descriptions that read as colon-joined heading lists or end mid-word. These ship into <meta>, OG images, the sidebar, the Orama index and llms.txt. Stage 3.",
-      "files": [
-        "02-concepts.md",
-        "03-screens.md",
-        "08-ai.md",
-        "04-iou-actions.md",
-        "05-workflows.md",
-        "07-data-storage.md",
-        "09-statements.md",
-        "11-links.md",
-        "en/03-screens.md",
-        "en/05-workflows.md",
-        "en/07-data-storage.md",
-        "en/09-statements.md",
-        "en/11-links.md"
-      ]
-    }
+      "$comment": "Empty since stage 3. The check now rejects any description that repeats one of its page's own headings or trails off mid-thought, which is how the migration's generated text read.",
+      "files": []
+    },
+    "blockCountMismatch_$comment": "Empty since stage 3: both locales carry the same sections with comparable prose in each."
   },
   "aiActionsUndocumented": {
     "$comment": "AI_ACTIONS ids with no prose on the help site. Stage 8 empties this.",

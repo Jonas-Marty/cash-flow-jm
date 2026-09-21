@@ -1,6 +1,6 @@
 ---
 title: "Common workflows"
-description: "Common workflows: Shared expense and getting repaid: Importing transactions via the API: Monthly close: Recurring bills"
+description: "Worked end-to-end recipes: a shared expense and getting repaid, importing via the API, monthly close, recurring bills and Nextcloud."
 sidebar:
   icon: list-ordered
 ---

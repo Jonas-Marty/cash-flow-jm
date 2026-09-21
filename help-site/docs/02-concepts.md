@@ -1,6 +1,6 @@
 ---
 title: "Grundkonzepte"
-description: "Diese Bausteine arbeiten zusammen, um dir ein vollständiges Bild deines Geldes zu geben. Konto: Buchung: Kategorie"
+description: "Konten, Umschläge, Scopes, IOUs und Sweeps — die Bausteine des Budgets, jeder mit einem durchgerechneten Beispiel in Franken."
 sidebar:
   icon: book-open
 ---
@@ -12,6 +12,12 @@ Stell dir einen Satz Umschläge, ein Notizbuch und einen Aktenschrank vor — nu
 Ein realer Geldbehälter: Bankkonto, Bargeld, Kreditkarte, Sparbuch. Jede Buchung gehört zu genau einem Konto (Übertrag zu zweien).
 
 **Beispiel:** Du hast vielleicht *UBS Giro*, *PostFinance Spar*, *Bargeld* und *Visa Kreditkarte*. Wenn du mit der Visa einkaufen gehst, wird die Buchung auf das Konto *Visa Kreditkarte* gebucht. Wenn du am Bankomat Bargeld abhebst, ist das ein Übertrag von *UBS Giro* nach *Bargeld*.
+
+**Vorzeichen des Anfangssaldos:** Für jedes Konto gilt dieselbe Regel, egal ob Guthaben oder Schuld:
+- **Positiv** = Geld, das dir gehört (Bankguthaben, Restwert einer Prepaid-Karte).
+- **Negativ** = Geld, das du schuldest (Kreditkartenschuld, offenes Darlehen).
+
+**Beispiel — neue Kreditkarte:** Du legst die Visa in der App an, hast damit aber schon 500 CHF ausgegeben, bevor du mit dem Erfassen begonnen hast. Trag als Anfangssaldo **-500** ein. Der Saldo zeigt dann *-500.00 CHF* («ich schulde 500»). Neue Ausgaben machen ihn negativer, eine Zahlung von deinem Bankkonto weniger negativ. Hättest du *+500* eingetragen, würde die App die Karte wie ein aufgeladenes Guthaben behandeln, und dein Vermögen wäre um 1,000 CHF daneben. Dasselbe gilt für Hypotheken, Privatkredite und jede andere Schuld — fang negativ an, wenn du aktuell etwas schuldest.
 
 ## Buchung [#transaction]
 

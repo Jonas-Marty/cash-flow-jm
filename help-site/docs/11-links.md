@@ -1,6 +1,6 @@
 ---
 title: "Buchungs-Verknüpfungen"
-description: "Bündle mehrere einzeln gebuchte Transaktionen, die zum selben realen Einkauf gehören (Geschenkkarte auf zwei Karten gesplittet, Konzertticket + Essen vor…"
+description: "Mehrere Buchungen, die zum selben realen Einkauf gehören, zu einer Gruppe verbinden — ohne dass sich dein Budget oder deine Auswertungen ändern."
 sidebar:
   icon: link-2
 ---

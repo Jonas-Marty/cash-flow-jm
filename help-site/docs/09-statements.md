@@ -1,6 +1,6 @@
 ---
 title: "Auszüge importieren"
-description: "Lade unter „Auszüge“ einen Konto- oder Kreditkartenauszug hoch. Welche Dateitypen kann ich hochladen? Wie importiere ich einen Auszug?"
+description: "Einen Auszug als PDF, Bild oder CSV hochladen, die Zeilen gegen dein Kontenbuch abgleichen und sehen, was fehlt, doppelt ist oder falsch gebucht wurde."
 sidebar:
   icon: file-text
 ---
