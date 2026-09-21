@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "blume dev",
     "build": "blume build",
-    "doctor": "blume doctor"
+    "doctor": "blume doctor",
+    "check": "blume doctor && blume build && blume validate && blume audit"
   },
   "dependencies": {
     "blume": "^1.7.3"

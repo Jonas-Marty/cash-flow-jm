@@ -1,0 +1,127 @@
+{
+  "$comment": [
+    "Documentation defects that exist today, recorded so the parity suite can be green",
+    "while they are fixed in order. Each stage of the audit DELETES entries from here,",
+    "which is what makes that stage's assertion mechanical rather than a judgement call.",
+    "An empty array in every list means the audit is done. Never add an entry to make a",
+    "test pass without a line in `why` saying what is wrong and which stage removes it."
+  ],
+
+  "egressAllowlist": {
+    "$comment": "Hosts found in src/ that do NOT need a privacy disclosure, each with the reason.",
+    "permanent": {
+      "github.com": "Link to the source repository, in the privacy notice's own prose.",
+      "owncloud.org": "XML namespace URI in a WebDAV request body, never resolved.",
+      "ai.example.ch": "Placeholder endpoint in a unit test fixture.",
+      "ollama.local": "Placeholder endpoint in a unit test fixture.",
+      "api.openai.com": "Example base URL shown in the AI connection form; the user supplies their own.",
+      "cloud.example.com": "Placeholder in the Nextcloud setup form.",
+      "n8n.example.com": "Placeholder in the webhooks form.",
+      "help.cash-flow.wi-wo.ch": "Our own help site.",
+      "lovable.dev": "postMessage target in preview-auth plumbing, gated on running inside a Lovable editor iframe. Not a fetch, never active in production. Dead scaffolding to remove, not egress to disclose.",
+      "cash-flow-jm.lovable.app": "Stale server URL declared in the OpenAPI spec, not a host we contact. The banned-phrase check on `lovable.app` forces its removal in stage 7; delete this entry with it."
+    },
+    "undisclosed": {
+      "$comment": "REAL third parties that privacy.tsx does not yet mention. Stage 1 empties this.",
+      "nominatim.openstreetmap.org": "Server-side geocoding; receives search text and exact coordinates.",
+      "photon.komoot.io": "Server-side geocoding fallback; same payload.",
+      "tile.openstreetmap.org": "Browser-side map tiles; receives the reader's own IP.",
+      "unpkg.com": "Browser-side Swagger UI assets; receives the reader's IP and can execute JS.",
+      "www.openstreetmap.org": "Click-out link carrying coordinates in the URL.",
+      "api.frankfurter.dev": "Browser-side FX rates on the dashboard, /envelopes and /add; receives the reader's IP on page load.",
+      "pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev": "Open Graph image URL left over from Lovable; fetched by social crawlers, not users. Should be self-hosted or dropped."
+    }
+  },
+
+  "bannedPhrases": {
+    "$comment": "Phrases that must not appear once the audit is done. Stage 2 empties most of this.",
+    "pending": {
+      "X-API-Token": "No route reads this header; every one reads `authorization`. Stage 5.",
+      "lovable.app": "Stale production server URL in openapi-spec.ts. Stage 7.",
+      "Mark settled": "Removed IOU action. Stage 2.",
+      "Mark as settled": "Removed IOU action. Stage 2.",
+      "Book as loss": "Not the UI's wording; the app says write off / Abschreiben. Stage 2.",
+      "abgegolten markier": "Removed IOU action, German. Stage 2.",
+      "Als Verlust buchen": "Not the UI's wording, German. Stage 2."
+    }
+  },
+
+  "localeParity": {
+    "$comment": "Known DE/EN content divergences. Stage 3 empties this.",
+    "blockCountMismatch": [
+      {
+        "file": "02-concepts.md",
+        "anchor": "account",
+        "why": "EN has an 'Opening balance sign' block with no German counterpart. It carries no heading, so anchor checks pass. Stage 3."
+      },
+      {
+        "file": "08-ai.md",
+        "anchor": "what-can-it-do",
+        "why": "EN lists statement reading among the assistant's abilities; DE omits it. Stage 3."
+      },
+      {
+        "file": "04-iou-actions.md",
+        "anchor": "",
+        "why": "DE carries a lede paragraph that EN folded into the frontmatter description. Cosmetic; Stage 3 aligns it."
+      },
+      {
+        "file": "09-statements.md",
+        "anchor": "",
+        "why": "Same lede-vs-description split as 04-iou-actions. Stage 3."
+      },
+      {
+        "file": "08-ai.md",
+        "anchor": "",
+        "why": "Same lede-vs-description split as 04-iou-actions. Stage 3."
+      }
+    ],
+    "badDescriptions": {
+      "$comment": "Machine-generated frontmatter descriptions that read as colon-joined heading lists or end mid-word. These ship into <meta>, OG images, the sidebar, the Orama index and llms.txt. Stage 3.",
+      "files": [
+        "02-concepts.md",
+        "03-screens.md",
+        "08-ai.md",
+        "04-iou-actions.md",
+        "05-workflows.md",
+        "06-faq.md",
+        "07-data-storage.md",
+        "09-statements.md",
+        "11-links.md",
+        "en/03-screens.md",
+        "en/05-workflows.md",
+        "en/06-faq.md",
+        "en/07-data-storage.md",
+        "en/09-statements.md",
+        "en/11-links.md"
+      ]
+    }
+  },
+
+  "aiActionsUndocumented": {
+    "$comment": "AI_ACTIONS ids with no prose on the help site. Stage 8 empties this.",
+    "ids": ["statement_classify", "pending_enrich"]
+  },
+
+  "openApiUndocumentedRoutes": {
+    "$comment": "Routes that exist but are deliberately absent from the spec.",
+    "permanent": {
+      "/api/public/version": "Build stamp, not part of the data API.",
+      "/api/public/docs": "The Swagger UI page itself.",
+      "/api/public/openapi": "The spec document itself."
+    }
+  },
+
+  "metricsUndocumented": {
+    "$comment": "Metric series not named in README section 6. Stage 8 empties this.",
+    "names": ["app_audit_events_24h", "app_users_total", "app_transactions_total"]
+  },
+
+  "blumeAuditBaseline": {
+    "$comment": "Recorded so the one standing warning is not normalised into invisibility.",
+    "commit": "c9c08b9",
+    "checks": 2052,
+    "errors": 0,
+    "warnings": 1,
+    "warningDetail": "'Orphan page /en' — a false positive: the English index is reachable through the language switcher, which the link auditor cannot follow."
+  }
+}
