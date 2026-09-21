@@ -45,6 +45,9 @@ export interface Category {
   pinned?: boolean;
   pin_order?: number | null;
   sweep_target_category_id?: string | null;
+  /** What this envelope already held before the app tracked anything. Stored,
+   *  not derived — it is a statement about the past. Rolling envelopes only. */
+  opening_balance?: number;
   is_scope?: boolean;
   funding_category_id?: string | null;
   closed_at?: string | null;
@@ -1129,6 +1132,14 @@ export async function setCategorySweepTarget(categoryId: string, targetId: strin
   const { error } = await supabase
     .from("categories")
     .update({ sweep_target_category_id: targetId })
+    .eq("id", categoryId);
+  if (error) throw error;
+}
+
+export async function setCategoryOpeningBalance(categoryId: string, amount: number): Promise<void> {
+  const { error } = await supabase
+    .from("categories")
+    .update({ opening_balance: amount })
     .eq("id", categoryId);
   if (error) throw error;
 }

@@ -16,8 +16,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { EntityChip } from "@/components/EntityChip";
 import { IconPicker } from "@/components/IconPicker";
 import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
 import {
   fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings,
+  setCategoryOpeningBalance,
   type AccountType, type GroupKind,
 } from "@/lib/finance";
 import { useI18n, LANGUAGES, type Lang } from "@/i18n";
@@ -197,6 +199,14 @@ function SettingsPage() {
     const { error } = await supabase.from("categories").update({ archived: !archived }).eq("id", id);
     if (error) return toast.error(error.message);
     qc.invalidateQueries();
+  };
+  const updateOpeningBalance = async (id: string, raw: string) => {
+    const v = Number(String(raw).replace(",", "."));
+    if (!Number.isFinite(v)) return toast.error(tr("settings.opening_balance.invalid"));
+    try {
+      await setCategoryOpeningBalance(id, v);
+      qc.invalidateQueries();
+    } catch (e) { toast.error((e as Error).message); }
   };
   const toggleCategoryRollsOver = async (id: string, rollsOver: boolean) => {
     const next = !rollsOver;
@@ -623,6 +633,16 @@ function SettingsPage() {
               // would only inflate the group sums and the balance card above.
               const cats = (categoriesQ.data ?? []).filter((c) => !c.is_scope);
               const grps = groupsQ.data ?? [];
+              // The books only close once every franc the accounts started with
+              // belongs to an envelope, so show the assignment running down.
+              const accountOpenings = (accountsQ.data ?? [])
+                .filter((a) => !a.archived)
+                .reduce((sum, a) => sum + Number(a.opening_balance ?? 0), 0);
+              const assignedOpenings = (categoriesQ.data ?? [])
+                .filter((c) => c.rolls_over && !c.is_scope)
+                .reduce((sum, c) => sum + Number(c.opening_balance ?? 0), 0);
+              const openingsLeft = accountOpenings - assignedOpenings;
+              const curSymbol = settingsQ.data?.currency_symbol ?? "CHF";
               // Rows lay out against the *card* width (container query), not the
               // viewport — the settings column is much narrower than the screen.
               const renderRow = (c: typeof cats[number], idx: number, arr: typeof cats) => (
@@ -670,7 +690,22 @@ function SettingsPage() {
                       inputMode="decimal"
                       className="w-24 shrink-0 text-right tabular-nums @2xl/env:w-28"
                       onBlur={(e) => updateCategoryBudget(c.id, e.target.value)}
+                      title={tr("settings.monthly_budget")}
                     />
+                    {/* Only rolling envelopes carry money across months, so an
+                        opening balance is meaningless anywhere else. */}
+                    {c.rolls_over ? (
+                      <Input
+                        key={`${c.id}-opening-${c.opening_balance ?? 0}`}
+                        defaultValue={Number(c.opening_balance ?? 0).toString()}
+                        inputMode="decimal"
+                        className="w-24 shrink-0 text-right tabular-nums @2xl/env:w-28"
+                        onBlur={(e) => updateOpeningBalance(c.id, e.target.value)}
+                        title={tr("settings.opening_balance")}
+                      />
+                    ) : (
+                      <div className="w-24 shrink-0 @2xl/env:w-28" />
+                    )}
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button variant="ghost" size="icon" aria-label={tr("settings.visual.edit")}><Palette className="h-4 w-4" /></Button>
@@ -738,7 +773,23 @@ function SettingsPage() {
               if (cats.length === 0) {
                 return <p className="py-2 text-sm text-muted-foreground">{tr("settings.no_envelopes")}</p>;
               }
-              return <div className="space-y-2">{sections}</div>;
+              return (
+                <div className="space-y-2">
+                  {accountOpenings !== 0 && (
+                    <p className={cn(
+                      "rounded-md border px-2 py-1.5 text-xs tabular-nums",
+                      Math.abs(openingsLeft) < 0.005 ? "text-muted-foreground" : "border-warning/50 bg-warning/10",
+                    )}>
+                      {tr("settings.opening_balance.assigned", {
+                        assigned: fmtMoney(assignedOpenings, curSymbol),
+                        total: fmtMoney(accountOpenings, curSymbol),
+                        left: fmtMoney(openingsLeft, curSymbol),
+                      })}
+                    </p>
+                  )}
+                  {sections}
+                </div>
+              );
             })()}
           </CardContent>
         </Card>

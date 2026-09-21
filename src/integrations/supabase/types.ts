@@ -467,6 +467,7 @@ export type Database = {
           image_url: string | null
           rolls_over: boolean
           is_scope: boolean
+          opening_balance: number
           name: string
           pin_order: number | null
           pinned: boolean
@@ -489,6 +490,7 @@ export type Database = {
           image_url?: string | null
           rolls_over?: boolean
           is_scope?: boolean
+          opening_balance?: number
           name: string
           pin_order?: number | null
           pinned?: boolean
@@ -511,6 +513,7 @@ export type Database = {
           image_url?: string | null
           rolls_over?: boolean
           is_scope?: boolean
+          opening_balance?: number
           name?: string
           pin_order?: number | null
           pinned?: boolean
@@ -1739,6 +1742,7 @@ export type Database = {
           group_id: string
           group_name: string
           group_sort_order: number
+          is_scope: boolean
           rolls_over: boolean
           kind: Database["public"]["Enums"]["category_group_kind"]
           name: string

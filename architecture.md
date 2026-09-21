@@ -365,6 +365,20 @@ including the SQL/app inventory, performance estimate and phased plan, lives in
 
 ## 7. Change log
 
+### 2026-09-21 — Envelope opening balances
+
+- Migration `20260921220000_envelope_opening_balances.sql`: `categories.opening_balance`,
+  folded into `category_savings_balance.from_allocations`, and
+  `envelope_reconciliation.unallocated` now carries whatever openings are *not* yet assigned.
+- The accounts started with 62,712.31 that no envelope owned. Stored rather than derived: it is
+  a statement about the past, not something recomputable from transactions. Rolling envelopes
+  only — monthly envelopes reset, and scopes are funded from their envelope when they close.
+- `unallocated` and the balance function use the same predicate, so what one adds the other
+  drops: assigning an opening balance moves money between terms and leaves `residual` untouched.
+  Residual falls from 63,084.23 to 371.92, which is now purely income variance over elapsed
+  months.
+- Settings shows the assignment running down (`assigned X of Y · unassigned Z`).
+
 ### 2026-09-21 — envelope_reconciliation: show the books balancing
 
 - Migration `20260921200000_envelope_reconciliation.sql`: new
