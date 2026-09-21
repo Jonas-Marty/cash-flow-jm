@@ -233,7 +233,7 @@ function EnvelopesPage() {
   }, [reallocQ.data, month, categoriesById]);
 
   // Group rows by group_id preserving sort. The RPC already returns the
-  // effective per-row kind (driven by categories.is_savings, falling back to
+  // effective per-row kind (driven by categories.rolls_over, falling back to
   // category_groups.kind), so we trust it directly. Rows without a group fall
   // into a synthetic bucket per effective kind.
   const groups = React.useMemo(() => {

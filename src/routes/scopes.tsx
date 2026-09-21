@@ -44,7 +44,7 @@ function ScopesRoute() {
   const fundingCandidates: Category[] = React.useMemo(
     // Closing a scope books a reallocation, and both endpoints must be
     // savings envelopes — so only savings categories can fund a scope.
-    () => (catsQ.data ?? []).filter((c) => !c.archived && !c.is_scope && c.is_savings),
+    () => (catsQ.data ?? []).filter((c) => !c.archived && !c.is_scope && c.rolls_over),
     [catsQ.data],
   );
 

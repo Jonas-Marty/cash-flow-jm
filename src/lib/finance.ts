@@ -37,7 +37,7 @@ export interface Category {
   sort_order: number;
   archived: boolean;
   group_id: string | null;
-  is_savings: boolean;
+  rolls_over: boolean;
   icon?: string | null;
   emoji?: string | null;
   image_url?: string | null;
@@ -63,7 +63,7 @@ export interface CategoryMonthRow {
   group_id: string | null;
   group_name: string | null;
   kind: GroupKind;
-  is_savings: boolean;
+  rolls_over: boolean;
   /** Scope envelopes sit outside the monthly budget — see budgetSummary. */
   is_scope: boolean;
   sort_order: number;
@@ -1643,7 +1643,7 @@ export async function createScope(input: {
       is_scope: true,
       // Scopes are savings envelopes: closing one books a reallocation
       // from the funding envelope, and both endpoints must be savings.
-      is_savings: true,
+      rolls_over: true,
       funding_category_id: input.funding_category_id,
       allocated_budget: input.allocated_budget ?? 0,
       emoji: input.emoji ?? "🎯",

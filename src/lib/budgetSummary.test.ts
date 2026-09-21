@@ -17,7 +17,7 @@ function row(p: Partial<CategoryMonthRow> & { category_id: string; kind: Categor
     variance: p.variance ?? (p.allocated ?? 0) - (p.spent_or_received ?? 0),
     group_id: p.group_id ?? null,
     group_name: p.group_name ?? null,
-    is_savings: p.is_savings ?? (p.kind === "savings"),
+    rolls_over: p.rolls_over ?? (p.kind === "savings"),
     is_scope: p.is_scope ?? false,
     sort_order: p.sort_order ?? 0,
     group_sort_order: p.group_sort_order ?? 0,

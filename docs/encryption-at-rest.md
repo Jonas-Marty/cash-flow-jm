@@ -89,7 +89,7 @@ Options rejected:
 |---|---|---|
 | `transactions` (`20260420142523…` + 8) | `amount` 🔴⚠️ (`CHECK > 0`), `destination_amount` 🔴⚠️, `fee_amount` 🔴⚠️, `description` 🔴, `note` 🔴⚠️ (tag regex), `reimbursable_counterparty/_reason/_cancel_reason` 🔴, `latitude/longitude/location_accuracy_m/location_label` 🔴 | `id, user_id, occurred_on, type, source/destination_account_id, category_id, fee_transaction_id, fee_category_id, is_reimbursable, reimbursable_status, reimbursable_writeoff_*`, `location_source, recurring_rule_id, split_group_id` |
 | `accounts` | `name` 🔴⚠️, `opening_balance` 🔴⚠️ | `type, currency_code/_symbol, archived, icon, emoji, image_url, color, pinned, pin_order` |
-| `categories` | `name` 🔴⚠️ (ordered by in SQL; `.eq("name", RECONCILE_CATEGORY_NAME)` lookups), `allocated_budget` 🔴⚠️ | `group_id, is_savings, sweep_target_category_id, is_scope, funding_category_id, closed_at, sort_order, archived, visuals` |
+| `categories` | `name` 🔴⚠️ (ordered by in SQL; `.eq("name", RECONCILE_CATEGORY_NAME)` lookups), `allocated_budget` 🔴⚠️ | `group_id, rolls_over, sweep_target_category_id, is_scope, funding_category_id, closed_at, sort_order, archived, visuals` |
 | `category_groups` | `name` 🔴⚠️ | `kind, sort_order, archived, sweep_target_category_id` |
 | `category_budgets` (no `user_id`; owned via categories) | `amount` 🔴⚠️ | PK `(category_id, month)` |
 | `category_reallocations` | `amount` 🔴⚠️, `note` 🔴 | `from/to_category_id, occurred_on` |

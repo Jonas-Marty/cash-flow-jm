@@ -48,7 +48,7 @@ export const Route = createFileRoute("/api/public/categories")({
 
         let catQ = supabaseAdmin
           .from("categories")
-          .select("id, name, group_id, is_savings, archived, sort_order")
+          .select("id, name, group_id, rolls_over, archived, sort_order")
           .eq("user_id", auth.userId)
           .order("sort_order")
           .order("name");

@@ -1560,7 +1560,7 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
                 const c = categories.find((x) => x.id === categoryId);
                 if (!c) return null;
                 const kind = c.group_id ? groupKindById.get(c.group_id) : undefined;
-                const isSavings = c.is_savings || kind === "savings";
+                const isSavings = c.rolls_over || kind === "savings";
                 if (kind !== "expense" && !isSavings) return null;
                 return (
                   <p className="mt-1.5 text-xs text-muted-foreground">

@@ -764,7 +764,7 @@ components:
         id: { type: string, format: uuid }
         name: { type: string }
         group_id: { type: string, format: uuid, nullable: true }
-        is_savings: { type: boolean }
+        rolls_over: { type: boolean }
         archived: { type: boolean }
         sort_order: { type: integer, nullable: true }
     CategoryGroup:

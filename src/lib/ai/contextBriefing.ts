@@ -15,7 +15,7 @@ export interface BriefingCategory {
   name: string;
   group?: string | null;
   kind?: string | null;
-  is_savings?: boolean;
+  rolls_over?: boolean;
   budget?: number | null;
   actual?: number | null;
 }
@@ -100,7 +100,7 @@ export function buildContextBriefing(input: BriefingInput): string {
   // --- Categories ---
   out.push(`\n### Categories (id | name | group | kind | budget | this month)`);
   for (const c of categories) {
-    const kind = c.is_savings ? "savings" : (c.kind || "expense");
+    const kind = c.rolls_over ? "savings" : (c.kind || "expense");
     const budget = c.budget != null ? round(c.budget) : "-";
     const actual = c.actual != null ? round(c.actual) : "-";
     out.push(`${c.id} | ${c.name} | ${c.group || "-"} | ${kind} | ${budget} | ${actual}`);

@@ -36,7 +36,7 @@ export function ReallocateDialog({ open, defaultFromId, defaultToId, defaultAmou
 
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
   const savings = React.useMemo<Category[]>(
-    () => (cats.data ?? []).filter((c) => c.is_savings && !c.archived),
+    () => (cats.data ?? []).filter((c) => c.rolls_over && !c.archived),
     [cats.data],
   );
 

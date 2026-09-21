@@ -32,7 +32,7 @@ accounts                          category_groups
         │                               ├ sort_order
         │                               ├ archived
         │                               ├ group_id ──────────┘
-         │                               └ is_savings (per-envelope behaviour switch; see §3.3)
+         │                               └ rolls_over (per-envelope behaviour switch; see §3.3)
         │                                    ▲
         │                                    │
         │                              category_budgets   (per-month history)
@@ -89,14 +89,14 @@ All tables have `created_at`, `updated_at`, and a nullable `user_id` for future 
 
 Paying off a credit card = Transfer from Asset (bank) → Liability (card).
 
-### 3.3 Envelope flavours: `category_groups.kind` vs `categories.is_savings`
+### 3.3 Envelope flavours: `category_groups.kind` vs `categories.rolls_over`
 
 Two coordinated fields classify an envelope. They have **distinct, non-overlapping jobs**:
 
 | Field | Job |
 |---|---|
 | `category_groups.kind` ∈ {`income`, `expense`, `savings`} | **Taxonomy + default for new envelopes.** Drives the section header on the envelopes screen, and pre-selects the savings toggle when an envelope is created inside that group. Does **not** by itself decide a single envelope's accounting behaviour. |
-| `categories.is_savings` (boolean) | **Per-envelope behaviour switch.** When true, the envelope accumulates across months (savings balance) and is excluded from monthly spend totals. When false, the envelope behaves as monthly expense or monthly income depending on its group's `kind`. |
+| `categories.rolls_over` (boolean) | **Per-envelope behaviour switch.** When true, the envelope accumulates across months (savings balance) and is excluded from monthly spend totals. When false, the envelope behaves as monthly expense or monthly income depending on its group's `kind`. |
 
 #### Effective kind (the one truth)
 
@@ -104,12 +104,12 @@ Both UI and SQL derive the per-row **effective kind** identically:
 
 ```
 effective_kind =
-  is_savings                       ? 'savings'
+  rolls_over                       ? 'savings'
   : group.kind === 'income'        ? 'income'
   : 'expense'                      // includes ungrouped non-savings envelopes
 ```
 
-This rule lives in `category_month_spending(p_month)` (returned as the `kind` column) and is reused by the envelopes screen and the Add transaction form. The client never recomputes it from `is_savings + group.kind` independently.
+This rule lives in `category_month_spending(p_month)` (returned as the `kind` column) and is reused by the envelopes screen and the Add transaction form. The client never recomputes it from `rolls_over + group.kind` independently.
 
 #### Behaviour table (effective kind)
 
@@ -123,9 +123,9 @@ The savings concept models things like the SBB GA: you allocate ~320 CHF/month i
 
 #### Allowed / divergent combinations
 
-`is_savings` can disagree with the parent group's `kind`. This is intentional: a single "Holiday fund" envelope can sit inside an otherwise expense-flavoured "Variable" group without forcing the user to spin up a sibling savings group. The Settings UI flags such rows with a small "behaviour differs from group" badge so the divergence stays visible. The synthetic group header on the envelopes screen still uses the parent group's name; only the row math follows the row's own effective kind.
+`rolls_over` can disagree with the parent group's `kind`. This is intentional: a single "Holiday fund" envelope can sit inside an otherwise expense-flavoured "Variable" group without forcing the user to spin up a sibling savings group. The Settings UI flags such rows with a small "behaviour differs from group" badge so the divergence stays visible. The synthetic group header on the envelopes screen still uses the parent group's name; only the row math follows the row's own effective kind.
 
-| `group.kind` | `is_savings` | Effective kind | Notes |
+| `group.kind` | `rolls_over` | Effective kind | Notes |
 |---|---|---|---|
 | `expense` | false | expense | default case |
 | `expense` | true  | savings | standalone savings pot inside an expense group (badge in Settings) |
@@ -139,14 +139,14 @@ The savings concept models things like the SBB GA: you allocate ~320 CHF/month i
 #### Why both fields exist (and why we don't collapse them)
 
 - **Why `kind` survives:** users want a stable taxonomy for headers and a default for new envelopes. Removing it would force every envelope creation to ask "what flavour?" individually.
-- **Why `is_savings` survives:** standalone savings envelopes (no group) need *some* per-row marker, and users sometimes want a single savings pot inside a non-savings group.
-- **Why we don't add an `is_income` per category:** there is no concrete use case for "one income envelope inside an expense group". Income behaviour stays group-derived. If that ever changes, it generalises cleanly to a per-category enum without altering the existing `is_savings` semantics.
+- **Why `rolls_over` survives:** standalone savings envelopes (no group) need *some* per-row marker, and users sometimes want a single savings pot inside a non-savings group.
+- **Why we don't add an `is_income` per category:** there is no concrete use case for "one income envelope inside an expense group". Income behaviour stays group-derived. If that ever changes, it generalises cleanly to a per-category enum without altering the existing `rolls_over` semantics.
 
 #### Invariants enforced in the database
 
 - `category_month_spending` returns the effective kind directly, so any other consumer (RPC caller, public API) sees the same answer.
-- A trigger (`cleanup_budgets_on_savings_flip`) deletes monthly `category_budgets` rows when a category is flipped to `is_savings = true`. Savings envelopes don't use them and stale rows would otherwise drift the UI.
-- The Settings UI auto-defaults `is_savings` to match the chosen group's `kind` on envelope creation, but never auto-clears it when the group changes later (so a savings envelope cannot be silently demoted).
+- A trigger (`cleanup_budgets_on_savings_flip`) deletes monthly `category_budgets` rows when a category is flipped to `rolls_over = true`. Savings envelopes don't use them and stale rows would otherwise drift the UI.
+- The Settings UI auto-defaults `rolls_over` to match the chosen group's `kind` on envelope creation, but never auto-clears it when the group changes later (so a savings envelope cannot be silently demoted).
 
 ### 3.4 Monthly budget history & rollover-of-allocation
 
@@ -322,8 +322,8 @@ Deferred: the feedback loop and gated auto-apply, see
 | Object | Type | Purpose |
 |---|---|---|
 | `account_balances` | view | Per-account computed balance. |
-| `category_month_spending(p_month DATE)` | function | Per-envelope row for the given month: `allocated`, `spent_or_received`, `variance`, plus group metadata (`group_id`, `group_name`, `kind`, `is_savings`, sort orders). |
-| `category_savings_balance` | view | All-time `allocated_total`, `spent_total`, `balance` for every `is_savings = true` category. |
+| `category_month_spending(p_month DATE)` | function | Per-envelope row for the given month: `allocated`, `spent_or_received`, `variance`, plus group metadata (`group_id`, `group_name`, `kind`, `rolls_over`, sort orders). |
+| `category_savings_balance` | view | All-time `allocated_total`, `spent_total`, `balance` for every `rolls_over = true` category. |
 | `ensure_month_budgets(p_month DATE)` | function | Idempotently copies the most recent prior budget into the given month for every active category. Called by the UI before reading month rows. |
 | `sync_transaction_tags()` | trigger function | Re-derives `transaction_tags` from the note on insert/update. |
 | `update_updated_at_column()` | trigger function | Sets `updated_at = now()` on update; attached to all mutable tables. |
@@ -364,6 +364,40 @@ including the SQL/app inventory, performance estimate and phased plan, lives in
 [`docs/encryption-at-rest.md`](./docs/encryption-at-rest.md).
 
 ## 7. Change log
+
+### 2026-09-21 — `is_savings` renamed to `rolls_over`
+
+- Migration `20260921140000_rename_is_savings_to_rolls_over.sql`: `categories.is_savings` →
+  `categories.rolls_over`, plus a verbatim recreation of the ten functions referencing it
+  (plpgsql bodies are stored as text, so `RENAME COLUMN` does not rewrite them; views do follow
+  automatically). `category_month_spending` exposes the column in its `RETURNS TABLE`, so it was
+  dropped and recreated.
+- The flag decided two things at once and named neither: whether an envelope's month-end
+  remainder carries forward, and whether the month's cost is the allocation rather than the
+  spend. Both follow from "does this roll over?". It also stops the name colliding with
+  `category_groups.kind = 'savings'` (taxonomy) and `is_scope` (one-off events). See §3.3.
+- Breaking change on `GET /api/public/categories`: the field is now `rolls_over`.
+- Pure rename — `category_month_spending`, `category_savings_balance_v2`,
+  `category_savings_balance`, `reconciliation_summary` and `category_savings_balance_series`
+  return byte-identical output.
+
+### 2026-09-21 — Reimbursements: link amounts, and writing off attributes money
+
+- Migration `20260921100000_reimbursement_link_amount_guards.sql`: a reimbursement link may not
+  exceed the settling transaction's amount, and links for one original may not total more than
+  the original. Repairs the existing rows first, since the guard would otherwise reject the fix.
+  Picking a link candidate used to record the *original's* remaining rather than what the refund
+  actually paid, so a partial refund flipped the original to `settled` and the IOU vanished.
+- Migration `20260921120000_reimbursable_written_off_status.sql`: new `written_off` status, and
+  `recompute_reimbursable_status` no longer overrides an outcome the user chose by hand.
+- `writeOffReimbursable` created an offsetting transaction on a real account, inflating the
+  account total by the written-off amount and crediting the chosen envelope instead of charging
+  it. It now creates no transaction: the original and the transactions that settled it are
+  assigned to one envelope, so §3.7's reimbursement rule charges the true net. The same
+  operation attributes an overpayment (lay out 201.20, get 202.00 back → the envelope is
+  credited 0.80).
+- "Mark as settled" is gone. Closing an IOU while the amount lands nowhere is the hole being
+  fixed, so the only exits are repaying until fulfilled, or writing off.
 
 ### 2026-09-15 — Bill proposals on recurring occurrences
 

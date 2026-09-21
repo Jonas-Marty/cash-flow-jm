@@ -32,8 +32,8 @@ export function SavingsAndSweepsCard() {
   const reconQ = useQuery({ queryKey: ["reconciliation"], queryFn: () => fetchReconciliationSummary() });
 
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
-  const savings: Category[] = (cats.data ?? []).filter((c) => c.is_savings && !c.archived);
-  const expenseCats: Category[] = (cats.data ?? []).filter((c) => !c.is_savings && !c.archived);
+  const savings: Category[] = (cats.data ?? []).filter((c) => c.rolls_over && !c.archived);
+  const expenseCats: Category[] = (cats.data ?? []).filter((c) => !c.rolls_over && !c.archived);
   const expenseGroups: CategoryGroup[] = (groups.data ?? []).filter((g) => g.kind !== "income" && !g.archived);
 
   const defaultId = settingsQ.data?.default_sweep_category_id ?? null;

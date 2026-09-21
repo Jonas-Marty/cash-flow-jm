@@ -33,7 +33,7 @@ export async function buildBriefingForUser(sb: Sb, level: AIContextLevel, curren
 
   const [accRes, catRes, spendRes, txRes] = await Promise.all([
     sb.from("accounts").select("id, name, currency_code, archived").order("name"),
-    sb.from("categories").select("id, name, is_savings, archived, group_id, allocated_budget").order("sort_order"),
+    sb.from("categories").select("id, name, rolls_over, archived, group_id, allocated_budget").order("sort_order"),
     sb.rpc("category_month_spending", { p_month: monthISO }),
     sb
       .from("transactions")
@@ -60,7 +60,7 @@ export async function buildBriefingForUser(sb: Sb, level: AIContextLevel, curren
         name: c.name,
         group: s?.group_name ?? null,
         kind: s?.kind ?? null,
-        is_savings: !!c.is_savings,
+        rolls_over: !!c.rolls_over,
         budget: s?.allocated ?? c.allocated_budget ?? null,
         actual: s?.spent_or_received ?? null,
       } satisfies BriefingCategory;

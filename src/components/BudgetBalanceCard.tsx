@@ -45,10 +45,10 @@ export function BudgetBalanceCard({
       if (c.is_scope) continue;
       const v = Number(c.allocated_budget) || 0;
       let kind: "income" | "expense" | "savings";
-      if (c.is_savings) kind = "savings";
+      if (c.rolls_over) kind = "savings";
       else kind = (c.group_id && groupKindById.get(c.group_id)) || "expense";
-      // savings rows that lost their group default to "savings" via is_savings
-      if (kind === "savings" && !c.is_savings) kind = "expense";
+      // savings rows that lost their group default to "savings" via rolls_over
+      if (kind === "savings" && !c.rolls_over) kind = "expense";
       if (kind === "income") income += v;
       else if (kind === "savings") savings += v;
       else expense += v;

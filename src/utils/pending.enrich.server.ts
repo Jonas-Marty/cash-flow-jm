@@ -46,7 +46,7 @@ interface CategoryRow {
   id: string;
   name: string;
   group_id: string | null;
-  is_savings: boolean;
+  rolls_over: boolean;
   archived: boolean;
 }
 
@@ -142,7 +142,7 @@ async function enrich(userId: string, force: boolean): Promise<EnrichSummary> {
       .limit(HISTORY_LIMIT),
     supabaseAdmin
       .from("categories")
-      .select("id, name, group_id, is_savings, archived")
+      .select("id, name, group_id, rolls_over, archived")
       .eq("user_id", userId),
     supabaseAdmin
       .from("accounts")
@@ -265,7 +265,7 @@ async function enrich(userId: string, force: boolean): Promise<EnrichSummary> {
           name: c.name,
           group: g?.name ?? null,
           kind: g?.kind ?? null,
-          is_savings: !!c.is_savings,
+          rolls_over: !!c.rolls_over,
           budget: null,
           actual: null,
         };

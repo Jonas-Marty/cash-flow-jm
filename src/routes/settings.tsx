@@ -151,33 +151,33 @@ function SettingsPage() {
   const [cName, setCName] = React.useState("");
   const [cBudget, setCBudget] = React.useState("0");
   const [cGroupId, setCGroupId] = React.useState<string>("");
-  const [cIsSavings, setCIsSavings] = React.useState(false);
+  const [cRollsOver, setCRollsOver] = React.useState(false);
   const addCategory = async () => {
     if (!cName.trim()) { toast.error(tr("toast.name_required")); return; }
     const sortOrder = (categoriesQ.data ?? []).length;
     const group = (groupsQ.data ?? []).find((g) => g.id === cGroupId);
-    const isSavings = cIsSavings || group?.kind === "savings";
+    const rollsOver = cRollsOver || group?.kind === "savings";
     const { error } = await supabase.from("categories").insert({
       name: cName.trim(),
       allocated_budget: Number(cBudget) || 0,
       sort_order: sortOrder,
       group_id: cGroupId || null,
-      is_savings: isSavings,
+      rolls_over: rollsOver,
     });
     if (error) { toast.error(error.message); return; }
     toast.success(tr("toast.envelope_added"));
-    setCName(""); setCBudget("0"); setCGroupId(""); setCIsSavings(false);
+    setCName(""); setCBudget("0"); setCGroupId(""); setCRollsOver(false);
     qc.invalidateQueries();
   };
   const updateCategoryGroup = async (id: string, groupId: string) => {
     const group = (groupsQ.data ?? []).find((g) => g.id === groupId);
     // Only auto-promote to savings when joining a savings-kind group;
-    // never auto-clear is_savings when changing/clearing the group, so
+    // never auto-clear rolls_over when changing/clearing the group, so
     // standalone savings envelopes stay savings.
-    const patch: { group_id: string | null; is_savings?: boolean } = {
+    const patch: { group_id: string | null; rolls_over?: boolean } = {
       group_id: groupId || null,
     };
-    if (group?.kind === "savings") patch.is_savings = true;
+    if (group?.kind === "savings") patch.rolls_over = true;
     const { error } = await supabase.from("categories").update(patch).eq("id", id);
     if (error) return toast.error(error.message);
     qc.invalidateQueries();
@@ -198,11 +198,11 @@ function SettingsPage() {
     if (error) return toast.error(error.message);
     qc.invalidateQueries();
   };
-  const toggleCategorySavings = async (id: string, isSavings: boolean) => {
-    const next = !isSavings;
+  const toggleCategoryRollsOver = async (id: string, rollsOver: boolean) => {
+    const next = !rollsOver;
     // Keep the user's allocation when flipping savings on/off — the value
     // is now the monthly *target* for savings envelopes too.
-    const { error } = await supabase.from("categories").update({ is_savings: next }).eq("id", id);
+    const { error } = await supabase.from("categories").update({ rolls_over: next }).eq("id", id);
     if (error) return toast.error(error.message);
     if (next) {
       // Drop any pre-generated monthly budget rows; savings envelopes don't use them.
@@ -596,7 +596,7 @@ function SettingsPage() {
                     // Pre-default savings toggle to match the chosen group's
                     // default behaviour. The user can still override.
                     const g = (groupsQ.data ?? []).find((x) => x.id === next);
-                    if (g) setCIsSavings(g.kind === "savings");
+                    if (g) setCRollsOver(g.kind === "savings");
                   }}
                 >
                   <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
@@ -610,12 +610,12 @@ function SettingsPage() {
               </div>
               <div>
                 <Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.monthly_budget")}</Label>
-                <Input inputMode="decimal" value={cBudget} onChange={(e) => setCBudget(e.target.value)} placeholder={cIsSavings ? tr("settings.savings_target_hint") : undefined} />
+                <Input inputMode="decimal" value={cBudget} onChange={(e) => setCBudget(e.target.value)} placeholder={cRollsOver ? tr("settings.savings_target_hint") : undefined} />
               </div>
               <div className="flex items-end"><Button className="w-full" onClick={addCategory}><Plus className="h-4 w-4" /> {tr("common.add")}</Button></div>
             </div>
             <div className="flex items-center gap-2 text-sm">
-              <Switch id="new-cat-savings" checked={cIsSavings} onCheckedChange={setCIsSavings} />
+              <Switch id="new-cat-savings" checked={cRollsOver} onCheckedChange={setCRollsOver} />
               <Label htmlFor="new-cat-savings" className="cursor-pointer">{tr("settings.savings_envelope")}</Label>
               <span className="text-xs text-muted-foreground">{tr("settings.savings_envelope_hint")}</span>
             </div>
@@ -642,11 +642,11 @@ function SettingsPage() {
                     <EntityChip entity={{ id: c.id, name: c.name, icon: c.icon, emoji: c.emoji, image_url: c.image_url, color: c.color }} showLabel={false} />
                     <div className={c.archived ? "min-w-0 text-muted-foreground line-through" : "min-w-0"}>
                       <div className="break-words font-medium">{c.name}</div>
-                      {c.is_savings && <div className="text-[10px] font-semibold uppercase text-muted-foreground">{tr("add.savings_badge")}</div>}
+                      {c.rolls_over && <div className="text-[10px] font-semibold uppercase text-muted-foreground">{tr("add.savings_badge")}</div>}
                       {(() => {
                         const g = (groupsQ.data ?? []).find((x) => x.id === c.group_id);
                         if (!g) return null;
-                        const diverges = (g.kind === "savings") !== c.is_savings;
+                        const diverges = (g.kind === "savings") !== c.rolls_over;
                         if (!diverges) return null;
                         return (
                           <div className="text-[10px] text-warning" title={tr("settings.behaviour_diverges")}>⚠ {tr("settings.behaviour_diverges")}</div>
@@ -665,10 +665,10 @@ function SettingsPage() {
                       </SelectContent>
                     </Select>
                     <div className="flex items-center gap-1" title={tr("settings.savings_envelope")}>
-                      <Switch checked={c.is_savings} onCheckedChange={() => toggleCategorySavings(c.id, c.is_savings)} aria-label={tr("settings.savings_envelope")} />
+                      <Switch checked={c.rolls_over} onCheckedChange={() => toggleCategoryRollsOver(c.id, c.rolls_over)} aria-label={tr("settings.savings_envelope")} />
                     </div>
                     <Input
-                      key={`${c.id}-${c.is_savings}-${c.allocated_budget}`}
+                      key={`${c.id}-${c.rolls_over}-${c.allocated_budget}`}
                       defaultValue={Number(c.allocated_budget).toString()}
                       inputMode="decimal"
                       className="w-24 shrink-0 text-right tabular-nums @2xl/env:w-28"

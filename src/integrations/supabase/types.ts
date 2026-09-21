@@ -465,7 +465,7 @@ export type Database = {
           icon: string | null
           id: string
           image_url: string | null
-          is_savings: boolean
+          rolls_over: boolean
           is_scope: boolean
           name: string
           pin_order: number | null
@@ -487,7 +487,7 @@ export type Database = {
           icon?: string | null
           id?: string
           image_url?: string | null
-          is_savings?: boolean
+          rolls_over?: boolean
           is_scope?: boolean
           name: string
           pin_order?: number | null
@@ -509,7 +509,7 @@ export type Database = {
           icon?: string | null
           id?: string
           image_url?: string | null
-          is_savings?: boolean
+          rolls_over?: boolean
           is_scope?: boolean
           name?: string
           pin_order?: number | null
@@ -1774,7 +1774,7 @@ export type Database = {
           group_id: string
           group_name: string
           group_sort_order: number
-          is_savings: boolean
+          rolls_over: boolean
           kind: Database["public"]["Enums"]["category_group_kind"]
           name: string
           sort_order: number
