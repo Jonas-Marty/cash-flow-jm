@@ -1,16 +1,18 @@
 import type { Lang } from "@/i18n";
 
 /**
- * The guide lives at help.cash-flow.wi-wo.ch as a separate static site, built
- * from help-site/ by Blume. It is deliberately outside the app's auth gate:
- * signing in is one of the things it has to be able to explain.
+ * Where the guide is published. A separate static site built from help-site/
+ * by Blume, deliberately outside the app's auth gate: signing in is one of the
+ * things it has to be able to explain.
  *
- * Overridable at build time so a dev deployment can point at its own copy;
- * there is only one docs deployment today, and both app environments use it.
+ * The origin lives in deployment configuration — `.env.example`,
+ * `docker-compose.yml` — not here, so the app and the docs deployment can be
+ * moved without touching source. `vite.requireEnv.ts` fails the build when it
+ * is missing, because the failure is otherwise invisible: an absent VITE_ var
+ * inlines as an empty string, every link below turns root-relative, and the
+ * browser silently resolves it against the app's own host.
  */
-export const HELP_BASE = (
-  import.meta.env.VITE_HELP_URL ?? "https://help.cash-flow.wi-wo.ch"
-).replace(/\/$/, "");
+export const HELP_BASE = (import.meta.env.VITE_HELP_URL ?? "").replace(/\/$/, "");
 
 /** Pages in the guide that the app links into directly. */
 export type HelpPage =

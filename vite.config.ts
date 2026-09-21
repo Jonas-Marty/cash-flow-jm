@@ -5,8 +5,11 @@
 //     error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... } }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { requireEnv, REQUIRED_VITE_ENV } from "./vite.requireEnv";
 
 export default defineConfig({
+  plugins: [requireEnv(REQUIRED_VITE_ENV)],
+
   // The preset ships importProtection with `files: ["**/server/**"]`, which
   // matches nothing in this repo — there is no src/server/ directory and all
   // twelve server modules use the *.server.ts convention. Verified: a client

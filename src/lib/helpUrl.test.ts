@@ -1,6 +1,17 @@
 import { describe, it, expect } from "vitest";
 import { helpUrl, helpUrlFromLegacyHash, HELP_BASE } from "./helpUrl";
 
+describe("HELP_BASE", () => {
+  it("is an absolute origin", () => {
+    // The bug this guards: VITE_HELP_URL arrived as an empty string from an
+    // unset Docker build arg, `??` did not catch it because empty is not
+    // nullish, and every link below became root-relative — so the help button
+    // navigated to the app's own host instead of the guide. Nothing threw.
+    expect(HELP_BASE, "VITE_HELP_URL is unset — see .env.example").not.toBe("");
+    expect(HELP_BASE).toMatch(/^https?:\/\/[^/]+$/);
+  });
+});
+
 describe("helpUrl", () => {
   it("leaves German unprefixed, matching blume.config.ts defaultLocale", () => {
     expect(helpUrl("de")).toBe(`${HELP_BASE}/`);
@@ -27,8 +38,18 @@ describe("helpUrlFromLegacyHash", () => {
   // Each section of the old in-app guide became a page of the same slug, so a
   // bookmarked /help#<section> has to land on /<section>.
   it.each([
-    "getting-started", "concepts", "screens", "iou-actions", "workflows",
-    "faq", "data-storage", "ai", "statements", "webhooks", "links", "oidc",
+    "getting-started",
+    "concepts",
+    "screens",
+    "iou-actions",
+    "workflows",
+    "faq",
+    "data-storage",
+    "ai",
+    "statements",
+    "webhooks",
+    "links",
+    "oidc",
   ])("maps #%s onto its page", (id) => {
     expect(helpUrlFromLegacyHash("de", `#${id}`)).toBe(`${HELP_BASE}/${id}`);
     expect(helpUrlFromLegacyHash("en", `#${id}`)).toBe(`${HELP_BASE}/en/${id}`);
