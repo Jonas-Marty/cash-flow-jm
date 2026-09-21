@@ -156,7 +156,12 @@ export function needsBulkWrite(before: ResolvedCell | undefined, next: number): 
 export type GridPreview =
   | { kind: "row"; categoryId: string; fromCol: number; value: number }
   | { kind: "fill"; fromCol: number }
-  | { kind: "copy"; fromCol: number };
+  | { kind: "copy"; fromCol: number }
+  /** Remove stored rows: `through` clears this month and every earlier one. */
+  | { kind: "clear"; fromCol: number; through: boolean };
+
+/** `"clear"` means the cell loses its row and goes back to undecided. */
+export type PreviewOutcome = number | "clear";
 
 /**
  * The value a cell would take if the hovered action were taken; `null` if untouched.
@@ -171,8 +176,14 @@ export function previewValueFor(
   col: number,
   monthKeys: string[],
   resolved: Map<string, ResolvedCell>,
-): number | null {
+): PreviewOutcome | null {
   if (!preview) return null;
+  if (preview.kind === "clear") {
+    const hit = preview.through ? col <= preview.fromCol : col === preview.fromCol;
+    if (!hit) return null;
+    // Only a stored row can be removed; an undecided cell is already clear.
+    return resolved.get(cellId(categoryId, monthKeys[col]))?.inherited === false ? "clear" : null;
+  }
   if (preview.kind === "row") {
     if (preview.categoryId !== categoryId || col < preview.fromCol) return null;
     return preview.value;

@@ -249,3 +249,37 @@ describe("previewValueFor", () => {
     });
   });
 });
+
+describe("previewValueFor — clearing", () => {
+  const keys = ["2026-01-01", "2026-02-01", "2026-03-01"];
+  const resolved = new Map([
+    [cellId("food", "2026-01-01"), { amount: 100, inherited: false }],
+    [cellId("food", "2026-02-01"), { amount: 100, inherited: true }],
+    [cellId("food", "2026-03-01"), { amount: 300, inherited: false }],
+  ]);
+  const pv = (p: Parameters<typeof previewValueFor>[0], col: number) =>
+    previewValueFor(p, "food", col, keys, resolved);
+
+  it("trims this month and every earlier one", () => {
+    const p = { kind: "clear", fromCol: 2, through: true } as const;
+    expect(pv(p, 0)).toBe("clear");
+    expect(pv(p, 2)).toBe("clear");
+  });
+
+  it("leaves later months alone when trimming", () => {
+    expect(pv({ kind: "clear", fromCol: 0, through: true }, 1)).toBeNull();
+    expect(pv({ kind: "clear", fromCol: 0, through: true }, 2)).toBeNull();
+  });
+
+  it("touches only the one column when not trimming", () => {
+    const p = { kind: "clear", fromCol: 2, through: false } as const;
+    expect(pv(p, 0)).toBeNull();
+    expect(pv(p, 2)).toBe("clear");
+  });
+
+  it("skips cells that have nothing stored — there is no row to remove", () => {
+    // Column 1 is inherited, so it is already undecided.
+    expect(pv({ kind: "clear", fromCol: 1, through: false }, 1)).toBeNull();
+    expect(pv({ kind: "clear", fromCol: 2, through: true }, 1)).toBeNull();
+  });
+});

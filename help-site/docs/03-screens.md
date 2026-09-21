@@ -28,9 +28,10 @@ Auf einem breiten Bildschirm kannst du oben rechts auf die **Tabellenansicht** u
 - **Enter** speichert den einzelnen Monat, **⌘/Strg + Enter** überträgt den Wert bis zum rechten Rand.
 - Der **Pfeil** in einer Spaltenüberschrift überträgt den ganzen Monat in alle folgenden Monate. So legst du im Dezember den Januar und alles danach an.
 - Wenn du mit der Maus über einen dieser Pfeile fährst, zeigen die betroffenen Zellen vorher an, was sich ändern würde: der alte Wert durchgestrichen, der neue daneben.
+- Der **Radiergummi** entfernt Budgets wieder. Bei einem vergangenen Monat entfernt er diesen und alle früheren — dafür gedacht, versehentlich zu früh angelegte Budgets loszuwerden. Bei einem künftigen Monat entfernt er nur diesen. Einen einzelnen Monat mitten in der Vergangenheit kann man nicht entfernen: er wird beim nächsten Laden wieder aufgefüllt, weil ein Monat ohne Betrag weder als Zuteilung zählt noch gekehrt wird.
 - Ein Klick auf den **Monatsnamen** wählt diesen Monat aus — die Kennzahlen oberhalb der Tabelle beziehen sich darauf, und die Pfeiltasten `<` und `>` verschieben die Auswahl, ohne die Tabelle zu verlassen.
 
-Jede dieser Aktionen lässt sich direkt danach rückgängig machen.
+Jede dieser Aktionen lässt sich rückgängig machen — über die Schaltfläche **Rückgängig** über der Tabelle, solange die Seite offen ist.
 
 Gepunktet unterstrichene Werte sind **noch nicht festgelegt**: für diesen Monat ist nichts gespeichert, und die Zahl zeigt, was er vom Vormonat erben würde. Bearbeiten kannst du sie ganz normal. Ein künftiger Monat zählt erst dann in die Prognose, wenn du ihn festgelegt hast.
 

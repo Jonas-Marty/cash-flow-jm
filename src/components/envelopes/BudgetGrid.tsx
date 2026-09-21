@@ -2,12 +2,13 @@ import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format, isSameMonth } from "date-fns";
 import type { Locale } from "date-fns";
-import { ArrowRight, ChevronsRight } from "lucide-react";
+import { ArrowRight, ChevronsRight, Eraser, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
+import { monthStatus } from "@/lib/month";
 import {
   fmtMoney,
   monthKey,
@@ -25,6 +26,7 @@ import {
   previewValueFor,
   resolveCells,
   type GridPreview,
+  type PreviewOutcome,
   type ResolvedCell,
 } from "@/lib/budgetGrid";
 
@@ -74,6 +76,18 @@ export function BudgetGrid({
     () => resolveCells(visible, stored, months),
     [visible, stored, months],
   );
+  /**
+   * Exactly what the database holds, keyed per cell.
+   *
+   * `resolved` covers only the visible window and conflates inherited with stored, so
+   * it cannot describe how to put back a row older than the leftmost column — which
+   * trimming history does touch.
+   */
+  const storedByCell = React.useMemo(() => {
+    const m = new Map<string, number>();
+    for (const cell of stored) m.set(cellId(cell.category_id, cell.month), cell.amount);
+    return m;
+  }, [stored]);
 
   const selectedCol = months.findIndex((m) => isSameMonth(m, selectedMonth));
 
@@ -92,42 +106,61 @@ export function BudgetGrid({
   }, [monthKeys, selectedCol, months.length]);
 
   /**
-   * Applies a batch and offers undo.
+   * Every applied batch, newest last, each holding the payload that puts it back.
+   *
+   * A ref rather than state for the list itself: the toast action captures `apply`'s
+   * closure, and a stale copy of the array would undo the wrong entry. The counter
+   * exists only so the toolbar re-renders.
+   */
+  const undoRef = React.useRef<Array<{ edits: BudgetEdit[]; label: string }>>([]);
+  const [undoDepth, setUndoDepth] = React.useState(0);
+
+  const runUndo = React.useCallback(async () => {
+    const top = undoRef.current[undoRef.current.length - 1];
+    if (!top) return;
+    setBusy(true);
+    try {
+      await setCategoryBudgetsBulk(top.edits);
+      await qc.invalidateQueries();
+      undoRef.current.pop();
+      setUndoDepth(undoRef.current.length);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }, [qc]);
+
+  /**
+   * Applies a batch and remembers how to reverse it.
    *
    * The undo payload restores each touched cell to exactly what it was — including
    * `amount: null` for cells that held no row, because writing back the value they
    * happened to inherit would decide a month the user had left undecided.
+   *
+   * Undo used to live only in the toast, so it expired after a few seconds and a
+   * mis-drag became permanent the moment you looked away. The toast still offers it,
+   * but it is now a shortcut to a stack that stays for the session.
    */
   const apply = React.useCallback(
     async (edits: BudgetEdit[], label: string) => {
       if (!edits.length) return;
       const undo: BudgetEdit[] = edits.map((e) => {
-        const before = resolved.get(cellId(e.categoryId, e.month));
-        return {
-          categoryId: e.categoryId,
-          month: e.month,
-          amount: before && !before.inherited ? before.amount : null,
-        };
+        const key = cellId(e.categoryId, e.month);
+        // `null` restores "no row". Writing back a value the cell merely inherited
+        // would decide a month the user had left undecided.
+        return { categoryId: e.categoryId, month: e.month, amount: storedByCell.get(key) ?? null };
       });
 
       setBusy(true);
       try {
         await setCategoryBudgetsBulk(edits);
         await qc.invalidateQueries();
+        // Bounded: this is a safety net for the last few actions, not a history.
+        undoRef.current = [...undoRef.current.slice(-24), { edits: undo, label }];
+        setUndoDepth(undoRef.current.length);
         toast.success(label, {
-          action: {
-            label: t("common.undo"),
-            onClick: () => {
-              void (async () => {
-                try {
-                  await setCategoryBudgetsBulk(undo);
-                  await qc.invalidateQueries();
-                } catch (e) {
-                  toast.error(e instanceof Error ? e.message : String(e));
-                }
-              })();
-            },
-          },
+          action: { label: t("common.undo"), onClick: () => void runUndo() },
         });
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));
@@ -135,7 +168,7 @@ export function BudgetGrid({
         setBusy(false);
       }
     },
-    [qc, resolved, t],
+    [qc, storedByCell, t, runUndo],
   );
 
   const parse = (raw: string): number | null => {
@@ -194,6 +227,36 @@ export function BudgetGrid({
     void apply(edits, t("budget.grid.filled_month", { n: edits.length }));
   };
 
+  /**
+   * Removes stored rows, putting those months back to undecided.
+   *
+   * Only two shapes of this actually stick, and the UI offers only those:
+   *
+   *  - **trim** (`through`) — this month and every earlier one. `ensure_month_budgets`
+   *    backfills from each envelope's *earliest* row, so deleting the oldest months
+   *    moves that starting point forward and they stay gone. This is the one that
+   *    undoes budgets created before you started using the app.
+   *  - **a future month** — the backfill stops at the current month, so it never
+   *    comes back.
+   *
+   * An interior past month cannot be cleared: it would be a gap before today, and the
+   * next load refills it. That is deliberate — a month with no row contributes no
+   * allocation and no sweep, so gaps in elapsed months are a correctness bug.
+   */
+  const clearMonths = (index: number, through: boolean) => {
+    const cutoff = monthKeys[index];
+    // Straight from `stored`, not `resolved`: trimming reaches rows older than the
+    // leftmost visible column, and only stored rows can be removed at all.
+    const edits: BudgetEdit[] = stored
+      .filter((cell) => (through ? cell.month <= cutoff : cell.month === cutoff))
+      .map((cell) => ({ categoryId: cell.category_id, month: cell.month, amount: null }));
+    if (!edits.length) {
+      toast.info(t("budget.grid.clear_nothing"));
+      return;
+    }
+    void apply(edits, t("budget.grid.cleared", { n: edits.length }));
+  };
+
   /** Re-sync one column from the one to its left. */
   const copyColumn = (index: number) => {
     if (index === 0) return;
@@ -225,8 +288,19 @@ export function BudgetGrid({
   const template = `minmax(9rem, 1.4fr) repeat(${months.length}, minmax(7rem, 1fr))`;
   let rowIndex = -1;
 
+  const lastLabel = undoRef.current[undoRef.current.length - 1]?.label ?? "";
+
   return (
-    <div ref={scrollRef} className="overflow-x-auto rounded-md border">
+    <div className="space-y-2">
+      {undoDepth > 0 && (
+        <div className="flex items-center justify-end">
+          <Button variant="outline" size="sm" disabled={busy} onClick={() => void runUndo()}>
+            <Undo2 className="mr-1 h-3.5 w-3.5" />
+            {t("budget.grid.undo_last", { what: lastLabel })}
+          </Button>
+        </div>
+      )}
+      <div ref={scrollRef} className="overflow-x-auto rounded-md border">
       <div ref={gridRef} className="min-w-max">
         <div
           className="sticky top-0 z-20 grid border-b bg-background"
@@ -264,7 +338,9 @@ export function BudgetGrid({
                       onMouseLeave={() => setPreview(null)}
                       onClick={(e) => { e.stopPropagation(); setPreview(null); copyColumn(i); }}
                     >
-                      <ChevronsRight className="h-3 w-3 rotate-180" />
+                      {/* Points right because the *data* moves right: the previous month's values
+                          land in this one. Rotated left, it read as "scroll back". */}
+                      <ChevronsRight className="h-3 w-3" />
                     </Button>
                   )}
                   {i < months.length - 1 && (
@@ -281,6 +357,30 @@ export function BudgetGrid({
                       <ArrowRight className="h-3 w-3" />
                     </Button>
                   )}
+                  {/* Offered only where a deletion survives the next load: trimming
+                      the oldest months, or clearing a month that has not happened. */}
+                  {(() => {
+                    const future = monthStatus(m) === "future";
+                    const through = !future;
+                    return (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={busy}
+                        className="h-5 w-5 p-0 opacity-40 hover:opacity-100 hover:text-destructive"
+                        title={
+                          future
+                            ? t("budget.grid.clear_month_tip", { month: label })
+                            : t("budget.grid.trim_tip", { month: label })
+                        }
+                        onMouseEnter={() => setPreview({ kind: "clear", fromCol: i, through })}
+                        onMouseLeave={() => setPreview(null)}
+                        onClick={(e) => { e.stopPropagation(); setPreview(null); clearMonths(i, through); }}
+                      >
+                        <Eraser className="h-3 w-3" />
+                      </Button>
+                    );
+                  })()}
                   <span>{format(m, "MMM", { locale })}</span>
                 </div>
                 <div className="text-[10px] tabular-nums text-muted-foreground">
@@ -338,6 +438,7 @@ export function BudgetGrid({
             })}
           </div>
         ))}
+        </div>
       </div>
     </div>
   );
@@ -360,7 +461,7 @@ function GridCell({
   row: number;
   col: number;
   cell: ResolvedCell | undefined;
-  previewValue: number | null;
+  previewValue: PreviewOutcome | null;
   symbol: string;
   selected: boolean;
   disabled: boolean;
@@ -379,7 +480,10 @@ function GridCell({
     if (!focused) setDraft(String(amount));
   }, [amount, focused]);
 
-  const changes = previewValue !== null && Math.abs(previewValue - amount) >= 0.005;
+  const clearing = previewValue === "clear";
+  const changes =
+    previewValue !== null &&
+    (clearing || Math.abs((previewValue as number) - amount) >= 0.005);
 
   return (
     <div
@@ -424,13 +528,15 @@ function GridCell({
       {/* What this cell becomes if the hovered action is taken. */}
       {previewValue !== null && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-end gap-1 rounded-sm bg-background/95 px-1 text-[11px] tabular-nums">
-          {changes ? (
+          {!changes ? (
+            <span className="text-muted-foreground">{amount}</span>
+          ) : clearing ? (
+            <span className="text-destructive line-through">{amount}</span>
+          ) : (
             <>
               <span className="text-destructive line-through">{amount}</span>
               <span className="font-medium italic text-success">{previewValue}</span>
             </>
-          ) : (
-            <span className="text-muted-foreground">{amount}</span>
           )}
         </div>
       )}
