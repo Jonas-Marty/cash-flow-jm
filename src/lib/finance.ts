@@ -72,15 +72,6 @@ export interface CategoryMonthRow {
   spent_or_received: number;
   variance: number;
 }
-export interface CategorySavingsBalance {
-  category_id: string;
-  name: string;
-  group_id: string | null;
-  allocated_total: number;
-  spent_total: number;
-  balance: number;
-}
-
 export interface CategorySavingsBalanceV2 {
   category_id: string;
   name: string;
@@ -90,6 +81,9 @@ export interface CategorySavingsBalanceV2 {
   from_transactions: number;
   from_reallocations: number;
   from_sweeps: number;
+  /** Monthly allocations credited to this envelope. Provenance only — the same
+   *  money as every other component, not a separate pot. */
+  from_allocations: number;
 }
 
 export interface ReconciliationSummary {
@@ -564,14 +558,6 @@ export async function fetchCategoryMonthRows(month: string): Promise<CategoryMon
   const { data, error } = await supabase.rpc("category_month_spending", { p_month: month });
   if (error) throw error;
   return (data || []) as CategoryMonthRow[];
-}
-
-export async function fetchSavingsBalances(): Promise<CategorySavingsBalance[]> {
-  const { data, error } = await supabase
-    .from("category_savings_balance")
-    .select("*");
-  if (error) throw error;
-  return (data || []) as CategorySavingsBalance[];
 }
 
 export async function fetchPendingImpactsForMonth(month: string): Promise<PendingCategoryImpact[]> {

@@ -15,7 +15,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/i18n";
 import {
   fetchCategoryMonthRows,
-  fetchSavingsBalances,
   fetchSavingsBalancesV2,
   fetchSettings,
   fetchAccounts,
@@ -94,7 +93,6 @@ function EnvelopesPage() {
   );
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const rowsQ = useQuery({ queryKey: ["category_month_rows", m], queryFn: () => fetchCategoryMonthRows(m) });
-  const savingsQ = useQuery({ queryKey: ["savings_balance"], queryFn: fetchSavingsBalances });
   const savingsV2Q = useQuery({ queryKey: ["savings-balances-v2", asOf], queryFn: () => fetchSavingsBalancesV2(asOf) });
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   const groupsQ = useQuery({ queryKey: ["category_groups"], queryFn: fetchCategoryGroups });
@@ -109,8 +107,6 @@ function EnvelopesPage() {
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
   const mainCode = settingsQ.data?.currency_code ?? "CHF";
   const rows = rowsQ.data ?? [];
-  const savings = savingsQ.data ?? [];
-  const savingsMap = new Map(savings.map((s) => [s.category_id, s]));
   const savingsV2Map = React.useMemo(
     () => new Map((savingsV2Q.data ?? []).map((s) => [s.category_id, s])),
     [savingsV2Q.data],
@@ -344,7 +340,7 @@ function EnvelopesPage() {
               // not the (usually zero) monthly allocation.
               const totalSaved = g.rows.reduce((s, r) => {
                 const v2 = savingsV2Map.get(r.category_id);
-                return s + (v2 ? Number(v2.cumulative_balance) : Number(savingsMap.get(r.category_id)?.balance ?? 0));
+                return s + Number(v2?.cumulative_balance ?? 0);
               }, 0);
               return (
           <Card key={g.name + g.kind}>
@@ -405,7 +401,7 @@ function EnvelopesPage() {
                 let header: React.ReactNode;
                 if (rowKind === "savings") {
                   const v2 = savingsV2Map.get(r.category_id);
-                  const balance = v2 ? Number(v2.cumulative_balance) : Number(savingsMap.get(r.category_id)?.balance ?? 0);
+                  const balance = Number(v2?.cumulative_balance ?? 0);
                   const monthly = v2 ? Number(v2.month_activity) : 0;
                   header = (
                     <>
@@ -437,6 +433,9 @@ function EnvelopesPage() {
                       {v2 && (
                         <div className="mt-1 text-xs tabular-nums text-muted-foreground flex flex-wrap gap-x-3">
                           <span>{tr("envelopes.savings.month_activity")}: <span className={cn(monthly > 0 ? "text-success" : monthly < 0 ? "text-destructive" : "")}>{monthly >= 0 ? "+" : ""}{fmtMoney(monthly, symbol)}</span></span>
+                          {Math.abs(Number(v2.from_allocations)) > 0.005 && (
+                            <span>{tr("envelopes.savings.from_allocations")}: {fmtMoney(Number(v2.from_allocations), symbol)}</span>
+                          )}
                           {Math.abs(Number(v2.from_sweeps)) > 0.005 && (
                             <span>{tr("envelopes.savings.from_sweeps")}: {fmtMoney(Number(v2.from_sweeps), symbol)}</span>
                           )}

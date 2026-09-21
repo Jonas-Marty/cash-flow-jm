@@ -200,14 +200,11 @@ function SettingsPage() {
   };
   const toggleCategoryRollsOver = async (id: string, rollsOver: boolean) => {
     const next = !rollsOver;
-    // Keep the user's allocation when flipping savings on/off — the value
-    // is now the monthly *target* for savings envelopes too.
+    // Rolling and non-rolling envelopes are both allocated monthly; the flag
+    // only decides what happens to the remainder. Deleting the budget rows here
+    // used to throw away the very allocations the envelope lives on.
     const { error } = await supabase.from("categories").update({ rolls_over: next }).eq("id", id);
     if (error) return toast.error(error.message);
-    if (next) {
-      // Drop any pre-generated monthly budget rows; savings envelopes don't use them.
-      await supabase.from("category_budgets").delete().eq("category_id", id);
-    }
     qc.invalidateQueries();
   };
   const delCategory = async (id: string) => {
