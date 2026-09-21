@@ -134,7 +134,7 @@ export interface Transaction {
   split_group_id?: string | null;
   destination_amount?: number | null;
   is_reimbursable?: boolean;
-  reimbursable_status?: "open" | "settled" | "cancelled" | null;
+  reimbursable_status?: "open" | "settled" | "cancelled" | "written_off" | null;
   reimbursable_counterparty?: string | null;
   reimbursable_reason?: string | null;
   reimbursable_cancel_reason?: string | null;
@@ -1179,6 +1179,65 @@ export async function fetchOpenReimbursables(): Promise<Transaction[]> {
   return (data ?? []) as Transaction[];
 }
 
+/**
+ * Reimbursables that were repaid in full but where the repayment handed back
+ * *more* than was owed, leaving a surplus attached to no envelope — you lend
+ * 19.50 and get 20.00 back. The episode reads "settled", so it drops off the
+ * open list while 0.50 is still floating. Writing it off attributes both sides.
+ */
+export async function fetchOverfulfilledReimbursables(): Promise<
+  Array<{ original: Transaction; surplus: number }>
+> {
+  const { data: settled, error: sErr } = await supabase
+    .from("transactions")
+    .select("*")
+    .eq("is_reimbursable", true)
+    .eq("reimbursable_status", "settled")
+    .order("occurred_on", { ascending: true });
+  if (sErr) throw sErr;
+  const originals = (settled ?? []) as Transaction[];
+  if (originals.length === 0) return [];
+
+  const { data: links, error: lErr } = await supabase
+    .from("transaction_reimbursements")
+    .select("original_transaction_id, settling_transaction_id, amount")
+    .in("original_transaction_id", originals.map((o) => o.id));
+  if (lErr) throw lErr;
+  const rows = (links ?? []) as Array<{
+    original_transaction_id: string; settling_transaction_id: string; amount: number;
+  }>;
+  const settlingIds = [...new Set(rows.map((r) => r.settling_transaction_id))];
+  if (settlingIds.length === 0) return [];
+
+  const { data: setts, error: tErr } = await supabase
+    .from("transactions")
+    .select("id, amount, category_id")
+    .in("id", settlingIds);
+  if (tErr) throw tErr;
+  const settling = new Map(
+    ((setts ?? []) as Array<{ id: string; amount: number; category_id: string | null }>)
+      .map((t) => [t.id, t]),
+  );
+
+  // How much of each repayment is spoken for by *any* reimbursable.
+  const claimed = new Map<string, number>();
+  for (const r of rows) {
+    claimed.set(r.settling_transaction_id, (claimed.get(r.settling_transaction_id) ?? 0) + Number(r.amount));
+  }
+
+  const out: Array<{ original: Transaction; surplus: number }> = [];
+  for (const o of originals) {
+    let surplus = 0;
+    for (const r of rows.filter((x) => x.original_transaction_id === o.id)) {
+      const t = settling.get(r.settling_transaction_id);
+      if (!t || t.category_id) continue; // already attributed to an envelope
+      surplus += Number(t.amount) - (claimed.get(t.id) ?? 0);
+    }
+    if (surplus > 0.005) out.push({ original: o, surplus: Math.round(surplus * 100) / 100 });
+  }
+  return out;
+}
+
 export async function fetchReimbursementLinks(): Promise<ReimbursementLink[]> {
   const { data, error } = await supabase
     .from("transaction_reimbursements")
@@ -1224,7 +1283,7 @@ export async function unlinkReimbursement(linkId: string): Promise<void> {
 
 export async function setReimbursableStatus(
   txId: string,
-  status: "open" | "settled" | "cancelled",
+  status: "open" | "cancelled" | "written_off",
   cancelReason?: string | null,
 ): Promise<void> {
   const { data, error } = await supabase
@@ -1241,14 +1300,25 @@ export async function setReimbursableStatus(
   }
 }
 
-// Write off an open reimbursable: creates an offsetting transaction in a chosen
-// category and links it to settle the original. No real money moves — the
-// offsetting entry is for budgeting/reporting only.
+/**
+ * Write off a reimbursable: attribute whatever you are not getting back (or the
+ * surplus you were overpaid) to an envelope.
+ *
+ * The cash already moved when the original was booked, so this creates **no
+ * transaction** — it re-categorises the original and the transactions that
+ * settled it, which is what the dialog has always promised. Charging the
+ * envelope with `original − refunds` is the same reimbursement rule used for
+ * shared costs (architecture §3.7), so it lands the true net cost and works in
+ * both directions: 132.60 spent with 17.40 refunded charges 115.20, while 19.50
+ * lent and 20.00 returned credits 0.50.
+ *
+ * Returns the ids of settling transactions that were left alone because they
+ * also settle other reimbursables, where a single category would be a guess.
+ */
 export async function writeOffReimbursable(
   originalTxId: string,
   opts: { categoryId: string; note?: string | null },
-): Promise<void> {
-  // Load the original
+): Promise<{ skippedSettlingIds: string[] }> {
   const { data: orig, error: loadErr } = await supabase
     .from("transactions")
     .select("*")
@@ -1260,64 +1330,60 @@ export async function writeOffReimbursable(
   if (!o.is_reimbursable) throw new Error("Transaction is not reimbursable");
   if (o.type === "transfer") throw new Error("Transfers cannot be written off");
 
-  // Determine remaining amount
-  const { data: linksData, error: linksErr } = await supabase
+  const { data: myLinks, error: linksErr } = await supabase
     .from("transaction_reimbursements")
-    .select("amount")
+    .select("settling_transaction_id")
     .eq("original_transaction_id", originalTxId);
   if (linksErr) throw linksErr;
-  const linked = (linksData ?? []).reduce(
-    (s, r) => s + Number((r as { amount: number }).amount),
-    0,
-  );
-  const remaining = Math.max(0, Number(o.amount) - linked);
-  if (remaining <= 0) throw new Error("Nothing left to write off");
+  const settlingIds = [
+    ...new Set((myLinks ?? []).map((l) => (l as { settling_transaction_id: string }).settling_transaction_id)),
+  ];
 
-  // Build offsetting transaction
-  const today = new Date().toISOString().slice(0, 10);
-  const offsetType: TxType = o.type === "expense" ? "income" : "expense";
-  const descPrefix = o.type === "expense" ? "Write-off" : "Forgiven";
+  // A refund that also settles someone else's reimbursable cannot be moved to
+  // this envelope without guessing on their behalf; leave it and say so.
+  const skippedSettlingIds: string[] = [];
+  const movableSettlingIds: string[] = [];
+  if (settlingIds.length > 0) {
+    const { data: shared, error: sharedErr } = await supabase
+      .from("transaction_reimbursements")
+      .select("settling_transaction_id, original_transaction_id")
+      .in("settling_transaction_id", settlingIds);
+    if (sharedErr) throw sharedErr;
+    const originalsBySettling = new Map<string, Set<string>>();
+    for (const r of (shared ?? []) as Array<{ settling_transaction_id: string; original_transaction_id: string }>) {
+      const set = originalsBySettling.get(r.settling_transaction_id) ?? new Set<string>();
+      set.add(r.original_transaction_id);
+      originalsBySettling.set(r.settling_transaction_id, set);
+    }
+    for (const id of settlingIds) {
+      if ((originalsBySettling.get(id)?.size ?? 1) > 1) skippedSettlingIds.push(id);
+      else movableSettlingIds.push(id);
+    }
+  }
+
   const baseNote = (opts.note ?? "").trim();
-  const noteParts = ["#writeoff"];
-  if (baseNote) noteParts.push(baseNote);
+  const noteParts = [o.note?.trim(), "#writeoff", baseNote].filter(Boolean);
 
-  const { data: inserted, error: insErr } = await supabase
-    .from("transactions")
-    .insert({
-      occurred_on: today,
-      amount: remaining,
-      type: offsetType,
-      source_account_id: o.source_account_id,
-      destination_account_id: null,
-      category_id: opts.categoryId,
-      description: `${descPrefix}: ${o.description ?? ""}`.trim().replace(/:\s*$/, ""),
-      note: noteParts.join(" "),
-      is_reimbursable: false,
-    })
-    .select("id")
-    .single();
-  if (insErr) throw insErr;
-  const offsetId = (inserted as { id: string }).id;
-
-  // Link as reimbursement (trigger flips status to settled)
-  const { error: linkErr } = await supabase
-    .from("transaction_reimbursements")
-    .insert({
-      original_transaction_id: originalTxId,
-      settling_transaction_id: offsetId,
-      amount: remaining,
-    });
-  if (linkErr) throw linkErr;
-
-  // Tag the original with write-off metadata
   const { error: updErr } = await supabase
     .from("transactions")
     .update({
+      category_id: opts.categoryId,
+      reimbursable_status: "written_off",
       reimbursable_writeoff_category_id: opts.categoryId,
-      reimbursable_writeoff_transaction_id: offsetId,
+      note: noteParts.join(" ") || null,
     })
     .eq("id", originalTxId);
   if (updErr) throw updErr;
+
+  if (movableSettlingIds.length > 0) {
+    const { error: settErr } = await supabase
+      .from("transactions")
+      .update({ category_id: opts.categoryId })
+      .in("id", movableSettlingIds);
+    if (settErr) throw settErr;
+  }
+
+  return { skippedSettlingIds };
 }
 
 // =====================================================================

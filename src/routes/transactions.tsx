@@ -48,7 +48,7 @@ import { locationFromRow, type TxLocation } from "@/lib/location";
 
 const SORT_VALUES = ["date_desc", "date_asc", "created_desc", "amount_desc", "amount_asc"] as const;
 const OP_VALUES = ["any", "lt", "lte", "eq", "gte", "gt", "around"] as const;
-const REIMB_VALUES = ["any", "open", "settled", "cancelled", "all"] as const;
+const REIMB_VALUES = ["any", "open", "settled", "written_off", "cancelled", "all"] as const;
 const TYPE_VALUES = ["expense", "income", "transfer"] as const;
 
 const stringArray = fallback(z.array(z.string()), []).default([]);
@@ -746,7 +746,7 @@ function TransactionsPage() {
           {/* Reimbursable filter */}
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-xs text-muted-foreground">{tr("tx.reimb.filter")}:</span>
-            {(["any", "open", "settled", "cancelled", "all"] as const).map((k) => (
+            {(["any", "open", "settled", "written_off", "cancelled", "all"] as const).map((k) => (
               <button
                 key={k}
                 type="button"
@@ -1111,6 +1111,7 @@ function TransactionsPage() {
                         "shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase",
                         t.reimbursable_status === "open" && "bg-warning/15 text-warning",
                         t.reimbursable_status === "settled" && "bg-success/15 text-success",
+                        t.reimbursable_status === "written_off" && "bg-muted text-muted-foreground",
                         t.reimbursable_status === "cancelled" && "bg-muted text-muted-foreground",
                       )}
                       title={t.reimbursable_counterparty ?? ""}

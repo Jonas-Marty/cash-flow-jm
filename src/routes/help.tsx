@@ -185,12 +185,11 @@ const EN: Content = {
       icon: Users,
       title: "Workflow: IOUs (money you owe or are owed)",
       intro:
-        "When you flag a transaction as reimbursable, it shows up as an Open IOU. There are four ways to close one:",
+        "When you flag a transaction as reimbursable, it shows up as an Open IOU. Every franc has to land somewhere, so there are exactly three ways to close one:",
       items: [
         { q: "Add repayment", a: "Use when **real money actually moved**. Opens the Add form pre-filled with the open amount and counterparty, links the new transaction to the original. Once the linked amount covers the original, it auto-settles." },
-        { q: "Mark as settled", a: "Use when the debt was cleared **outside the app** (cash handover, tiny rounding remainder). Closes the IOU without creating a repayment transaction. A confirmation dialog prevents accidental clicks." },
-        { q: "Book as loss (write-off)", a: "Use when you accept you won't be repaid. Creates an offsetting transaction in a category you pick (e.g. *Bad debt*, *Gifts given*) so the loss shows up in your budget and reports." },
-        { q: "Cancel", a: "Use when the IOU **shouldn't have existed** (mis-flagged, duplicate, voided). Removes the IOU flag entirely. No offsetting transaction is created." },
+        { q: "Write off", a: "Use when you accept you **won't be repaid** — or when you got back **more than you laid out**. Assigns the expense and every recorded repayment to an envelope you pick, so the budget is charged what it actually cost you (expense minus repayments). **No** transaction is created and no real money moves." },
+        { q: "Cancel", a: "Use when the IOU **shouldn't have existed** (mis-flagged, duplicate, voided). Removes the IOU flag entirely; the transaction stays an ordinary transaction." },
       ],
     },
     {
@@ -549,12 +548,11 @@ const DE: Content = {
       icon: Users,
       title: "Ablauf: IOUs (Schulden / Forderungen)",
       intro:
-        "Wenn du eine Buchung als erstattungsfähig markierst, erscheint sie als offene IOU. Es gibt vier Wege, eine IOU zu schließen:",
+        "Wenn du eine Buchung als erstattungsfähig markierst, erscheint sie als offene IOU. Jeder Franken muss irgendwo landen, deshalb gibt es genau drei Wege, eine IOU zu schließen:",
       items: [
         { q: "Rückzahlung hinzufügen", a: "Wenn **tatsächlich Geld geflossen ist**. Öffnet das Add-Formular vorbelegt mit offenem Betrag und Gegenpartei; die neue Buchung wird mit der ursprünglichen verknüpft. Sobald die Verknüpfungssumme den Originalbetrag deckt, schließt die IOU automatisch." },
-        { q: "Als abgegolten markieren", a: "Wenn die Schuld **außerhalb der App** geregelt wurde (Bargeld, kleiner Rest). Schließt die IOU ohne neue Buchung. Ein Bestätigungsdialog verhindert Fehlklicks." },
-        { q: "Als Verlust buchen (Abschreibung)", a: "Wenn du akzeptierst, dass die Rückzahlung ausbleibt. Erstellt eine Gegenbuchung in einer Kategorie deiner Wahl (z. B. *Forderungsausfall*, *Geschenke*), damit der Verlust in Budget und Auswertungen sichtbar wird." },
-        { q: "Stornieren", a: "Wenn die IOU **gar nicht hätte entstehen sollen** (falsch markiert, Duplikat). Entfernt das IOU-Flag komplett. Keine Gegenbuchung." },
+        { q: "Abschreiben", a: "Wenn du das Geld **nicht mehr erwartest** — oder wenn du **mehr zurückbekommen hast** als ausgelegt. Die Auslage und alle erfassten Rückzahlungen werden einer Kategorie zugewiesen, sodass das Budget mit dem tatsächlichen Rest belastet wird (Auslage minus Rückzahlungen). Es entsteht **keine** Buchung und es bewegt sich kein echtes Geld." },
+        { q: "Stornieren", a: "Wenn die IOU **gar nicht hätte entstehen sollen** (falsch markiert, Duplikat). Entfernt das IOU-Flag komplett; die Buchung bleibt eine normale Buchung." },
       ],
     },
     {

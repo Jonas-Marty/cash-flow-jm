@@ -640,9 +640,9 @@ export const TOOLS: ToolDef[] = [
     exec: async (_a, sb) => {
       const { data, error } = await sb
         .from("transactions")
-        .select("id, occurred_on, amount, description, reimbursement_counterparty, reimbursement_status")
+        .select("id, occurred_on, amount, description, reimbursable_counterparty, reimbursable_status")
         .eq("is_reimbursable", true)
-        .neq("reimbursement_status", "settled")
+        .eq("reimbursable_status", "open")
         .order("occurred_on", { ascending: false })
         .limit(100);
       if (error) return { ok: false, error: error.message };

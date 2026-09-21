@@ -9,10 +9,6 @@ import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
   Popover, PopoverContent, PopoverTrigger,
 } from "@/components/ui/popover";
 import {
@@ -25,6 +21,7 @@ import {
 import { Label } from "@/components/ui/label";
 import {
   fetchOpenReimbursables,
+  fetchOverfulfilledReimbursables,
   fetchReimbursementLinks,
   fetchAccounts,
   fetchCategories,
@@ -35,7 +32,7 @@ import {
   type ReimbursementLink,
 } from "@/lib/finance";
 import { useI18n } from "@/i18n";
-import { Plus, Check, Ban, Pencil, MinusCircle, HelpCircle } from "lucide-react";
+import { Plus, Ban, Pencil, MinusCircle, HelpCircle } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { PrivacyValue } from "@/components/DashboardPrivacy";
 
@@ -49,13 +46,16 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
   const { t: tr, locale } = useI18n();
   const qc = useQueryClient();
   const openQ = useQuery({ queryKey: ["reimbursables", "open"], queryFn: fetchOpenReimbursables });
+  const surplusQ = useQuery({
+    queryKey: ["reimbursables", "overfulfilled"],
+    queryFn: fetchOverfulfilledReimbursables,
+  });
   const linksQ = useQuery({ queryKey: ["reimbursement_links"], queryFn: fetchReimbursementLinks });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
 
   const [cancelTx, setCancelTx] = React.useState<Transaction | null>(null);
   const [cancelReason, setCancelReason] = React.useState("");
-  const [settleTx, setSettleTx] = React.useState<Transaction | null>(null);
   const [writeOffTx, setWriteOffTx] = React.useState<Transaction | null>(null);
   const [writeOffCategoryId, setWriteOffCategoryId] = React.useState("");
   const [writeOffNote, setWriteOffNote] = React.useState("");
@@ -74,7 +74,8 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
   }, [linksQ.data]);
 
   const items = openQ.data ?? [];
-  const isEmpty = !openQ.isLoading && items.length === 0;
+  const surplusItems = surplusQ.data ?? [];
+  const isEmpty = !openQ.isLoading && items.length === 0 && surplusItems.length === 0;
   if (!headless && (openQ.isLoading || isEmpty)) return null;
 
   const owedToMe = items.filter((t) => directionOf(t) === "owed_to_me");
@@ -90,18 +91,10 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
   const invalidateReimbursables = async () => {
     await Promise.all([
       qc.invalidateQueries({ queryKey: ["reimbursables"] }),
+      qc.invalidateQueries({ queryKey: ["categories"] }),
       qc.invalidateQueries({ queryKey: ["reimbursement_links"] }),
       qc.invalidateQueries({ queryKey: ["transactions"] }),
     ]);
-  };
-  const onMarkSettledConfirm = async () => {
-    if (!settleTx) return;
-    try {
-      await setReimbursableStatus(settleTx.id, "settled");
-      toast.success(tr("toast.saved"));
-      await invalidateReimbursables();
-      setSettleTx(null);
-    } catch (e) { toast.error((e as Error).message); }
   };
   const onCancelConfirm = async () => {
     if (!cancelTx) return;
@@ -117,11 +110,15 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
     if (!writeOffTx || !writeOffCategoryId) return;
     setWriteOffBusy(true);
     try {
-      await writeOffReimbursable(writeOffTx.id, {
+      const { skippedSettlingIds } = await writeOffReimbursable(writeOffTx.id, {
         categoryId: writeOffCategoryId,
         note: writeOffNote.trim() || null,
       });
-      toast.success(tr("iou.writeoff.toast"));
+      if (skippedSettlingIds.length > 0) {
+        toast.warning(tr("iou.writeoff.toast.shared_skipped", { n: String(skippedSettlingIds.length) }));
+      } else {
+        toast.success(tr("iou.writeoff.toast"));
+      }
       await invalidateReimbursables();
       setWriteOffTx(null);
       setWriteOffCategoryId("");
@@ -206,22 +203,10 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                size="sm" variant="ghost" className="h-7 px-2 text-xs"
-                onClick={() => setSettleTx(tx)}
-                aria-label={tr("dash.reimb.mark_settled")}
-              >
-                <Check className="h-3.5 w-3.5" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent className="max-w-xs"><p>{tr("iou.help.mark_settled")}</p></TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
                 size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground"
                 onClick={() => {
                   setWriteOffTx(tx);
-                  setWriteOffCategoryId("");
+                  setWriteOffCategoryId(tx.category_id ?? "");
                   setWriteOffNote("");
                 }}
                 aria-label={tr("iou.writeoff.action")}
@@ -271,6 +256,51 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
     );
   };
 
+  // Repaid in full, but the repayment handed back more than was owed. The
+  // episode reads "settled", so it would otherwise vanish with the surplus
+  // attached to no envelope.
+  const renderSurplusSection = () => {
+    if (surplusItems.length === 0) return null;
+    const total = surplusItems.reduce((s2, x) => s2 + x.surplus, 0);
+    return (
+      <div className="space-y-2">
+        <div className="flex items-baseline justify-between gap-2">
+          <div className="text-sm font-medium">{tr("iou.surplus.title")}</div>
+          <PrivacyValue className="tabular-nums text-sm font-semibold text-warning">
+            {fmtMoney(total, symbol)}
+          </PrivacyValue>
+        </div>
+        <p className="text-xs text-muted-foreground">{tr("iou.surplus.hint")}</p>
+        <ul className="divide-y rounded-md border border-border/60">
+          {surplusItems.map(({ original: tx, surplus }) => (
+            <li key={tx.id} className="flex flex-wrap items-start gap-2 px-3 py-2">
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium">
+                  {tx.description || tr("add.expense")}
+                </div>
+                <div className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {format(parseISO(tx.occurred_on), "dd.MM.yyyy", { locale })}
+                  {" · "}
+                  {tr("iou.surplus.amount", { amount: fmtMoney(surplus, symbol) })}
+                </div>
+              </div>
+              <Button
+                size="sm" variant="outline" className="h-7 px-2 text-xs"
+                onClick={() => {
+                  setWriteOffTx(tx);
+                  setWriteOffCategoryId(tx.category_id ?? "");
+                  setWriteOffNote("");
+                }}
+              >
+                <MinusCircle className="mr-1 h-3 w-3" /> {tr("iou.surplus.assign")}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  };
+
   const body = (
     <>
       {isEmpty ? (
@@ -279,21 +309,9 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
         <TooltipProvider delayDuration={200}>
           {renderSection(tr("iou.owed_to_me"), owedToMe)}
           {renderSection(tr("iou.i_owe"), iOwe)}
+          {renderSurplusSection()}
         </TooltipProvider>
       )}
-
-      <AlertDialog open={!!settleTx} onOpenChange={(v) => { if (!v) setSettleTx(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{tr("iou.mark_settled.confirm.title")}</AlertDialogTitle>
-            <AlertDialogDescription>{tr("iou.mark_settled.confirm.body")}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{tr("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={onMarkSettledConfirm}>{tr("common.confirm")}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <Dialog open={!!cancelTx} onOpenChange={(v) => { if (!v) setCancelTx(null); }}>
         <DialogContent>
@@ -395,7 +413,6 @@ function IouHelpPopover() {
         <p className="mb-2 font-medium">{tr("iou.help.title")}</p>
         <ul className="space-y-2 text-xs text-muted-foreground">
           <li>{tr("iou.help.add_repayment")}</li>
-          <li>{tr("iou.help.mark_settled")}</li>
           <li>{tr("iou.help.writeoff")}</li>
           <li>{tr("iou.help.cancel")}</li>
         </ul>
