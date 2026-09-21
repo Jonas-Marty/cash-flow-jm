@@ -277,9 +277,32 @@ by the `METRICS_TOKEN` Bearer header:
     credentials: <METRICS_TOKEN>
 ```
 
-Pre-registered counters: `app_requests_total`, `app_request_errors_total`,
-`app_request_duration_ms_sum`, `app_audit_events_total`. Business gauges
-(users, transactions, recent audit events) are computed inside the handler.
+Seven series, all always present:
+
+| Series | Type | Notes |
+|---|---|---|
+| `app_requests_total` | counter | labelled `method`, `path` |
+| `app_request_errors_total` | counter | adds `status`; only the error path records one |
+| `app_request_duration_ms_sum` | counter | divide by `app_requests_total` for a mean — there is no `_count` and no histogram |
+| `app_audit_events_total` | counter | registered but never incremented; effectively always 0 |
+| `app_audit_events_24h` | gauge | rows in `audit_logs` in the last 24 h |
+| `app_users_total` | gauge | rows in `user_roles` |
+| `app_transactions_total` | gauge | rows in `transactions` |
+
+Counters live in the process and **reset on restart**, so rate() over a deploy
+is not meaningful. Static assets are excluded, so `app_requests_total` counts
+app traffic only. `path` is the raw pathname, so any route carrying a UUID
+produces unbounded label cardinality — worth a `metric_relabel_config` if you
+scrape this into a long-lived Prometheus.
+
+`METRICS_TOKEN` is **not a read-only scrape credential.** The same value
+authorises `POST /api/public/prune-audit` and `POST
+/api/public/process-recurring`, so whoever holds it can post recurring
+transactions for every user and delete audit rows. Treat it as an operator
+secret. Unset, all three endpoints answer `503` rather than standing open.
+
+`docsParity.test.ts` fails if a metric is registered in `src/lib/metrics.ts` or
+emitted by the handler without being named here.
 
 ---
 

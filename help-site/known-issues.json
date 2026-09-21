@@ -38,11 +38,8 @@
     "blockCountMismatch_$comment": "Empty since stage 3: both locales carry the same sections with comparable prose in each."
   },
   "aiActionsUndocumented": {
-    "$comment": "AI_ACTIONS ids with no prose on the help site. Stage 8 empties this.",
-    "ids": [
-      "statement_classify",
-      "pending_enrich"
-    ]
+    "$comment": "Empty since stage 8: all five AI_ACTIONS are described on the help site in both locales. A new action fails the suite until it is.",
+    "ids": []
   },
   "openApiUndocumentedRoutes": {
     "$comment": "Routes that exist but are deliberately absent from the spec.",
@@ -53,12 +50,8 @@
     }
   },
   "metricsUndocumented": {
-    "$comment": "Metric series not named in README section 6. Stage 8 empties this.",
-    "names": [
-      "app_audit_events_24h",
-      "app_users_total",
-      "app_transactions_total"
-    ]
+    "$comment": "Empty since stage 8: every registered and emitted series is named in README section 6.",
+    "names": []
   },
   "blumeAuditBaseline": {
     "$comment": "Recorded so the one standing warning is not normalised into invisibility.",
