@@ -287,7 +287,25 @@ Pre-registered counters: `app_requests_total`, `app_request_errors_total`,
 
 Token-authenticated REST endpoints live under `/api/public/*`. The Swagger UI
 is served at `/api/public/docs` and the raw OpenAPI document at
-`/api/public/openapi`. Tokens are managed in **Settings → API tokens**.
+`/api/public/openapi`. Tokens are managed in **Settings → API tokens** and sent
+as `Authorization: Bearer <token>`.
+
+Two properties worth knowing before you point anything at it:
+
+- **There are no scopes.** A valid token can do everything the API offers on
+  every row belonging to its user. Issue one per client so you can revoke one
+  without disturbing the others.
+- **There is no rate limiting.** Nothing throttles a caller; a runaway script
+  slows down your own instance and nothing stops it.
+
+Three endpoints — `/metrics`, `/prune-audit` and `/process-recurring` — take
+`METRICS_TOKEN` instead of a user token. That makes it a **write-capable
+operator secret, not a read-only scrape credential**: whoever holds it can post
+recurring transactions and delete audit rows. Unset, all three answer `503`
+rather than standing open.
+
+The user-facing guide is at
+[help.cash-flow.wi-wo.ch/api](https://help.cash-flow.wi-wo.ch/api).
 
 ---
 

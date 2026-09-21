@@ -388,6 +388,30 @@ Locations are excluded from webhook payloads (`notifiers/types.ts`). They do
 reach an AI provider in one case: `pending_enrich` sends `location_label`, never
 the coordinates.
 
+### 3.13 FinReader, and anything else posting from outside
+
+FinReader is an Android app, **not in this repository**, distributed as a signed
+APK from `apk.wi-wo.ch` behind Authentik. It reads bank notifications and POSTs
+them to `/api/public/pending-transactions` with a user API token. Nothing about
+the endpoint is FinReader-specific — it is the same contract any client gets.
+
+Three properties carry the integration:
+
+- **Idempotency on `(external_source, external_ref)`.** A repeat POST returns
+  the existing row with `deduplicated: true` and **200** instead of 201, backed
+  by a unique partial index. Android redelivers notifications and phones lose
+  signal mid-request; without this the ledger would fill with duplicates.
+- **`external_info` carries the raw notification text**, so a human reviewing
+  the row sees what the bank actually said. It is also what `pending_enrich`
+  forwards to an AI provider — the one AI call in the app the user does not
+  trigger. That is why `privacy.tsx` §6a names it explicitly.
+- **Nothing is booked.** Rows land as `pending` and only a confirmation in the
+  UI creates a transaction. A confirmed row can no longer be deleted through
+  the API (409): it has become the user's data, not the client's.
+
+FinReader also reads `/api/public/recurring-proposals` to propose the amount and
+date of an unposted occurrence — see §3.6.
+
 ## 4. SQL surface
 
 | Object | Type | Purpose |

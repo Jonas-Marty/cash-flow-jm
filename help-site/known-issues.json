@@ -17,7 +17,7 @@
       "cloud.example.com": "Placeholder in the Nextcloud setup form.",
       "n8n.example.com": "Placeholder in the webhooks form.",
       "help.cash-flow.wi-wo.ch": "Our own help site.",
-      "cash-flow-jm.lovable.app": "Stale server URL declared in the OpenAPI spec, not a host we contact. The banned-phrase check on `lovable.app` forces its removal in stage 7; delete this entry with it."
+      "cash-flow.wi-wo.ch": "Our own origin, declared as the production server in the OpenAPI spec."
     },
     "undisclosed": {
       "$comment": "Empty since stage 1: privacy.tsx section 6 now names every host the code contacts, in both locales. A new entry here means a third party was added without disclosing it."
@@ -25,9 +25,8 @@
   },
   "bannedPhrases": {
     "$comment": "Phrases that must not appear once the audit is done. Stage 2 empties most of this.",
-    "pending": {
-      "lovable.app": "Stale production server URL in openapi-spec.ts. Stage 7."
-    }
+    "pending": {},
+    "pending_$comment": "Empty: every phrase in the banned list is now enforced everywhere."
   },
   "localeParity": {
     "$comment": "Known DE/EN content divergences. Stage 3 empties this.",

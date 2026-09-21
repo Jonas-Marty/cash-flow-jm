@@ -1,8 +1,9 @@
 /**
  * OpenAPI 3.1 specification for the public REST API.
  *
- * Served as YAML at `/api/public/openapi.yaml` and rendered with Swagger UI
- * at `/api/docs`. Update this file whenever a public endpoint changes.
+ * Served as YAML at `/api/public/openapi` and rendered with Swagger UI at
+ * `/api/public/docs`. Update this file whenever a public endpoint changes;
+ * `docsParity.test.ts` fails when a route exists with no path entry here.
  */
 export const openApiSpec = `openapi: 3.1.0
 info:
@@ -18,7 +19,7 @@ info:
     Ops endpoints (\`/process-recurring\`, \`/prune-audit\`, \`/metrics\`) use the
     server-side \`METRICS_TOKEN\` env var instead and are intended for cron jobs.
 servers:
-  - url: https://cash-flow-jm.lovable.app
+  - url: https://cash-flow.wi-wo.ch
     description: Production
   - url: http://localhost:5173
     description: Local dev
