@@ -46,6 +46,27 @@ Run the test suite (either runtime — the results are identical):
 bunx vitest run
 ```
 
+Unit tests cover pure helpers only — `vitest.config.ts` uses a node environment, so
+nothing that renders is exercised there. Anything involving a browser (focus, hover,
+keyboard, what the app actually writes when you interact with it) belongs in the
+end-to-end suite:
+
+```bash
+npm run test:e2e                      # whole suite
+npm run test:e2e -- --grep "undo"     # one test
+```
+
+It runs inside the toolbox container, because the host has no browser. There is no
+database and no login: `.env.e2e` points the app at a Supabase host that cannot
+resolve, `tests/e2e/support/stub.ts` intercepts every REST, RPC and auth call, and a
+session is written straight into `localStorage`. The stub keeps budgets in memory and
+applies writes to them, so a refetch after a write returns what was written — a frozen
+fixture would make correct code look buggy and hide redundant writes.
+
+This layering is deliberate: vitest for logic, the e2e suite for behaviour, and a
+throwaway Postgres container for SQL (see the migration notes below). Every bug found
+in the budget grid so far lived in the middle layer.
+
 Note for anything importing `zod`: use `import * as z from "zod"`, not
 `import { z } from "zod"`. zod's entry point re-exports `z` as a namespace
 binding, which bun's ESM implementation resolves to `undefined`, so the named

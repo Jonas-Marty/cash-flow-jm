@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "bash scripts/dev/e2e.sh",
     "dev:tools": "bash scripts/dev/tools.sh",
     "dev:screenshot": "bash scripts/dev/tools.sh node scripts/dev/screenshot.mjs",
     "dev:clone-db": "bash scripts/dev/clone-prod-db.sh",

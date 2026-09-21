@@ -35,3 +35,7 @@ dist-ssr
 screenshots/
 .env.dev-supabase
 .env.dev-app
+
+# Playwright
+test-results/
+playwright-report/

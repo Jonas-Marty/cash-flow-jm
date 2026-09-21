@@ -312,14 +312,14 @@ export function BudgetGrid({
           {months.map((m, i) => {
             const label = format(m, "MMMM yyyy", { locale });
             return (
-              <button
+              // A div, not a button: the actions below are buttons, and a button
+              // inside a button is invalid HTML that breaks hydration. The month
+              // label carries the selection instead.
+              <div
                 key={monthKeys[i]}
-                type="button"
                 data-month-header={monthKeys[i]}
-                onClick={() => onSelectMonth(m)}
-                title={t("budget.grid.select_month", { month: label })}
                 className={cn(
-                  "px-2 py-2 text-right text-xs transition-colors hover:bg-accent/30",
+                  "px-2 py-2 text-right text-xs transition-colors",
                   i === selectedCol && "bg-accent/50 font-semibold text-foreground",
                 )}
               >
@@ -336,7 +336,7 @@ export function BudgetGrid({
                       })}
                       onMouseEnter={() => setPreview({ kind: "copy", fromCol: i })}
                       onMouseLeave={() => setPreview(null)}
-                      onClick={(e) => { e.stopPropagation(); setPreview(null); copyColumn(i); }}
+                      onClick={() => { setPreview(null); copyColumn(i); }}
                     >
                       {/* Points right because the *data* moves right: the previous month's values
                           land in this one. Rotated left, it read as "scroll back". */}
@@ -352,7 +352,7 @@ export function BudgetGrid({
                       title={t("budget.grid.fill_month_tip", { month: label })}
                       onMouseEnter={() => setPreview({ kind: "fill", fromCol: i })}
                       onMouseLeave={() => setPreview(null)}
-                      onClick={(e) => { e.stopPropagation(); setPreview(null); fillColumnRight(i); }}
+                      onClick={() => { setPreview(null); fillColumnRight(i); }}
                     >
                       <ArrowRight className="h-3 w-3" />
                     </Button>
@@ -375,18 +375,25 @@ export function BudgetGrid({
                         }
                         onMouseEnter={() => setPreview({ kind: "clear", fromCol: i, through })}
                         onMouseLeave={() => setPreview(null)}
-                        onClick={(e) => { e.stopPropagation(); setPreview(null); clearMonths(i, through); }}
+                        onClick={() => { setPreview(null); clearMonths(i, through); }}
                       >
                         <Eraser className="h-3 w-3" />
                       </Button>
                     );
                   })()}
-                  <span>{format(m, "MMM", { locale })}</span>
+                  <button
+                    type="button"
+                    onClick={() => onSelectMonth(m)}
+                    aria-label={t("budget.grid.select_month", { month: label })}
+                    className="rounded px-1 hover:bg-accent/40"
+                  >
+                    {format(m, "MMM", { locale })}
+                  </button>
                 </div>
                 <div className="text-[10px] tabular-nums text-muted-foreground">
                   {format(m, "yyyy")}
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>
@@ -475,6 +482,14 @@ function GridCell({
   const inherited = cell?.inherited ?? true;
   const [draft, setDraft] = React.useState(() => String(amount));
   const [focused, setFocused] = React.useState(false);
+  /**
+   * A fill already wrote this cell, so the blur that follows must not write it again.
+   *
+   * Applying a batch sets `busy`, which disables the inputs, which blurs whichever
+   * one had focus — so filling right fired a second, redundant write for the source
+   * cell, with its own undo entry and its own audit row.
+   */
+  const filledRef = React.useRef(false);
 
   React.useEffect(() => {
     if (!focused) setDraft(String(amount));
@@ -502,12 +517,18 @@ function GridCell({
         title={fmtMoney(amount, symbol)}
         onFocus={(e) => { setFocused(true); e.currentTarget.select(); }}
         onChange={(e) => setDraft(e.target.value)}
-        onBlur={() => { setFocused(false); onPreviewFill(null); if (!onCommit(draft)) setDraft(String(amount)); }}
+        onBlur={() => {
+          setFocused(false);
+          onPreviewFill(null);
+          if (filledRef.current) { filledRef.current = false; return; }
+          if (!onCommit(draft)) setDraft(String(amount));
+        }}
         onKeyDown={(e) => {
           // Enter commits this cell; Cmd/Ctrl+Enter carries it to the right edge —
           // the same two scopes the popover offers, as the same two gestures.
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
             e.preventDefault();
+            filledRef.current = true;
             onFillRight(draft);
             return;
           }
@@ -557,7 +578,7 @@ function GridCell({
             onPreviewFill(Number.isFinite(n) ? n : null);
           }}
           onMouseLeave={() => onPreviewFill(null)}
-          onMouseDown={(e) => { e.preventDefault(); onPreviewFill(null); onFillRight(draft); }}
+          onMouseDown={(e) => { e.preventDefault(); onPreviewFill(null); filledRef.current = true; onFillRight(draft); }}
         >
           <ArrowRight className="h-3 w-3" />
         </button>

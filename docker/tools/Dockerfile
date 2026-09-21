@@ -11,7 +11,9 @@ FROM mcr.microsoft.com/playwright:v1.63.0-noble
 # Must match the image tag: the base image ships exactly the browser revisions
 # this version of Playwright expects.
 ARG PW_VERSION=1.63.0
-RUN npm install -g "playwright@${PW_VERSION}"
+# `playwright` drives a browser; `@playwright/test` is the runner the e2e suite
+# uses. Both pinned to the image tag for the same reason.
+RUN npm install -g "playwright@${PW_VERSION}" "@playwright/test@${PW_VERSION}"
 
 # Install bun somewhere every uid can reach — the wrapper runs as the caller's
 # uid so files written into the mounted repo stay owned by the caller.
