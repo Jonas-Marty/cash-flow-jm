@@ -25,7 +25,8 @@ export type HelpPage =
   | "statements"
   | "webhooks"
   | "links"
-  | "oidc";
+  | "oidc"
+  | "location";
 
 const PAGES: ReadonlySet<string> = new Set<HelpPage>([
   "getting-started",
@@ -40,6 +41,7 @@ const PAGES: ReadonlySet<string> = new Set<HelpPage>([
   "webhooks",
   "links",
   "oidc",
+  "location",
 ]);
 
 /**

@@ -1,10 +1,11 @@
 ---
-title: "Core concepts"
-description: "Accounts, envelopes, scopes, IOUs and sweeps — the building blocks of the budget, each with a worked example in francs."
+title: Core concepts
+description: >-
+  Accounts, envelopes, scopes, IOUs and sweeps — the building blocks of the
+  budget, each with a worked example in francs.
 sidebar:
   icon: book-open
 ---
-
 Think of it like a set of envelopes, a notebook, and a filing cabinet — just digital.
 
 ## Account [#account]
@@ -41,7 +42,7 @@ A bucket that groups related categories (e.g. *Food* contains Groceries, Eating 
 
 The monthly amount you plan to spend in a category. The Envelopes screen shows how much is left in each envelope for the current month.
 
-**Example:** You decide to budget CHF 400 for *Groceries* this month. The envelope starts with 400. After you spend 120 at Migros, the envelope shows 280 left. If you later spend 50 at the bakery, it drops to 230. If you receive a CHF 30 reimbursement for a shared dinner (linked to an IOU), the envelope grows back to 260 — because you got some of that grocery money back.
+**Example:** You decide to budget CHF 400 for *Groceries* in June. The envelope starts with 400. After you spend 120 at Migros, the envelope shows 280 left. If you later spend 50 at the bakery, it drops to 230. If you receive a CHF 30 reimbursement for a shared dinner (linked to an IOU), the envelope grows back to 260 — because you got some of that grocery money back.
 
 At month-end a per-category switch, **Rolls over**, decides what happens to the remainder: with it off, whatever is left (or the shortfall) sweeps into your savings category and the envelope starts fresh. With it on, the balance stays put and keeps accumulating. Both kinds are allocated every month.
 
@@ -112,3 +113,10 @@ A free-form label you can attach to transactions and search by. Useful for cross
 
 **Example:** You tag flights, hotel bookings, and restaurant meals with *#paris-2025*. Later, you can search that tag and see the total cost of the trip across all categories — without creating a separate *Paris* category for each expense type.
 
+## Place [#location]
+
+Where you paid: coordinates, accuracy and a label like *Coop Bahnhof*. **Off by default** — you switch it on under **Settings → Capture location**.
+
+**Example:** You pay at the Coop by the station and the app remembers the place. Next time you shop there it offers *Groceries* and the same description, because it recognises where you are.
+
+What gets stored, and which mapping services find out about it, is on [Capturing places](/location).

@@ -112,3 +112,10 @@ Ein freies Label für Buchungen, das du durchsuchen kannst. Praktisch für Quers
 
 **Beispiel:** Du markierst Flug, Hotel und Restaurantbesuche mit *#paris-2025*. Später suchst du nach diesem Tag und siehst die Gesamtkosten der Reise über alle Kategorien hinweg — ohne für jeden Ausgabentyp eine separate *Paris*-Kategorie anlegen zu müssen.
 
+## Ort [#location]
+
+Wo du gezahlt hast: Koordinaten, Genauigkeit und eine Bezeichnung wie *Coop Bahnhof*. **Standardmässig aus** — du schaltest es unter **Einstellungen → Ort erfassen** ein.
+
+**Beispiel:** Du zahlst im Coop am Bahnhof und die App merkt sich den Ort. Beim nächsten Einkauf dort schlägt sie dir *Lebensmittel* und dieselbe Beschreibung vor, weil sie den Ort wiedererkennt.
+
+Was dabei gespeichert wird und welche Kartendienste davon erfahren, steht unter [Orte erfassen](/location).

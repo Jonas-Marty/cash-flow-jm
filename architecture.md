@@ -346,6 +346,48 @@ finds a connection back online. A row nobody could place keeps
 Deferred: the feedback loop and gated auto-apply, see
 `docs/pending-suggestions-feedback-loop.md`.
 
+### 3.12 Transaction locations
+
+Opt-in, `settings.capture_location`, **default false**. Five nullable columns on
+both `transactions` and `pending_transactions`:
+
+| Column | Type | Notes |
+|---|---|---|
+| `latitude`, `longitude` | `numeric(9,6)` | 6 dp ≈ 11 cm |
+| `location_accuracy_m` | `numeric` | as reported by the device |
+| `location_label` | `text` | required by the client before a save |
+| `location_source` | `text` | `device` \| `manual` \| `search` |
+
+Two constraints carry the invariants: `CHECK ((latitude IS NULL) = (longitude IS
+NULL))` — a half-coordinate is always a bug — and a source allowlist. One partial
+index, `(user_id, occurred_on DESC) WHERE latitude IS NOT NULL`, because the
+recent-places picker reads only rows that have a point. `pending_transactions`
+deliberately has none: that table is small and never queried by location.
+
+**Capture is narrow on purpose.** `add.tsx` takes a reading only when the flag is
+on, the transaction is new, and its date is today; any manual edit of the field
+cancels it. Back-dated entries would otherwise record where the user is standing
+now, which is worse than recording nothing.
+
+**Labels have three sources.** Search and reverse lookup both go through
+`geocode.functions.ts`, which is a *server* function wrapping Nominatim with
+Photon as fallback — so the third party sees the server's IP, not the user's.
+The third is `labelFromHistory()` in `api.public.pending-transactions.ts`: when a
+device posts coordinates with no label, it scans the caller's last 200 located
+transactions for one whose description matches and which is within
+`matchRadiusM()` — the reported accuracy clamped to 150–500 m. It copies **only
+the name**; coordinates stay as measured, and promoting the curated pin is a
+separate tap in `/pending`.
+
+Two egress paths are **browser-side** and therefore expose the user's own IP:
+Leaflet's tiles from `tile.openstreetmap.org`, and the `osmLink()` click-out.
+Both are disclosed in `privacy.tsx` §6; `docsParity.test.ts` fails if a new host
+appears in `src/` without being added there.
+
+Locations are excluded from webhook payloads (`notifiers/types.ts`). They do
+reach an AI provider in one case: `pending_enrich` sends `location_label`, never
+the coordinates.
+
 ## 4. SQL surface
 
 | Object | Type | Purpose |

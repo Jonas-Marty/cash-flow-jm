@@ -4,7 +4,7 @@
       "en": "8fa23428c59b2fb3"
     },
     "docs/02-concepts.md": {
-      "en": "37bf0402da02390b"
+      "en": "8e324c8ff139b9b5"
     },
     "docs/03-screens.md": {
       "en": "a1828d1899035c69"
@@ -36,8 +36,11 @@
     "docs/12-oidc.md": {
       "en": "ccd75c95da28bd45"
     },
+    "docs/13-location.md": {
+      "en": "2a81918b16b5f134"
+    },
     "docs/index.mdx": {
-      "en": "10b47d10bc9c71ab"
+      "en": "8991463b6264900e"
     }
   },
   "version": 1
