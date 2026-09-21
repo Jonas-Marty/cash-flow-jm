@@ -365,6 +365,22 @@ including the SQL/app inventory, performance estimate and phased plan, lives in
 
 ## 7. Change log
 
+### 2026-09-22 — The identity closes: income variance sweeps too
+
+- Migration `20260922000000_sweep_income_variance.sql`: the sweep in
+  `category_savings_balance` no longer excludes income envelopes. `spent` is signed
+  expense-minus-income, so an income envelope contributes `(-spent) - allocated`, i.e.
+  received minus planned.
+- A bonus or a short month previously reached no envelope at all. It was the last unexplained
+  term in `envelope_reconciliation`, worth 371.92.
+- **`residual` is now 0.00 at every date**, mid-month included: an income envelope holds
+  `received - allocated` until the month ends and is then swept like any other, so it starts
+  each month owing the plan and settles on payday. Verified daily across 2026-08-25, where
+  `income_open` goes -7,144.47 -> -0.02 while `residual` never moves.
+- `/envelopes` shows the terms that belong to no ordinary envelope (outstanding reimbursements,
+  unallocated) with an explicit envelopes-against-accounts check, and income rows say how much
+  is still to come.
+
 ### 2026-09-21 — Envelope opening balances
 
 - Migration `20260921220000_envelope_opening_balances.sql`: `categories.opening_balance`,

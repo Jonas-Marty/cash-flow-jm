@@ -16,6 +16,7 @@ import { useI18n } from "@/i18n";
 import {
   fetchCategoryMonthRows,
   fetchSavingsBalances,
+  fetchEnvelopeReconciliation,
   fetchSettings,
   fetchAccounts,
   fmtMoney,
@@ -94,6 +95,7 @@ function EnvelopesPage() {
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const rowsQ = useQuery({ queryKey: ["category_month_rows", m], queryFn: () => fetchCategoryMonthRows(m) });
   const savingsBalanceQ = useQuery({ queryKey: ["savings-balances", asOf], queryFn: () => fetchSavingsBalances(asOf) });
+  const reconQ = useQuery({ queryKey: ["reconciliation", asOf], queryFn: () => fetchEnvelopeReconciliation(asOf) });
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   const groupsQ = useQuery({ queryKey: ["category_groups"], queryFn: fetchCategoryGroups });
   const pendingImpactQ = useQuery({ queryKey: ["pending_impact_month", m], queryFn: () => fetchPendingImpactsForMonth(m) });
@@ -312,6 +314,34 @@ function EnvelopesPage() {
           </CardContent>
         </Card>
 
+        {reconQ.data && (() => {
+          const rec = reconQ.data;
+          const balanced = Math.abs(Number(rec.residual)) < 0.005;
+          const rows2 = ([
+            [tr("env.recon.outstanding"), Number(rec.outstanding_reimbursements)],
+            [tr("env.recon.unallocated"), Number(rec.unallocated)],
+          ] as Array<[string, number]>).filter(([, v]) => Math.abs(v) > 0.005);
+          if (rows2.length === 0 && balanced) return null;
+          return (
+            <Card>
+              <CardContent className="space-y-1 py-3 text-sm">
+                {rows2.map(([label, v]) => (
+                  <div key={label} className="flex items-baseline justify-between gap-3">
+                    <span className="text-muted-foreground">{label}</span>
+                    <PrivacyValue className="tabular-nums">{fmtMoney(v, symbol)}</PrivacyValue>
+                  </div>
+                ))}
+                <div className="flex items-baseline justify-between gap-3 border-t pt-1.5 text-xs">
+                  <span className="text-muted-foreground">{tr("env.recon.check")}</span>
+                  <span className={cn("tabular-nums font-medium", balanced ? "text-success" : "text-warning")}>
+                    {balanced ? tr("env.recon.balances") : fmtMoney(Number(rec.residual), symbol)}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
+
         {rowsQ.isLoading ? (
           <Skeleton className="h-32 w-full" />
         ) : rows.length === 0 ? (
@@ -468,6 +498,9 @@ function EnvelopesPage() {
                         <span>{fmtMoney(actual, symbol)} {tr("dashboard.summary.received_label")}</span>
                         {pendingDelta > 0 && (
                           <span className="text-warning">+{fmtMoney(pendingDelta, symbol)} {tr("dashboard.summary.expected_label")}</span>
+                        )}
+                        {allocated - actual > 0.005 && (
+                          <span>{tr("env.income.outstanding")}: {fmtMoney(allocated - actual, symbol)}</span>
                         )}
                         <span className={cn("ml-auto", tone)}>({variance >= 0 ? "+" : ""}{fmtMoney(variance, symbol)})</span>
                       </div>
