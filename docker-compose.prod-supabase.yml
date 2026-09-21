@@ -32,7 +32,7 @@
 # Kept even though the app does not use them today: realtime (the
 # supabase_realtime publication has 0 tables) and imgproxy (no storage call
 # passes a transform: option). They are cheap and keep the stack matching
-# what Lovable generates against. Kong stays for the same reason -- the
+# what the Supabase client library expects. Kong stays for the same reason -- the
 # gateway is upstream, byte for byte, minus the two dead routes.
 #
 # Studio and pg-meta stay as the data browser. Studio's Logs pages are the

@@ -72,7 +72,7 @@ Options rejected:
 ### 1.3 Existing crypto and secrets
 - **No encryption anywhere**: no pgcrypto/pgsodium/vault, no `CREATE EXTENSION` in migrations,
   no WebCrypto, no crypto dependencies in `package.json`.
-- Hashing/signing only: `src/utils/api-tokens.server.ts` (`lvbl_` + 32 random bytes, unsalted
+- Hashing/signing only: `src/utils/api-tokens.server.ts` (`cfjm_` + 32 random bytes, unsalted
   SHA-256 stored in `api_tokens.token_hash`), `src/utils/nextcloud.state.server.ts` (HMAC-SHA256
   OAuth state, `NEXTCLOUD_STATE_SECRET` fallback `SUPABASE_SERVICE_ROLE_KEY`). Both use `node:crypto`.
 - Plaintext secret columns: `nextcloud_connections.client_secret/access_token/refresh_token`,
@@ -160,7 +160,7 @@ on `category_id,month`), `finance.ts:1322`, `api.public.account-statements.ts:15
 on `account_id,as_of,source`); `links.ts` upserts hit `transaction_link_members` (stays a table).
 
 Server paths needing plaintext:
-- Public API (service role, `lvbl_` token): `api.public.transactions.ts` (POST inserts full rows,
+- Public API (service role, `cfjm_` token): `api.public.transactions.ts` (POST inserts full rows,
   fires webhooks), `api.public.pending-transactions.ts` (GET/POST/DELETE; POST runs
   `labelFromHistory` over 200 recent transactions and async `enrichPending`), `api.public.account-statements.ts`
   (compensating transactions; `.eq("name", RECONCILE_CATEGORY_NAME)`), `api.public.attachments.ts`,

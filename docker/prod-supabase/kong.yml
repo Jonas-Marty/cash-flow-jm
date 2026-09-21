@@ -16,7 +16,7 @@
 # docker-compose.prod-supabase.yml if you ever need it back.
 #
 # graphql-v1 stays: it proxies to `rest`, so it costs nothing and keeps the
-# surface identical to what Lovable generates against.
+# surface identical to what the Supabase client library expects.
 #
 # This supersedes docker/kong/kong.yml, which was removed in the same change:
 # it was unreferenced by any compose file and routed realtime at a hostname

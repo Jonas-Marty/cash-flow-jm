@@ -18,7 +18,6 @@
       "cloud.example.com": "Placeholder in the Nextcloud setup form.",
       "n8n.example.com": "Placeholder in the webhooks form.",
       "help.cash-flow.wi-wo.ch": "Our own help site.",
-      "lovable.dev": "postMessage target in preview-auth plumbing, gated on running inside a Lovable editor iframe. Not a fetch, never active in production. Dead scaffolding to remove, not egress to disclose.",
       "cash-flow-jm.lovable.app": "Stale server URL declared in the OpenAPI spec, not a host we contact. The banned-phrase check on `lovable.app` forces its removal in stage 7; delete this entry with it."
     },
     "undisclosed": {

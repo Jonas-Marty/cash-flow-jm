@@ -2,7 +2,7 @@
  * Minimal Node HTTP server that hosts the TanStack Start SSR bundle.
  *
  * Why this file exists:
- *   The default Lovable template targets Cloudflare Workers and exports a
+ *   The default vite config targets Cloudflare Workers and exports a
  *   `{ fetch(request) }` handler. Coolify on a plain VM runs Node, so we
  *   bridge Node's `http` module to that Web-standard fetch handler.
  *
