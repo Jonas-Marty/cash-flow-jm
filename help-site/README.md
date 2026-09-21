@@ -69,8 +69,17 @@ guide became a page of the same slug, so bookmarked `/help#oidc` links land on
 
 Dokploy compose service in the Cash Flow project, production environment.
 Compose path `./help-site/docker-compose.yml`, domain `help.cash-flow.wi-wo.ch`
-to service `help` on port 80, Let's Encrypt. Deploys from `main`; `watchPaths`
-is set to `help-site/**` so app commits do not rebuild the docs and vice versa.
+to service `help` on port 80, Let's Encrypt. `watchPaths` is `help-site/**`, so
+app commits do not rebuild the docs and docs commits do not rebuild the app.
+
+It currently tracks **`dev`**, not `main`: the app has unreleased work sitting
+on `dev`, and the guide describes behaviour that is already true there. Point
+it back at `main` once the app is promoted — the site is static and holds no
+state, so which branch feeds it is purely an editorial choice.
+
+`help.cash-flow.wi-wo.ch` needs its own DNS record. The zone's `*.wi-wo.ch`
+wildcard only matches a single label, which is why the app's dev host is
+`dev-cash-flow.wi-wo.ch` rather than `dev.cash-flow.wi-wo.ch`.
 
 There is deliberately no dev deployment — the site is static, carries no state
 that can diverge from production, and `npm run dev` is a full-fidelity preview.

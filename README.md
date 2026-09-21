@@ -399,8 +399,12 @@ for links back into the app.
 
 Deployed as a separate Dokploy compose service in the production environment
 (`./help-site/docker-compose.yml`, `watchPaths: help-site/**`), so docs and app
-deploy independently. The app links in through `src/lib/helpUrl.ts`, and
-`/help` redirects old bookmarks to the matching page.
+deploy independently — it currently builds from `dev` while the app's envelope
+work is unreleased. The app links in through `src/lib/helpUrl.ts`, and `/help`
+redirects old bookmarks to the matching page.
+
+The host needs an explicit DNS record: `*.wi-wo.ch` matches one label only,
+which is also why the dev app is `dev-cash-flow.wi-wo.ch`.
 
 ## 10. License
 
