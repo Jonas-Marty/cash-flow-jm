@@ -154,4 +154,24 @@ test.describe("budget grid", () => {
     const erasers = page.locator('button[title*="every earlier month"]');
     await expect(erasers.first()).toBeVisible();
   });
+
+  test("the eraser is disabled where there is nothing to erase", async ({ page }) => {
+    // Clicking an empty month used to report "3 cells" and write an audit entry for
+    // changes that never happened, because the RPC counted what it was asked to do.
+    // Disabling the button says so before you press it.
+    await openGrid(page);
+    const erasers = page.locator('button[title*="every earlier month"]');
+
+    // Fixtures store only the current month and the two before it, so the oldest
+    // columns have nothing beneath them.
+    await expect(erasers.first()).toBeDisabled();
+    await expect(erasers.last()).toBeEnabled();
+  });
+
+  test("erasing a month with nothing in it writes nothing", async ({ page }) => {
+    const calls = await openGrid(page);
+    const erasers = page.locator('button[title*="every earlier month"]');
+    await expect(erasers.first()).toBeDisabled();
+    expect(bulkCalls(calls)).toHaveLength(0);
+  });
 });

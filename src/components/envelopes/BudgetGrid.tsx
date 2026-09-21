@@ -362,12 +362,20 @@ export function BudgetGrid({
                   {(() => {
                     const future = monthStatus(m) === "future";
                     const through = !future;
+                    // Nothing to erase is worth showing rather than discovering by
+                    // clicking: a disabled button says so before you press it.
+                    const erasable = stored.some((cell) =>
+                      through ? cell.month <= monthKeys[i] : cell.month === monthKeys[i],
+                    );
                     return (
                       <Button
                         variant="ghost"
                         size="sm"
-                        disabled={busy}
-                        className="h-5 w-5 p-0 opacity-40 hover:opacity-100 hover:text-destructive"
+                        disabled={busy || !erasable}
+                        className={cn(
+                          "h-5 w-5 p-0 opacity-40",
+                          erasable ? "hover:text-destructive hover:opacity-100" : "opacity-15",
+                        )}
                         title={
                           future
                             ? t("budget.grid.clear_month_tip", { month: label })
