@@ -84,6 +84,7 @@ A template that posts a transaction on a schedule (rent, salary, subscriptions).
 - **Weekend adjustment** (`None` / `PreviousBusinessDay` / `NextBusinessDay`) only shifts the *execution* date; the reporting period stays anchored to the original due date.
 - **Period offset** (−3…+3) lets you post now for a past or future period (e.g. VAT filed in April for Q1: offset −1).
 - Description and note support the tokens `${date}`, `${dueDate}`, `${periodFrom}`, `${periodTo}`, `${runNumber}`, with date formatters like `dd.MM.yyyy`, `MMMM`, `Q` (quarter), `S` (semester), `T` (trimester), `ww` (ISO week). Older tokens (`${periodLabel}`, `${today}`, `${year}`, …) are no longer supported — the editor warns when a saved template still references them.
+- **When the cadence changes** — say a subscription switches from monthly to yearly — give the old rule an end date and use **Duplicate rule** to create a copy with the new dates. The copy keeps the amount, account, category and split slices, but starts today and carries no end date. The old rule keeps its posted occurrences, so past months are still explained by the schedule that actually applied then.
 
 ## Reconciliation [#reconciliation]
 

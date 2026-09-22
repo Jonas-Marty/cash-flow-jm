@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Copy, Trash2 } from "lucide-react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,118 +35,10 @@ import { computeSliceAmounts } from "@/lib/recurringSlices";
 import { Markdown } from "@/components/Markdown";
 import { Trash2 as TrashIcon } from "lucide-react";
 
-type Draft = {
-  id?: string;
-  name: string;
-  type: TxType;
-  amount: string;
-  is_variable_amount: boolean;
-  estimated_amount: string;
-  source_account_id: string;
-  destination_account_id: string;
-  category_id: string;
-  description: string;
-  note: string;
-  recurrence_interval: number; // 1..12
-  execution_day_rule: DayRule;
-  execution_day_of_month: string;
-  execution_weekend_adjustment: WeekendAdjust;
-  period_day_rule: DayRule;
-  period_day_of_month: string;
-  period_offset: number; // -3..3
-  starts_on: string;
-  ends_on: string;
-  auto_post: boolean;
-  backfill: "none" | "post" | "pending";
-  is_variable_date: boolean;
-  is_split: boolean;
-  slices: SliceDraft[];
-};
-
-type SliceDraft = {
-  id?: string;
-  amount: string;        // used when !is_variable_amount
-  amount_ratio: string;  // used when is_variable_amount (decimal, e.g. "0.5")
-  category_id: string;
-  description: string;
-  note: string;
-  is_reimbursable: boolean;
-  reimbursable_counterparty: string;
-  reimbursable_reason: string;
-};
-
-function emptySlice(): SliceDraft {
-  return {
-    amount: "",
-    amount_ratio: "",
-    category_id: "",
-    description: "",
-    note: "",
-    is_reimbursable: false,
-    reimbursable_counterparty: "",
-    reimbursable_reason: "",
-  };
-}
-
-const todayStr = () => new Date().toISOString().slice(0, 10);
-
-function emptyDraft(): Draft {
-  return {
-    name: "", type: "expense", amount: "0",
-    is_variable_amount: false, estimated_amount: "",
-    source_account_id: "", destination_account_id: "", category_id: "",
-    description: "", note: "",
-    recurrence_interval: 1,
-    execution_day_rule: "FixedDay", execution_day_of_month: "1",
-    execution_weekend_adjustment: "None",
-    period_day_rule: "FixedDay", period_day_of_month: "1",
-    period_offset: 0,
-    starts_on: todayStr(), ends_on: "",
-    auto_post: true,
-    backfill: "none",
-    is_variable_date: false,
-    is_split: false,
-    slices: [emptySlice(), emptySlice()],
-  };
-}
-
-function ruleToDraft(r: RecurringRule): Draft {
-  return {
-    id: r.id, name: r.name, type: r.type,
-    amount: r.amount != null ? String(r.amount) : "0",
-    is_variable_amount: !!r.is_variable_amount,
-    estimated_amount: r.estimated_amount != null ? String(r.estimated_amount) : "",
-    source_account_id: r.source_account_id,
-    destination_account_id: r.destination_account_id ?? "",
-    category_id: r.category_id ?? "",
-    description: r.description ?? "", note: r.note ?? "",
-    recurrence_interval: r.recurrence_interval ?? 1,
-    execution_day_rule: r.execution_day_rule,
-    execution_day_of_month: String(r.execution_day_of_month ?? 1),
-    execution_weekend_adjustment: r.execution_weekend_adjustment,
-    period_day_rule: r.period_day_rule,
-    period_day_of_month: String(r.period_day_of_month ?? 1),
-    period_offset: r.period_offset ?? 0,
-    starts_on: r.starts_on, ends_on: r.ends_on ?? "",
-    auto_post: r.auto_post,
-    backfill: "none",
-    is_variable_date: !!r.is_variable_date,
-    is_split: !!r.is_split,
-    slices: r.slices && r.slices.length >= 2
-      ? r.slices.map((s) => ({
-          id: s.id,
-          amount: s.amount != null ? String(s.amount) : "",
-          amount_ratio: s.amount_ratio != null ? String(s.amount_ratio) : "",
-          category_id: s.category_id ?? "",
-          description: s.description ?? "",
-          note: s.note ?? "",
-          is_reimbursable: !!s.is_reimbursable,
-          reimbursable_counterparty: s.reimbursable_counterparty ?? "",
-          reimbursable_reason: s.reimbursable_reason ?? "",
-        }))
-      : [emptySlice(), emptySlice()],
-  };
-}
+import {
+  duplicateDraft, emptyDraft, emptySlice, ruleToDraft, todayStr,
+  type Draft, type SliceDraft,
+} from "@/lib/recurringDraft";
 
 function nextDueDate(r: RecurringRule, from = new Date()): Date | null {
   const start = parseISODate(r.starts_on);
@@ -308,6 +200,10 @@ export function RecurringRulesCard() {
 
   const openAdd = () => { setDraft(emptyDraft()); setOpen(true); };
   const openEdit = (r: RecurringRule) => { setDraft(ruleToDraft(r)); setOpen(true); };
+  // A copy opens as a new rule (the dialog keys its title off `draft.id`), so
+  // saving never touches the original. For a subscription that changed its
+  // billing cycle: end the old rule, copy it, adjust the dates.
+  const openDuplicate = (r: RecurringRule) => { setDraft(duplicateDraft(r)); setOpen(true); };
 
   // Deep link: /settings#rule-<id> scrolls to this card and opens the rule editor.
   const hash = useRouterState({ select: (s) => s.location.hash });
@@ -583,6 +479,9 @@ export function RecurringRulesCard() {
         <div className="flex gap-1">
           <Button variant="ghost" size="icon" onClick={() => openEdit(r)} aria-label={t("recurring.edit")}>
             <Pencil className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => openDuplicate(r)} aria-label={t("recurring.duplicate")}>
+            <Copy className="h-4 w-4" />
           </Button>
           <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => del(r.id)} aria-label={t("common.delete")}>
             <Trash2 className="h-4 w-4" />

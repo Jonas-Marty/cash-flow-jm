@@ -83,6 +83,7 @@ Eine Vorlage, die Buchungen nach Zeitplan erzeugt (Miete, Gehalt, Abos). Einzeln
 - **Wochenend-Anpassung** (`None` / `PreviousBusinessDay` / `NextBusinessDay`) verschiebt nur das *Ausführungsdatum*; die Berichtsperiode bleibt am ursprünglichen Fälligkeitstag verankert.
 - **Perioden-Verschiebung** (−3…+3) erlaubt, jetzt für eine vergangene oder zukünftige Periode zu posten (z. B. MwSt-Abrechnung im April für Q1: Offset −1).
 - Beschreibung und Notiz unterstützen die Tokens `${date}`, `${dueDate}`, `${periodFrom}`, `${periodTo}`, `${runNumber}`, mit Datumsformatierern wie `dd.MM.yyyy`, `MMMM`, `Q` (Quartal), `S` (Halbjahr), `T` (Trimester), `ww` (ISO-Woche). Ältere Tokens (`${periodLabel}`, `${today}`, `${year}`, …) werden nicht mehr unterstützt — der Editor warnt, wenn eine gespeicherte Vorlage sie noch verwendet.
+- **Ändert sich der Takt** — etwa wenn ein Abo von monatlich auf jährlich wechselt — setzt du die alte Regel auf ein Enddatum und legst mit **Regel duplizieren** eine Kopie mit den neuen Daten an. Die Kopie übernimmt Betrag, Konto, Kategorie und Aufteilungen, startet aber heute und ohne Enddatum. Die alte Regel behält ihre gebuchten Vorkommen, damit vergangene Monate weiterhin nach dem Zeitplan erklärt werden, der damals galt.
 
 ## Abgleich [#reconciliation]
 
