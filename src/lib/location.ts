@@ -63,6 +63,24 @@ export function round6(n: number): number {
   return Math.round(n * 1e6) / 1e6;
 }
 
+/**
+ * Whether two locations are the same pin.
+ *
+ * Compared at the precision the column stores (6 dp), because a value that has
+ * been to the database and back is rounded and a raw one is not — comparing the
+ * unrounded numbers would call a pin different from itself. The label counts:
+ * naming a point is a decision, so the same coordinates under a new name are a
+ * different answer.
+ */
+export function sameLocation(a: TxLocation | null, b: TxLocation | null): boolean {
+  if (!a || !b) return a === b;
+  return (
+    round6(a.latitude) === round6(b.latitude) &&
+    round6(a.longitude) === round6(b.longitude) &&
+    (a.label ?? null) === (b.label ?? null)
+  );
+}
+
 export function formatCoords(loc: { latitude: number; longitude: number }): string {
   return `${loc.latitude.toFixed(5)}, ${loc.longitude.toFixed(5)}`;
 }

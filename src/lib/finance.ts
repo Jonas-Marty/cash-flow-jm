@@ -194,7 +194,12 @@ export interface PendingTransaction {
   suggested_description: string | null;
   suggested_category_id: string | null;
   suggested_note: string | null;
-  /** History-sourced only; the model cannot supply coordinates. */
+  /**
+   * Always the user's own coordinates, copied from one of their located
+   * transactions — by description match, by proximity, or by the model
+   * choosing among a server-built shortlist. The model never supplies a
+   * coordinate or a name.
+   */
   suggested_location: TxLocation | null;
   suggested_tags: string[];
   suggestion_source: "history" | "ai" | null;

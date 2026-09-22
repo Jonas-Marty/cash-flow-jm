@@ -40,6 +40,11 @@ import {
 import { useI18n } from "@/i18n";
 import { isToday, locationFromRow, type TxLocation } from "@/lib/location";
 import { rankLocationCandidates } from "@/lib/locationSuggest";
+import {
+  hasSuggestion,
+  withSuggestion,
+  type SuggestionDraft,
+} from "@/lib/pendingSuggestView";
 import { enrichPendingTransactions } from "@/utils/pending.functions";
 import {
   addTagsToNote,
@@ -264,20 +269,16 @@ function PendingRow({
   const sym = acc?.currency_symbol ?? "CHF";
 
   const suggestedCat = categories.find((c) => c.id === pending.suggested_category_id);
-  const suggestionOpen =
-    isPending &&
-    ((!!suggestedCat && !categoryId && type !== "transfer") ||
-      (!!pending.suggested_description && pending.suggested_description !== description) ||
-      (!!pending.suggested_note && !note.includes(pending.suggested_note)) ||
-      (!!pending.suggested_location && !location));
+  // Same predicates the table line uses — see lib/pendingSuggestView.ts. The two
+  // views held separate copies until they disagreed about what counts as taken.
+  const draft: SuggestionDraft = { category_id: categoryId, description, note, location };
+  const suggestionOpen = isPending && hasSuggestion(pending, draft);
   const useSuggestion = () => {
-    if (suggestedCat && !categoryId) setCategoryId(suggestedCat.id);
-    if (pending.suggested_description) setDescription(pending.suggested_description);
-    // The remark goes above whatever is already there, tag line included.
-    const remark = pending.suggested_note;
-    if (remark) setNote((n) => (n.includes(remark) ? n : n.trim() ? `${remark}\n${n}` : remark));
-    if (pending.suggested_tags.length) setNote((n) => addTagsToNote(n, pending.suggested_tags));
-    if (pending.suggested_location && !location) setLocation(pending.suggested_location);
+    const next = withSuggestion(pending, draft);
+    if (next.category_id !== categoryId) setCategoryId(next.category_id);
+    if (next.description !== description) setDescription(next.description);
+    if (next.note !== note) setNote(next.note);
+    if (next.location !== location) setLocation(next.location);
   };
 
   /** The /add deep link that opens this row for splitting. */

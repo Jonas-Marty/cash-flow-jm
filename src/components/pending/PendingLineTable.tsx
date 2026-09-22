@@ -38,6 +38,15 @@ import {
 } from "@/lib/finance";
 import { formatAccuracy, locationFromRow, type TxLocation } from "@/lib/location";
 import { rankLocationCandidates } from "@/lib/locationSuggest";
+import {
+  hasSuggestion,
+  suggestsCategory,
+  suggestsDescription,
+  suggestsNote,
+  suggestsPlace,
+  withSuggestedNote,
+  withSuggestion as applySuggestion,
+} from "@/lib/pendingSuggestView";
 
 type Draft = {
   description: string;
@@ -94,44 +103,13 @@ function splitSearch(p: PendingTransaction, d: Draft): Record<string, string> {
   return search;
 }
 
-/** A suggestion still counts while the draft has not taken it. */
-function suggestsCategory(p: PendingTransaction, d: Draft): boolean {
-  return !!p.suggested_category_id && !d.category_id && p.type !== "transfer";
-}
-function suggestsDescription(p: PendingTransaction, d: Draft): boolean {
-  return !!p.suggested_description && p.suggested_description !== d.description;
-}
-function suggestsNote(p: PendingTransaction, d: Draft): boolean {
-  return !!p.suggested_note && !noteContains(d.note, p.suggested_note);
-}
-function suggestsPlace(p: PendingTransaction, d: Draft): boolean {
-  return !!p.suggested_location && !d.location;
-}
-
-/** Whether the remark is already in the note, tags and all. */
-function noteContains(note: string, suggested: string): boolean {
-  return note.split(/\s*\n\s*/).some((line) => line.trim() === suggested.trim());
-}
-
 /**
- * Adds the suggested remark without displacing what is already there — the
- * note also carries the tag line that `addTagsToNote` maintains.
+ * The predicates and the promotion live in `lib/pendingSuggestView.ts`: the
+ * card view in `routes/pending.tsx` renders the same suggestions and used to
+ * carry its own drifted copy.
  */
-function withSuggestedNote(note: string, suggested: string | null): string {
-  if (!suggested || noteContains(note, suggested)) return note;
-  return note.trim() ? `${suggested}\n${note}` : suggested;
-}
-
-/** The tap that promotes a suggestion: it only ever touches the draft. */
 function withSuggestion(p: PendingTransaction, d: Draft): Draft {
-  const withNote = withSuggestedNote(d.note, p.suggested_note);
-  return {
-    ...d,
-    category_id: suggestsCategory(p, d) ? p.suggested_category_id! : d.category_id,
-    description: p.suggested_description ?? d.description,
-    note: p.suggested_tags.length ? addTagsToNote(withNote, p.suggested_tags) : withNote,
-    location: suggestsPlace(p, d) ? p.suggested_location : d.location,
-  };
+  return { ...d, ...applySuggestion(p, d) };
 }
 
 /**
@@ -215,13 +193,7 @@ export function PendingLineTable({
 
   const suggested = items.filter((p) => {
     const d = drafts[p.id];
-    return (
-      d &&
-      (suggestsCategory(p, d) ||
-        suggestsDescription(p, d) ||
-        suggestsNote(p, d) ||
-        suggestsPlace(p, d))
-    );
+    return !!d && hasSuggestion(p, d);
   });
   const applyAllSuggestions = () =>
     setDrafts((prev) => {
