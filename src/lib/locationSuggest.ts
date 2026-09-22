@@ -281,3 +281,98 @@ export function suggestPlaceFromProximity(
 function round3(n: number): number {
   return Math.round(n * 1000) / 1000;
 }
+
+
+// ---------------------------------------------------------------------------
+// A shortlist the model can point at
+// ---------------------------------------------------------------------------
+
+/**
+ * How many places the prompt carries. Generous: a year of one person's life
+ * rarely has more than a dozen places they paid at twice.
+ */
+export const PLACE_TABLE_LIMIT = 24;
+
+export interface PlaceRef {
+  /** `p1`.. — meaningless outside the request that minted it. */
+  ref: string;
+  location: TxLocation;
+  visits: number;
+  lastSeen: string | null;
+}
+
+/**
+ * The user's known places, enumerated so a model can choose one by reference.
+ *
+ * The model is a tie-breaker over this list, never a source: it returns a ref
+ * and the server looks up the coordinates. That is what makes asking it about
+ * places safe at all — it cannot invent a place, and it cannot invent a point,
+ * because the only thing it can say is "one of yours, that one".
+ *
+ * Refs are positional and never stored. A stale ref cannot resolve to the wrong
+ * place later because there is no later: the table dies with the request.
+ */
+export function buildPlaceTable(
+  history: LocationHistoryEntry[],
+  opts: { limit?: number } = {},
+): PlaceRef[] {
+  const groups = new Map<string, LocationHistoryEntry[]>();
+  for (const entry of history) {
+    // Same clustering rule as the proximity path — one rule, so the shortlist
+    // and the geometry can never disagree about what counts as one place.
+    const key = normalizeDescription(entry.label);
+    if (!key) continue;
+    const list = groups.get(key) ?? [];
+    list.push(entry);
+    groups.set(key, list);
+  }
+
+  const lastSeen = (members: LocationHistoryEntry[]) =>
+    members.reduce<string | null>(
+      (acc, m) => (m.occurred_on && (!acc || m.occurred_on > acc) ? m.occurred_on : acc),
+      null,
+    );
+
+  return [...groups.values()]
+    .map((members) => ({ members, last: lastSeen(members) }))
+    .sort(
+      (a, b) =>
+        b.members.length - a.members.length || (b.last ?? "").localeCompare(a.last ?? ""),
+    )
+    .slice(0, opts.limit ?? PLACE_TABLE_LIMIT)
+    .map(({ members, last }, i) => ({
+      ref: `p${i + 1}`,
+      location: pickRepresentative(members),
+      visits: members.length,
+      lastSeen: last,
+    }));
+}
+
+/**
+ * The refs near a point, nearest first — what a row is allowed to claim.
+ *
+ * Returns refs, not distances. The caller prints these into a prompt, and the
+ * ordering already says "nearest first"; the metres would be the only
+ * geographic quantity in the payload, and leaving them out is what lets the
+ * app keep saying it never sends coordinates to an AI provider.
+ */
+export function refsNear(
+  table: PlaceRef[],
+  fix: { latitude: number; longitude: number; accuracy_m?: number | null },
+  limit = 4,
+): string[] {
+  const radius = matchRadiusM(fix.accuracy_m);
+  return table
+    .map((p) => ({ ref: p.ref, d: haversineMeters(fix, p.location) }))
+    .filter((p) => p.d <= radius)
+    .sort((a, b) => a.d - b.d)
+    .slice(0, limit)
+    .map((p) => p.ref);
+}
+
+/** The prompt block. Names and dates only — never a coordinate, never a metre. */
+export function renderPlaceTable(table: PlaceRef[]): string {
+  return table
+    .map((p) => [p.ref, p.location.label ?? "-", p.lastSeen ?? "-", String(p.visits)].join(" | "))
+    .join("\n");
+}

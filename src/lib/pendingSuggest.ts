@@ -176,6 +176,13 @@ export interface ModelSuggestion {
   /** The remark the model would have written. */
   note: string | null;
   tags: string[];
+  /**
+   * Which of the places offered to *this row* the model picked, or null. A
+   * reference into a table the server built and still holds — never a name,
+   * and never a coordinate. The model cannot introduce a place; it can only
+   * choose among the ones geometry already judged plausible.
+   */
+  place_ref: string | null;
   confidence: number;
 }
 
@@ -192,6 +199,13 @@ export function parseModelSuggestions(
   json: unknown,
   rowIds: Set<string>,
   validCategoryIds: Set<string>,
+  /**
+   * Per row, not global. A row with no fix has no entry, so the model cannot
+   * place it at all — "Coop" in a notification does not say *which* Coop, and
+   * a location with the wrong coordinates is worse than none. Optional so the
+   * default is the safe one: absent means no row may claim a place.
+   */
+  allowedPlaceRefs?: Map<string, Set<string>>,
 ): Map<string, ModelSuggestion> {
   const out = new Map<string, ModelSuggestion>();
   const list = (json as { suggestions?: unknown } | null)?.suggestions;
@@ -222,12 +236,17 @@ export function parseModelSuggestions(
           ),
         ].slice(0, MAX_TAGS)
       : [];
+    const allowed = allowedPlaceRefs?.get(id);
+    const place_ref =
+      typeof s?.place_ref === "string" && allowed?.has(s.place_ref) ? s.place_ref : null;
     const c =
       typeof s?.confidence === "number" && Number.isFinite(s.confidence) ? s.confidence : 0.5;
     const confidence = round3(Math.min(1, Math.max(0, c)));
 
-    if (!description && !category_id && !note && tags.length === 0) continue;
-    out.set(id, { description, category_id, note, tags, confidence });
+    // A place on its own is a whole answer — telling two shops in one concourse
+    // apart is the only thing the model is asked about places at all.
+    if (!description && !category_id && !note && tags.length === 0 && !place_ref) continue;
+    out.set(id, { description, category_id, note, tags, place_ref, confidence });
   }
   return out;
 }

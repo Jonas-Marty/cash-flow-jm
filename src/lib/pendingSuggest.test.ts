@@ -180,6 +180,7 @@ describe("parseModelSuggestions", () => {
       category_id: GROCERIES,
       note: null,
       tags: ["bakery"],
+      place_ref: null,
       confidence: 0.87,
     });
     // Unknown category dropped and nothing else offered → no suggestion.
@@ -228,5 +229,75 @@ describe("parseModelSuggestions", () => {
       cats,
     );
     expect(out.get("row-1")!.confidence).toBe(0.5);
+  });
+});
+
+
+describe("parseModelSuggestions — places", () => {
+  const rows = new Set(["r1", "r2"]);
+  const cats = new Set(["c1"]);
+  /** r1 stood near p3; r2 brought no fix, so it is allowed nothing. */
+  const allowed = new Map([["r1", new Set(["p3", "p7"])]]);
+
+  function parse(suggestion: Record<string, unknown>, refs = allowed) {
+    return parseModelSuggestions({ suggestions: [suggestion] }, rows, cats, refs);
+  }
+
+  it("keeps a ref the server offered for that row", () => {
+    expect(parse({ pending_id: "r1", place_ref: "p3" }).get("r1")?.place_ref).toBe("p3");
+  });
+
+  it("drops a ref that is in no table at all", () => {
+    expect(parse({ pending_id: "r1", category_id: "c1", place_ref: "p99" }).get("r1")?.place_ref)
+      .toBeNull();
+  });
+
+  it("drops a ref that is real but was not offered to this row", () => {
+    // p3 exists and r2 is a valid row, but r2 had no fix, so it was offered
+    // nothing. A single global set of valid refs passes this silently — which
+    // is the whole reason the allowed refs are held per row.
+    expect(parse({ pending_id: "r2", category_id: "c1", place_ref: "p3" }).get("r2")?.place_ref)
+      .toBeNull();
+  });
+
+  it("drops every ref when the caller offered none", () => {
+    expect(parse({ pending_id: "r1", category_id: "c1", place_ref: "p3" }, new Map()).get("r1")
+      ?.place_ref).toBeNull();
+  });
+
+  it("refuses a place name where a ref belongs", () => {
+    // The literal thing the design forbids: a name the model made up has no
+    // coordinates, and nothing could apply it.
+    expect(
+      parse({ pending_id: "r1", category_id: "c1", place_ref: "Coop Bahnhof, Luzern" }).get("r1")
+        ?.place_ref,
+    ).toBeNull();
+  });
+
+  it("ignores a place_ref that is not a string", () => {
+    expect(parse({ pending_id: "r1", category_id: "c1", place_ref: 3 }).get("r1")?.place_ref)
+      .toBeNull();
+  });
+
+  it("lets a place ref alone carry the whole suggestion", () => {
+    // Telling two shops in one concourse apart is the only thing the model is
+    // asked about places. If that answer is dropped for having nothing beside
+    // it, the feature has no effect at all.
+    const got = parse({ pending_id: "r1", place_ref: "p7" });
+    expect(got.get("r1")?.place_ref).toBe("p7");
+  });
+
+  it("still drops a suggestion that says nothing, place included", () => {
+    expect(parse({ pending_id: "r1", tags: [] }).has("r1")).toBe(false);
+  });
+
+  it("allows no place at all when called without the fourth argument", () => {
+    const got = parseModelSuggestions(
+      { suggestions: [{ pending_id: "r1", category_id: "c1", place_ref: "p3" }] },
+      rows,
+      cats,
+    );
+    expect(got.get("r1")?.place_ref).toBeNull();
+    expect(got.get("r1")?.category_id).toBe("c1");
   });
 });

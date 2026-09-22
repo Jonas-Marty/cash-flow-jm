@@ -19,6 +19,7 @@ import {
   type HistoryTx,
 } from "@/lib/pendingSuggest";
 import type { TxLocation } from "@/lib/location";
+import { buildPlaceTable, refsNear, renderPlaceTable } from "@/lib/locationSuggest";
 import { resolveEndpoint } from "./ai.server";
 import { callJsonModel } from "./statements.server";
 
@@ -85,9 +86,10 @@ Rules:
 - description: the merchant or purpose in a few words, same language and style as past entries, no amounts or dates.
 - note: the remark the user would have added — the detail that does not belong in the description (occasion, what was bought, who it was for). Same language and style as their past notes. Null when the row says nothing worth remarking on; most rows do not.
 - tags: lowercase, no "#", max 3, prefer tags the user already uses.
+- place_ref: which of the Known places this payment happened at. Only a ref from the Known places table, and only one listed in that row's "near" field. Null when the row has no "near" refs, when they name different shops and the notification does not say which, or when you are unsure. Never write a place name — the ref is the only way to answer.
 - confidence: 0..1, how sure you are of the category.
 - If you are unsure about a field, return null (for tags: an empty array). Do not guess wildly.
-Return strict JSON: {"suggestions":[{"pending_id":"...","description":null|"...","note":null|"...","category_id":null|"uuid","tags":["..."],"confidence":0.0}]}`;
+Return strict JSON: {"suggestions":[{"pending_id":"...","description":null|"...","note":null|"...","category_id":null|"uuid","tags":["..."],"place_ref":null|"p1","confidence":0.0}]}`;
 
 /** One run per user at a time; a second trigger joins the run in flight. */
 const running = new Map<string, Promise<EnrichSummary>>();
@@ -321,6 +323,29 @@ async function enrich(userId: string, force: boolean): Promise<EnrichSummary> {
       ),
     });
 
+    // The shortlist the model may choose a place from, and which of it is in
+    // reach of each row. Names and dates only — no coordinate and no distance
+    // reaches the provider. The ordering carries "nearest first", which is all
+    // the model needs, and metres would be the one geographic quantity in the
+    // payload. See renderPlaceTable's test, which fails if either comes back.
+    const placeTable = located.length ? buildPlaceTable(located) : [];
+    const refsByRow = new Map<string, string[]>();
+    if (placeTable.length) {
+      for (const r of unresolved) {
+        const lat = r.latitude == null ? null : Number(r.latitude);
+        const lng = r.longitude == null ? null : Number(r.longitude);
+        if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+        const acc = r.location_accuracy_m == null ? null : Number(r.location_accuracy_m);
+        const refs = refsNear(placeTable, {
+          latitude: lat,
+          longitude: lng,
+          accuracy_m: acc != null && Number.isFinite(acc) ? acc : null,
+        });
+        if (refs.length) refsByRow.set(r.id, refs);
+      }
+    }
+    const offersPlaces = refsByRow.size > 0;
+
     const lines = unresolved
       .map((r) =>
         [
@@ -331,11 +356,21 @@ async function enrich(userId: string, force: boolean): Promise<EnrichSummary> {
           accName.get(r.source_account_id) ?? "-",
           r.description ?? "-",
           r.location_label ?? "-",
+          ...(offersPlaces ? [(refsByRow.get(r.id) ?? []).join(", ") || "-"] : []),
           oneLine(r.external_info),
         ].join(" | "),
       )
       .join("\n");
-    const user = `${briefing}\n\n### Pending rows to classify (pending_id | date | amount | type | account | description | place | notification text)\n${lines}`;
+    // The places block and the `near` column appear together or not at all: a
+    // column of dashes would only spend tokens teaching the model a field it
+    // can never use.
+    const places = offersPlaces
+      ? `\n\n### Known places (ref | name | last visited | visits)\n${renderPlaceTable(placeTable)}`
+      : "";
+    const header = offersPlaces
+      ? "pending_id | date | amount | type | account | description | place | near | notification text"
+      : "pending_id | date | amount | type | account | description | place | notification text";
+    const user = `${briefing}${places}\n\n### Pending rows to classify (${header})\n${lines}`;
 
     const json = await callJsonModel(creds, SYSTEM, user, {
       userId,
@@ -348,7 +383,9 @@ async function enrich(userId: string, force: boolean): Promise<EnrichSummary> {
       json,
       new Set(unresolved.map((r) => r.id)),
       validCategoryIds,
+      new Map([...refsByRow].map(([id, refs]) => [id, new Set(refs)])),
     );
+    const placeByRef = new Map(placeTable.map((p) => [p.ref, p.location]));
 
     for (const row of unresolved) {
       const s = suggestions.get(row.id);
@@ -356,6 +393,11 @@ async function enrich(userId: string, force: boolean): Promise<EnrichSummary> {
       // label, and a location without coordinates cannot be applied. The place
       // here is the one geometry found, carried through so this write does not
       // erase what stage 1 established.
+      // The model's answer is a ref into the table the server built, so the
+      // coordinates come from here rather than from anything it said. Its
+      // choice wins over the geometric one: it had the notification text, which
+      // is the evidence that tells two neighbouring shops apart.
+      const chosen = s?.place_ref ? (placeByRef.get(s.place_ref) ?? null) : null;
       const place = placeByRow.get(row.id) ?? null;
       await supabaseAdmin
         .from("pending_transactions")
@@ -365,7 +407,7 @@ async function enrich(userId: string, force: boolean): Promise<EnrichSummary> {
                 suggested_description: s.description,
                 suggested_category_id: s.category_id,
                 suggested_note: s.note,
-                suggested_location: place?.location ?? null,
+                suggested_location: chosen ?? place?.location ?? null,
                 suggested_tags: s.tags,
                 suggestion_source: "ai",
                 suggestion_confidence: s.confidence,

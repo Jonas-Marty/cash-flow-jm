@@ -5,8 +5,11 @@ import {
   haversineMeters,
   matchRadiusM,
   normalizeDescription,
+  buildPlaceTable,
   pickRepresentative,
   rankLocationCandidates,
+  refsNear,
+  renderPlaceTable,
   suggestLocationLabel,
   suggestPlaceFromProximity,
   type LocationHistoryEntry,
@@ -308,5 +311,96 @@ describe("pickRepresentative", () => {
       { ...coopBahnhof, occurred_on: "2026-09-15", accuracy_m: 10, latitude: 47.050_2 },
     ];
     expect(pickRepresentative(members).latitude).toBe(47.050_2);
+  });
+});
+
+
+describe("buildPlaceTable", () => {
+  it("gives one ref per place, not one per visit", () => {
+    const table = buildPlaceTable([
+      ...visits(coopBahnhof, THREE_DAYS),
+      ...visits(migros, ["2026-09-02", "2026-09-09"]),
+    ]);
+    expect(table.map((p) => [p.location.label, p.visits])).toEqual([
+      ["Coop Bahnhof, Luzern", 3],
+      ["Migros Bahnhof", 2],
+    ]);
+  });
+
+  it("keeps two shops at the same address apart", () => {
+    // Coop and Migros share a station concourse, ~25 m apart. Clustering by
+    // coordinates would merge them and offer the model one ref where the whole
+    // point is that it has to choose between two.
+    expect(haversineMeters(coopBahnhof, migros)).toBeLessThan(40);
+    const table = buildPlaceTable([...visits(coopBahnhof, THREE_DAYS), ...visits(migros, THREE_DAYS)]);
+    expect(table).toHaveLength(2);
+  });
+
+  it("treats differently punctuated spellings as one place", () => {
+    const table = buildPlaceTable([
+      { ...coopBahnhof, occurred_on: "2026-09-01", label: "Coop Bahnhof, Luzern" },
+      { ...coopBahnhof, occurred_on: "2026-09-08", label: "COOP Bahnhof Luzern" },
+    ]);
+    expect(table).toHaveLength(1);
+    expect(table[0].visits).toBe(2);
+  });
+
+  it("drops points nobody ever named — a ref needs something to call it", () => {
+    expect(buildPlaceTable(visits({ ...coopBahnhof, label: null }, THREE_DAYS))).toEqual([]);
+  });
+
+  it("caps the table, keeping the places the user goes to most", () => {
+    const many: LocationHistoryEntry[] = [];
+    for (let i = 0; i < 40; i++) {
+      many.push(
+        ...visits(
+          { ...coopBahnhof, latitude: 47 + i / 1000, label: `Shop ${i}` },
+          i === 39 ? THREE_DAYS : ["2026-09-01"],
+        ),
+      );
+    }
+    const table = buildPlaceTable(many);
+    expect(table).toHaveLength(24);
+    expect(table[0].location.label).toBe("Shop 39");
+  });
+
+  it("numbers refs from p1 without gaps", () => {
+    const table = buildPlaceTable([...visits(coopBahnhof, THREE_DAYS), ...visits(migros, ["2026-09-02"])]);
+    expect(table.map((p) => p.ref)).toEqual(["p1", "p2"]);
+  });
+});
+
+describe("renderPlaceTable", () => {
+  it("never puts a coordinate in the block the model sees", () => {
+    // The app's standing claim is that pending_enrich sends place *names* and
+    // never coordinates. This makes that mechanical rather than a promise: it
+    // fails if anyone prints a latitude, or re-adds the distances that an
+    // earlier draft of the prompt carried.
+    const block = renderPlaceTable(buildPlaceTable(visits(coopBahnhof, THREE_DAYS)));
+    expect(block).not.toMatch(/\d+\.\d{4,}/);
+    expect(block).toContain("Coop Bahnhof, Luzern");
+  });
+});
+
+describe("refsNear", () => {
+  it("offers only the places within reach of the fix, nearest first", () => {
+    const table = buildPlaceTable([
+      ...visits(coopTribschen, THREE_DAYS),
+      ...visits(migros, THREE_DAYS),
+      ...visits(coopBahnhof, THREE_DAYS),
+    ]);
+    const byRef = new Map(table.map((p) => [p.ref, p.location.label]));
+    const near = refsNear(table, atBahnhof).map((r) => byRef.get(r));
+    expect(near).toEqual(["Coop Bahnhof, Luzern", "Migros Bahnhof"]);
+  });
+
+  it("offers nothing at a place the user has never been", () => {
+    const table = buildPlaceTable(visits(coopBahnhof, THREE_DAYS));
+    expect(refsNear(table, { latitude: 46.2, longitude: 6.14, accuracy_m: 40 })).toEqual([]);
+  });
+
+  it("does not let an optimistic accuracy widen the net", () => {
+    const table = buildPlaceTable(visits(coopTribschen, THREE_DAYS));
+    expect(refsNear(table, { ...atBahnhof, accuracy_m: 5000 })).toEqual([]);
   });
 });
