@@ -81,6 +81,33 @@ export function sameLocation(a: TxLocation | null, b: TxLocation | null): boolea
   );
 }
 
+/**
+ * A fix has to beat the stored one by this much to replace it, in metres and as
+ * a fraction. Two readings of the same spot differ by a few metres either way,
+ * and every replacement costs a label lookup and another suggestion pass — so a
+ * redelivered notification whose fix happens to jitter tighter must not trigger
+ * one. 500 m down to 30 m is a real improvement; 45 m down to 44 m is noise.
+ */
+const FIX_IMPROVEMENT_M = 10;
+const FIX_IMPROVEMENT_RATIO = 0.75;
+
+/**
+ * Whether a newly arrived fix is worth storing over the one already there.
+ *
+ * Yes when there was no point at all, and yes when the new one is meaningfully
+ * tighter. An accuracy nobody stated is not evidence of anything, so a reading
+ * without one neither replaces nor is replaced on accuracy grounds — silence
+ * is not an improvement, in either direction.
+ */
+export function isBetterFix(current: TxLocation | null, incoming: TxLocation | null): boolean {
+  if (!incoming) return false;
+  if (!current) return true;
+  const a = incoming.accuracy_m;
+  const b = current.accuracy_m;
+  if (a == null || b == null || !Number.isFinite(a) || !Number.isFinite(b)) return false;
+  return a <= b - FIX_IMPROVEMENT_M && a <= b * FIX_IMPROVEMENT_RATIO;
+}
+
 export function formatCoords(loc: { latitude: number; longitude: number }): string {
   return `${loc.latitude.toFixed(5)}, ${loc.longitude.toFixed(5)}`;
 }

@@ -6,7 +6,7 @@ import {
   pendingTransactionInputSchema,
   normalizePendingTransactionInput,
 } from "@/lib/pendingTransactionSchema";
-import { locationFromRow } from "@/lib/location";
+import { isBetterFix, locationFromRow, locationToColumns } from "@/lib/location";
 import {
   suggestLocationLabel,
   suggestPlaceFromProximity,
@@ -93,6 +93,82 @@ async function labelFromHistory(
   );
 }
 
+/**
+ * Lets a second POST improve the location on a row that already exists.
+ *
+ * A phone at a till often has no usable fix at the moment the notification
+ * fires — indoors, GPS cold, the payment already done. A better reading a few
+ * seconds later is real evidence, and the dedup branch used to discard it: it
+ * returned the stored row without ever reading the payload.
+ *
+ * Narrow on purpose:
+ *
+ * - **Only while the row is still pending.** A confirmed row has already copied
+ *   its location into a real transaction; moving it afterwards would leave the
+ *   two disagreeing about where the same payment happened. A rejected row is
+ *   finished with.
+ * - **Only the location.** Amount, description and category are what the user
+ *   reviews, and Android redelivers notifications — a second, worse parse of the
+ *   same text must never rewrite them.
+ * - **Only an improvement.** `isBetterFix` requires a meaningfully tighter
+ *   reading, so a redelivery carrying the same coordinates changes nothing.
+ *
+ * Returns the updated row, or null when nothing was worth changing.
+ */
+async function refineLocation(
+  userId: string,
+  existing: {
+    id: string;
+    status: string;
+    description: string | null;
+    latitude: number | string | null;
+    longitude: number | string | null;
+    location_accuracy_m: number | string | null;
+    location_label: string | null;
+    location_source: string | null;
+  },
+  payload: ReturnType<typeof normalizePendingTransactionInput>,
+) {
+  if (existing.status !== "pending") return null;
+  const incoming = locationFromRow(payload);
+  if (!incoming || !isBetterFix(locationFromRow(existing), incoming)) return null;
+
+  // The stored label, if the server borrowed one, was derived from the fix this
+  // one replaces — so it is re-derived rather than carried over. A name the
+  // client supplied itself is its own claim and is kept.
+  const label =
+    payload.location_label ??
+    (await labelFromHistory(
+      userId,
+      {
+        latitude: incoming.latitude,
+        longitude: incoming.longitude,
+        accuracy_m: incoming.accuracy_m,
+      },
+      existing.description ?? null,
+    ));
+
+  const { data, error } = await supabaseAdmin
+    .from("pending_transactions")
+    .update({
+      ...locationToColumns({ ...incoming, label }),
+      // The suggestion pass stamps this when it has looked at a row, and the
+      // automatic triggers skip anything stamped. Clearing it is what lets the
+      // new coordinates actually reach the place matcher.
+      suggested_at: null,
+    })
+    .eq("id", existing.id)
+    .eq("user_id", userId)
+    .select(SELECT_COLS)
+    .single();
+  if (error) {
+    log.warn({ event: "api.public.pending.refine_error", err: error.message, userId });
+    return null;
+  }
+  log.info({ event: "api.public.pending.location_refined", userId, id: existing.id });
+  return data;
+}
+
 const SELECT_COLS =
   "id, status, source_account_id, amount, type, occurred_on, destination_account_id, destination_amount, category_id, description, note, external_source, external_ref, external_info, latitude, longitude, location_accuracy_m, location_label, location_source, suggested_description, suggested_category_id, suggested_tags, suggestion_source, suggestion_confidence, suggested_at, confirmed_transaction_id, confirmed_at, rejected_at, reject_reason, created_at, updated_at";
 
@@ -172,7 +248,8 @@ export const Route = createFileRoute("/api/public/pending-transactions")({
         }
 
         // Idempotency: if (external_source, external_ref) is supplied and we
-        // already have a row, return it instead of duplicating.
+        // already have a row, return it instead of duplicating — but let a
+        // better fix through first. See refineLocation.
         if (payload.external_source && payload.external_ref) {
           const { data: existing } = await supabaseAdmin
             .from("pending_transactions")
@@ -182,7 +259,27 @@ export const Route = createFileRoute("/api/public/pending-transactions")({
             .eq("external_ref", payload.external_ref)
             .maybeSingle();
           if (existing) {
-            return json({ pending_transaction: existing, deduplicated: true }, 200);
+            const refined = await refineLocation(auth.userId, existing, payload);
+            // Same fire-and-forget as a fresh insert: the new coordinates only
+            // become a place suggestion once the pass has run against them, and
+            // the phone must not wait for that.
+            if (refined && !refined.category_id) {
+              void enrichPending(auth.userId).catch((e: unknown) =>
+                log.warn({
+                  event: "api.public.pending.enrich_failed",
+                  userId: auth.userId,
+                  err: String(e),
+                }),
+              );
+            }
+            return json(
+              {
+                pending_transaction: refined ?? existing,
+                deduplicated: true,
+                location_updated: !!refined,
+              },
+              200,
+            );
           }
         }
 

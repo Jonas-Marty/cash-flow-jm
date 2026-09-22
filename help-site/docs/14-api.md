@@ -45,6 +45,8 @@ Kommt dieselbe Kombination ein zweites Mal, legt die App **keine zweite Zeile** 
 
 Das ist die Rettung für jeden Client mit wackeliger Verbindung: Timeout beim Senden, nochmal schicken, kein Duplikat. Ohne `external_ref` gibt es diesen Schutz nicht — dann ist jeder Aufruf eine neue Buchung.
 
+Eine Ausnahme gibt es: **einen genaueren Ort darfst du nachreichen.** Ein Handy an der Kasse hat oft noch keine brauchbare Position, wenn die Benachrichtigung kommt. Schickst du dieselbe Zeile Sekunden später mit einer deutlich genaueren Messung, ersetzt sie die gespeicherte, und die Antwort enthält `location_updated: true`. Nur solange die Zeile noch offen ist, nur wenn die neue Genauigkeit wirklich besser ist — eine Wiederholung, deren Messung bloss ein paar Meter schwankt, ändert nichts — und nur der Ort. Betrag, Beschreibung und Kategorie bleiben, wie sie ankamen: Das ist, was du beim Prüfen vor dir hast.
+
 Löschen geht über dieselbe Kombination. Eine bereits **bestätigte** Zeile lässt sich nicht mehr löschen (Status 409): daraus ist eine echte Buchung geworden, und die gehört dir, nicht dem Client.
 
 ## Nichts wird ungefragt gebucht [#nothing-is-booked]

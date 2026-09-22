@@ -91,15 +91,26 @@ paths:
         If \`(external_source, external_ref)\` matches an existing row it is returned
         with \`deduplicated: true\` instead of being inserted again.
 
+        **A later POST may improve the location, and nothing else.** A phone at a
+        till often has no usable fix at the moment a notification fires, so a
+        tighter reading sent seconds later replaces the stored one and the
+        response carries \`location_updated: true\`. Only while the row is still
+        \`pending\`, only when the new \`location_accuracy_m\` is meaningfully
+        better (a redelivery whose fix merely jitters changes nothing), and never
+        for any other field — amount, description and category are what the user
+        reviews, and a second parse of the same text must not rewrite them.
+
         A capturing device may attach where the payment happened:
         \`latitude\`/\`longitude\` (required together), \`location_accuracy_m\` in
         metres, an optional \`location_label\`, and \`location_source\`
         (\`device\` | \`manual\` | \`search\`, defaulting to \`device\`). It is
         carried onto the transaction when the pending row is confirmed.
 
-        If a point arrives without a \`location_label\`, the server borrows the
-        name of the nearest already-labelled place whose description matches
-        this one. Only the name is borrowed — the coordinates stay as measured.
+        If a point arrives without a \`location_label\`, the server borrows a name
+        from the user's own places: the nearest already-labelled one whose
+        description matches, or failing that a place at least three past visits
+        across two or more days agree on. Only the name is borrowed — the
+        coordinates stay as measured.
 
         A row that arrives without a \`category_id\` gets one *suggested* behind
         the response: from the user's own history when the same merchant was
@@ -121,6 +132,11 @@ paths:
                 properties:
                   pending_transaction: { $ref: '#/components/schemas/PendingTransaction' }
                   deduplicated: { type: boolean }
+                  location_updated:
+                    type: boolean
+                    description: |
+                      True when this POST carried a better fix and the stored
+                      location was replaced.
         '201':
           description: Created
           content:

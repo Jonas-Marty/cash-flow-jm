@@ -433,6 +433,17 @@ Three properties carry the integration:
   the existing row with `deduplicated: true` and **200** instead of 201, backed
   by a unique partial index. Android redelivers notifications and phones lose
   signal mid-request; without this the ledger would fill with duplicates.
+  One thing a repeat POST *may* change: the location. A phone at a till often
+  has no usable fix when the notification fires, so `refineLocation()` lets a
+  meaningfully tighter reading replace the stored one and answers
+  `location_updated: true`. Only while the row is `pending` — a confirmed row
+  has already copied its location into a real transaction, and moving it would
+  leave the two disagreeing — only when `isBetterFix()` is satisfied, so a
+  redelivery whose fix merely jitters writes nothing, and never any other field:
+  a second, worse parse of the same notification text must not rewrite what the
+  user is about to review. It re-derives the borrowed label from the new point
+  and clears `suggested_at`, which is what lets the new coordinates reach the
+  place matcher at all.
 - **`external_info` carries the raw notification text**, so a human reviewing
   the row sees what the bank actually said. It is also what `pending_enrich`
   forwards to an AI provider — the one AI call in the app the user does not
@@ -517,6 +528,11 @@ including the SQL/app inventory, performance estimate and phased plan, lives in
   field-for-field, capped at 0.85 confidence so it stays below the auto-apply gate.
   Runs before the model stage, so an unreachable endpoint cannot cost a place that
   geometry already found.
+- **A later POST may refine the location**, and only the location, on a row that
+  is still pending (`refineLocation()`). The dedup branch used to return the
+  stored row without reading the payload, so a better fix arriving seconds after
+  the notification was discarded. Gated on `isBetterFix()` so a redelivery whose
+  reading jitters does not churn a label lookup and a suggestion pass.
 - `pending_enrich` now offers the model a shortlist of the user's own places as opaque
   refs (`p1`..), validated **per row**. It is still never asked to name a place — it
   answers with a ref and the server supplies the coordinates. Names and dates cross the

@@ -46,6 +46,8 @@ If the same combination arrives a second time, the app does **not** create a sec
 
 This is the saving grace for any client with a shaky connection: timeout while sending, send again, no duplicate. Without `external_ref` there is no such protection — then every call is a new transaction.
 
+There is one exception: **you may send a better location afterwards.** A phone at a till often has no usable fix yet when the notification fires. Send the same row again seconds later with a meaningfully tighter reading and it replaces the stored one, with `location_updated: true` in the response. Only while the row is still pending, only when the new accuracy really is better — a redelivery whose reading merely wobbles by a few metres changes nothing — and only the location. Amount, description and category stay as they arrived: those are what you see when you review it.
+
 Deletion works through the same combination. A line that has already been **confirmed** can no longer be deleted (status 409): it has become a real transaction, and that belongs to you, not to the client.
 
 ## Nothing is booked without asking [#nothing-is-booked]
