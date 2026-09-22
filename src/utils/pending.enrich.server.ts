@@ -12,10 +12,13 @@ import { log } from "@/lib/logger";
 import { buildContextBriefing, type BriefingTx } from "@/lib/ai/contextBriefing";
 import {
   MIN_HISTORY_CONFIDENCE,
+  locatedHistory,
   parseModelSuggestions,
   suggestFromHistory,
+  suggestPlaceForRow,
   type HistoryTx,
 } from "@/lib/pendingSuggest";
+import type { TxLocation } from "@/lib/location";
 import { resolveEndpoint } from "./ai.server";
 import { callJsonModel } from "./statements.server";
 
@@ -36,6 +39,10 @@ interface PendingRow {
   description: string | null;
   external_info: string | null;
   location_label: string | null;
+  /** What the capturing device measured, if it measured anything. */
+  latitude: number | string | null;
+  longitude: number | string | null;
+  location_accuracy_m: number | string | null;
   type: string;
   amount: number;
   occurred_on: string;
@@ -109,7 +116,7 @@ async function enrich(userId: string, force: boolean): Promise<EnrichSummary> {
   let q = supabaseAdmin
     .from("pending_transactions")
     .select(
-      "id, description, external_info, location_label, type, amount, occurred_on, source_account_id",
+      "id, description, external_info, location_label, latitude, longitude, location_accuracy_m, type, amount, occurred_on, source_account_id",
     )
     .eq("user_id", userId)
     .eq("status", "pending")
@@ -158,6 +165,18 @@ async function enrich(userId: string, force: boolean): Promise<EnrichSummary> {
   const validCategoryIds = new Set<string>(categories.map((c) => c.id));
   const now = new Date().toISOString();
 
+  // Where each row was captured, judged from its own fix against the places the
+  // user has been before. Computed up front because every write site below has
+  // to be able to offer it: a row the model answers still deserves the place
+  // geometry found, and a row nobody could place may have a place and nothing
+  // else. Costs nothing when no row carries coordinates.
+  const located = locatedHistory(history);
+  const placeByRow = new Map<string, { location: TxLocation; confidence: number }>();
+  for (const row of rows) {
+    const hit = located.length ? suggestPlaceForRow(row, located) : null;
+    if (hit) placeByRow.set(row.id, hit);
+  }
+
   // ---- 1. history ---------------------------------------------------------
   const unresolved: PendingRow[] = [];
   for (const row of rows) {
@@ -168,6 +187,24 @@ async function enrich(userId: string, force: boolean): Promise<EnrichSummary> {
       (s.category_id && !validCategoryIds.has(s.category_id))
     ) {
       unresolved.push(row);
+      // History could not place the row, but geometry may still know where it
+      // happened. Write that now rather than after the model: the model may be
+      // unreachable, and a place found from the user's own visits should not
+      // wait on a local endpoint being switched on. `suggested_at` stays NULL
+      // on purpose, so the automatic triggers still bring this row back for a
+      // category once a connection exists.
+      const place = placeByRow.get(row.id);
+      if (place) {
+        await supabaseAdmin
+          .from("pending_transactions")
+          .update({
+            suggested_location: place.location,
+            suggestion_source: "history",
+            suggestion_confidence: place.confidence,
+          })
+          .eq("id", row.id)
+          .eq("user_id", userId);
+      }
       continue;
     }
     await supabaseAdmin
@@ -176,7 +213,8 @@ async function enrich(userId: string, force: boolean): Promise<EnrichSummary> {
         suggested_description: s.description,
         suggested_category_id: s.category_id,
         suggested_note: s.note,
-        suggested_location: s.location,
+        // The description match is the stronger claim about where this was.
+        suggested_location: s.location ?? placeByRow.get(row.id)?.location ?? null,
         suggested_tags: [],
         suggestion_source: "history",
         suggestion_confidence: s.confidence,
@@ -314,6 +352,11 @@ async function enrich(userId: string, force: boolean): Promise<EnrichSummary> {
 
     for (const row of unresolved) {
       const s = suggestions.get(row.id);
+      // The model is still never asked for a place: it could only guess a
+      // label, and a location without coordinates cannot be applied. The place
+      // here is the one geometry found, carried through so this write does not
+      // erase what stage 1 established.
+      const place = placeByRow.get(row.id) ?? null;
       await supabaseAdmin
         .from("pending_transactions")
         .update(
@@ -322,24 +365,24 @@ async function enrich(userId: string, force: boolean): Promise<EnrichSummary> {
                 suggested_description: s.description,
                 suggested_category_id: s.category_id,
                 suggested_note: s.note,
-                // The model is never asked for a place: it could only guess a
-                // label, and a location without coordinates cannot be applied.
-                suggested_location: null,
+                suggested_location: place?.location ?? null,
                 suggested_tags: s.tags,
                 suggestion_source: "ai",
                 suggestion_confidence: s.confidence,
                 suggested_at: now,
               }
-            : // Looked, found nothing: marked so the automatic triggers stop
-              // re-asking; "Suggest" still forces another look.
+            : // Looked, found nothing the model could add. Marked so the
+              // automatic triggers stop re-asking; "Suggest" forces another
+              // look. A place found by geometry is not nothing, and stays —
+              // attributed to history, because that is what found it.
               {
                 suggested_description: null,
                 suggested_category_id: null,
                 suggested_note: null,
-                suggested_location: null,
+                suggested_location: place?.location ?? null,
                 suggested_tags: [],
-                suggestion_source: null,
-                suggestion_confidence: null,
+                suggestion_source: place ? "history" : null,
+                suggestion_confidence: place?.confidence ?? null,
                 suggested_at: now,
               },
         )

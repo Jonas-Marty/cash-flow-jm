@@ -14,7 +14,11 @@
  * in utils/pending.enrich.server.ts does the reading and writing.
  */
 
-import { normalizeDescription } from "./locationSuggest";
+import {
+  normalizeDescription,
+  suggestPlaceFromProximity,
+  type LocationHistoryEntry,
+} from "./locationSuggest";
 import { locationFromRow, type TxLocation } from "./location";
 
 export interface HistoryTx {
@@ -224,6 +228,54 @@ export function parseModelSuggestions(
 
     if (!description && !category_id && !note && tags.length === 0) continue;
     out.set(id, { description, category_id, note, tags, confidence });
+  }
+  return out;
+}
+
+
+// ---------------------------------------------------------------------------
+// Place, from where the row was captured
+// ---------------------------------------------------------------------------
+
+/** A pending row that may have brought coordinates with it. */
+export interface LocatedRow {
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  location_accuracy_m?: number | string | null;
+}
+
+/**
+ * The place a row was captured at, judged only by the fix it arrived with.
+ *
+ * Deliberately separate from `suggestFromHistory`, which finds a place by
+ * matching the *description*. That is the stronger claim and wins when it is
+ * available — but its confidence gates the whole row, so folding a place score
+ * into it would let a good place promote a bad category. Keeping them apart
+ * also means a row whose category came from the model can still get its place
+ * from geometry, which is the common shape for a generic bank notification.
+ */
+export function suggestPlaceForRow(
+  row: LocatedRow,
+  located: LocationHistoryEntry[],
+): { location: TxLocation; confidence: number } | null {
+  const lat = row.latitude == null ? null : Number(row.latitude);
+  const lng = row.longitude == null ? null : Number(row.longitude);
+  if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const acc = row.location_accuracy_m == null ? null : Number(row.location_accuracy_m);
+  const hit = suggestPlaceFromProximity(located, {
+    latitude: lat,
+    longitude: lng,
+    accuracy_m: acc != null && Number.isFinite(acc) ? acc : null,
+  });
+  return hit ? { location: hit.location, confidence: hit.confidence } : null;
+}
+
+/** The located transactions among a history, in the shape proximity wants. */
+export function locatedHistory(history: HistoryTx[]): LocationHistoryEntry[] {
+  const out: LocationHistoryEntry[] = [];
+  for (const tx of history) {
+    const loc = locationFromRow(tx);
+    if (loc) out.push({ ...loc, description: tx.description ?? null, occurred_on: tx.occurred_on });
   }
   return out;
 }

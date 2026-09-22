@@ -7,7 +7,11 @@ import {
   normalizePendingTransactionInput,
 } from "@/lib/pendingTransactionSchema";
 import { locationFromRow } from "@/lib/location";
-import { suggestLocationLabel, type LocationHistoryEntry } from "@/lib/locationSuggest";
+import {
+  suggestLocationLabel,
+  suggestPlaceFromProximity,
+  type LocationHistoryEntry,
+} from "@/lib/locationSuggest";
 import { enrichPending } from "@/utils/pending.enrich.server";
 
 const corsHeaders = {
@@ -45,9 +49,10 @@ async function authenticate(request: Request): Promise<{ userId: string } | null
 /**
  * A phone posts coordinates, never a name — it has no idea it was standing in
  * "Coop Bahnhof". The places the user has already labelled by hand do know, so
- * a row that arrives with a fix and a description borrows the name of the
- * nearest place that matches both. Only the name: the coordinates stay as
- * measured, and /pending offers the curated pin itself as a one-tap upgrade.
+ * a row that arrives with a fix borrows a name from them: the nearest place
+ * whose description matches, or failing that one that several visits on
+ * separate days agree on. Only the name: the coordinates stay as measured, and
+ * /pending offers the curated pin itself as a one-tap upgrade.
  *
  * Best-effort — a failed lookup costs the row a label, not its creation.
  */
@@ -58,7 +63,9 @@ async function labelFromHistory(
 ): Promise<string | null> {
   const { data, error } = await supabaseAdmin
     .from("transactions")
-    .select("latitude, longitude, location_accuracy_m, location_label, location_source, description")
+    .select(
+      "latitude, longitude, location_accuracy_m, location_label, location_source, description, occurred_on",
+    )
     .eq("user_id", userId)
     .not("latitude", "is", null)
     .not("location_label", "is", null)
@@ -68,9 +75,22 @@ async function labelFromHistory(
   const history: LocationHistoryEntry[] = [];
   for (const row of data) {
     const loc = locationFromRow(row);
-    if (loc) history.push({ ...loc, description: row.description ?? null });
+    if (loc)
+      history.push({
+        ...loc,
+        description: row.description ?? null,
+        occurred_on: row.occurred_on ?? null,
+      });
   }
-  return suggestLocationLabel(history, fix, description);
+  // A matching description is the better evidence, so it goes first. Failing
+  // that, a till the user has stood at on separate days names itself — which is
+  // the common case, because terminals mostly send "Kartenzahlung" and the
+  // description has nothing to match.
+  return (
+    suggestLocationLabel(history, fix, description) ??
+    suggestPlaceFromProximity(history, fix)?.location.label ??
+    null
+  );
 }
 
 const SELECT_COLS =

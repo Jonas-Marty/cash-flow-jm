@@ -5,8 +5,10 @@ import {
   haversineMeters,
   matchRadiusM,
   normalizeDescription,
+  pickRepresentative,
   rankLocationCandidates,
   suggestLocationLabel,
+  suggestPlaceFromProximity,
   type LocationHistoryEntry,
 } from "@/lib/locationSuggest";
 
@@ -152,5 +154,159 @@ describe("suggestLocationLabel", () => {
     expect(suggestLocationLabel([coopTribschen], coarse, "Coop Luzern")).toBe(
       "Coop Tribschen, Luzern",
     );
+  });
+});
+
+
+/** The same branch, visited on distinct days — what a habit looks like. */
+function visits(base: LocationHistoryEntry, days: string[]): LocationHistoryEntry[] {
+  return days.map((occurred_on) => ({ ...base, occurred_on }));
+}
+
+const THREE_DAYS = ["2026-09-01", "2026-09-08", "2026-09-15"];
+
+describe("suggestPlaceFromProximity", () => {
+  it("names the place past visits agree on, with no description match at all", () => {
+    // The headline case: the terminal sent "Kartenzahlung", so the conjunctive
+    // path in suggestLocationLabel has nothing to match and stays silent.
+    const history = visits(coopBahnhof, THREE_DAYS);
+    expect(suggestLocationLabel(history, atBahnhof, "Kartenzahlung")).toBeNull();
+    expect(suggestPlaceFromProximity(history, atBahnhof)?.location.label).toBe(
+      "Coop Bahnhof, Luzern",
+    );
+  });
+
+  it("refuses a single visit", () => {
+    expect(suggestPlaceFromProximity([{ ...coopBahnhof, occurred_on: "2026-09-01" }], atBahnhof))
+      .toBeNull();
+  });
+
+  it("refuses two visits on two days — near, but not yet a habit", () => {
+    // Isolates the visit count from the distinct-day rule: this passes the day
+    // guard, so only MIN_VISITS can turn it down.
+    const twice = visits(coopBahnhof, ["2026-09-01", "2026-09-08"]);
+    expect(suggestPlaceFromProximity(twice, atBahnhof)).toBeNull();
+  });
+
+  it("refuses three visits stamped the same day", () => {
+    // One afternoon errand, not a pattern — the case a bare count >= 3 misses.
+    const sameDay = visits(coopBahnhof, ["2026-09-01", "2026-09-01", "2026-09-01"]);
+    expect(suggestPlaceFromProximity(sameDay, atBahnhof)).toBeNull();
+  });
+
+  it("says nothing when two nearby places are visited about equally", () => {
+    // Proximity genuinely does not know which shop it was. Silence here is what
+    // leaves room for the notification text to break the tie.
+    const history = [...visits(coopBahnhof, THREE_DAYS), ...visits(migros, THREE_DAYS)];
+    expect(suggestPlaceFromProximity(history, atBahnhof)).toBeNull();
+  });
+
+  it("answers once one of two nearby places clearly dominates", () => {
+    const history = [
+      ...visits(coopBahnhof, ["2026-09-01", "2026-09-08", "2026-09-15", "2026-09-22"]),
+      { ...migros, occurred_on: "2026-09-02" },
+    ];
+    expect(suggestPlaceFromProximity(history, atBahnhof)?.location.label).toBe(
+      "Coop Bahnhof, Luzern",
+    );
+  });
+
+  it("ignores places outside the radius the fix admits to", () => {
+    const far = visits(coopTribschen, THREE_DAYS);
+    expect(suggestPlaceFromProximity(far, atBahnhof)).toBeNull();
+    // And a wildly optimistic accuracy must not buy a bigger radius: matchRadiusM
+    // caps at 500 m, and Tribschen is 1.2 km away.
+    expect(suggestPlaceFromProximity(far, { ...atBahnhof, accuracy_m: 5000 })).toBeNull();
+  });
+
+  it("returns a stored pin verbatim, never an average of them", () => {
+    const history = [
+      // Deliberately chosen so their mean is not one of them — otherwise a
+      // centroid would coincide with an input and the assertion would pass
+      // against exactly the implementation it exists to reject.
+      { ...coopBahnhof, occurred_on: "2026-09-01", latitude: 47.050_1 },
+      { ...coopBahnhof, occurred_on: "2026-09-08", latitude: 47.050_2 },
+      { ...coopBahnhof, occurred_on: "2026-09-15", latitude: 47.050_7 },
+    ];
+    const got = suggestPlaceFromProximity(history, atBahnhof)!.location;
+    const inputs = history.map((h) => ({
+      latitude: h.latitude,
+      longitude: h.longitude,
+      accuracy_m: h.accuracy_m,
+      label: h.label,
+      source: h.source,
+    }));
+    expect(inputs).toContainEqual(got);
+  });
+
+  it("treats differently punctuated spellings of one name as one place", () => {
+    const history = [
+      { ...coopBahnhof, occurred_on: "2026-09-01", label: "Coop Bahnhof, Luzern" },
+      { ...coopBahnhof, occurred_on: "2026-09-08", label: "Coop Bahnhof Luzern" },
+      { ...coopBahnhof, occurred_on: "2026-09-15", label: "COOP  Bahnhof, Luzern" },
+    ];
+    expect(suggestPlaceFromProximity(history, atBahnhof)?.visits).toBe(3);
+  });
+
+  it("ignores nearby points nobody ever named", () => {
+    const unnamed = visits({ ...coopBahnhof, label: null }, THREE_DAYS);
+    expect(suggestPlaceFromProximity(unnamed, atBahnhof)).toBeNull();
+  });
+
+  it("never reaches the confidence that would let a suggestion apply itself", () => {
+    // docs/pending-suggestions-feedback-loop.md gates auto-apply at 0.9. A
+    // place known only by where the phone was must stay a chip, however many
+    // times the user has been there.
+    const many = visits(coopBahnhof, [
+      "2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04",
+      "2026-09-05", "2026-09-06", "2026-09-07", "2026-09-08", "2026-09-09",
+    ]);
+    const c = suggestPlaceFromProximity(many, { ...coopBahnhof, accuracy_m: 40 })!.confidence;
+    expect(c).toBeLessThan(0.9);
+  });
+
+  it("is more confident about more visits", () => {
+    const three = suggestPlaceFromProximity(visits(coopBahnhof, THREE_DAYS), atBahnhof)!;
+    const five = suggestPlaceFromProximity(
+      visits(coopBahnhof, [...THREE_DAYS, "2026-09-22", "2026-09-29"]),
+      atBahnhof,
+    )!;
+    expect(five.confidence).toBeGreaterThan(three.confidence);
+  });
+
+  it("uses the same radius clamp the label path does", () => {
+    const at = { latitude: 47.050_2, longitude: 8.310_3, accuracy_m: 5000 };
+    const inside = { ...coopBahnhof, latitude: 47.054_5 }; // ~480 m north
+    const outside = { ...coopBahnhof, latitude: 47.054_9 }; // ~520 m north
+    expect(haversineMeters(at, inside)).toBeLessThan(matchRadiusM(5000));
+    expect(haversineMeters(at, outside)).toBeGreaterThan(matchRadiusM(5000));
+    expect(suggestPlaceFromProximity(visits(inside, THREE_DAYS), at)).not.toBeNull();
+    expect(suggestPlaceFromProximity(visits(outside, THREE_DAYS), at)).toBeNull();
+  });
+});
+
+describe("pickRepresentative", () => {
+  it("prefers a pin the user placed over one a phone measured", () => {
+    const members: LocationHistoryEntry[] = [
+      { ...coopBahnhof, occurred_on: "2026-09-15", source: "device", accuracy_m: 30 },
+      { ...coopBahnhof, occurred_on: "2026-08-01", source: "search", latitude: 47.050_9 },
+    ];
+    expect(pickRepresentative(members).source).toBe("search");
+  });
+
+  it("prefers the most recent among equally curated pins", () => {
+    const members: LocationHistoryEntry[] = [
+      { ...coopBahnhof, occurred_on: "2026-08-01", latitude: 47.050_9 },
+      { ...coopBahnhof, occurred_on: "2026-09-15", latitude: 47.050_2 },
+    ];
+    expect(pickRepresentative(members).latitude).toBe(47.050_2);
+  });
+
+  it("prefers the tighter fix when the pins are equally recent and curated", () => {
+    const members: LocationHistoryEntry[] = [
+      { ...coopBahnhof, occurred_on: "2026-09-15", accuracy_m: 120, latitude: 47.050_9 },
+      { ...coopBahnhof, occurred_on: "2026-09-15", accuracy_m: 10, latitude: 47.050_2 },
+    ];
+    expect(pickRepresentative(members).latitude).toBe(47.050_2);
   });
 });
