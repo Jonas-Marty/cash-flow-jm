@@ -381,9 +381,23 @@ Photon as fallback — so the third party sees the server's IP, not the user's.
 The third is `labelFromHistory()` in `api.public.pending-transactions.ts`: when a
 device posts coordinates with no label, it scans the caller's last 200 located
 transactions for one whose description matches and which is within
-`matchRadiusM()` — the reported accuracy clamped to 150–500 m. It copies **only
-the name**; coordinates stay as measured, and promoting the curated pin is a
-separate tap in `/pending`.
+`matchRadiusM()` — the reported accuracy clamped to 150–500 m. Failing that it
+falls back to `suggestPlaceFromProximity()`, which answers from the fix alone
+when the evidence is neither thin nor divided: at least three visits on two or
+more days, and one place holding 60 % of the traffic in radius. Terminals mostly
+send "Kartenzahlung", so without that fallback the conjunctive path has nothing
+to match and a familiar till stays nameless. Clustering is by the label the user
+gave, never by coordinates — two shops in one station concourse are 20 m apart,
+and merging them by distance answers confidently with the wrong one. It copies
+**only the name**; coordinates stay as measured, and promoting the curated pin is
+a separate tap in `/pending`.
+
+**`suggested_location` is always one of the user's own pins**, copied
+field-for-field from a stored row — never a centroid, which is a point nobody
+chose and has no honest `location_source`. Proximity-only matches are capped at
+0.85 confidence, below the 0.9 auto-apply gate in
+`docs/pending-suggestions-feedback-loop.md`: being in the right place is enough
+to offer a chip and never enough to write without a tap.
 
 Two egress paths are **browser-side** and therefore expose the user's own IP:
 Leaflet's tiles from `tile.openstreetmap.org`, and the `osmLink()` click-out.
@@ -391,8 +405,20 @@ Both are disclosed in `privacy.tsx` §6; `docsParity.test.ts` fails if a new hos
 appears in `src/` without being added there.
 
 Locations are excluded from webhook payloads (`notifiers/types.ts`). They do
-reach an AI provider in one case: `pending_enrich` sends `location_label`, never
-the coordinates.
+reach an AI provider in one case: `pending_enrich` sends `location_label`, plus
+the **names** of up to 24 places the user has saved before with opaque
+per-request refs (`p1`..) marking which are near each row — never a coordinate
+and never a distance. The ordering carries "nearest first", so metres would buy
+nothing and would be the only geographic quantity in the payload;
+`renderPlaceTable`'s test asserts the block contains no coordinate, so re-adding
+them fails the build.
+
+The model is still never asked to *name* a place — it could only guess a label,
+and a location without coordinates cannot be applied. It answers with a ref into
+a table the server built and still holds, so the coordinates come from the
+server. Refs are validated **per row**: a row with no fix is offered none and can
+claim none. The model can only reorder a shortlist geometry already judged
+plausible.
 
 ### 3.13 FinReader, and anything else posting from outside
 
@@ -472,6 +498,36 @@ including the SQL/app inventory, performance estimate and phased plan, lives in
 > a change-log entry that describes today's code is no longer a record of
 > anything. Sections 1–6 are the maintained description; if the two disagree,
 > the sections above win. The same goes for the design records under `docs/`.
+
+### 2026-09-22 — Places in pending suggestions
+
+- **The place chip never rendered for a row that arrived with a fix.** The draft is
+  seeded from the row's own coordinates, but the guard asked for `!d.location`, so the
+  one case a place suggestion exists for could never show one. Unnoticed since the
+  feature shipped because no production row has ever carried coordinates. Now three
+  states: offer while the draft still holds the raw fix, stop once the user moves it
+  or takes the suggestion.
+- The four `suggests*` predicates moved to `lib/pendingSuggestView.ts`. Both `/pending`
+  views held their own copies and the copies had drifted — one compared notes with
+  `String.includes`, the other line by line, so the same row offered a remark in one
+  view and not the other.
+- `suggestPlaceFromProximity()` names a place from the fix alone: three visits on two
+  or more days, one place holding 60 % of the traffic in radius. Clustered by the
+  user's own label, not by coordinates. Answers with a stored pin copied
+  field-for-field, capped at 0.85 confidence so it stays below the auto-apply gate.
+  Runs before the model stage, so an unreachable endpoint cannot cost a place that
+  geometry already found.
+- `pending_enrich` now offers the model a shortlist of the user's own places as opaque
+  refs (`p1`..), validated **per row**. It is still never asked to name a place — it
+  answers with a ref and the server supplies the coordinates. Names and dates cross the
+  wire; no coordinate, no distance.
+- **Rejected: tool calls to a nearby-POI service.** Nominatim reverse answers "what is
+  at this point", not "what is near it"; only Overpass could, and querying it per
+  notification would send precise coordinates to a new third party on the one AI path
+  the user does not trigger — a timestamped movement trace. It also loses on merit: a
+  POI the user has never visited has no honest `location_source` and cannot become a
+  storable location. If POI lookup is ever wanted, its shape is a button in the place
+  picker, where the tap is the consent.
 
 ### 2026-09-22 — Budgets as a grid
 

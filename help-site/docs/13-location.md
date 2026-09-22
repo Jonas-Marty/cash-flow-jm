@@ -38,6 +38,8 @@ Drei Wege:
 2. **Rückwärtssuche** — du erfasst einen Punkt oder verschiebst den Pin, und die App fragt die Adresse dazu ab.
 3. **Aus deiner eigenen Historie** — schickt ein Gerät Koordinaten ohne Bezeichnung, sucht die App in deinen letzten 200 Buchungen nach einem Ort, der zur Beschreibung passt und nah genug liegt. Nah genug heisst: die gemeldete Genauigkeit, mindestens aber 150 m und höchstens 500 m.
 
+Passt keine Beschreibung — Zahlterminals schicken meist nur *Kartenzahlung* — zählt die App, wo du schon warst: Ein Ort, den du an **mindestens zwei verschiedenen Tagen dreimal** besucht hast und der dort die klare Mehrheit stellt, benennt sich selbst. Sind zwei Geschäfte im selben Bahnhof ungefähr gleich oft dabei, sagt die App lieber nichts, als das falsche zu raten.
+
 Bei Weg 3 wird **nur der Name übernommen**. Die Koordinaten bleiben so, wie das Gerät sie gemessen hat — der gepflegte Pin von damals ist unter **Offen** einen Tipp entfernt.
 
 ## Wer davon erfährt [#who-sees-it]
@@ -58,3 +60,5 @@ Die vollständige Aufstellung steht im [Datenschutzhinweis](https://cash-flow.wi
 Dieselbe Antwort wie für alle anderen Daten: Koordinaten und Bezeichnungen liegen **unverschlüsselt** in der Datenbank, und die betreibende Person kann sie lesen. Siehe [Datenspeicherung](/data-storage).
 
 An Webhooks werden Orte **nicht** mitgeschickt. Verwendest du den KI-Assistenten für Vorschläge zu offenen Buchungen, geht die **Ortsbezeichnung** (nicht die Koordinaten) an deinen Provider mit — siehe [KI-Assistent](/ai).
+
+Trägt eine offene Buchung Koordinaten, kommen zusätzlich die **Namen** von bis zu 24 Orten mit, die du früher gespeichert hast, damit das Modell zwei nahe beieinanderliegende Geschäfte auseinanderhalten kann. Es bekommt dafür kurze Kürzel (*p1*, *p2*) und antwortet mit einem davon — einen Ortsnamen darf es nicht selbst erfinden, und Koordinaten oder Entfernungen bekommt es nie zu sehen.

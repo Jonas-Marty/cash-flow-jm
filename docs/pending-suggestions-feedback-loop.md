@@ -63,6 +63,17 @@ corrected.
    when auto-applied, so the row can still show "set automatically from
    history" and the outcome recording in (1) still works.
 
+   **Note since 2026-09-22.** `suggestPlaceFromProximity()` widened the
+   `'history'` population: a row can now be marked `'history'` on the strength
+   of *where it happened* rather than what it was called. Those matches are
+   capped at 0.85 confidence precisely so the 0.9 gate above keeps holding them
+   out — the cap is load-bearing, not cosmetic, and removing it would let a
+   place known only from a coarse device fix write itself into the books.
+   Note also that `suggestion_source` describes the row, not the place: an
+   `'ai'` row may carry a place that geometry found, so measuring place
+   acceptance in (3) needs its own counter rather than splitting on that
+   column.
+
 ## Why it was deferred
 
 There is no traffic yet to measure against. Building the loop before there

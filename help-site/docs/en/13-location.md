@@ -38,6 +38,8 @@ Three ways:
 2. **Reverse lookup** — you capture a point or drag the pin, and the app looks up the address for it.
 3. **From your own history** — when a device sends coordinates with no label, the app looks through your last 200 transactions for a place whose description matches and which is close enough. Close enough means the reported accuracy, but never less than 150 m and never more than 500 m.
 
+When no description matches — payment terminals mostly send just *card payment* — the app counts where you have already been instead: a place you have visited **three times across at least two different days**, and which clearly outnumbers anything else nearby, names itself. If two shops in the same station come up about equally often, the app would rather say nothing than guess the wrong one.
+
 In the third case **only the name is borrowed**. The coordinates stay exactly as the device measured them — the curated pin from last time is one tap away under **Pending**.
 
 ## Who finds out about it [#who-sees-it]
@@ -58,3 +60,5 @@ The full list is in the [privacy notice](https://cash-flow.wi-wo.ch/privacy), se
 The same answer as for everything else: coordinates and labels sit **unencrypted** in the database and the operator can read them. See [Data storage](/data-storage).
 
 Places are **not** included in webhook payloads. If you use the AI assistant for suggestions on pending transactions, the **place label** (not the coordinates) is sent to your provider — see [AI assistant](/ai).
+
+When a pending row carries coordinates, the **names** of up to 24 places you have saved before go along with it, so the model can tell two nearby shops apart. It gets short references (*p1*, *p2*) and answers with one of them — it is not allowed to invent a place name of its own, and it never sees a coordinate or a distance.
