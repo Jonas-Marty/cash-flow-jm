@@ -39,21 +39,34 @@ export function LocationSection({
   dateIsToday,
   recent,
   className,
+  variant = "inline",
 }: {
   value: TxLocation | null;
   onChange: (loc: TxLocation | null) => void;
   dateIsToday: boolean;
   recent?: RecentLocation[];
   className?: string;
+  /**
+   * `inline` — one field among many on the Add form, so it starts collapsed unless
+   * a place is already set and keeps a small map to stay out of the way.
+   *
+   * `picker` — the entire content of a dialog opened *in order to* choose a place.
+   * Collapsing it, or showing a thumbnail when the overlay has room for a real map,
+   * only adds a click between the user and the thing they asked for.
+   */
+  variant?: "inline" | "picker";
 }) {
   const { t: tr } = useI18n();
-  const [open, setOpen] = React.useState(!!value);
+  const picker = variant === "picker";
+  const [open, setOpen] = React.useState(picker || !!value);
   const [busy, setBusy] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const [results, setResults] = React.useState<{ label: string; latitude: number; longitude: number }[]>([]);
   const [searching, setSearching] = React.useState(false);
   const [searchErr, setSearchErr] = React.useState<string | null>(null);
-  const [showRecent, setShowRecent] = React.useState(false);
+  // Already guarded by `recent.length > 0`, so opening it by default in the picker
+  // shows nothing when there is nothing to show.
+  const [showRecent, setShowRecent] = React.useState(picker);
   const doSearch = useServerFn(searchPlaces);
   const doReverse = useServerFn(reverseGeocode);
   const [resolving, setResolving] = React.useState(false);
@@ -183,13 +196,20 @@ export function LocationSection({
 
   return (
     <>
-    <Collapsible open={open} onOpenChange={setOpen} className={cn("rounded-lg border", className)}>
-      <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 px-3 py-2 text-sm">
-        <span className="flex items-center gap-2 font-medium">
-          <MapPin className="h-4 w-4 text-muted-foreground" />
-          {tr("loc.title")}
+    <Collapsible
+      open={open}
+      onOpenChange={setOpen}
+      // `min-w-0` matters: as a grid item inside the dialog this defaults to
+      // `min-width: auto`, so a long address stretched the track past the dialog
+      // instead of letting the label truncate.
+      className={cn("w-full min-w-0 rounded-lg border", className)}
+    >
+      <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm">
+        <span className="flex min-w-0 items-center gap-2 font-medium">
+          <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
+          <span className="shrink-0">{tr("loc.title")}</span>
           {value ? (
-            <span className="truncate text-xs font-normal text-muted-foreground">
+            <span className="min-w-0 truncate text-xs font-normal text-muted-foreground">
               {value.label ?? formatCoords(value)}
             </span>
           ) : (
@@ -212,11 +232,14 @@ export function LocationSection({
           </Button>
         </div>
         {expanded ? (
-          <div className="grid h-48 w-full place-items-center rounded-md border bg-muted text-xs text-muted-foreground">
+          <div className={cn(
+            "grid w-full place-items-center rounded-md border bg-muted text-xs text-muted-foreground",
+            picker ? "h-80 sm:h-96" : "h-48",
+          )}>
             {tr("loc.map_in_overlay")}
           </div>
         ) : (
-          renderMap("h-48")
+          renderMap(picker ? "h-80 sm:h-96" : "h-48")
         )}
         {value ? (
           <>
