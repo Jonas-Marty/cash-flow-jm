@@ -7,6 +7,7 @@ import {
   folderView,
   mimeAllowed,
   parseMultistatus,
+  previewKind,
 } from "./nextcloudDav";
 
 const BASE = "https://cloud.example.com";
@@ -147,5 +148,19 @@ describe("paths", () => {
   it("refuses to climb out of the user's files", () => {
     expect(cleanFolder("/a/../../etc/./x/")).toBe("/a/etc/x");
     expect(cleanFolder("")).toBe("/");
+  });
+});
+
+describe("previewKind", () => {
+  it("previews PDFs and the image types every browser decodes", () => {
+    expect(previewKind("application/pdf")).toBe("pdf");
+    expect(previewKind("image/jpeg")).toBe("image");
+    expect(previewKind("Image/PNG; q=1")).toBe("image");
+  });
+
+  it("offers no preview for iPhone HEIC, SVG or unknown types", () => {
+    expect(previewKind("image/heic")).toBeNull();
+    expect(previewKind("image/svg+xml")).toBeNull();
+    expect(previewKind(null)).toBeNull();
   });
 });

@@ -6,10 +6,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ChevronRight, FileText, Folder, Image as ImageIcon, Loader2 } from "lucide-react";
+import { ChevronRight, Eye, FileText, Folder, Image as ImageIcon, Loader2 } from "lucide-react";
 import { listNextcloudFolder, searchNextcloud } from "@/utils/nextcloud.functions";
 import { isReconnectError } from "@/lib/nextcloudAuth";
-import type { NcEntry, NcKind } from "@/lib/nextcloudDav";
+import { previewKind, type NcEntry, type NcKind } from "@/lib/nextcloudDav";
+import { NextcloudFilePreview } from "@/components/NextcloudFilePreview";
 import { useI18n } from "@/i18n";
 
 export interface PickedFile {
@@ -74,6 +75,7 @@ export function NextcloudFilePicker({
   const [query, setQuery] = React.useState("");
   const [folder, setFolder] = React.useState<string>(() => readFolder(kind));
   const [onlyDocs, setOnlyDocs] = React.useState(true);
+  const [preview, setPreview] = React.useState<NcEntry | null>(null);
   const q = useDebounced(query.trim(), 300);
   const searching = q.length >= 2;
   // Statements are always filtered: extraction cannot read anything else.
@@ -81,7 +83,10 @@ export function NextcloudFilePicker({
 
   React.useEffect(() => {
     if (open) setFolder(readFolder(kind));
-    else setQuery("");
+    else {
+      setQuery("");
+      setPreview(null);
+    }
   }, [open, kind]);
 
   const searchQ = useQuery({
@@ -100,7 +105,9 @@ export function NextcloudFilePicker({
   });
 
   const active = searching ? searchQ : folderQ;
-  const entries: NcEntry[] = searching ? (searchQ.data?.results ?? []) : (folderQ.data?.entries ?? []);
+  const entries: NcEntry[] = searching
+    ? (searchQ.data?.results ?? [])
+    : (folderQ.data?.entries ?? []);
   // Typing between keystrokes counts as loading, so "no matches" never
   // flashes for a query that has not been sent yet.
   const pending = query.trim() !== q && query.trim().length >= 2;
@@ -130,109 +137,175 @@ export function NextcloudFilePicker({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-xl">
-        <DialogHeader>
-          <DialogTitle>{t("attachments.picker.title")}</DialogTitle>
-        </DialogHeader>
-        <Input
-          autoFocus
-          placeholder={t("attachments.picker.placeholder")}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-          {searching ? (
-            <span>{t("attachments.picker.searching_all")}</span>
-          ) : (
-            <nav className="flex min-w-0 flex-wrap items-center gap-0.5" aria-label={t("attachments.picker.folder")}>
-              <button type="button" className="hover:text-foreground hover:underline" onClick={() => openFolder("/")}>
-                {t("nextcloud.title")}
-              </button>
-              {crumbs.map((c) => (
-                <React.Fragment key={c.path}>
-                  <ChevronRight className="h-3 w-3 shrink-0" />
-                  <button type="button" className="truncate hover:text-foreground hover:underline" onClick={() => openFolder(c.path)}>
-                    {c.name}
-                  </button>
-                </React.Fragment>
-              ))}
-            </nav>
-          )}
-          {kind === "receipt" ? (
-            <label className="flex items-center gap-1.5">
-              <Checkbox checked={onlyDocs} onCheckedChange={(v) => setOnlyDocs(v === true)} />
-              {t("attachments.picker.only_docs")}
-            </label>
-          ) : (
-            <span>{t("attachments.picker.statement_types")}</span>
-          )}
-        </div>
-        <div className="min-h-[200px] max-h-[420px] overflow-y-auto rounded-md border">
-          {loading && (
-            <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
-            </div>
-          )}
-          {!loading && error && (
-            <div className="space-y-2 p-4 text-sm">
-              {isReconnectError(error) ? (
-                <>
-                  <p className="text-destructive">{t("nextcloud.reconnect_needed")}</p>
-                  <Link to="/settings" hash="nextcloud" className="text-primary underline" onClick={() => onOpenChange(false)}>
-                    {t("nextcloud.open_settings")}
-                  </Link>
-                </>
+      <DialogContent className={preview ? "max-w-5xl" : "max-w-xl"}>
+        <div
+          className={
+            preview ? "grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]" : "grid gap-4"
+          }
+        >
+          <div className="flex min-w-0 flex-col gap-4">
+            <DialogHeader>
+              <DialogTitle>{t("attachments.picker.title")}</DialogTitle>
+            </DialogHeader>
+            <Input
+              autoFocus
+              placeholder={t("attachments.picker.placeholder")}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+              {searching ? (
+                <span>{t("attachments.picker.searching_all")}</span>
               ) : (
-                <>
-                  <p className="text-destructive">{error instanceof Error ? error.message : String(error)}</p>
-                  {!searching && folder !== "/" && (
-                    <Button size="sm" variant="outline" onClick={() => openFolder("/")}>
-                      {t("nextcloud.title")}
-                    </Button>
-                  )}
-                </>
+                <nav
+                  className="flex min-w-0 flex-wrap items-center gap-0.5"
+                  aria-label={t("attachments.picker.folder")}
+                >
+                  <button
+                    type="button"
+                    className="hover:text-foreground hover:underline"
+                    onClick={() => openFolder("/")}
+                  >
+                    {t("nextcloud.title")}
+                  </button>
+                  {crumbs.map((c) => (
+                    <React.Fragment key={c.path}>
+                      <ChevronRight className="h-3 w-3 shrink-0" />
+                      <button
+                        type="button"
+                        className="truncate hover:text-foreground hover:underline"
+                        onClick={() => openFolder(c.path)}
+                      >
+                        {c.name}
+                      </button>
+                    </React.Fragment>
+                  ))}
+                </nav>
+              )}
+              {kind === "receipt" ? (
+                <label className="flex items-center gap-1.5">
+                  <Checkbox checked={onlyDocs} onCheckedChange={(v) => setOnlyDocs(v === true)} />
+                  {t("attachments.picker.only_docs")}
+                </label>
+              ) : (
+                <span>{t("attachments.picker.statement_types")}</span>
               )}
             </div>
-          )}
-          {!loading && !error && entries.length === 0 && (
-            <div className="p-4 text-sm text-muted-foreground">
-              {searching ? t("attachments.picker.no_results") : t("attachments.picker.empty_folder")}
+            <div className="min-h-[200px] max-h-[420px] overflow-y-auto rounded-md border">
+              {loading && (
+                <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
+                </div>
+              )}
+              {!loading && error && (
+                <div className="space-y-2 p-4 text-sm">
+                  {isReconnectError(error) ? (
+                    <>
+                      <p className="text-destructive">{t("nextcloud.reconnect_needed")}</p>
+                      <Link
+                        to="/settings"
+                        hash="nextcloud"
+                        className="text-primary underline"
+                        onClick={() => onOpenChange(false)}
+                      >
+                        {t("nextcloud.open_settings")}
+                      </Link>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-destructive">
+                        {error instanceof Error ? error.message : String(error)}
+                      </p>
+                      {!searching && folder !== "/" && (
+                        <Button size="sm" variant="outline" onClick={() => openFolder("/")}>
+                          {t("nextcloud.title")}
+                        </Button>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+              {!loading && !error && entries.length === 0 && (
+                <div className="p-4 text-sm text-muted-foreground">
+                  {searching
+                    ? t("attachments.picker.no_results")
+                    : t("attachments.picker.empty_folder")}
+                </div>
+              )}
+              {!loading && !error && entries.length > 0 && (
+                <ul className="divide-y">
+                  {entries.map((e) => {
+                    const dir =
+                      e.path.slice(0, e.path.length - e.name.length).replace(/\/+$/, "") || "/";
+                    const meta = [
+                      searching ? dir : null,
+                      e.modified ? dateFmt.format(new Date(e.modified)) : null,
+                      e.is_dir ? null : fmtSize(e.size),
+                    ].filter(Boolean);
+                    const Icon = e.is_dir
+                      ? Folder
+                      : e.mime?.startsWith("image/")
+                        ? ImageIcon
+                        : FileText;
+                    const canPreview = !e.is_dir && previewKind(e.mime) !== null;
+                    return (
+                      <li
+                        key={e.path}
+                        className={`flex items-stretch ${preview?.path === e.path ? "bg-accent" : ""}`}
+                      >
+                        <button
+                          type="button"
+                          className="flex min-w-0 flex-1 items-start gap-3 px-3 py-2 text-left hover:bg-accent"
+                          onClick={() => (e.is_dir ? openFolder(e.path) : pick(e))}
+                        >
+                          <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                          <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm font-medium">{e.name}</div>
+                            {meta.length > 0 && (
+                              <div className="truncate text-xs text-muted-foreground">
+                                {meta.join(" · ")}
+                              </div>
+                            )}
+                          </div>
+                          {e.is_dir && (
+                            <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+                          )}
+                        </button>
+                        {canPreview && (
+                          <button
+                            type="button"
+                            className="shrink-0 px-3 text-muted-foreground hover:bg-accent hover:text-foreground"
+                            onClick={() => setPreview(preview?.path === e.path ? null : e)}
+                            aria-label={t("attachments.preview.show", { name: e.name })}
+                            title={t("attachments.preview.show", { name: e.name })}
+                            aria-pressed={preview?.path === e.path}
+                          >
+                            <Eye className="h-4 w-4" />
+                          </button>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+            <div className="flex justify-end">
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                {t("common.cancel")}
+              </Button>
+            </div>
+          </div>
+          {preview && (
+            // Beside the list from md up; on a phone it covers the dialog, and
+            // closing it returns to the list where the user left it.
+            <div className="absolute inset-0 z-10 flex flex-col rounded-lg bg-background p-4 md:static md:z-auto md:h-[70vh] md:rounded-none md:border-l md:p-0 md:pl-4">
+              <NextcloudFilePreview
+                entry={preview}
+                onClose={() => setPreview(null)}
+                onChoose={() => pick(preview)}
+              />
             </div>
           )}
-          {!loading && !error && entries.length > 0 && (
-            <ul className="divide-y">
-              {entries.map((e) => {
-                const dir = e.path.slice(0, e.path.length - e.name.length).replace(/\/+$/, "") || "/";
-                const meta = [
-                  searching ? dir : null,
-                  e.modified ? dateFmt.format(new Date(e.modified)) : null,
-                  e.is_dir ? null : fmtSize(e.size),
-                ].filter(Boolean);
-                const Icon = e.is_dir ? Folder : e.mime?.startsWith("image/") ? ImageIcon : FileText;
-                return (
-                  <li key={e.path}>
-                    <button
-                      type="button"
-                      className="flex w-full items-start gap-3 px-3 py-2 text-left hover:bg-accent"
-                      onClick={() => (e.is_dir ? openFolder(e.path) : pick(e))}
-                    >
-                      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium">{e.name}</div>
-                        {meta.length > 0 && (
-                          <div className="truncate text-xs text-muted-foreground">{meta.join(" · ")}</div>
-                        )}
-                      </div>
-                      {e.is_dir && <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-        <div className="flex justify-end">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>{t("common.cancel")}</Button>
         </div>
       </DialogContent>
     </Dialog>

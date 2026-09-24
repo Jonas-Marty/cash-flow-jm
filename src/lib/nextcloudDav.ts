@@ -36,6 +36,19 @@ export function mimeAllowed(kind: NcKind, mime: string | null): boolean {
   return rule.exact.includes(m) || rule.prefix.some((p) => m.startsWith(p));
 }
 
+// Formats every current browser decodes in an <img>. HEIC (iPhone photos) and
+// TIFF only work in Safari, and SVG is left out on purpose: it is a document,
+// not a picture, and a preview has no business rendering one.
+const PREVIEW_IMAGES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "image/bmp"];
+
+/** How the picker can preview a file: pdf.js for PDFs, <img> for common images, else not at all. */
+export function previewKind(mime: string | null): "pdf" | "image" | null {
+  const m = (mime ?? "").split(";")[0].trim().toLowerCase();
+  if (m === "application/pdf") return "pdf";
+  if (PREVIEW_IMAGES.includes(m)) return "image";
+  return null;
+}
+
 function xmlEscape(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
