@@ -4,6 +4,9 @@
 /** What a picker is choosing, which decides the file types it offers. */
 export type NcKind = "receipt" | "statement" | "any";
 
+/** Order of files by last modification. Folders always stay alphabetical. */
+export type NcOrder = "desc" | "asc";
+
 export interface NcEntry {
   name: string;
   /** Path inside the user's files, e.g. /Invoices/foo.pdf. Folders end without a slash. */
@@ -90,10 +93,18 @@ function mimeCondition(kind: NcKind): string {
 }
 
 /**
- * A SEARCH body: file names containing `query`, newest first. The type filter
- * runs on the server so the result limit is spent on files the picker can use.
+ * A SEARCH body: file names containing `query`, newest first by default. The
+ * order and the type filter both run on the server, so the result limit is
+ * spent on the right files: "oldest first" has to ask Nextcloud for the oldest
+ * matches, not reverse the newest 25.
  */
-export function buildSearchXml(user: string, query: string, kind: NcKind, limit: number): string {
+export function buildSearchXml(
+  user: string,
+  query: string,
+  kind: NcKind,
+  limit: number,
+  order: NcOrder = "desc",
+): string {
   const like = `<d:like><d:prop><d:displayname/></d:prop><d:literal>%${xmlEscape(likeEscape(query))}%</d:literal></d:like>`;
   const mime = mimeCondition(kind);
   // Without a type filter, folders would match by name too; the picker lists
@@ -114,7 +125,7 @@ export function buildSearchXml(user: string, query: string, kind: NcKind, limit:
     </d:from>
     <d:where>${where}</d:where>
     <d:orderby>
-      <d:order><d:prop><d:getlastmodified/></d:prop><d:descending/></d:order>
+      <d:order><d:prop><d:getlastmodified/></d:prop><d:${order === "asc" ? "ascending" : "descending"}/></d:order>
     </d:orderby>
     <d:limit><d:nresults>${limit}</d:nresults></d:limit>
   </d:basicsearch>
@@ -202,20 +213,25 @@ export function parseMultistatus(xml: string, base: string, user: string): NcEnt
   return out;
 }
 
+/** Folders first by name, then files by modification date in `order`. */
+export function sortEntries(entries: NcEntry[], order: NcOrder = "desc"): NcEntry[] {
+  const dirs = entries
+    .filter((e) => e.is_dir)
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+  const sign = order === "asc" ? 1 : -1;
+  const files = entries
+    .filter((e) => !e.is_dir)
+    .sort((a, b) => sign * (a.modified ?? "").localeCompare(b.modified ?? ""));
+  return [...dirs, ...files];
+}
+
 /**
  * A folder listing as the picker shows it: the folder itself removed, files of
  * the wrong type hidden, folders first by name, then files newest first.
  */
 export function folderView(entries: NcEntry[], folder: string, kind: NcKind): NcEntry[] {
   const self = folder.replace(/\/+$/, "") || "/";
-  const rest = entries.filter((e) => e.path !== self);
-  const dirs = rest
-    .filter((e) => e.is_dir)
-    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
-  const files = rest
-    .filter((e) => !e.is_dir && mimeAllowed(kind, e.mime))
-    .sort((a, b) => (b.modified ?? "").localeCompare(a.modified ?? ""));
-  return [...dirs, ...files];
+  return sortEntries(entries.filter((e) => e.path !== self && (e.is_dir || mimeAllowed(kind, e.mime))));
 }
 
 /** Normalise a user-supplied folder path: leading slash, no dot segments. */

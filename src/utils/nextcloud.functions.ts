@@ -122,11 +122,17 @@ export const startNextcloudOAuth = createServerFn({ method: "POST" })
 
 export const searchNextcloud = createServerFn({ method: "POST" })
   .middleware([attachSupabaseAuth, requireSupabaseAuth])
-  .inputValidator((d: { query: string; kind?: "receipt" | "statement" | "any" }) =>
-    z.object({ query: z.string().trim().min(1).max(200), kind: kindSchema }).parse(d),
+  .inputValidator((d: { query: string; kind?: "receipt" | "statement" | "any"; order?: "desc" | "asc" }) =>
+    z
+      .object({
+        query: z.string().trim().min(1).max(200),
+        kind: kindSchema,
+        order: z.enum(["desc", "asc"]).default("desc"),
+      })
+      .parse(d),
   )
   .handler(async ({ data, context }) => {
-    return { results: await searchFiles(context.userId, data.query, data.kind, 25) };
+    return { results: await searchFiles(context.userId, data.query, data.kind, 25, data.order) };
   });
 
 export const listNextcloudFolder = createServerFn({ method: "POST" })

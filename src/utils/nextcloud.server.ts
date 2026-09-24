@@ -20,6 +20,7 @@ import {
   parseMultistatus,
   type NcEntry,
   type NcKind,
+  type NcOrder,
 } from "@/lib/nextcloudDav";
 
 export interface NextcloudConnRow {
@@ -214,14 +215,20 @@ async function davFetch(
   return out;
 }
 
-/** Files whose name contains `query`, newest first, limited to what `kind` can use. */
-export async function searchFiles(userId: string, query: string, kind: NcKind, limit = 25): Promise<NcEntry[]> {
+/** Files whose name contains `query`, newest first unless asked otherwise, limited to what `kind` can use. */
+export async function searchFiles(
+  userId: string,
+  query: string,
+  kind: NcKind,
+  limit = 25,
+  order: NcOrder = "desc",
+): Promise<NcEntry[]> {
   const { conn, res } = await davFetch(userId, (c) => [
     `${trimBaseUrl(c.base_url)}/remote.php/dav`,
     {
       method: "SEARCH",
       headers: { "Content-Type": "application/xml; charset=utf-8", Accept: "application/xml" },
-      body: buildSearchXml(c.nextcloud_user, query, kind, limit),
+      body: buildSearchXml(c.nextcloud_user, query, kind, limit, order),
     },
   ]);
   const text = await res.text();

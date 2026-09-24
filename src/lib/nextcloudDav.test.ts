@@ -8,6 +8,7 @@ import {
   mimeAllowed,
   parseMultistatus,
   previewKind,
+  sortEntries,
 } from "./nextcloudDav";
 
 const BASE = "https://cloud.example.com";
@@ -92,6 +93,19 @@ describe("folderView", () => {
   });
 });
 
+describe("sortEntries", () => {
+  const entries = parseMultistatus(PROPFIND, BASE, "jonas").filter((e) => e.path !== "/Finanzen");
+
+  it("turns the files around for oldest first but keeps folders on top", () => {
+    expect(sortEntries(entries, "asc").map((e) => e.name)).toEqual([
+      "UBS",
+      "2026.08.13 green Rechnung & Beleg.pdf",
+      "Quittung.jpg",
+      "Notizen.docx",
+    ]);
+  });
+});
+
 describe("mimeAllowed", () => {
   it("accepts a bank CSV for a statement but not for a receipt", () => {
     expect(mimeAllowed("statement", "text/csv")).toBe(true);
@@ -113,6 +127,12 @@ describe("buildSearchXml", () => {
     expect(buildSearchXml("jonas", "x", "any", 25)).toMatch(
       /<d:orderby>\s*<d:order><d:prop><d:getlastmodified\/><\/d:prop><d:descending\/>/,
     );
+  });
+
+  it("asks the server for the oldest matches when sorting ascending", () => {
+    const xml = buildSearchXml("jonas", "x", "any", 25, "asc");
+    expect(xml).toContain("<d:getlastmodified/></d:prop><d:ascending/>");
+    expect(xml).not.toContain("<d:descending/>");
   });
 
   it("filters by type on the server for receipts", () => {

@@ -6,10 +6,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ChevronRight, Eye, FileText, Folder, Image as ImageIcon, Loader2 } from "lucide-react";
+import {
+  ArrowDownWideNarrow,
+  ArrowUpNarrowWide,
+  ChevronRight,
+  Eye,
+  FileText,
+  Folder,
+  Image as ImageIcon,
+  Loader2,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 import { listNextcloudFolder, searchNextcloud } from "@/utils/nextcloud.functions";
 import { isReconnectError } from "@/lib/nextcloudAuth";
-import { previewKind, type NcEntry, type NcKind } from "@/lib/nextcloudDav";
+import {
+  previewKind,
+  sortEntries,
+  type NcEntry,
+  type NcKind,
+  type NcOrder,
+} from "@/lib/nextcloudDav";
 import { NextcloudFilePreview } from "@/components/NextcloudFilePreview";
 import { useI18n } from "@/i18n";
 
@@ -76,6 +92,9 @@ export function NextcloudFilePicker({
   const [folder, setFolder] = React.useState<string>(() => readFolder(kind));
   const [onlyDocs, setOnlyDocs] = React.useState(true);
   const [preview, setPreview] = React.useState<NcEntry | null>(null);
+  // Deliberately not remembered: newest first is right almost every time, and
+  // the other direction is for one hunt, not a preference.
+  const [order, setOrder] = React.useState<NcOrder>("desc");
   const q = useDebounced(query.trim(), 300);
   const searching = q.length >= 2;
   // Statements are always filtered: extraction cannot read anything else.
@@ -86,12 +105,13 @@ export function NextcloudFilePicker({
     else {
       setQuery("");
       setPreview(null);
+      setOrder("desc");
     }
   }, [open, kind]);
 
   const searchQ = useQuery({
-    queryKey: ["nc-search", q, effKind],
-    queryFn: () => search({ data: { query: q, kind: effKind } }),
+    queryKey: ["nc-search", q, effKind, order],
+    queryFn: () => search({ data: { query: q, kind: effKind, order } }),
     enabled: open && searching,
     retry: false,
     staleTime: 30_000,
@@ -105,9 +125,13 @@ export function NextcloudFilePicker({
   });
 
   const active = searching ? searchQ : folderQ;
-  const entries: NcEntry[] = searching
-    ? (searchQ.data?.results ?? [])
-    : (folderQ.data?.entries ?? []);
+  // Search results come back in order from the server; a folder is re-sorted
+  // here, so flipping the order does not fetch it again.
+  const folderEntries = React.useMemo(
+    () => sortEntries(folderQ.data?.entries ?? [], order),
+    [folderQ.data, order],
+  );
+  const entries: NcEntry[] = searching ? (searchQ.data?.results ?? []) : folderEntries;
   // Typing between keystrokes counts as loading, so "no matches" never
   // flashes for a query that has not been sent yet.
   const pending = query.trim() !== q && query.trim().length >= 2;
@@ -137,13 +161,19 @@ export function NextcloudFilePicker({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={preview ? "max-w-5xl" : "max-w-xl"}>
+      <DialogContent
+        className={cn(
+          "flex max-h-[92vh] flex-col",
+          preview ? "max-w-[min(96vw,1500px)]" : "max-w-3xl",
+        )}
+      >
         <div
-          className={
-            preview ? "grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]" : "grid gap-4"
-          }
+          className={cn(
+            "grid min-h-0 flex-1 gap-4",
+            preview && "md:h-[86vh] md:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]",
+          )}
         >
-          <div className="flex min-w-0 flex-col gap-4">
+          <div className="flex min-h-0 min-w-0 flex-col gap-4">
             <DialogHeader>
               <DialogTitle>{t("attachments.picker.title")}</DialogTitle>
             </DialogHeader>
@@ -155,10 +185,10 @@ export function NextcloudFilePicker({
             />
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
               {searching ? (
-                <span>{t("attachments.picker.searching_all")}</span>
+                <span className="min-w-0 flex-1">{t("attachments.picker.searching_all")}</span>
               ) : (
                 <nav
-                  className="flex min-w-0 flex-wrap items-center gap-0.5"
+                  className="flex min-w-0 flex-1 flex-wrap items-center gap-0.5"
                   aria-label={t("attachments.picker.folder")}
                 >
                   <button
@@ -182,16 +212,32 @@ export function NextcloudFilePicker({
                   ))}
                 </nav>
               )}
-              {kind === "receipt" ? (
-                <label className="flex items-center gap-1.5">
-                  <Checkbox checked={onlyDocs} onCheckedChange={(v) => setOnlyDocs(v === true)} />
-                  {t("attachments.picker.only_docs")}
-                </label>
-              ) : (
-                <span>{t("attachments.picker.statement_types")}</span>
-              )}
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  className="inline-flex items-center gap-1 hover:text-foreground"
+                  onClick={() => setOrder(order === "desc" ? "asc" : "desc")}
+                >
+                  {order === "desc" ? (
+                    <ArrowDownWideNarrow className="h-3.5 w-3.5" />
+                  ) : (
+                    <ArrowUpNarrowWide className="h-3.5 w-3.5" />
+                  )}
+                  {order === "desc"
+                    ? t("attachments.picker.newest_first")
+                    : t("attachments.picker.oldest_first")}
+                </button>
+                {kind === "receipt" ? (
+                  <label className="flex items-center gap-1.5">
+                    <Checkbox checked={onlyDocs} onCheckedChange={(v) => setOnlyDocs(v === true)} />
+                    {t("attachments.picker.only_docs")}
+                  </label>
+                ) : (
+                  <span>{t("attachments.picker.statement_types")}</span>
+                )}
+              </div>
             </div>
-            <div className="min-h-[200px] max-h-[420px] overflow-y-auto rounded-md border">
+            <div className="min-h-[200px] flex-1 overflow-y-auto rounded-md border">
               {loading && (
                 <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
                   <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
@@ -260,9 +306,12 @@ export function NextcloudFilePicker({
                         >
                           <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                           <div className="min-w-0 flex-1">
-                            <div className="truncate text-sm font-medium">{e.name}</div>
+                            {/* Names wrap: the part that tells files apart is often at the end. */}
+                            <div className="text-sm font-medium [overflow-wrap:anywhere]">
+                              {e.name}
+                            </div>
                             {meta.length > 0 && (
-                              <div className="truncate text-xs text-muted-foreground">
+                              <div className="text-xs text-muted-foreground [overflow-wrap:anywhere]">
                                 {meta.join(" · ")}
                               </div>
                             )}
@@ -298,7 +347,7 @@ export function NextcloudFilePicker({
           {preview && (
             // Beside the list from md up; on a phone it covers the dialog, and
             // closing it returns to the list where the user left it.
-            <div className="absolute inset-0 z-10 flex flex-col rounded-lg bg-background p-4 md:static md:z-auto md:h-[70vh] md:rounded-none md:border-l md:p-0 md:pl-4">
+            <div className="absolute inset-0 z-10 flex flex-col rounded-lg bg-background p-4 md:static md:z-auto md:min-h-0 md:rounded-none md:border-l md:p-0 md:pl-4">
               <NextcloudFilePreview
                 entry={preview}
                 onClose={() => setPreview(null)}

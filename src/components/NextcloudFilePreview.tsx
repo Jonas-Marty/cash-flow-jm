@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowLeft, Check, ExternalLink, Loader2, X } from "lucide-react";
+import { ArrowLeft, Check, ExternalLink, Loader2, PanelRightClose } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { downloadNextcloudFile } from "@/utils/nextcloud.functions";
 import { previewKind, type NcEntry } from "@/lib/nextcloudDav";
@@ -31,13 +31,37 @@ function PdfPages({ bytes }: { bytes: Uint8Array }) {
   const tRef = React.useRef(t);
   tRef.current = t;
   const hostRef = React.useRef<HTMLDivElement>(null);
+  const [width, setWidth] = React.useState(0);
   const [state, setState] = React.useState<{ shown: number; total: number } | "error" | null>(null);
 
+  // Pages are drawn for one exact width. Drawn for one width and shown at
+  // another, the browser rescales the bitmap and text goes soft, so a width
+  // change (window resize, the panel opening) redraws them.
   React.useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let measured = false;
+    const measure = () => {
+      const w = Math.floor(host.clientWidth);
+      clearTimeout(timer);
+      // The first width applies at once; later ones wait for resizing to settle.
+      const delay = measured ? 150 : 0;
+      measured = true;
+      timer = setTimeout(() => setWidth((prev) => (Math.abs(prev - w) >= 2 ? w : prev)), delay);
+    };
+    const ro = new ResizeObserver(measure);
+    ro.observe(host);
+    return () => {
+      ro.disconnect();
+      clearTimeout(timer);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    const host = hostRef.current;
+    if (!host || width <= 0) return;
     let cancelled = false;
-    host.replaceChildren();
     setState(null);
     (async () => {
       const { getDocumentProxy } = await import("unpdf");
@@ -45,32 +69,40 @@ function PdfPages({ bytes }: { bytes: Uint8Array }) {
       const pdf = await getDocumentProxy(bytes.slice());
       const shown = Math.min(pdf.numPages, MAX_PDF_PAGES);
       const dpr = window.devicePixelRatio || 1;
-      const width = Math.max(host.clientWidth, 280);
+      const canvases: HTMLCanvasElement[] = [];
       for (let n = 1; n <= shown && !cancelled; n++) {
         const page = await pdf.getPage(n);
-        const scale = (width * dpr) / page.getViewport({ scale: 1 }).width;
-        const viewport = page.getViewport({ scale });
+        const pixels = Math.round(width * dpr);
+        const viewport = page.getViewport({ scale: pixels / page.getViewport({ scale: 1 }).width });
         const canvas = document.createElement("canvas");
-        canvas.width = Math.floor(viewport.width);
-        canvas.height = Math.floor(viewport.height);
-        canvas.className = "w-full rounded border bg-white shadow-sm";
+        canvas.width = pixels;
+        canvas.height = Math.round(viewport.height);
+        canvas.style.width = `${width}px`;
+        canvas.className = "block h-auto max-w-full rounded border bg-white shadow-sm";
         canvas.setAttribute("role", "img");
-        canvas.setAttribute("aria-label", tRef.current("attachments.preview.page", { n: String(n) }));
-        const ctx = canvas.getContext("2d");
-        if (!ctx) throw new Error("no canvas");
-        await page.render({ canvasContext: ctx, viewport, canvas }).promise;
-        if (cancelled) return;
-        host.appendChild(canvas);
+        canvas.setAttribute(
+          "aria-label",
+          tRef.current("attachments.preview.page", { n: String(n) }),
+        );
+        // Only the canvas, not a context made here: pdf.js then opens it the way
+        // it is built for (opaque, CPU-backed), which is what keeps text crisp.
+        // A default context is transparent, and Chrome turns off its sharper
+        // text smoothing on transparent canvases.
+        await page.render({ canvas, viewport }).promise;
+        canvases.push(canvas);
       }
-      if (!cancelled) setState({ shown, total: pdf.numPages });
       await pdf.loadingTask.destroy();
+      if (cancelled) return;
+      // Swap all pages at once, so a redraw never shows a half-empty panel.
+      host.replaceChildren(...canvases);
+      setState({ shown, total: pdf.numPages });
     })().catch(() => {
       if (!cancelled) setState("error");
     });
     return () => {
       cancelled = true;
     };
-  }, [bytes]);
+  }, [bytes, width]);
 
   return (
     <div className="space-y-3">
@@ -80,10 +112,15 @@ function PdfPages({ bytes }: { bytes: Uint8Array }) {
           <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
         </div>
       )}
-      {state === "error" && <p className="text-sm text-muted-foreground">{t("attachments.preview.unavailable")}</p>}
+      {state === "error" && (
+        <p className="text-sm text-muted-foreground">{t("attachments.preview.unavailable")}</p>
+      )}
       {state !== null && state !== "error" && state.total > state.shown && (
         <p className="text-center text-xs text-muted-foreground">
-          {t("attachments.preview.more_pages", { shown: String(state.shown), total: String(state.total) })}
+          {t("attachments.preview.more_pages", {
+            shown: String(state.shown),
+            total: String(state.total),
+          })}
         </p>
       )}
     </div>
@@ -93,10 +130,21 @@ function PdfPages({ bytes }: { bytes: Uint8Array }) {
 function ImageView({ bytes, mime, name }: { bytes: Uint8Array; mime: string; name: string }) {
   const { t } = useI18n();
   const [failed, setFailed] = React.useState(false);
-  const url = React.useMemo(() => URL.createObjectURL(new Blob([bytes as Uint8Array<ArrayBuffer>], { type: mime })), [bytes, mime]);
+  const url = React.useMemo(
+    () => URL.createObjectURL(new Blob([bytes as Uint8Array<ArrayBuffer>], { type: mime })),
+    [bytes, mime],
+  );
   React.useEffect(() => () => URL.revokeObjectURL(url), [url]);
-  if (failed) return <p className="text-sm text-muted-foreground">{t("attachments.preview.unavailable")}</p>;
-  return <img src={url} alt={name} onError={() => setFailed(true)} className="mx-auto max-w-full rounded border" />;
+  if (failed)
+    return <p className="text-sm text-muted-foreground">{t("attachments.preview.unavailable")}</p>;
+  return (
+    <img
+      src={url}
+      alt={name}
+      onError={() => setFailed(true)}
+      className="mx-auto max-w-full rounded border"
+    />
+  );
 }
 
 /**
@@ -131,18 +179,32 @@ export function NextcloudFilePreview({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center gap-2 border-b pb-2">
-        <Button type="button" variant="ghost" size="icon" className="h-8 w-8 md:hidden" onClick={onClose} aria-label={t("common.back")}>
-          <ArrowLeft className="h-4 w-4" />
+      {/* One close control, on the left: the dialog's own X already sits top
+          right, and a second X beside it read as "close everything". The
+          right padding keeps a long name from running under that X. */}
+      <div className="flex items-start gap-2 border-b pb-2 pr-8">
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 shrink-0"
+          onClick={onClose}
+          aria-label={t("attachments.preview.close")}
+          title={t("attachments.preview.close")}
+        >
+          <ArrowLeft className="h-4 w-4 md:hidden" />
+          <PanelRightClose className="hidden h-4 w-4 md:block" />
         </Button>
-        <div className="min-w-0 flex-1 truncate text-sm font-medium" title={entry.path}>
+        <div
+          className="min-w-0 flex-1 pt-1.5 text-sm font-medium [overflow-wrap:anywhere]"
+          title={entry.path}
+        >
           {entry.name}
         </div>
-        <Button type="button" variant="ghost" size="icon" className="hidden h-8 w-8 md:inline-flex" onClick={onClose} aria-label={t("attachments.preview.close")}>
-          <X className="h-4 w-4" />
-        </Button>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto py-3">
+      {/* A stable gutter: a scrollbar appearing would otherwise narrow the
+          pages after they were drawn and blur them. */}
+      <div className="min-h-0 flex-1 overflow-y-auto py-3 [scrollbar-gutter:stable]">
         {kind === null ? (
           <p className="text-sm text-muted-foreground">{t("attachments.preview.unavailable")}</p>
         ) : fileQ.isLoading ? (
@@ -150,7 +212,9 @@ export function NextcloudFilePreview({
             <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
           </div>
         ) : fileQ.error ? (
-          <p className="text-sm text-destructive">{fileQ.error instanceof Error ? fileQ.error.message : String(fileQ.error)}</p>
+          <p className="text-sm text-destructive">
+            {fileQ.error instanceof Error ? fileQ.error.message : String(fileQ.error)}
+          </p>
         ) : fileQ.data && kind === "pdf" ? (
           <PdfPages bytes={fileQ.data.bytes} />
         ) : fileQ.data ? (
