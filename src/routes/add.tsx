@@ -18,7 +18,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { notifyTransactionCreated } from "@/utils/webhooks.functions";
 import { resolveStatementLine } from "@/utils/statements.functions";
 import {
-  fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings, fetchTransactions,
+  fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings,
   fetchOpenReimbursables, fetchReimbursementLinks, fetchReimbursementCounterparties,
   linkReimbursement,
   extractTags, fmtMoney,
@@ -42,7 +42,7 @@ import type { Suggestion } from "@/lib/suggestions/types";
 import { SuggestionRow } from "@/components/SuggestionRow";
 import { QuickAmountChips } from "@/components/QuickAmountChips";
 import { TagChips } from "@/components/TagChips";
-import { TagAutocompleteTextarea } from "@/components/TagAutocompleteTextarea";
+import { TagAutocompleteTextarea } from "@/components/TagAutocomplete";
 import { DateShortcuts } from "@/components/DateShortcuts";
 import { ChipPicker, type ChipPickerItem } from "@/components/ChipPicker";
 import { scoreAccounts, scoreCategories, sortByPinAndScore, type SuggestionContext } from "@/lib/usageScoring";
@@ -50,6 +50,7 @@ import { DayHeatmapCalendar } from "@/components/DayHeatmapCalendar";
 import { DateInput } from "@/components/DateInput";
 import { ShortcutsDialog } from "@/components/ShortcutsDialog";
 import { DescriptionAutocomplete } from "@/components/DescriptionAutocomplete";
+import { useRecentTransactions } from "@/hooks/useRecentTransactions";
 import { AttachmentsSection, type DraftAttachment } from "@/components/AttachmentsSection";
 import { TransactionStatementRow } from "@/components/StatementDocLink";
 import { Markdown } from "@/components/Markdown";
@@ -195,7 +196,7 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   const groupsQ = useQuery({ queryKey: ["category_groups"], queryFn: fetchCategoryGroups });
-  const recentQ = useQuery({ queryKey: ["transactions", "recent", 200], queryFn: () => fetchTransactions(200) });
+  const recentQ = useRecentTransactions();
   const openReimbQ = useQuery({ queryKey: ["reimbursables", "open"], queryFn: fetchOpenReimbursables });
   const reimbLinksQ = useQuery({ queryKey: ["reimbursement_links"], queryFn: fetchReimbursementLinks });
   const reimbCpQ = useQuery({ queryKey: ["reimbursement_counterparties"], queryFn: fetchReimbursementCounterparties });

@@ -55,6 +55,8 @@ Vier Tabs:
 - **Abgelehnt** — abgelehnte Einträge (zur Nachvollziehbarkeit, wiederherstellbar).
 - **Bestätigt** — bereits bestätigte Einträge; die echte Buchung findest du in Buchungen.
 
+Beschreibung und Bemerkung schlagen beim Tippen vor, was du schon verwendet hast, wie im Formular *Hinzufügen*: frühere Beschreibungen, und nach `#` deine Tags.
+
 ## Abgleich (/reconcile) [#reconcile-reconcile]
 
 Zerlegt deine Kontosumme in die Umschläge, die sie halten: übertragende Umschläge, der Rest des laufenden Monats auf den übrigen Umschlägen, noch nicht eingetroffenes Einkommen, Geld das dir geschuldet wird, und alles nicht Zugewiesene. Die letzte Zeile ist das, was keiner davon erklärt — sie sollte null sein. Ist sie es nicht, fehlt irgendwo tatsächlich eine Zuordnung.

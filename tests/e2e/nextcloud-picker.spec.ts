@@ -1,13 +1,13 @@
-import { test, expect, type Page, type Route } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { stubSupabase } from "./support/stub";
 import { DEFAULT_FIXTURES } from "./support/fixtures";
+import { stubServerFns } from "./support/serverFn";
 
 /**
  * The Nextcloud file picker and its preview.
  *
  * Nextcloud is reached only through our server functions, so those are what is
- * faked here: a server function that answers plain JSON (no x-tss-serialized
- * header) is unwrapped from its `result` field and reaches the component as-is. The PDF is a real one-page document, so
+ * faked here (see support/serverFn.ts). The PDF is a real one-page document, so
  * the preview goes through pdf.js exactly as it does in production.
  */
 
@@ -39,43 +39,23 @@ const FOLDER = [
 /** Fakes the Nextcloud server functions and records what search was asked for. */
 async function stubNextcloud(page: Page) {
   const searches: string[] = [];
-  await page.route("**/_serverFn/**", async (route: Route) => {
-    const req = route.request();
-    const seg = new URL(req.url()).pathname.split("/_serverFn/")[1] ?? "";
-    let id = decodeURIComponent(seg);
-    try {
-      id += Buffer.from(seg, "base64url").toString("utf8");
-    } catch {
-      /* not base64: the raw id is enough */
-    }
-    const body = req.postData() ?? "";
-    const reply = (data: unknown) =>
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({ result: data }),
-      });
-    if (id.includes("getNextcloudStatus")) {
-      return reply({
-        configured: true,
-        connected: true,
-        lost: false,
-        has_credentials: true,
-        base_url: "https://cloud.example.com",
-        nextcloud_user: "jonas",
-      });
-    }
-    if (id.includes("listNextcloudFolder")) return reply({ path: "/", entries: FOLDER });
-    if (id.includes("searchNextcloud")) {
+  const files = FOLDER.filter((e) => !e.is_dir);
+  await stubServerFns(page, {
+    getNextcloudStatus: () => ({
+      configured: true,
+      connected: true,
+      lost: false,
+      has_credentials: true,
+      base_url: "https://cloud.example.com",
+      nextcloud_user: "jonas",
+    }),
+    listNextcloudFolder: () => ({ path: "/", entries: FOLDER }),
+    searchNextcloud: (body) => {
       searches.push(body);
-      const files = FOLDER.filter((e) => !e.is_dir);
       // FOLDER lists the files A to Z; the server sorts Z to A unless asked.
-      return reply({ results: body.includes('"asc"') ? files : [...files].reverse() });
-    }
-    if (id.includes("downloadNextcloudFile")) {
-      return reply({ name: LONG, mime: "application/pdf", base64: PDF_BASE64 });
-    }
-    return route.continue();
+      return { results: body.includes('"asc"') ? files : [...files].reverse() };
+    },
+    downloadNextcloudFile: () => ({ name: LONG, mime: "application/pdf", base64: PDF_BASE64 }),
   });
   return { searches };
 }

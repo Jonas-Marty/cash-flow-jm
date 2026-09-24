@@ -21,6 +21,10 @@ import { AppShell } from "@/components/AppShell";
 import { LocationSection, type RecentLocation } from "@/components/LocationSection";
 import { PendingLineTable } from "@/components/pending/PendingLineTable";
 import { useRecentLocations } from "@/hooks/useRecentLocations";
+import { useRecentTransactions } from "@/hooks/useRecentTransactions";
+import { DescriptionAutocomplete } from "@/components/DescriptionAutocomplete";
+import { TagAutocompleteTextarea } from "@/components/TagAutocomplete";
+import { TagChips } from "@/components/TagChips";
 import { OpenIOUsCard } from "@/components/OpenIOUsCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,6 +52,7 @@ import {
 import { enrichPendingTransactions } from "@/utils/pending.functions";
 import {
   addTagsToNote,
+  removeTagsFromNote,
   fetchPendingTransactions,
   fetchAccounts,
   fetchCategories,
@@ -255,6 +260,15 @@ function PendingRow({
   const [note, setNote] = React.useState<string>(pending.note ?? "");
   const [location, setLocation] = React.useState<TxLocation | null>(() => locationFromRow(pending));
   const recentQ = useRecentLocations();
+  const history = useRecentTransactions().data ?? [];
+  // What tag suggestions are ranked by, as in the Add form.
+  const tagCtx = {
+    type,
+    sourceAccountId: sourceId || undefined,
+    destAccountId: destId || undefined,
+    categoryId: categoryId || undefined,
+    description: description || undefined,
+  };
   const candidates = React.useMemo<RecentLocation[]>(
     () =>
       rankLocationCandidates(recentQ.data ?? [], {
@@ -527,12 +541,32 @@ function PendingRow({
                 </div>
               )}
               <div className="space-y-1 sm:col-span-2">
-                <Label>{t("add.description")}</Label>
-                <Input value={description} onChange={(e) => setDescription(e.target.value)} />
+                <Label htmlFor={`pending-card-desc-${pending.id}`}>{t("add.description")}</Label>
+                <DescriptionAutocomplete
+                  id={`pending-card-desc-${pending.id}`}
+                  value={description}
+                  onChange={setDescription}
+                  transactions={history}
+                />
               </div>
               <div className="space-y-1 sm:col-span-2">
-                <Label>{t("add.note")}</Label>
-                <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
+                <Label htmlFor={`pending-card-note-${pending.id}`}>{t("add.note")}</Label>
+                <TagAutocompleteTextarea
+                  id={`pending-card-note-${pending.id}`}
+                  rows={2}
+                  value={note}
+                  onChange={setNote}
+                  transactions={history}
+                  ctx={tagCtx}
+                />
+                <TagChips
+                  className="mt-2"
+                  transactions={history}
+                  currentNote={note}
+                  ctx={tagCtx}
+                  onAppend={(tag) => setNote(addTagsToNote(note, [tag]))}
+                  onRemove={(tag) => setNote(removeTagsFromNote(note, [tag]))}
+                />
               </div>
               <div className="sm:col-span-2">
                 <LocationSection

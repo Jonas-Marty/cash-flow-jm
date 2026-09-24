@@ -55,6 +55,8 @@ Four tabs:
 - **Rejected** — entries you rejected, kept for audit, restorable.
 - **Confirmed** — entries you already confirmed, shown for traceability. The real transaction lives in Transactions.
 
+Description and remarks suggest what you have used before as you type, like the Add form: earlier descriptions, and after `#` your tags.
+
 ## Reconcile (/reconcile) [#reconcile-reconcile]
 
 Breaks your account total down into the envelopes holding it: rolling envelopes, this month's remainder on monthly envelopes, income not yet received, money you are owed, and anything unallocated. The last line is what none of those explain — it should read zero. If it does not, something is genuinely unaccounted for.

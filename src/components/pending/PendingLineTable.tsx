@@ -25,7 +25,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { StatementPlaceDialog } from "@/components/statements/StatementPlaceDialog";
+import { DescriptionAutocomplete } from "@/components/DescriptionAutocomplete";
+import { TagAutocompleteInput } from "@/components/TagAutocomplete";
 import { useRecentLocations } from "@/hooks/useRecentLocations";
+import { useRecentTransactions } from "@/hooks/useRecentTransactions";
 import { useI18n } from "@/i18n";
 import {
   addTagsToNote,
@@ -165,6 +168,7 @@ export function PendingLineTable({
   const { t } = useI18n();
   const qc = useQueryClient();
   const recentQ = useRecentLocations();
+  const history = useRecentTransactions().data ?? [];
 
   const [drafts, setDrafts] = React.useState<Record<string, Draft>>({});
   const [placeFor, setPlaceFor] = React.useState<string | null>(null);
@@ -389,11 +393,13 @@ export function PendingLineTable({
                   />
                 </div>
                 <div className="mb-1 lg:mb-0">
-                  <Input
-                    className="h-8"
+                  <DescriptionAutocomplete
+                    id={`pending-desc-${p.id}`}
+                    inputClassName="h-8"
                     value={d.description}
                     placeholder={t("pending.row.untitled")}
-                    onChange={(e) => patch(p.id, { description: e.target.value })}
+                    transactions={history}
+                    onChange={(v) => patch(p.id, { description: v })}
                   />
                   {suggestsDescription(p, d) ? (
                     <SuggestionChip
@@ -418,11 +424,20 @@ export function PendingLineTable({
                   ) : null}
                 </div>
                 <div className="mb-1 lg:mb-0">
-                  <Input
-                    className="h-8"
+                  {/* Tags live in the note as #tag, as in the Add form. */}
+                  <TagAutocompleteInput
+                    inputClassName="h-8"
+                    aria-label={t("pending.table.col.note")}
                     value={d.note}
                     placeholder={t("pending.table.col.note")}
-                    onChange={(e) => patch(p.id, { note: e.target.value })}
+                    transactions={history}
+                    ctx={{
+                      type: p.type,
+                      sourceAccountId: d.source_account_id || undefined,
+                      categoryId: d.category_id || undefined,
+                      description: d.description || undefined,
+                    }}
+                    onChange={(v) => patch(p.id, { note: v })}
                   />
                   {suggestsNote(p, d) ? (
                     <SuggestionChip

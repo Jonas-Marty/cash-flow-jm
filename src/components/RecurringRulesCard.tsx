@@ -29,7 +29,7 @@ import { useI18n } from "@/i18n";
 import { DateInput } from "@/components/DateInput";
 import { useQuery as useRQuery } from "@tanstack/react-query";
 import { interpolate, resolveFormatLocale, describeTokens, findDroppedTokens, type TokenInfo } from "@/lib/placeholders";
-import { TagAutocompleteTextarea } from "@/components/TagAutocompleteTextarea";
+import { TagAutocompleteTextarea } from "@/components/TagAutocomplete";
 import { validateSliceTemplate } from "@/lib/recurringSlices";
 import { computeSliceAmounts } from "@/lib/recurringSlices";
 import { Markdown } from "@/components/Markdown";

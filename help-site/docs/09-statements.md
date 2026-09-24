@@ -32,7 +32,7 @@ Der Abgleich passiert im Code, nicht in der KI:
 
 ## Was bedeuten die Gruppen im Ergebnis? [#what-do-the-result-groups-mean]
 
-- **Fehlend** — steht im Auszug, fehlt in der App. Mit einem Klick anlegen (Add-Formular ist vorausgefüllt).
+- **Fehlend** — steht im Auszug, fehlt in der App. Mit einem Klick anlegen (Add-Formular ist vorausgefüllt). In der Tabelle schlagen Beschreibung und Tags beim Tippen vor, was du schon verwendet hast.
 - **Wahrscheinlich** — vermuteter Treffer; bestätigen oder zurücksetzen.
 - **Zugeordnet** — exakte Treffer, nichts zu tun.
 - **Ignoriert** — Zeilen, die du als irrelevant markiert hast (Gebühren, Saldovorträge).

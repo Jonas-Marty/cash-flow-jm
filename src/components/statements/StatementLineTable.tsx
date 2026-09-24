@@ -9,12 +9,17 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { StatementPlaceDialog } from "@/components/statements/StatementPlaceDialog";
+import { DescriptionAutocomplete } from "@/components/DescriptionAutocomplete";
+import { TagAutocompleteInput } from "@/components/TagAutocomplete";
 import { useRecentLocations } from "@/hooks/useRecentLocations";
+import { useRecentTransactions } from "@/hooks/useRecentTransactions";
+import { formatTags } from "@/lib/tagAutocomplete";
 import { useI18n } from "@/i18n";
 import { fetchCategories, fmtMoney } from "@/lib/finance";
 import type { TxLocation } from "@/lib/location";
 import { commitStatementLines } from "@/utils/statements.functions";
 import type { StatementLine } from "@/lib/ai/statementTypes";
+import type { SuggestionContext } from "@/lib/usageScoring";
 
 type Draft = {
   description: string;
@@ -31,7 +36,9 @@ function seed(line: StatementLine): Draft {
   return {
     description: line.suggested_description || line.description || "",
     category_id: line.suggested_category_id || "",
-    tags: (line.suggested_tags ?? []).join(" "),
+    // "#coop", like the placeholder and every other screen; the bare names
+    // read as plain words ("coop") next to "#migros #coop".
+    tags: formatTags(line.suggested_tags ?? []),
     note: "",
     amount: String(Math.abs(line.amount)),
     location: null,
@@ -47,6 +54,15 @@ function buildNote(note: string, tags: string): string | null {
     .map((x) => `#${x}`);
   const parts = [note.trim(), cleaned.join(" ")].filter(Boolean);
   return parts.length ? parts.join("\n") : null;
+}
+
+/** What a row's tag suggestions are ranked by: its direction, category and description. */
+function ctxFor(line: StatementLine, d: Draft): SuggestionContext {
+  return {
+    type: line.amount < 0 ? "expense" : "income",
+    categoryId: d.category_id || undefined,
+    description: d.description || undefined,
+  };
 }
 
 export function StatementLineTable({
@@ -68,6 +84,7 @@ export function StatementLineTable({
   const categories = (categoriesQ.data ?? []).filter((c) => !c.archived);
 
   const recentLocationsQ = useRecentLocations();
+  const history = useRecentTransactions().data ?? [];
 
   const [drafts, setDrafts] = React.useState<Record<string, Draft>>({});
   const [placeFor, setPlaceFor] = React.useState<string | null>(null);
@@ -226,29 +243,38 @@ export function StatementLineTable({
                 {l.booking_date ?? l.value_date ?? "—"}
               </div>
               <div className="mb-1 lg:mb-0">
-                <Input
-                  className="h-8"
+                <DescriptionAutocomplete
+                  id={`stmt-desc-${l.id}`}
+                  inputClassName="h-8"
                   value={d.description}
                   placeholder={l.description}
-                  onChange={(e) => patch(l.id, { description: e.target.value })}
+                  transactions={history}
+                  onChange={(v) => patch(l.id, { description: v })}
                 />
                 <div className="truncate text-[11px] text-muted-foreground lg:hidden">{l.description}</div>
               </div>
               <div className="mb-1 lg:mb-0">{catSelect(l)}</div>
               <div className="mb-1 lg:mb-0">
-                <Input
-                  className="h-8"
+                <TagAutocompleteInput
+                  mode="tags"
+                  inputClassName="h-8"
+                  aria-label={t("statements.table.col.tags")}
                   value={d.tags}
                   placeholder={t("statements.table.tags_placeholder")}
-                  onChange={(e) => patch(l.id, { tags: e.target.value })}
+                  transactions={history}
+                  ctx={ctxFor(l, d)}
+                  onChange={(v) => patch(l.id, { tags: v })}
                 />
               </div>
               <div className="mb-1 lg:mb-0">
-                <Input
-                  className="h-8"
+                <TagAutocompleteInput
+                  inputClassName="h-8"
+                  aria-label={t("statements.table.col.note")}
                   value={d.note}
                   placeholder={t("statements.table.col.note")}
-                  onChange={(e) => patch(l.id, { note: e.target.value })}
+                  transactions={history}
+                  ctx={ctxFor(l, d)}
+                  onChange={(v) => patch(l.id, { note: v })}
                 />
               </div>
               <div className="mb-1 lg:mb-0">{placeButton(l)}</div>

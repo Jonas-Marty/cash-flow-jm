@@ -31,7 +31,7 @@ Matching is done in code, not by the AI:
 
 ## What do the result groups mean? [#what-do-the-result-groups-mean]
 
-- **Missing** — on the statement, but not in the app. Create the transaction with one click (the Add form is prefilled).
+- **Missing** — on the statement, but not in the app. Create the transaction with one click (the Add form is prefilled). In the table, description and tags suggest what you have used before as you type.
 - **Probable** — a likely match; confirm or reset it.
 - **Matched** — exact matches, nothing to do.
 - **Ignored** — rows you marked irrelevant (fees you don't track, carry-forwards).
