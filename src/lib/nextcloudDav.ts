@@ -4,7 +4,11 @@
 /** What a picker is choosing, which decides the file types it offers. */
 export type NcKind = "receipt" | "statement" | "any";
 
-/** Order of files by last modification. Folders always stay alphabetical. */
+/**
+ * Name order, A to Z or Z to A. By name rather than by modification date:
+ * the modification date is when a file was filed in Nextcloud, not the date
+ * of the document, and names usually start with the document's date.
+ */
 export type NcOrder = "desc" | "asc";
 
 export interface NcEntry {
@@ -42,7 +46,14 @@ export function mimeAllowed(kind: NcKind, mime: string | null): boolean {
 // Formats every current browser decodes in an <img>. HEIC (iPhone photos) and
 // TIFF only work in Safari, and SVG is left out on purpose: it is a document,
 // not a picture, and a preview has no business rendering one.
-const PREVIEW_IMAGES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/avif", "image/bmp"];
+const PREVIEW_IMAGES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/gif",
+  "image/avif",
+  "image/bmp",
+];
 
 /** How the picker can preview a file: pdf.js for PDFs, <img> for common images, else not at all. */
 export function previewKind(mime: string | null): "pdf" | "image" | null {
@@ -93,10 +104,10 @@ function mimeCondition(kind: NcKind): string {
 }
 
 /**
- * A SEARCH body: file names containing `query`, newest first by default. The
- * order and the type filter both run on the server, so the result limit is
- * spent on the right files: "oldest first" has to ask Nextcloud for the oldest
- * matches, not reverse the newest 25.
+ * A SEARCH body: file names containing `query`, Z to A by default. The order
+ * and the type filter both run on the server, so the result limit is spent on
+ * the right files: A to Z has to ask Nextcloud for the first names, not
+ * reverse the last 25.
  */
 export function buildSearchXml(
   user: string,
@@ -125,7 +136,7 @@ export function buildSearchXml(
     </d:from>
     <d:where>${where}</d:where>
     <d:orderby>
-      <d:order><d:prop><d:getlastmodified/></d:prop><d:${order === "asc" ? "ascending" : "descending"}/></d:order>
+      <d:order><d:prop><d:displayname/></d:prop><d:${order === "asc" ? "ascending" : "descending"}/></d:order>
     </d:orderby>
     <d:limit><d:nresults>${limit}</d:nresults></d:limit>
   </d:basicsearch>
@@ -213,25 +224,29 @@ export function parseMultistatus(xml: string, base: string, user: string): NcEnt
   return out;
 }
 
-/** Folders first by name, then files by modification date in `order`. */
+/**
+ * Folders first, then files, each by name in `order`. Natural order, so
+ * "Receipt-2" comes before "Receipt-10", and case does not matter.
+ */
 export function sortEntries(entries: NcEntry[], order: NcOrder = "desc"): NcEntry[] {
-  const dirs = entries
-    .filter((e) => e.is_dir)
-    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
   const sign = order === "asc" ? 1 : -1;
-  const files = entries
-    .filter((e) => !e.is_dir)
-    .sort((a, b) => sign * (a.modified ?? "").localeCompare(b.modified ?? ""));
-  return [...dirs, ...files];
+  const byName = (a: NcEntry, b: NcEntry) =>
+    sign * a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+  return [
+    ...entries.filter((e) => e.is_dir).sort(byName),
+    ...entries.filter((e) => !e.is_dir).sort(byName),
+  ];
 }
 
 /**
  * A folder listing as the picker shows it: the folder itself removed, files of
- * the wrong type hidden, folders first by name, then files newest first.
+ * the wrong type hidden, folders first, each by name Z to A.
  */
 export function folderView(entries: NcEntry[], folder: string, kind: NcKind): NcEntry[] {
   const self = folder.replace(/\/+$/, "") || "/";
-  return sortEntries(entries.filter((e) => e.path !== self && (e.is_dir || mimeAllowed(kind, e.mime))));
+  return sortEntries(
+    entries.filter((e) => e.path !== self && (e.is_dir || mimeAllowed(kind, e.mime))),
+  );
 }
 
 /** Normalise a user-supplied folder path: leading slash, no dot segments. */

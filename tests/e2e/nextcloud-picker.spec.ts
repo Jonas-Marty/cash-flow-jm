@@ -50,7 +50,11 @@ async function stubNextcloud(page: Page) {
     }
     const body = req.postData() ?? "";
     const reply = (data: unknown) =>
-      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ result: data }) });
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ result: data }),
+      });
     if (id.includes("getNextcloudStatus")) {
       return reply({
         configured: true,
@@ -65,7 +69,8 @@ async function stubNextcloud(page: Page) {
     if (id.includes("searchNextcloud")) {
       searches.push(body);
       const files = FOLDER.filter((e) => !e.is_dir);
-      return reply({ results: body.includes('"asc"') ? [...files].reverse() : files });
+      // FOLDER lists the files A to Z; the server sorts Z to A unless asked.
+      return reply({ results: body.includes('"asc"') ? files : [...files].reverse() });
     }
     if (id.includes("downloadNextcloudFile")) {
       return reply({ name: LONG, mime: "application/pdf", base64: PDF_BASE64 });
@@ -108,27 +113,25 @@ test("wraps a long file name instead of cutting off its end", async ({ page }) =
   expect(box.lines).toBeGreaterThan(1.5);
 });
 
-test("flips a folder to oldest first, and forgets it on close", async ({ page }) => {
+test("sorts a folder by name, flips to A to Z, and forgets it on close", async ({ page }) => {
   const { dialog } = await openPicker(page);
-  expect(await fileNames(page)).toEqual(["Scans", LONG, "Quittung Migros.jpg", "Rechnung alt.pdf"]);
-  await dialog.getByRole("button", { name: "Newest first" }).click();
-  // Folders stay on top; only the files turn around.
+  // Z to A: date-prefixed names come newest first. Folders stay on top.
   expect(await fileNames(page)).toEqual(["Scans", "Rechnung alt.pdf", "Quittung Migros.jpg", LONG]);
+  await dialog.getByRole("button", { name: "Name Z–A" }).click();
+  expect(await fileNames(page)).toEqual(["Scans", LONG, "Quittung Migros.jpg", "Rechnung alt.pdf"]);
 
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Attach file" }).click();
-  await expect(
-    page.getByRole("dialog").getByRole("button", { name: "Newest first" }),
-  ).toBeVisible();
+  await expect(page.getByRole("dialog").getByRole("button", { name: "Name Z–A" })).toBeVisible();
 });
 
-test("asks the server for the oldest matches, not the newest ones reversed", async ({ page }) => {
+test("asks the server for the first names, not the last ones reversed", async ({ page }) => {
   const { dialog, searches } = await openPicker(page);
   await dialog.getByPlaceholder("Search all of Nextcloud…").fill("rechnung");
   await expect.poll(() => searches.length).toBeGreaterThan(0);
-  await dialog.getByRole("button", { name: "Newest first" }).click();
+  await dialog.getByRole("button", { name: "Name Z–A" }).click();
   await expect.poll(() => searches.some((b) => b.includes('"asc"'))).toBe(true);
-  await expect(dialog.locator("li").first()).toContainText("Rechnung alt.pdf");
+  await expect(dialog.locator("li").first()).toContainText(LONG);
 });
 
 test("the preview has its own close control, not a second X beside the dialog's", async ({

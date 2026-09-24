@@ -35,7 +35,7 @@ sidebar:
 
 In Nextcloud, add a client under *Administration → Security → OAuth 2.0*, with the redirect URI that **Settings → Nextcloud** shows. Enter the server URL, client ID and client secret there, save, and click **Connect**. The client ID and secret stay stored afterwards: leave the fields empty to keep them.
 
-You then choose files in a picker. Without a search term you browse your folders, and the last one you used is remembered. From two characters on, it searches all of your Nextcloud, newest files first. Attachments to transactions show only PDFs and images by default. The eye next to a file opens a preview, over the list on a phone. Nothing is uploaded: the app stores a permanent link that keeps working after the file is renamed or moved. Deleting the attachment here leaves the file in your Nextcloud.
+You then choose files in a picker. Without a search term you browse your folders, and the last one you used is remembered. From two characters on, it searches all of your Nextcloud. Files are sorted by name, Z to A by default, so names that start with a date show the newest first. Attachments to transactions show only PDFs and images by default. The eye next to a file opens a preview, over the list on a phone. Nothing is uploaded: the app stores a permanent link that keeps working after the file is renamed or moved. Deleting the attachment here leaves the file in your Nextcloud.
 
 The connection renews itself. Nextcloud grants access for one hour at a time, and the app fetches a new grant automatically. You only need to reconnect if you remove the app in Nextcloud under *Personal settings → Security → Devices & sessions*, or leave it unused for a year. The app tells you when that happens.
 

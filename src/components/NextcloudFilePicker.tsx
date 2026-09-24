@@ -7,8 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  ArrowDownWideNarrow,
-  ArrowUpNarrowWide,
+  ArrowDownZA,
+  ArrowDownAZ,
   ChevronRight,
   Eye,
   FileText,
@@ -92,8 +92,8 @@ export function NextcloudFilePicker({
   const [folder, setFolder] = React.useState<string>(() => readFolder(kind));
   const [onlyDocs, setOnlyDocs] = React.useState(true);
   const [preview, setPreview] = React.useState<NcEntry | null>(null);
-  // Deliberately not remembered: newest first is right almost every time, and
-  // the other direction is for one hunt, not a preference.
+  // Deliberately not remembered: Z to A puts date-prefixed names newest first,
+  // and the other direction is for one hunt, not a preference.
   const [order, setOrder] = React.useState<NcOrder>("desc");
   const q = useDebounced(query.trim(), 300);
   const searching = q.length >= 2;
@@ -219,13 +219,13 @@ export function NextcloudFilePicker({
                   onClick={() => setOrder(order === "desc" ? "asc" : "desc")}
                 >
                   {order === "desc" ? (
-                    <ArrowDownWideNarrow className="h-3.5 w-3.5" />
+                    <ArrowDownZA className="h-3.5 w-3.5" />
                   ) : (
-                    <ArrowUpNarrowWide className="h-3.5 w-3.5" />
+                    <ArrowDownAZ className="h-3.5 w-3.5" />
                   )}
                   {order === "desc"
-                    ? t("attachments.picker.newest_first")
-                    : t("attachments.picker.oldest_first")}
+                    ? t("attachments.picker.name_desc")
+                    : t("attachments.picker.name_asc")}
                 </button>
                 {kind === "receipt" ? (
                   <label className="flex items-center gap-1.5">

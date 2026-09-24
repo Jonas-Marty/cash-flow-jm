@@ -31,7 +31,12 @@ describe("parseMultistatus", () => {
       "/Finanzen/Notizen.docx",
     ]);
     expect(byName("UBS").is_dir).toBe(true);
-    expect(byName("Quittung.jpg")).toMatchObject({ file_id: "1421800", mime: "image/jpeg", size: 1000, is_dir: false });
+    expect(byName("Quittung.jpg")).toMatchObject({
+      file_id: "1421800",
+      mime: "image/jpeg",
+      size: 1000,
+      is_dir: false,
+    });
   });
 
   it("decodes names from the href, including a percent-encoded ampersand", () => {
@@ -57,29 +62,35 @@ describe("parseMultistatus", () => {
 
   it("drops entries outside the user's files", () => {
     const other = PROPFIND.replace(/files\/jonas\/Finanzen\/Quittung/, "files/anna/Quittung");
-    expect(parseMultistatus(other, BASE, "jonas").some((e) => e.name === "Quittung.jpg")).toBe(false);
+    expect(parseMultistatus(other, BASE, "jonas").some((e) => e.name === "Quittung.jpg")).toBe(
+      false,
+    );
   });
 
   it("does not take a user whose name merely starts the same", () => {
     const other = PROPFIND.replace(/files\/jonas\/Finanzen\/Quittung/, "files/jonasx/Quittung");
-    expect(parseMultistatus(other, BASE, "jonas").some((e) => e.name === "Quittung.jpg")).toBe(false);
+    expect(parseMultistatus(other, BASE, "jonas").some((e) => e.name === "Quittung.jpg")).toBe(
+      false,
+    );
   });
 });
 
 describe("fileLink", () => {
   it("falls back to the folder view when the server gave no id", () => {
-    expect(fileLink(BASE, "/A B/c.pdf", null)).toBe(`${BASE}/apps/files/?dir=%2FA%20B&scrollto=c.pdf`);
+    expect(fileLink(BASE, "/A B/c.pdf", null)).toBe(
+      `${BASE}/apps/files/?dir=%2FA%20B&scrollto=c.pdf`,
+    );
   });
 });
 
 describe("folderView", () => {
   const entries = parseMultistatus(PROPFIND, BASE, "jonas");
 
-  it("drops the folder itself, lists folders first, then files newest first", () => {
+  it("drops the folder itself, lists folders first, then files by name Z to A", () => {
     expect(folderView(entries, "/Finanzen", "any").map((e) => e.name)).toEqual([
       "UBS",
-      "Notizen.docx",
       "Quittung.jpg",
+      "Notizen.docx",
       "2026.08.13 green Rechnung & Beleg.pdf",
     ]);
   });
@@ -96,13 +107,37 @@ describe("folderView", () => {
 describe("sortEntries", () => {
   const entries = parseMultistatus(PROPFIND, BASE, "jonas").filter((e) => e.path !== "/Finanzen");
 
-  it("turns the files around for oldest first but keeps folders on top", () => {
+  it("sorts A to Z on request and keeps folders on top", () => {
     expect(sortEntries(entries, "asc").map((e) => e.name)).toEqual([
       "UBS",
       "2026.08.13 green Rechnung & Beleg.pdf",
-      "Quittung.jpg",
       "Notizen.docx",
+      "Quittung.jpg",
     ]);
+  });
+
+  // By name, not by modification date: in this set the dates run the other way.
+  it("orders by name even when the modification dates disagree", () => {
+    const e = (name: string, modified: string) => ({
+      ...entries[1],
+      name,
+      path: `/${name}`,
+      modified,
+    });
+    const sorted = sortEntries([
+      e("2026.07.13 a.pdf", "2026-09-20T12:31:00Z"),
+      e("2026.09.14 c.pdf", "2026-09-20T12:12:00Z"),
+    ]);
+    expect(sorted.map((x) => x.name)).toEqual(["2026.09.14 c.pdf", "2026.07.13 a.pdf"]);
+  });
+
+  it("puts Receipt-2 before Receipt-10 and ignores case", () => {
+    const e = (name: string) => ({ ...entries[1], name, path: `/${name}` });
+    expect(
+      sortEntries([e("Receipt-10.pdf"), e("receipt-2.pdf"), e("Receipt-9.pdf")], "asc").map(
+        (x) => x.name,
+      ),
+    ).toEqual(["receipt-2.pdf", "Receipt-9.pdf", "Receipt-10.pdf"]);
   });
 });
 
@@ -123,15 +158,15 @@ describe("mimeAllowed", () => {
 });
 
 describe("buildSearchXml", () => {
-  it("sorts newest first", () => {
+  it("sorts by name, Z to A unless asked otherwise", () => {
     expect(buildSearchXml("jonas", "x", "any", 25)).toMatch(
-      /<d:orderby>\s*<d:order><d:prop><d:getlastmodified\/><\/d:prop><d:descending\/>/,
+      /<d:orderby>\s*<d:order><d:prop><d:displayname\/><\/d:prop><d:descending\/>/,
     );
   });
 
-  it("asks the server for the oldest matches when sorting ascending", () => {
+  it("asks the server for the first names when sorting A to Z", () => {
     const xml = buildSearchXml("jonas", "x", "any", 25, "asc");
-    expect(xml).toContain("<d:getlastmodified/></d:prop><d:ascending/>");
+    expect(xml).toContain("<d:displayname/></d:prop><d:ascending/>");
     expect(xml).not.toContain("<d:descending/>");
   });
 
@@ -148,7 +183,9 @@ describe("buildSearchXml", () => {
 
   // Verified against Nextcloud 33: "F19%Nr" unescaped matched Rechnung_F19_Nr.pdf.
   it("treats % and _ in the query as literal characters", () => {
-    expect(buildSearchXml("jonas", "F19%N_r", "any", 25)).toContain("<d:literal>%F19\\%N\\_r%</d:literal>");
+    expect(buildSearchXml("jonas", "F19%N_r", "any", 25)).toContain(
+      "<d:literal>%F19\\%N\\_r%</d:literal>",
+    );
   });
 
   it("escapes XML in the query and the user name", () => {

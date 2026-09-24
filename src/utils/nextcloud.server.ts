@@ -215,7 +215,7 @@ async function davFetch(
   return out;
 }
 
-/** Files whose name contains `query`, newest first unless asked otherwise, limited to what `kind` can use. */
+/** Files whose name contains `query`, by name (Z to A unless asked otherwise), limited to what `kind` can use. */
 export async function searchFiles(
   userId: string,
   query: string,
@@ -236,7 +236,7 @@ export async function searchFiles(
   return parseMultistatus(text, trimBaseUrl(conn.base_url), conn.nextcloud_user).filter((e) => !e.is_dir);
 }
 
-/** One folder's contents: subfolders first, then usable files newest first. */
+/** One folder's contents: subfolders first, then usable files, each by name. */
 export async function listFolder(userId: string, folder: string, kind: NcKind): Promise<{ path: string; entries: NcEntry[] }> {
   const path = cleanFolder(folder);
   const { conn, res } = await davFetch(userId, (c) => [
