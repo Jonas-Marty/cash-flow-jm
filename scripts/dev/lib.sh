@@ -64,3 +64,42 @@ psql_dev() {
   local c="$1"; shift
   docker exec -i "$c" psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 "$@"
 }
+
+# Dev's own Nextcloud login: the app login registered for the dev callback URL
+# (its own client id and secret in Nextcloud) and the tokens it earned. A clone
+# replaces the row with production's, and the scrub then blanks production's
+# secret and tokens, so without this every clone meant setting dev up again.
+#
+# Only rows with a non-empty client_secret are kept: the scrub blanks every
+# secret it copies from production, so a non-empty one was entered on dev.
+# Production's own tokens are never carried: they are not in the dev database
+# to begin with, and carrying them would let dev redeem prod's refresh token,
+# which Nextcloud rotates, and log production out.
+NC_KEEP_COLS="user_id, base_url, client_id, client_secret, access_token, refresh_token, token_expires_at, scope, nextcloud_user"
+
+# nc_keep_save <db container> <file> -> CSV of dev's own Nextcloud rows
+nc_keep_save() {
+  ( umask 077
+    psql_dev "$1" -c "COPY (SELECT $NC_KEEP_COLS FROM public.nextcloud_connections WHERE client_secret <> '') TO STDOUT WITH CSV" > "$2" )
+}
+
+# nc_keep_restore <db container> <file> -> put those rows back over the clone.
+# Users missing from the clone are skipped; everything is one transaction.
+nc_keep_restore() {
+  [ -s "$2" ] || return 0
+  {
+    printf '%s\n' "BEGIN;" \
+      "CREATE TEMP TABLE nc_keep (user_id uuid, base_url text, client_id text, client_secret text, access_token text, refresh_token text, token_expires_at timestamptz, scope text, nextcloud_user text) ON COMMIT DROP;" \
+      "COPY nc_keep FROM STDIN WITH CSV;"
+    cat "$2"
+    printf '%s\n' '\.' \
+      "INSERT INTO public.nextcloud_connections ($NC_KEEP_COLS)
+         SELECT k.* FROM nc_keep k WHERE EXISTS (SELECT 1 FROM auth.users u WHERE u.id = k.user_id)
+       ON CONFLICT (user_id) DO UPDATE SET
+         base_url = EXCLUDED.base_url, client_id = EXCLUDED.client_id, client_secret = EXCLUDED.client_secret,
+         access_token = EXCLUDED.access_token, refresh_token = EXCLUDED.refresh_token,
+         token_expires_at = EXCLUDED.token_expires_at, scope = EXCLUDED.scope,
+         nextcloud_user = EXCLUDED.nextcloud_user;" \
+      "COMMIT;"
+  } | psql_dev "$1" -q
+}

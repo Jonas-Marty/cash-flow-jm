@@ -78,10 +78,12 @@ Options rejected:
   signature, so no signing secret exists.
 - Plaintext secret columns: `nextcloud_connections.client_secret/access_token/refresh_token`
   (table revoked from `anon`/`authenticated` since `20260924120000…`; server-only),
-  `ai_credentials.api_token` (dead table), `ai_endpoints.api_token` (column-level grants exist, but
-  Supabase's default table-wide grant to `authenticated` is still in place, so the owner's browser
-  **can** select it — verified 2026-09-24 with `has_column_privilege`), `webhooks.auth_header_value`
-  (not even in the audit redaction allowlist), `auth_providers.client_id`.
+  `ai_credentials.api_token` (dead table), `ai_endpoints.api_token` (the column-level grants of
+  `20260815170838…` never took effect because Supabase's default table-wide grant covered every
+  column; since `20260924140000…` the table is revoked from `anon`/`authenticated` and server-only),
+  `webhooks.auth_header_value` (still readable by the owner's browser: webhooks are managed through
+  the user's own client, so it needs column grants rather than a table revoke,
+  and it is not in the audit redaction allowlist either), `auth_providers.client_id`.
 - Privacy copy that must change with this feature: `src/routes/privacy.tsx:35` (banner), `:60`/`:126`
   (§6 EN/DE), `:69-70`/`:135` (§6a AI), `src/routes/help.tsx:262-263` (+ DE ≈ `:600`) "Is my data
   encrypted? → No", and the help string inside `src/utils/ai.server.ts`.

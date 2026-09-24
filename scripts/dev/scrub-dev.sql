@@ -14,6 +14,8 @@ BEGIN;
 
 -- Nextcloud: keep the connection rows so the UI still renders, drop what would
 -- let dev talk to the real server. client_secret is NOT NULL, hence the blank.
+-- clone-prod-db.sh puts dev's own login (its own Nextcloud client) back after
+-- this runs; that one belongs to dev and never touches production's tokens.
 UPDATE public.nextcloud_connections
    SET client_secret = '',
        access_token = NULL,
