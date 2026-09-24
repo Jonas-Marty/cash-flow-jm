@@ -665,6 +665,8 @@ export type Database = {
           client_secret: string
           created_at: string
           nextcloud_user: string | null
+          oauth_state: string | null
+          oauth_state_created_at: string | null
           refresh_token: string | null
           scope: string | null
           token_expires_at: string | null
@@ -678,6 +680,8 @@ export type Database = {
           client_secret: string
           created_at?: string
           nextcloud_user?: string | null
+          oauth_state?: string | null
+          oauth_state_created_at?: string | null
           refresh_token?: string | null
           scope?: string | null
           token_expires_at?: string | null
@@ -691,6 +695,8 @@ export type Database = {
           client_secret?: string
           created_at?: string
           nextcloud_user?: string | null
+          oauth_state?: string | null
+          oauth_state_created_at?: string | null
           refresh_token?: string | null
           scope?: string | null
           token_expires_at?: string | null
@@ -1291,6 +1297,8 @@ export type Database = {
           added_at: string
           created_at: string
           display_name: string
+          external_id: string | null
+          external_path: string | null
           id: string
           link_url: string
           source: string
@@ -1303,6 +1311,8 @@ export type Database = {
           added_at?: string
           created_at?: string
           display_name: string
+          external_id?: string | null
+          external_path?: string | null
           id?: string
           link_url: string
           source?: string
@@ -1315,6 +1325,8 @@ export type Database = {
           added_at?: string
           created_at?: string
           display_name?: string
+          external_id?: string | null
+          external_path?: string | null
           id?: string
           link_url?: string
           source?: string

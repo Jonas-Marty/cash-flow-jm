@@ -33,5 +33,9 @@ sidebar:
 
 ## Connecting Nextcloud [#connecting-nextcloud]
 
-Open **Settings → Nextcloud** and follow the OAuth flow. Once connected you can attach files from your Nextcloud to transactions through a file picker. Nothing is uploaded: the file stays where it is and this app stores only a link to it. Deleting the attachment here leaves the file in your Nextcloud.
+In Nextcloud, add a client under *Administration → Security → OAuth 2.0*, with the redirect URI that **Settings → Nextcloud** shows. Enter the server URL, client ID and client secret there, save, and click **Connect**. The client ID and secret stay stored afterwards: leave the fields empty to keep them.
+
+You then choose files in a picker. Without a search term you browse your folders, and the last one you used is remembered. From two characters on, it searches all of your Nextcloud, newest files first. Attachments to transactions show only PDFs and images by default. Nothing is uploaded: the app stores a permanent link that keeps working after the file is renamed or moved. Deleting the attachment here leaves the file in your Nextcloud.
+
+The connection renews itself. Nextcloud grants access for one hour at a time, and the app fetches a new grant automatically. You only need to reconnect if you remove the app in Nextcloud under *Personal settings → Security → Devices & sessions*, or leave it unused for a year. The app tells you when that happens.
 

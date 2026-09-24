@@ -107,7 +107,7 @@ Beide Sweeps werden bei jedem Aufruf neu berechnet, nie gespeichert. Es gibt kei
 
 ## Anhang [#attachment]
 
-Eine Datei (Quittung, Rechnung), die einer Buchung beiliegt. Optional über Nextcloud synchronisierbar.
+Eine Datei (Quittung, Rechnung), die einer Buchung beiliegt. Sie bleibt in deiner Nextcloud; die App speichert nur einen Link darauf.
 
 **Beispiel:** Nach dem Bezahlen von 89 CHF beim Zahnarzt fotografierst du die Quittung und hängst sie an die Buchung an. Sechs Monate später, wenn deine Krankenkasse einen Nachweis verlangt, öffnest du die Buchung — und die Quittung ist gleich zur Hand.
 

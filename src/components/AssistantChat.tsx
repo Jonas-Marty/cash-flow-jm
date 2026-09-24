@@ -13,7 +13,7 @@ import { chat, listAIEndpoints, getConversation, transcribeAudio } from "@/utils
 import { startVoiceRecording, blobToBase64, type VoiceRecorderHandle } from "@/lib/voiceRecorder";
 import { extractStatement, getStatementImport } from "@/utils/statements.functions";
 import { getNextcloudStatus, downloadNextcloudFile } from "@/utils/nextcloud.functions";
-import { NextcloudFilePicker } from "@/components/NextcloudFilePicker";
+import { NextcloudFilePicker, type PickedFile } from "@/components/NextcloudFilePicker";
 import { fetchAccounts } from "@/lib/finance";
 import { getChatDraft, setChatDraft, resetChatDraft } from "@/lib/ai/chatDraft";
 import type { AssistantAction, ChatMessage, AIEndpointOfflinePayload } from "@/lib/ai/types";
@@ -132,14 +132,21 @@ export function AssistantChat({
   }, [offline]);
 
 
+  // The Nextcloud file a pending attachment came from, so its import links
+  // back to it instead of storing a copy. Keyed by the File object: once the
+  // user swaps in another file, the link no longer applies.
+  const ncOriginRef = React.useRef<{ file: File; link: string } | null>(null);
+
   const pickFromNextcloud = React.useCallback(
-    async (picked: { name: string; path: string }) => {
+    async (picked: PickedFile) => {
       setNcLoading(true);
       try {
         const r = await ncDownloadFn({ data: { path: picked.path } });
         const bin = Uint8Array.from(atob(r.base64), (c) => c.charCodeAt(0));
         const type = (r.mime ?? "").split(";")[0] || "";
-        setFile(new File([bin], r.name, { type }));
+        const f = new File([bin], r.name, { type });
+        ncOriginRef.current = { file: f, link: picked.link_url };
+        setFile(f);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));
       } finally {
@@ -297,6 +304,9 @@ export function AssistantChat({
           file_base64: base64,
           file_type: f.type || null,
           endpoint_id: useId,
+          ...(ncOriginRef.current?.file === f
+            ? { external_url: ncOriginRef.current.link, external_source: "nextcloud" }
+            : {}),
         },
       });
       const detail = await importFn({ data: { id: import_id } });
@@ -653,6 +663,7 @@ export function AssistantChat({
           open={ncOpen}
           onOpenChange={setNcOpen}
           onPick={(f) => void pickFromNextcloud(f)}
+          kind="statement"
         />
       )}
       <Dialog open={!!offline} onOpenChange={(o) => !o && setOffline(null)}>

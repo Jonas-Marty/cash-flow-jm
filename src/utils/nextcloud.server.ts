@@ -1,5 +1,26 @@
 // Server-only Nextcloud helpers. Never import from client code.
+//
+// The browser has no grant on nextcloud_connections (see the 20260924120000
+// migration), so every read and write here goes through the service role and
+// is scoped by the caller's user id explicitly.
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import {
+  NextcloudReconnectError,
+  afterRefusedRefresh,
+  isExpired,
+  refreshRefused,
+  singleFlight,
+} from "@/lib/nextcloudAuth";
+import {
+  PROPFIND_XML,
+  buildSearchXml,
+  cleanFolder,
+  davFileUrl,
+  folderView,
+  parseMultistatus,
+  type NcEntry,
+  type NcKind,
+} from "@/lib/nextcloudDav";
 
 export interface NextcloudConnRow {
   user_id: string;
@@ -13,21 +34,46 @@ export interface NextcloudConnRow {
   nextcloud_user: string | null;
 }
 
+const CONN_COLS =
+  "user_id, base_url, client_id, client_secret, access_token, refresh_token, token_expires_at, scope, nextcloud_user";
+
+export const MAX_DOWNLOAD_BYTES = 15 * 1024 * 1024;
+
 export function trimBaseUrl(url: string): string {
   return url.replace(/\/+$/, "");
+}
+
+/**
+ * Where Nextcloud sends the browser back to. Both the authorize request and
+ * the token exchange must name the same URL, so both build it here from the
+ * request's host. Behind the proxy the app itself is reached over plain http,
+ * so the scheme cannot come from the request; deployed hosts are https.
+ */
+export function callbackUrlForHost(host: string): string {
+  const local = host.startsWith("localhost") || host.startsWith("127.");
+  return `${local ? "http" : "https"}://${host}/api/nextcloud/callback`;
 }
 
 export async function getConnection(userId: string): Promise<NextcloudConnRow | null> {
   const { data, error } = await supabaseAdmin
     .from("nextcloud_connections")
-    .select("*")
+    .select(CONN_COLS)
     .eq("user_id", userId)
     .maybeSingle();
   if (error) throw new Error(error.message);
   return (data as NextcloudConnRow | null) ?? null;
 }
 
-export async function exchangeCodeForToken(conn: { base_url: string; client_id: string; client_secret: string }, code: string, redirectUri: string) {
+/** Seconds Nextcloud grants, minus a margin so a request never starts on a token about to lapse. */
+function expiryFrom(expiresIn: number): string {
+  return new Date(Date.now() + (expiresIn - 30) * 1000).toISOString();
+}
+
+export async function exchangeCodeForToken(
+  conn: { base_url: string; client_id: string; client_secret: string },
+  code: string,
+  redirectUri: string,
+) {
   const tokenUrl = `${trimBaseUrl(conn.base_url)}/apps/oauth2/api/v1/token`;
   const body = new URLSearchParams({
     grant_type: "authorization_code",
@@ -45,7 +91,7 @@ export async function exchangeCodeForToken(conn: { base_url: string; client_id: 
     const text = await res.text();
     throw new Error(`Nextcloud token exchange failed [${res.status}]: ${text}`);
   }
-  return (await res.json()) as {
+  const j = (await res.json()) as {
     access_token: string;
     refresh_token: string;
     expires_in: number;
@@ -53,14 +99,32 @@ export async function exchangeCodeForToken(conn: { base_url: string; client_id: 
     scope?: string;
     user_id?: string;
   };
+  return { ...j, expires_at: expiryFrom(j.expires_in) };
 }
 
-export async function refreshToken(conn: NextcloudConnRow): Promise<NextcloudConnRow> {
-  if (!conn.refresh_token) throw new Error("No refresh token stored; please reconnect Nextcloud");
+/**
+ * Forget the tokens but keep the configuration and the Nextcloud user name,
+ * so Settings can say the connection was lost rather than never made.
+ */
+async function clearTokens(userId: string): Promise<void> {
+  await supabaseAdmin
+    .from("nextcloud_connections")
+    .update({ access_token: null, refresh_token: null, token_expires_at: null })
+    .eq("user_id", userId);
+}
+
+class RefreshRefusedError extends Error {}
+
+/**
+ * Redeem the refresh token once and store the new pair. Nextcloud has already
+ * voided the old token when it answers, so a lost write here would strand the
+ * connection; the write is retried once before giving up.
+ */
+async function redeemRefreshToken(conn: NextcloudConnRow): Promise<NextcloudConnRow> {
   const tokenUrl = `${trimBaseUrl(conn.base_url)}/apps/oauth2/api/v1/token`;
   const body = new URLSearchParams({
     grant_type: "refresh_token",
-    refresh_token: conn.refresh_token,
+    refresh_token: conn.refresh_token ?? "",
     client_id: conn.client_id,
     client_secret: conn.client_secret,
   });
@@ -71,154 +135,144 @@ export async function refreshToken(conn: NextcloudConnRow): Promise<NextcloudCon
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Nextcloud token refresh failed [${res.status}]: ${text}`);
+    if (refreshRefused(res.status)) throw new RefreshRefusedError(text.slice(0, 200));
+    throw new Error(`Nextcloud token refresh failed [${res.status}]: ${text.slice(0, 300)}`);
   }
   const j = (await res.json()) as { access_token: string; refresh_token: string; expires_in: number; user_id?: string };
-  const expires_at = new Date(Date.now() + (j.expires_in - 30) * 1000).toISOString();
-  const { error } = await supabaseAdmin
-    .from("nextcloud_connections")
-    .update({
-      access_token: j.access_token,
-      refresh_token: j.refresh_token,
-      token_expires_at: expires_at,
-      nextcloud_user: j.user_id ?? conn.nextcloud_user,
-    })
-    .eq("user_id", conn.user_id);
-  if (error) throw new Error(error.message);
-  return { ...conn, access_token: j.access_token, refresh_token: j.refresh_token, token_expires_at: expires_at };
+  const next = {
+    access_token: j.access_token,
+    refresh_token: j.refresh_token,
+    token_expires_at: expiryFrom(j.expires_in),
+    nextcloud_user: j.user_id ?? conn.nextcloud_user,
+  };
+  let lastError: string | null = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { error } = await supabaseAdmin.from("nextcloud_connections").update(next).eq("user_id", conn.user_id);
+    if (!error) return { ...conn, ...next };
+    lastError = error.message;
+  }
+  throw new Error(`Renewed the Nextcloud token but could not store it: ${lastError}`);
+}
+
+const renewOnce = singleFlight<NextcloudConnRow>();
+
+/** Renew the access token, at most once at a time per user. */
+function renew(conn: NextcloudConnRow): Promise<NextcloudConnRow> {
+  return renewOnce(conn.user_id, async () => {
+    const sent = conn.refresh_token;
+    if (!sent) throw new NextcloudReconnectError("no refresh token stored");
+    // Another request, or another instance of the app, may have renewed since
+    // `conn` was read. Its fresh pair is good; redeeming ours would be refused.
+    const fresh = await getConnection(conn.user_id);
+    if (fresh?.access_token && fresh.refresh_token && fresh.refresh_token !== sent && !isExpired(fresh.token_expires_at)) {
+      return fresh;
+    }
+    try {
+      return await redeemRefreshToken(conn);
+    } catch (e) {
+      if (!(e instanceof RefreshRefusedError)) throw e;
+      const stored = await getConnection(conn.user_id);
+      if (afterRefusedRefresh(sent, stored) === "use-stored") return stored!;
+      await clearTokens(conn.user_id);
+      throw new NextcloudReconnectError("refresh token refused");
+    }
+  });
 }
 
 export async function getValidConnection(userId: string): Promise<NextcloudConnRow> {
   const conn = await getConnection(userId);
-  if (!conn) throw new Error("Nextcloud not connected");
-  if (!conn.access_token) throw new Error("Nextcloud OAuth not completed");
-  if (conn.token_expires_at && new Date(conn.token_expires_at).getTime() < Date.now()) {
-    return await refreshToken(conn);
-  }
+  if (!conn) throw new NextcloudReconnectError("not configured");
+  if (!conn.access_token || !conn.nextcloud_user) throw new NextcloudReconnectError("not connected");
+  if (isExpired(conn.token_expires_at)) return await renew(conn);
   return conn;
 }
 
-export interface NextcloudFileResult {
-  name: string;
-  path: string; // path inside the user's files (e.g. /Invoices/foo.pdf)
-  link_url: string;
-  mime: string | null;
-  size: number | null;
-  is_dir: boolean;
-}
-
-/** WebDAV REPORT (search-files-by-name) using basic SEARCH on the user's files. */
-export async function searchFiles(conn: NextcloudConnRow, query: string, limit = 25): Promise<NextcloudFileResult[]> {
-  const user = conn.nextcloud_user;
-  if (!user) throw new Error("Nextcloud user unknown; please reconnect");
-  const base = trimBaseUrl(conn.base_url);
-  const davEndpoint = `${base}/remote.php/dav`;
-  // Use the SEARCH method on /remote.php/dav with a basic file-name LIKE.
-  // See https://docs.nextcloud.com/server/latest/developer_manual/client_apis/WebDAV/search.html
-  const safeQ = query.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<d:searchrequest xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns">
-  <d:basicsearch>
-    <d:select>
-      <d:prop>
-        <d:displayname/>
-        <d:getcontenttype/>
-        <d:getcontentlength/>
-        <d:resourcetype/>
-      </d:prop>
-    </d:select>
-    <d:from>
-      <d:scope>
-        <d:href>/files/${user}</d:href>
-        <d:depth>infinity</d:depth>
-      </d:scope>
-    </d:from>
-    <d:where>
-      <d:like>
-        <d:prop><d:displayname/></d:prop>
-        <d:literal>%${safeQ}%</d:literal>
-      </d:like>
-    </d:where>
-    <d:orderby/>
-    <d:limit><d:nresults>${limit}</d:nresults></d:limit>
-  </d:basicsearch>
-</d:searchrequest>`;
-
-  const res = await fetch(davEndpoint, {
-    method: "SEARCH",
-    headers: {
-      Authorization: `Bearer ${conn.access_token}`,
-      "Content-Type": "application/xml; charset=utf-8",
-      Accept: "application/xml",
-    },
-    body: xml,
-  });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Nextcloud search failed [${res.status}]: ${text.slice(0, 500)}`);
+/**
+ * One authenticated WebDAV request. A 401 on a token that should still be
+ * valid (revoked in Nextcloud, or renewed elsewhere) gets one renewal and one
+ * retry; a second 401 means the connection is gone.
+ */
+async function davFetch(
+  userId: string,
+  build: (conn: NextcloudConnRow & { nextcloud_user: string }) => [string, RequestInit],
+): Promise<{ conn: NextcloudConnRow & { nextcloud_user: string }; res: Response }> {
+  const send = (c: NextcloudConnRow) => {
+    const conn = c as NextcloudConnRow & { nextcloud_user: string };
+    const [url, init] = build(conn);
+    const headers = new Headers(init.headers);
+    headers.set("Authorization", `Bearer ${conn.access_token}`);
+    return fetch(url, { ...init, headers }).then((res) => ({ conn, res }));
+  };
+  let out = await send(await getValidConnection(userId));
+  if (out.res.status === 401) {
+    out = await send(await renew(out.conn));
+    if (out.res.status === 401) {
+      await clearTokens(userId);
+      throw new NextcloudReconnectError("Nextcloud rejected the renewed token");
+    }
   }
-  const text = await res.text();
-  return parseSearchXml(text, base, user);
+  return out;
 }
 
-/** Download a file from the user's Nextcloud files via WebDAV. */
+/** Files whose name contains `query`, newest first, limited to what `kind` can use. */
+export async function searchFiles(userId: string, query: string, kind: NcKind, limit = 25): Promise<NcEntry[]> {
+  const { conn, res } = await davFetch(userId, (c) => [
+    `${trimBaseUrl(c.base_url)}/remote.php/dav`,
+    {
+      method: "SEARCH",
+      headers: { "Content-Type": "application/xml; charset=utf-8", Accept: "application/xml" },
+      body: buildSearchXml(c.nextcloud_user, query, kind, limit),
+    },
+  ]);
+  const text = await res.text();
+  if (res.status !== 207) throw new Error(`Nextcloud search failed [${res.status}]: ${text.slice(0, 300)}`);
+  return parseMultistatus(text, trimBaseUrl(conn.base_url), conn.nextcloud_user).filter((e) => !e.is_dir);
+}
+
+/** One folder's contents: subfolders first, then usable files newest first. */
+export async function listFolder(userId: string, folder: string, kind: NcKind): Promise<{ path: string; entries: NcEntry[] }> {
+  const path = cleanFolder(folder);
+  const { conn, res } = await davFetch(userId, (c) => [
+    `${davFileUrl(trimBaseUrl(c.base_url), c.nextcloud_user, path)}/`,
+    {
+      method: "PROPFIND",
+      headers: { Depth: "1", "Content-Type": "application/xml; charset=utf-8", Accept: "application/xml" },
+      body: PROPFIND_XML,
+    },
+  ]);
+  const text = await res.text();
+  if (res.status === 404) throw new Error(`Folder not found: ${path}`);
+  if (res.status !== 207) throw new Error(`Nextcloud listing failed [${res.status}]: ${text.slice(0, 300)}`);
+  const entries = parseMultistatus(text, trimBaseUrl(conn.base_url), conn.nextcloud_user);
+  return { path, entries: folderView(entries, path, kind) };
+}
+
+/** Download one file from the user's Nextcloud, refusing anything over the limit. */
 export async function downloadFile(
-  conn: NextcloudConnRow,
+  userId: string,
   path: string,
-  maxBytes = 15 * 1024 * 1024,
-): Promise<{ name: string; mime: string | null; base64: string }> {
-  const user = conn.nextcloud_user;
-  if (!user) throw new Error("Nextcloud user unknown; please reconnect");
-  const base = trimBaseUrl(conn.base_url);
-  const encoded = path
-    .split("/")
-    .map((seg) => encodeURIComponent(seg))
-    .join("/");
-  const url = `${base}/remote.php/dav/files/${encodeURIComponent(user)}${encoded.startsWith("/") ? encoded : `/${encoded}`}`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${conn.access_token}` } });
+  maxBytes = MAX_DOWNLOAD_BYTES,
+): Promise<{ name: string; mime: string | null; bytes: Uint8Array; baseUrl: string }> {
+  const { conn, res } = await davFetch(userId, (c) => [
+    davFileUrl(trimBaseUrl(c.base_url), c.nextcloud_user, path),
+    { method: "GET" },
+  ]);
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Nextcloud download failed [${res.status}]: ${text.slice(0, 300)}`);
   }
-  const buf = new Uint8Array(await res.arrayBuffer());
-  if (buf.byteLength > maxBytes) throw new Error("File is too large (max 15 MB)");
-  const name = path.split("/").filter(Boolean).pop() ?? "file";
-  return {
-    name,
-    mime: res.headers.get("content-type"),
-    base64: Buffer.from(buf).toString("base64"),
-  };
-}
-
-function parseSearchXml(xml: string, base: string, user: string): NextcloudFileResult[] {
-  const out: NextcloudFileResult[] = [];
-  const responseRe = /<d:response[\s\S]*?<\/d:response>/g;
-  const responses = xml.match(responseRe) ?? [];
-  const userPrefix = `/remote.php/dav/files/${user}`;
-  for (const r of responses) {
-    const hrefMatch = r.match(/<d:href>([^<]*)<\/d:href>/);
-    if (!hrefMatch) continue;
-    let href = decodeURIComponent(hrefMatch[1]);
-    // href is like /remote.php/dav/files/USER/Folder/file.pdf
-    if (!href.startsWith(userPrefix)) continue;
-    const path = href.slice(userPrefix.length) || "/";
-    const mimeM = r.match(/<d:getcontenttype>([^<]*)<\/d:getcontenttype>/);
-    const sizeM = r.match(/<d:getcontentlength>([^<]*)<\/d:getcontentlength>/);
-    const isDir = /<d:collection\s*\/?>/i.test(r);
-    if (isDir) continue;
-    const name = path.split("/").filter(Boolean).pop() ?? path;
-    // Browser-friendly link: open the file in Nextcloud web UI.
-    // Files app uses the "openfile" intent on the home, parent dir as dir param.
-    const dir = path.substring(0, path.length - name.length).replace(/\/+$/, "") || "/";
-    const link_url = `${base}/apps/files/?dir=${encodeURIComponent(dir)}&openfile=true&scrollto=${encodeURIComponent(name)}`;
-    out.push({
-      name,
-      path,
-      link_url,
-      mime: mimeM ? mimeM[1] : null,
-      size: sizeM ? Number(sizeM[1]) : null,
-      is_dir: false,
-    });
+  const tooBig = () => new Error(`File is too large (max ${Math.round(maxBytes / 1024 / 1024)} MB)`);
+  const declared = Number(res.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > maxBytes) {
+    await res.body?.cancel();
+    throw tooBig();
   }
-  return out;
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  if (bytes.byteLength > maxBytes) throw tooBig();
+  return {
+    name: path.split("/").filter(Boolean).pop() ?? "file",
+    mime: res.headers.get("content-type")?.split(";")[0].trim() || null,
+    bytes,
+    baseUrl: trimBaseUrl(conn.base_url),
+  };
 }

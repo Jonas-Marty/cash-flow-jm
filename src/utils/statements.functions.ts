@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import * as z from "zod";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { StatementImport, StatementImportDetail, StatementLine, StatementRef } from "@/lib/ai/statementTypes";
 
@@ -45,12 +46,60 @@ export const extractStatement = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<{ import_id: string }> => {
     const { runStatementExtraction } = await import("./statements.detail.server");
     const res = await runStatementExtraction(context.supabase, context.userId, data);
-    try {
-      const { classifyOpenStatementLines } = await import("./statements.classify.server");
-      await classifyOpenStatementLines(context.supabase, context.userId, res.import_id);
-    } catch {
-      // Field guessing is best effort; the import itself already succeeded.
-    }
+    await classifyBestEffort(context.supabase, context.userId, res.import_id);
+    return res;
+  });
+
+async function classifyBestEffort(
+  sb: SupabaseClient,
+  userId: string,
+  importId: string,
+) {
+  try {
+    const { classifyOpenStatementLines } = await import("./statements.classify.server");
+    await classifyOpenStatementLines(sb, userId, importId);
+  } catch {
+    // Field guessing is best effort; the import itself already succeeded.
+  }
+}
+
+/**
+ * Import a statement straight from the user's Nextcloud. The server fetches
+ * the file itself, so it never travels through the browser, and the import
+ * keeps a permalink to it instead of storing a copy in our bucket.
+ */
+export const extractStatementFromNextcloud = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: unknown) =>
+    z
+      .object({
+        account_id: z.string().uuid(),
+        path: z.string().min(1).max(1000),
+        file_id: z.string().regex(/^\d{1,20}$/).nullable().optional(),
+        invert_amounts: z.boolean().optional(),
+        window_days: z.number().int().min(0).max(30).optional(),
+        endpoint_id: z.string().uuid().nullable().optional(),
+      })
+      .parse(d),
+  )
+  .handler(async ({ data, context }): Promise<{ import_id: string }> => {
+    const { downloadFile } = await import("./nextcloud.server");
+    const { fileLink } = await import("@/lib/nextcloudDav");
+    const { runStatementExtraction } = await import("./statements.detail.server");
+    const file = await downloadFile(context.userId, data.path);
+    const res = await runStatementExtraction(context.supabase, context.userId, {
+      account_id: data.account_id,
+      file_name: file.name.slice(0, 200),
+      file_base64: Buffer.from(file.bytes).toString("base64"),
+      file_type: file.mime,
+      invert_amounts: data.invert_amounts,
+      window_days: data.window_days,
+      endpoint_id: data.endpoint_id ?? null,
+      // Built here from the stored server URL, never taken from the browser.
+      external_url: fileLink(file.baseUrl, data.path, data.file_id ?? null),
+      external_source: "nextcloud",
+    });
+    await classifyBestEffort(context.supabase, context.userId, res.import_id);
     return res;
   });
 

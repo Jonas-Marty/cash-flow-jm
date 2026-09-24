@@ -17,7 +17,7 @@ Ein gescanntes PDF ohne Textebene kann nicht gelesen werden — mach stattdessen
 ## Wie importiere ich einen Auszug? [#how-do-i-import-one]
 
 1. **Auszüge** öffnen und das passende **Konto** wählen.
-2. Datei wählen (PDF oder Bild).
+2. Datei wählen (PDF, CSV oder Bild) — vom Gerät oder, wenn Nextcloud verbunden ist, über **Oder aus Nextcloud wählen**. Eine Datei aus Nextcloud holt der Server direkt ab; die App speichert keine Kopie, sondern einen Link darauf.
 3. **Datumstoleranz** setzen (Standard 3 Tage) — Buchungsdaten in App und Bank stimmen selten exakt überein.
 4. **Beträge invertieren** aktivieren, wenn der Auszug Ausgaben positiv darstellt (bei Kreditkarten üblich).
 5. Import starten: Die KI extrahiert die Zeilen, danach vergleicht ein deterministischer Abgleich sie mit deinen Buchungen.

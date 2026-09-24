@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { exchangeCodeForToken, trimBaseUrl } from "@/utils/nextcloud.server";
-import { verifyState } from "@/utils/nextcloud.state.server";
+import { callbackUrlForHost, exchangeCodeForToken, trimBaseUrl } from "@/utils/nextcloud.server";
+
+// The state nonce is written by startNextcloudOAuth and is only good this long.
+const STATE_MAX_AGE_MS = 10 * 60 * 1000;
 
 function htmlPage(title: string, body: string) {
   return `<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>
@@ -33,34 +35,38 @@ export const Route = createFileRoute("/api/nextcloud/callback")({
         if (!code || !state) {
           return new Response(htmlPage("Nextcloud", `<h1>Missing parameters</h1><p><a href="/settings">Back to settings</a></p>`), { status: 400, headers: { "Content-Type": "text/html" } });
         }
-        const verified = verifyState(state);
-        if (!verified) {
-          return new Response(htmlPage("Nextcloud", `<h1>Invalid or expired state</h1><p>Please retry from the settings page.</p><p><a href="/settings">Back to settings</a></p>`), { status: 400, headers: { "Content-Type": "text/html" } });
-        }
-        const userId = verified.userId;
+        // No session here: the nonce is what identifies the user. It is looked
+        // up and cleared before anything else, so a replayed callback finds nothing.
         const { data: conn, error: cErr } = await supabaseAdmin
           .from("nextcloud_connections")
-          .select("base_url, client_id, client_secret")
-          .eq("user_id", userId)
+          .select("user_id, base_url, client_id, client_secret, oauth_state_created_at")
+          .eq("oauth_state", state)
           .maybeSingle();
         if (cErr || !conn) {
-          return new Response(htmlPage("Nextcloud", `<h1>No connection record</h1><p><a href="/settings">Back to settings</a></p>`), { status: 400, headers: { "Content-Type": "text/html" } });
+          return new Response(htmlPage("Nextcloud", `<h1>Invalid or expired state</h1><p>Please retry from the settings page.</p><p><a href="/settings">Back to settings</a></p>`), { status: 400, headers: { "Content-Type": "text/html" } });
         }
-        const origin = `${url.protocol}//${url.host}`;
-        const redirectUri = `${origin}/api/nextcloud/callback`;
+        const userId = conn.user_id;
+        await supabaseAdmin
+          .from("nextcloud_connections")
+          .update({ oauth_state: null, oauth_state_created_at: null })
+          .eq("user_id", userId);
+        const issued = conn.oauth_state_created_at ? new Date(conn.oauth_state_created_at).getTime() : 0;
+        if (!(Date.now() - issued <= STATE_MAX_AGE_MS)) {
+          return new Response(htmlPage("Nextcloud", `<h1>Invalid or expired state</h1><p>Please retry from the settings page.</p><p><a href="/settings">Back to settings</a></p>`), { status: 400, headers: { "Content-Type": "text/html" } });
+        }
+        const redirectUri = callbackUrlForHost(url.host);
         try {
           const tok = await exchangeCodeForToken(
             { base_url: trimBaseUrl(conn.base_url), client_id: conn.client_id, client_secret: conn.client_secret },
             code,
             redirectUri,
           );
-          const expires_at = new Date(Date.now() + (tok.expires_in - 30) * 1000).toISOString();
           const { error: uErr } = await supabaseAdmin
             .from("nextcloud_connections")
             .update({
               access_token: tok.access_token,
               refresh_token: tok.refresh_token,
-              token_expires_at: expires_at,
+              token_expires_at: tok.expires_at,
               scope: tok.scope ?? null,
               nextcloud_user: tok.user_id ?? null,
             })

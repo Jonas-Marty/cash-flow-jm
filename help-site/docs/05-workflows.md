@@ -33,5 +33,9 @@ sidebar:
 
 ## Nextcloud verbinden [#connecting-nextcloud]
 
-**Einstellungen → Nextcloud** öffnen und dem OAuth-Flow folgen. Danach kannst du über einen Dateibrowser Dateien aus deiner Nextcloud an Buchungen hängen. Hochgeladen wird nichts: die Datei bleibt, wo sie ist, und diese App speichert nur einen Link darauf. Löschst du den Anhang hier, bleibt die Datei in deiner Nextcloud.
+In Nextcloud unter *Verwaltung → Sicherheit → OAuth 2.0* einen Client anlegen, mit der Weiterleitungs-URI, die **Einstellungen → Nextcloud** anzeigt. Dort Server-URL, Client ID und Client Secret eintragen, speichern und auf **Verbinden** klicken. Client ID und Secret bleiben danach gespeichert: Lässt du die Felder leer, werden sie beibehalten.
+
+Dateien wählst du dann in einem Picker. Ohne Suchbegriff blätterst du durch deine Ordner, und der zuletzt benutzte wird gemerkt. Ab zwei Zeichen durchsuchst du die ganze Nextcloud, neueste Dateien zuerst. Anhänge an Buchungen zeigen standardmässig nur PDFs und Bilder. Hochgeladen wird nichts: die App speichert einen dauerhaften Link, der auch nach Umbenennen oder Verschieben funktioniert. Löschst du den Anhang hier, bleibt die Datei in deiner Nextcloud.
+
+Die Verbindung erneuert sich selbst. Nextcloud gibt Zugriff jeweils für eine Stunde, danach holt die App automatisch einen neuen. Neu verbinden musst du erst, wenn du die App in Nextcloud unter *Persönliche Einstellungen → Sicherheit → Geräte & Sitzungen* entfernst oder sie ein Jahr lang nicht benutzt. Die App zeigt das dann an.
 

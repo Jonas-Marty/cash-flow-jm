@@ -1,61 +1,132 @@
 import * as React from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
+import { Link } from "@tanstack/react-router";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, FileText } from "lucide-react";
-import { searchNextcloud } from "@/utils/nextcloud.functions";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ChevronRight, FileText, Folder, Image as ImageIcon, Loader2 } from "lucide-react";
+import { listNextcloudFolder, searchNextcloud } from "@/utils/nextcloud.functions";
+import { isReconnectError } from "@/lib/nextcloudAuth";
+import type { NcEntry, NcKind } from "@/lib/nextcloudDav";
 import { useI18n } from "@/i18n";
 
 export interface PickedFile {
   name: string;
   path: string;
   link_url: string;
+  file_id: string | null;
+  mime: string | null;
+}
+
+const folderKey = (kind: NcKind) => `nc-picker-folder:${kind}`;
+
+// The last folder is a per-device convenience: receipts and statements usually
+// live in one place each, and starting there saves the walk down every time.
+function readFolder(kind: NcKind): string {
+  try {
+    return localStorage.getItem(folderKey(kind)) || "/";
+  } catch {
+    return "/";
+  }
+}
+
+function writeFolder(kind: NcKind, path: string) {
+  try {
+    localStorage.setItem(folderKey(kind), path);
+  } catch {
+    // Private mode or blocked storage: the picker just starts at the top.
+  }
+}
+
+function useDebounced<T>(value: T, ms: number): T {
+  const [v, setV] = React.useState(value);
+  React.useEffect(() => {
+    const h = setTimeout(() => setV(value), ms);
+    return () => clearTimeout(h);
+  }, [value, ms]);
+  return v;
+}
+
+function fmtSize(n: number | null): string {
+  if (n == null) return "";
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${Math.round(n / 1024)} KB`;
+  return `${(n / 1024 / 1024).toFixed(1)} MB`;
 }
 
 export function NextcloudFilePicker({
   open,
   onOpenChange,
   onPick,
+  kind = "receipt",
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   onPick: (f: PickedFile) => void;
+  /** Decides which file types are offered: receipts are PDFs and images, statements also CSV. */
+  kind?: Exclude<NcKind, "any">;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const search = useServerFn(searchNextcloud);
+  const list = useServerFn(listNextcloudFolder);
   const [query, setQuery] = React.useState("");
-  const [loading, setLoading] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
-  const [results, setResults] = React.useState<PickedFile[]>([]);
+  const [folder, setFolder] = React.useState<string>(() => readFolder(kind));
+  const [onlyDocs, setOnlyDocs] = React.useState(true);
+  const q = useDebounced(query.trim(), 300);
+  const searching = q.length >= 2;
+  // Statements are always filtered: extraction cannot read anything else.
+  const effKind: NcKind = kind === "receipt" && !onlyDocs ? "any" : kind;
 
   React.useEffect(() => {
-    if (!open) {
-      setQuery("");
-      setResults([]);
-      setError(null);
-    }
-  }, [open]);
+    if (open) setFolder(readFolder(kind));
+    else setQuery("");
+  }, [open, kind]);
 
-  React.useEffect(() => {
-    if (!open) return;
-    const q = query.trim();
-    if (q.length < 2) { setResults([]); return; }
-    let cancelled = false;
-    setLoading(true);
-    setError(null);
-    const handle = setTimeout(async () => {
-      try {
-        const res = await search({ data: { query: q } });
-        if (!cancelled) setResults(res.results);
-      } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : String(e));
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }, 300);
-    return () => { cancelled = true; clearTimeout(handle); };
-  }, [query, open, search]);
+  const searchQ = useQuery({
+    queryKey: ["nc-search", q, effKind],
+    queryFn: () => search({ data: { query: q, kind: effKind } }),
+    enabled: open && searching,
+    retry: false,
+    staleTime: 30_000,
+  });
+  const folderQ = useQuery({
+    queryKey: ["nc-folder", folder, effKind],
+    queryFn: () => list({ data: { path: folder, kind: effKind } }),
+    enabled: open && !searching,
+    retry: false,
+    staleTime: 30_000,
+  });
+
+  const active = searching ? searchQ : folderQ;
+  const entries: NcEntry[] = searching ? (searchQ.data?.results ?? []) : (folderQ.data?.entries ?? []);
+  // Typing between keystrokes counts as loading, so "no matches" never
+  // flashes for a query that has not been sent yet.
+  const pending = query.trim() !== q && query.trim().length >= 2;
+  const loading = pending || active.isFetching;
+
+  const openFolder = (path: string) => {
+    setFolder(path);
+    writeFolder(kind, path);
+  };
+
+  const crumbs = React.useMemo(() => {
+    const segs = folder.split("/").filter(Boolean);
+    return segs.map((name, i) => ({ name, path: `/${segs.slice(0, i + 1).join("/")}` }));
+  }, [folder]);
+
+  const dateFmt = React.useMemo(
+    () => new Intl.DateTimeFormat(lang === "de" ? "de-CH" : "en-GB", { dateStyle: "medium" }),
+    [lang],
+  );
+
+  const pick = (e: NcEntry) => {
+    onPick({ name: e.name, path: e.path, link_url: e.link_url, file_id: e.file_id, mime: e.mime });
+    onOpenChange(false);
+  };
+
+  const error = active.error;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -69,37 +140,90 @@ export function NextcloudFilePicker({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
-        <div className="min-h-[160px] max-h-[420px] overflow-y-auto rounded-md border">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+          {searching ? (
+            <span>{t("attachments.picker.searching_all")}</span>
+          ) : (
+            <nav className="flex min-w-0 flex-wrap items-center gap-0.5" aria-label={t("attachments.picker.folder")}>
+              <button type="button" className="hover:text-foreground hover:underline" onClick={() => openFolder("/")}>
+                {t("nextcloud.title")}
+              </button>
+              {crumbs.map((c) => (
+                <React.Fragment key={c.path}>
+                  <ChevronRight className="h-3 w-3 shrink-0" />
+                  <button type="button" className="truncate hover:text-foreground hover:underline" onClick={() => openFolder(c.path)}>
+                    {c.name}
+                  </button>
+                </React.Fragment>
+              ))}
+            </nav>
+          )}
+          {kind === "receipt" ? (
+            <label className="flex items-center gap-1.5">
+              <Checkbox checked={onlyDocs} onCheckedChange={(v) => setOnlyDocs(v === true)} />
+              {t("attachments.picker.only_docs")}
+            </label>
+          ) : (
+            <span>{t("attachments.picker.statement_types")}</span>
+          )}
+        </div>
+        <div className="min-h-[200px] max-h-[420px] overflow-y-auto rounded-md border">
           {loading && (
             <div className="flex items-center gap-2 p-4 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
             </div>
           )}
           {!loading && error && (
-            <div className="p-4 text-sm text-destructive">{error}</div>
+            <div className="space-y-2 p-4 text-sm">
+              {isReconnectError(error) ? (
+                <>
+                  <p className="text-destructive">{t("nextcloud.reconnect_needed")}</p>
+                  <Link to="/settings" hash="nextcloud" className="text-primary underline" onClick={() => onOpenChange(false)}>
+                    {t("nextcloud.open_settings")}
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <p className="text-destructive">{error instanceof Error ? error.message : String(error)}</p>
+                  {!searching && folder !== "/" && (
+                    <Button size="sm" variant="outline" onClick={() => openFolder("/")}>
+                      {t("nextcloud.title")}
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
           )}
-          {!loading && !error && query.trim().length < 2 && (
-            <div className="p-4 text-sm text-muted-foreground">{t("attachments.picker.hint")}</div>
+          {!loading && !error && entries.length === 0 && (
+            <div className="p-4 text-sm text-muted-foreground">
+              {searching ? t("attachments.picker.no_results") : t("attachments.picker.empty_folder")}
+            </div>
           )}
-          {!loading && !error && query.trim().length >= 2 && results.length === 0 && (
-            <div className="p-4 text-sm text-muted-foreground">{t("attachments.picker.no_results")}</div>
-          )}
-          {!loading && results.length > 0 && (
+          {!loading && !error && entries.length > 0 && (
             <ul className="divide-y">
-              {results.map((r) => {
-                const dir = r.path.substring(0, r.path.length - r.name.length).replace(/\/+$/, "") || "/";
+              {entries.map((e) => {
+                const dir = e.path.slice(0, e.path.length - e.name.length).replace(/\/+$/, "") || "/";
+                const meta = [
+                  searching ? dir : null,
+                  e.modified ? dateFmt.format(new Date(e.modified)) : null,
+                  e.is_dir ? null : fmtSize(e.size),
+                ].filter(Boolean);
+                const Icon = e.is_dir ? Folder : e.mime?.startsWith("image/") ? ImageIcon : FileText;
                 return (
-                  <li key={r.path}>
+                  <li key={e.path}>
                     <button
                       type="button"
                       className="flex w-full items-start gap-3 px-3 py-2 text-left hover:bg-accent"
-                      onClick={() => { onPick(r); onOpenChange(false); }}
+                      onClick={() => (e.is_dir ? openFolder(e.path) : pick(e))}
                     >
-                      <FileText className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                       <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-medium">{r.name}</div>
-                        <div className="truncate text-xs text-muted-foreground">{dir}</div>
+                        <div className="truncate text-sm font-medium">{e.name}</div>
+                        {meta.length > 0 && (
+                          <div className="truncate text-xs text-muted-foreground">{meta.join(" · ")}</div>
+                        )}
                       </div>
+                      {e.is_dir && <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />}
                     </button>
                   </li>
                 );

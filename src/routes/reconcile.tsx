@@ -385,6 +385,8 @@ function AddStatementDialog({
           source: a.source,
           display_name: a.display_name,
           link_url: a.link_url,
+          external_id: a.external_id ?? null,
+          external_path: a.external_path ?? null,
         }));
         const { error: aErr } = await supabase.from("transaction_attachments").insert(rows);
         if (aErr) toast.error(aErr.message);

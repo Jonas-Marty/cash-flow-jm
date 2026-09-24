@@ -108,7 +108,7 @@ Both sweeps are recomputed on every read and never stored. There is no month-end
 
 ## Attachment [#attachment]
 
-A file (receipt, invoice) linked to a transaction. Optionally synced to Nextcloud if you connect it.
+A file (receipt, invoice) linked to a transaction. It stays in your Nextcloud; the app stores only a link to it.
 
 **Example:** After paying CHF 89 for a dentist visit, you snap a photo of the receipt and attach it to the transaction. Six months later, when your health insurance asks for proof, you open the transaction and the receipt is right there.
 

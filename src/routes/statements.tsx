@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Trash2, Upload, CheckCircle2, AlertTriangle, HelpCircle, EyeOff, RefreshCw } from "lucide-react";
+import { Loader2, Trash2, Upload, CheckCircle2, AlertTriangle, HelpCircle, EyeOff, RefreshCw, Cloud, X } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,12 +16,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DatePicker } from "@/components/DatePicker";
 import { StatementDocButton } from "@/components/StatementDocLink";
 import { StatementLineTable } from "@/components/statements/StatementLineTable";
+import { NextcloudFilePicker, type PickedFile } from "@/components/NextcloudFilePicker";
+import { getNextcloudStatus } from "@/utils/nextcloud.functions";
 
 import { useI18n } from "@/i18n";
 import { fetchAccounts, fmtMoney } from "@/lib/finance";
 import {
   deleteStatementImport,
   extractStatement,
+  extractStatementFromNextcloud,
   getStatementImport,
   listStatementImports,
   rematchStatementImport,
@@ -98,6 +101,9 @@ function StatementsPage() {
   const listFn = useServerFn(listStatementImports);
   const getFn = useServerFn(getStatementImport);
   const extractFn = useServerFn(extractStatement);
+  const extractNcFn = useServerFn(extractStatementFromNextcloud);
+  const ncStatusFn = useServerFn(getNextcloudStatus);
+  const ncStatusQ = useQuery({ queryKey: ["nextcloud_status"], queryFn: () => ncStatusFn() });
   const rematchFn = useServerFn(rematchStatementImport);
   const resolveFn = useServerFn(resolveStatementLine);
   const deleteFn = useServerFn(deleteStatementImport);
@@ -110,6 +116,10 @@ function StatementsPage() {
   const [invert, setInvert] = React.useState(false);
   const [windowDays, setWindowDays] = React.useState(3);
   const [file, setFile] = React.useState<File | null>(null);
+  // A statement can come from the device or from Nextcloud, never both.
+  const [ncFile, setNcFile] = React.useState<PickedFile | null>(null);
+  const [ncOpen, setNcOpen] = React.useState(false);
+  const [fileInputKey, setFileInputKey] = React.useState(0);
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const search = Route.useSearch();
 
@@ -129,8 +139,19 @@ function StatementsPage() {
 
   const importMut = useMutation({
     mutationFn: async () => {
-      if (!file) throw new Error(t("statements.err.no_file"));
       if (!accountId) throw new Error(t("statements.err.no_account"));
+      if (ncFile) {
+        return extractNcFn({
+          data: {
+            account_id: accountId,
+            path: ncFile.path,
+            file_id: ncFile.file_id,
+            invert_amounts: invert,
+            window_days: windowDays,
+          },
+        });
+      }
+      if (!file) throw new Error(t("statements.err.no_file"));
       const file_base64 = await readFileAsBase64(file);
       return extractFn({
         data: {
@@ -145,6 +166,8 @@ function StatementsPage() {
     },
     onSuccess: (res) => {
       setFile(null);
+      setNcFile(null);
+      setFileInputKey((k) => k + 1);
       setActiveId(res.import_id);
       qc.invalidateQueries({ queryKey: ["statement_imports"] });
       toast.success(t("statements.toast.imported"));
@@ -289,11 +312,48 @@ function StatementsPage() {
             </div>
             <div className="space-y-1">
               <Label className="text-xs">{t("statements.field.file")}</Label>
-              <Input
-                type="file"
-                accept="application/pdf,text/csv,text/plain,.csv,.tsv,image/png,image/jpeg,image/webp,image/gif"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                className="h-9"
+              {ncFile ? (
+                <div className="flex h-9 items-center gap-2 rounded-md border px-3 text-sm">
+                  <Cloud className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <span className="min-w-0 flex-1 truncate" title={ncFile.path}>
+                    {ncFile.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setNcFile(null)}
+                    className="text-muted-foreground hover:text-foreground"
+                    aria-label={t("common.cancel")}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <Input
+                  key={fileInputKey}
+                  type="file"
+                  accept="application/pdf,text/csv,text/plain,.csv,.tsv,image/png,image/jpeg,image/webp,image/gif"
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                  className="h-9"
+                />
+              )}
+              {ncStatusQ.data?.connected && !ncFile && (
+                <button
+                  type="button"
+                  onClick={() => setNcOpen(true)}
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground hover:underline"
+                >
+                  <Cloud className="h-3.5 w-3.5" /> {t("statements.nextcloud.pick")}
+                </button>
+              )}
+              <NextcloudFilePicker
+                open={ncOpen}
+                onOpenChange={setNcOpen}
+                kind="statement"
+                onPick={(f) => {
+                  setNcFile(f);
+                  setFile(null);
+                  setFileInputKey((k) => k + 1);
+                }}
               />
             </div>
             <div className="space-y-1">
@@ -316,7 +376,7 @@ function StatementsPage() {
             </div>
             <div className="sm:col-span-2 flex items-center justify-between gap-2">
               <p className="text-xs text-muted-foreground">{t("statements.import.hint")}</p>
-              <Button onClick={() => importMut.mutate()} disabled={importMut.isPending || !file}>
+              <Button onClick={() => importMut.mutate()} disabled={importMut.isPending || (!file && !ncFile)}>
                 {importMut.isPending ? (
                   <Loader2 className="mr-1 h-4 w-4 animate-spin" />
                 ) : (

@@ -16,7 +16,7 @@ A scanned PDF without a text layer cannot be read — take a photo/screenshot of
 ## How do I import one? [#how-do-i-import-one]
 
 1. Open **Statements**, pick the **account** the statement belongs to.
-2. Choose the file (PDF or image).
+2. Choose the file (PDF, CSV or image) — from your device or, if Nextcloud is connected, through **Or choose from Nextcloud**. A Nextcloud file is fetched by the server directly; the app keeps no copy, only a link to it.
 3. Set the **date tolerance** (default 3 days) — booking dates in the app and at the bank rarely match exactly.
 4. Enable **invert amounts** if the statement shows expenses as positive numbers (common on credit-card statements).
 5. Start the import. The AI extracts the rows, then a deterministic matcher compares them with your transactions.

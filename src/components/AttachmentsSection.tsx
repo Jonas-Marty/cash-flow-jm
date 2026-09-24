@@ -1,11 +1,14 @@
 import * as React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Paperclip, Trash2, ExternalLink, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/i18n";
 import { NextcloudFilePicker, type PickedFile } from "@/components/NextcloudFilePicker";
+import { getNextcloudStatus } from "@/utils/nextcloud.functions";
 
 interface AttachmentRow {
   id: string;
@@ -20,6 +23,20 @@ export interface DraftAttachment {
   source: string;
   display_name: string;
   link_url: string;
+  /** Nextcloud file id: the link is built from it and survives a rename. */
+  external_id?: string | null;
+  external_path?: string | null;
+}
+
+/** The columns a picked Nextcloud file fills on transaction_attachments. */
+export function attachmentFromPick(f: PickedFile): DraftAttachment {
+  return {
+    source: "nextcloud",
+    display_name: f.name,
+    link_url: f.link_url,
+    external_id: f.file_id,
+    external_path: f.path,
+  };
 }
 
 type Props =
@@ -36,6 +53,9 @@ export function AttachmentsSection(props: Props) {
   const { t } = useI18n();
   const qc = useQueryClient();
   const [pickerOpen, setPickerOpen] = React.useState(false);
+  const statusFn = useServerFn(getNextcloudStatus);
+  const statusQ = useQuery({ queryKey: ["nextcloud_status"], queryFn: () => statusFn() });
+  const connected = !!statusQ.data?.connected;
 
   const q = useQuery({
     queryKey: ["attachments", parentCol, parentKey],
@@ -54,19 +74,14 @@ export function AttachmentsSection(props: Props) {
   const onPick = async (f: PickedFile) => {
     if (isDraft) {
       const draftProps = props as Extract<Props, { draft: true }>;
-      draftProps.onItemsChange([
-        { source: "nextcloud", display_name: f.name, link_url: f.link_url },
-        ...draftProps.items,
-      ]);
+      draftProps.onItemsChange([attachmentFromPick(f), ...draftProps.items]);
       toast.success(t("attachments.added"));
       return;
     }
     const { error } = await supabase.from("transaction_attachments").insert({
       transaction_id: transactionId ?? null,
       statement_id: statementId ?? null,
-      source: "nextcloud",
-      display_name: f.name,
-      link_url: f.link_url,
+      ...attachmentFromPick(f),
     });
     if (error) { toast.error(error.message); return; }
     toast.success(t("attachments.added"));
@@ -105,10 +120,18 @@ export function AttachmentsSection(props: Props) {
           <Paperclip className="h-4 w-4" /> {t("attachments.title")}
           {items.length > 0 && <span className="text-muted-foreground">({items.length})</span>}
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={() => setPickerOpen(true)}>
+        <Button type="button" variant="outline" size="sm" disabled={!connected} onClick={() => setPickerOpen(true)}>
           <Plus className="mr-1 h-3 w-3" /> {t("attachments.add")}
         </Button>
       </div>
+      {statusQ.data && !connected && (
+        <p className="text-xs text-muted-foreground">
+          {statusQ.data.lost ? t("nextcloud.reconnect_needed") : t("attachments.not_connected")}{" "}
+          <Link to="/settings" hash="nextcloud" className="underline hover:text-foreground">
+            {t("nextcloud.open_settings")}
+          </Link>
+        </p>
+      )}
       {items.length === 0 ? (
         <p className="text-xs text-muted-foreground">{t("attachments.empty")}</p>
       ) : (
@@ -140,7 +163,7 @@ export function AttachmentsSection(props: Props) {
           ))}
         </ul>
       )}
-      <NextcloudFilePicker open={pickerOpen} onOpenChange={setPickerOpen} onPick={onPick} />
+      <NextcloudFilePicker open={pickerOpen} onOpenChange={setPickerOpen} onPick={onPick} kind="receipt" />
     </div>
   );
 }

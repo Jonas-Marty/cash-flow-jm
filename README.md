@@ -131,7 +131,6 @@ At runtime, the container reads:
 | `SUPABASE_SERVICE_ROLE_KEY` | yes | Service-role key for admin operations (audit log writes, cron, public-API admin paths) |
 | `METRICS_TOKEN` | yes | Bearer token guarding `/api/public/metrics`, `/api/public/prune-audit`, `/api/public/process-recurring` |
 | `AUDIT_RETENTION_DAYS` | no (default 365) | Retention window for `prune_audit_logs` |
-| `NEXTCLOUD_BASE_URL` / `NEXTCLOUD_CLIENT_ID` / `NEXTCLOUD_CLIENT_SECRET` | no | OAuth credentials for the Nextcloud attachments integration |
 | `LOG_SERVICE_NAME` | no (default `cash-flow`) | Sets `service` field in JSON logs |
 | `PORT` / `HOST` | no (defaults `3000` / `0.0.0.0`) | Node SSR listen address |
 

@@ -30,8 +30,16 @@ export function NextcloudCard() {
 
   const onSave = async () => {
     try {
-      await save({ data: { base_url: baseUrl.trim(), client_id: clientId.trim(), client_secret: clientSecret.trim() } });
-      toast.success(t("common.save"));
+      // Empty credential fields keep what is stored; the server never sends them back.
+      const res = await save({
+        data: {
+          base_url: baseUrl.trim(),
+          client_id: clientId.trim() || undefined,
+          client_secret: clientSecret.trim() || undefined,
+        },
+      });
+      toast.success(res.reconnect ? t("nextcloud.saved_reconnect") : t("common.save"));
+      setClientId("");
       setClientSecret("");
       qc.invalidateQueries({ queryKey: ["nextcloud_status"] });
     } catch (e) { toast.error(e instanceof Error ? e.message : String(e)); }
@@ -62,22 +70,24 @@ export function NextcloudCard() {
           </div>
           <div>
             <Label className="text-xs">{t("nextcloud.client_id")}</Label>
-            <Input value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder={t("nextcloud.client_id_ph")} />
+            <Input value={clientId} onChange={(e) => setClientId(e.target.value)} placeholder={q.data?.has_credentials ? t("nextcloud.kept_ph") : t("nextcloud.client_id_ph")} />
           </div>
           <div className="md:col-span-2">
             <Label className="text-xs">{t("nextcloud.client_secret")}</Label>
-            <Input type="password" value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} placeholder={t("nextcloud.client_secret_ph")} />
+            <Input type="password" value={clientSecret} onChange={(e) => setClientSecret(e.target.value)} placeholder={q.data?.has_credentials ? t("nextcloud.kept_ph") : t("nextcloud.client_secret_ph")} />
           </div>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" onClick={onSave}>{t("common.save")}</Button>
-          <Button size="sm" variant="outline" disabled={!q.data?.configured} onClick={onConnect}>{t("nextcloud.connect")}</Button>
-          {q.data?.connected && (
+          <Button size="sm" variant="outline" disabled={!q.data?.has_credentials} onClick={onConnect}>{t("nextcloud.connect")}</Button>
+          {q.data?.configured && (
             <Button size="sm" variant="outline" onClick={onDisconnect}>{t("nextcloud.disconnect")}</Button>
           )}
         </div>
         {q.data?.connected ? (
           <p className="text-xs text-muted-foreground">{t("nextcloud.connected_as", { user: q.data.nextcloud_user ?? "?" })}</p>
+        ) : q.data?.lost ? (
+          <p className="text-xs text-destructive">{t("nextcloud.lost", { user: q.data.nextcloud_user ?? "?" })}</p>
         ) : q.data?.configured ? (
           <p className="text-xs text-muted-foreground">{t("nextcloud.saved_not_connected")}</p>
         ) : null}
