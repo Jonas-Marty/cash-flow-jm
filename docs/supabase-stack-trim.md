@@ -169,3 +169,41 @@ After the redeploy:
    that is the accepted regression.
 8. **Backup still green** — run the Dokploy backup once more and confirm a
    fresh object in the bucket.
+
+## Postgres minor updates (15.8 → 15.14)
+
+Tried on dev 2026-09-25 (`supabase/postgres:15.8.1.060` → `15.14.1.176`). An image
+swap alone does not start: two things in the new image differ from what the old one
+left in the volumes.
+
+1. **The config volume (`db-config` → `/etc/postgresql-custom`) is stale.** It was
+   filled by the old image on first start and now hides the new image's files; the
+   new `postgresql.conf` includes `conf.d/`, which the old volume lacks, so Postgres
+   refuses to start ("configuration file … contains errors" — the reason is only
+   visible without `log_min_messages=fatal`). The image's `postgres` user also moved
+   from UID 105 to 100, and `pgsodium_root.key` (mode 600) must stay readable. Refresh
+   the config files from the new image, keep the key, hand everything to the new UID:
+
+   ```bash
+   V=<project>_db-config   # dev: cash-flow-supabasedev-wl3ygi_db-config
+   docker run --rm -v $V:/vol:ro --entrypoint tar supabase/postgres:15.14.1.176 -C /vol -czf - . > db-config-before.tgz
+   docker run --rm -u 0 -v $V:/vol --entrypoint bash supabase/postgres:15.14.1.176 -c '
+     cp -a /etc/postgresql-custom/conf.d /vol/
+     cp /etc/postgresql-custom/{supautils.conf,wal-g.conf,read-replica.conf} /vol/
+     cp -a /etc/postgresql-custom/extension-custom-scripts/. /vol/extension-custom-scripts/
+     chown -R postgres:postgres /vol'
+   ```
+
+   The data directory needs nothing: the entrypoint re-owns it on start.
+2. **glibc moved 2.39 → 2.40**, so Postgres warns about a collation version mismatch
+   on every connection. Text indexes may sort differently; rebuild them, then record
+   the new version (the whole database took ~2 s):
+
+   ```sql
+   REINDEX DATABASE postgres;
+   ALTER DATABASE postgres REFRESH COLLATION VERSION;
+   ALTER DATABASE template1 REFRESH COLLATION VERSION;
+   ```
+
+Extensions keep their installed versions (pg_net 0.14.0, pg_graphql 1.5.11); newer
+ones are available but not needed.
