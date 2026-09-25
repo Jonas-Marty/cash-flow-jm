@@ -46,7 +46,9 @@ async function gotrueError(res: Response): Promise<Error> {
   return new Error(`Auth service: ${msg}`);
 }
 
-const providerPath = `/admin/custom-providers/${encodeURIComponent(OIDC_PROVIDER_ID)}`;
+// Raw, not URL-encoded: GoTrue compares the path segment as is, and refuses
+// "custom%3Aoidc" for not starting with "custom:".
+const providerPath = `/admin/custom-providers/${OIDC_PROVIDER_ID}`;
 
 export async function getOidcProvider(): Promise<GoTrueCustomProvider | null> {
   const res = await gotrue(providerPath);
