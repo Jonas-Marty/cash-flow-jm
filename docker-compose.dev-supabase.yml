@@ -51,7 +51,7 @@ services:
     networks: [dev-supabase]
 
   auth:
-    image: supabase/gotrue:v2.171.0
+    image: supabase/gotrue:v2.197.0
     restart: unless-stopped
     depends_on:
       db:
@@ -87,10 +87,14 @@ services:
       GOTRUE_EXTERNAL_PHONE_ENABLED: "false"
       GOTRUE_SMS_AUTOCONFIRM: "false"
       GOTRUE_SECURITY_MANUAL_LINKING_ENABLED: "true"
+      # Custom OIDC providers (Settings -> Integrations) return to
+      # <this>/callback. GoTrue sits behind Kong's /auth/v1, and without this
+      # it would send Authentik back to <API_EXTERNAL_URL>/callback, a 404.
+      GOTRUE_CUSTOM_OAUTH_EXTERNAL_URL: ${API_EXTERNAL_URL}/auth/v1
     networks: [dev-supabase]
 
   rest:
-    image: postgrest/postgrest:v12.2.11
+    image: postgrest/postgrest:v14.18
     restart: unless-stopped
     depends_on:
       db:
@@ -100,14 +104,13 @@ services:
       PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS:-public,storage,graphql_public}
       PGRST_DB_ANON_ROLE: anon
       PGRST_JWT_SECRET: ${JWT_SECRET}
-      PGRST_DB_USE_LEGACY_GUCS: "false"
       PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
       PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY:-3600}
     command: ["postgrest"]
     networks: [dev-supabase]
 
   storage:
-    image: supabase/storage-api:v1.22.7
+    image: supabase/storage-api:v1.74.0
     restart: unless-stopped
     volumes:
       - storage-data:/var/lib/storage
@@ -138,7 +141,7 @@ services:
     networks: [dev-supabase]
 
   kong:
-    image: kong:2.8.1
+    image: kong:2.8.5
     restart: unless-stopped
     expose:
       - 8000

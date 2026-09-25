@@ -79,6 +79,10 @@ NC_KEEP_COLS="user_id, base_url, client_id, client_secret, access_token, refresh
 
 # nc_keep_save <db container> <file> -> CSV of dev's own Nextcloud rows
 nc_keep_save() {
+  # A freshly reset dev database has no app tables yet: nothing to keep.
+  if [ "$(psql_dev "$1" -Atc "SELECT to_regclass('public.nextcloud_connections') IS NOT NULL")" != "t" ]; then
+    : > "$2"; return 0
+  fi
   ( umask 077
     psql_dev "$1" -c "COPY (SELECT $NC_KEEP_COLS FROM public.nextcloud_connections WHERE client_secret <> '') TO STDOUT WITH CSV" > "$2" )
 }
