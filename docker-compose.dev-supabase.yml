@@ -171,6 +171,37 @@ services:
     entrypoint: bash -c 'eval "echo \"$$(cat ~/temp.yml)\"" > ~/kong.yml && /docker-entrypoint.sh kong docker-start'
     networks: [dev-supabase]
 
+  # API gateway replacing Kong: upstream's Envoy, trimmed (docker/envoy/).
+  # While both run, the Dokploy domain decides which one serves traffic.
+  envoy:
+    image: envoyproxy/envoy:v1.39.1
+    restart: unless-stopped
+    depends_on:
+      auth:
+        condition: service_started
+      rest:
+        condition: service_started
+      storage:
+        condition: service_started
+    expose:
+      - 8000
+    volumes:
+      - ./docker/envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro
+      - ./docker/envoy/cds.yaml:/etc/envoy/cds.yaml:ro
+      - ./docker/envoy/lds.template.yaml:/etc/envoy/lds.template.yaml:ro
+      - ./docker/envoy/docker-entrypoint.sh:/docker-entrypoint.sh:ro
+    environment:
+      ANON_KEY: ${ANON_KEY}
+      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+    entrypoint: ["/bin/sh", "/docker-entrypoint.sh"]
+    healthcheck:
+      # The image has neither curl nor wget.
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/127.0.0.1/8000'"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks: [dev-supabase]
+
   # ---- optional data browser: set COMPOSE_PROFILES=studio to run these ----
   meta:
     image: supabase/postgres-meta:v0.88.9
