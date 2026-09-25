@@ -1,0 +1,83 @@
+# Replacing Kong (plan — not applied yet)
+
+## Why
+
+- **Kong 2.8 is end of life.** 2.8.5 is the last release (a hash-collision DoS
+  fix); the open-source 3.x line froze at 3.9 and loses support 2026-12-12.
+- **Upstream moved on.** Supabase's self-hosting stack uses Envoy by default
+  since self-hosted v0.8.0; security fixes to the gateway config now land in
+  Envoy's files first (e.g. blocking Realtime's `/api/tenants`).
+- **Kong is our heaviest service for what it does.** 1 GB memory limit, two
+  nginx workers pinned by hand, and a `bash -c 'eval "echo …"'` entrypoint that
+  shell-expands the whole config file.
+
+## What the gateway has to do for us
+
+After the 2026-09-25 trims (no realtime, imgproxy, graphql, functions,
+analytics; Studio/meta on their way out) the job is small:
+
+| Path | Upstream | Key check | Notes |
+|---|---|---|---|
+| `/auth/v1/verify`, `/auth/v1/callback`, `/auth/v1/authorize` | auth:9999 | none | browser redirects, no headers possible |
+| `/auth/v1/*` | auth:9999 | apikey = anon or service | |
+| `/rest/v1/*` | rest:3000 | apikey = anon or service | apikey stripped before PostgREST (`hide_credentials`) |
+| `/storage/v1/*` | storage:5000 | none (storage checks the JWT) | needs `X-Forwarded-Prefix: /storage/v1` for TUS/S3 URLs |
+| anything else | — | — | 404 |
+
+Plus CORS for every route (the browser app calls from `cash-flow.wi-wo.ch`),
+answered at the gateway including preflights. TLS stays in Traefik.
+
+The key check is defence in depth, not the boundary: PostgREST and GoTrue
+verify the JWT themselves, and the anon key is public (it ships in the app's
+JavaScript). It keeps drive-by scanners away and matches Kong's behaviour.
+
+## Options
+
+**A. Upstream Envoy (`envoyproxy/envoy`), template trimmed to the table above.**
++ Same gateway as upstream; their future fixes can be ported route by route.
++ Proper key check (Lua filter), opaque `sb_*` key support if ever wanted.
+− Upstream's template is ~50 KB of YAML for ~20 routes; trimmed to ours it is
+  still several hundred lines of Envoy config plus a Lua filter, rendered by a
+  `sed` entrypoint. Harder to read and to debug than what it replaces.
+
+**B. nginx, as ov-track already does** (`/work/ov-track/docker/gateway/default.conf.template`).
++ ~100 lines anyone can read; same pattern as the other project on this host.
++ `nginx:alpine`, a few MB of memory; envsubst limited to named variables
+  instead of `eval`.
++ Exact key check with a `map $http_apikey $key_ok { "${ANON_KEY}" 1; "${SERVICE_ROLE_KEY}" 1; default 0; }`
+  (ov-track only checks that the header is non-empty — tighten that here).
+− Our own config, not upstream's: we port relevant upstream changes by hand
+  (we already do, since our Kong file is trimmed).
+
+**Recommendation: B.** The trimmed route table is five entries; nginx states
+it plainly, costs nothing to run, and matches ov-track, so there is one gateway
+pattern on the host instead of two.
+
+## Rollout
+
+1. **Dev first.** Add a `gateway` service (nginx:alpine) next to Kong in
+   `docker-compose.dev-supabase.yml`, not yet on the domain. Run the checks
+   below against it inside the network.
+2. **Switch dev's domain** (Dokploy → supabase-dev → Domains: service `gateway`,
+   port 80 instead of `kong` 8000). Run `scripts/dev/smoke.mjs` and the checks.
+3. Remove Kong from dev after a day of normal use.
+4. **Prod the same way:** add `gateway`, switch the Domains entry, keep Kong
+   running (unrouted) for a quick rollback, remove it later.
+
+**Rollback** at any point: point the domain back at `kong:8000`.
+
+## Checks (dev, then prod)
+
+- `GET /auth/v1/health` without apikey → 401; with anon key → 200.
+- `GET /rest/v1/accounts` with a wrong apikey → 401; with anon key → 200
+  (RLS returns `[]` for anon).
+- `OPTIONS /rest/v1/accounts` with `Origin` + `Access-Control-Request-Headers:
+  apikey,authorization,content-type,x-client-info` → 204 with matching CORS
+  headers.
+- `GET /auth/v1/authorize?provider=custom:oidc` → 302 to Authentik;
+  `/auth/v1/callback` and `/auth/v1/verify` reachable without apikey.
+- Storage: upload, public URL, signed URL, delete (as tested for the Storage
+  upgrade); a resumable (TUS) upload's `Location` keeps the `/storage/v1` prefix.
+- `/realtime/v1/…`, `/pg/…`, `/` → 404.
+- `scripts/dev/smoke.mjs` → no problems; sign-in with Authentik end to end.
+- The server-side service-role path: `/api/public/metrics` with its token.
