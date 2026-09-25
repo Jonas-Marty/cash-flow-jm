@@ -50,8 +50,9 @@ Options rejected:
 
 ### 1.2 Authentication and sessions
 - Sign-in: email + password (`supabase.auth.signInWithPassword`, `src/components/AuthPage.tsx:40`)
-  and OAuth via rows in `auth_providers` (`google`, `microsoft→azure`, `keycloak`; mapping in
-  `src/lib/authProviders.ts`). Sign-up `signUp` with GDPR checkbox. **No** magic link, OTP, MFA,
+  and OAuth via rows in `auth_providers` (`google`, `microsoft→azure`, `oidc→custom:oidc`; mapping in
+  `src/lib/authProviders.ts`). The OIDC client secret is held by GoTrue in `auth.custom_oauth_providers`,
+  plaintext unless GoTrue's own `GOTRUE_SECURITY_DB_ENCRYPTION_*` is set (it is not). Sign-up `signUp` with GDPR checkbox. **No** magic link, OTP, MFA,
   passkeys, password reset or password change anywhere (`LinkedAccountsCard.tsx` only links identities).
 - `handle_new_user()` (`20260424105632…sql:77-111`, SECURITY DEFINER, `AFTER INSERT ON auth.users`)
   grants roles, back-fills orphan rows, inserts default `settings`. Natural hook for provisioning.

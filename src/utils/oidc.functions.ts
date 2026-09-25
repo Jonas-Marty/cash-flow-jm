@@ -1,5 +1,22 @@
 import { createServerFn } from "@tanstack/react-start";
+import * as z from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { OIDC_PROVIDER_ID, providerLabel, toSupabaseProvider } from "@/lib/authProviders";
+import { customOidcProviderBody } from "@/lib/oidcDiscovery";
+import {
+  assertAdmin,
+  builtInProvidersEnabled,
+  deleteOidcProvider,
+  fetchDiscovery,
+  getOidcProvider,
+  putOidcProvider,
+} from "./signInProviders.server";
+
+// Sign-in providers live in two places: our auth_providers table decides which
+// buttons the login page offers, and the auth service (GoTrue) holds what makes
+// them work. For the generic OIDC provider the app writes both, so Settings is
+// the whole configuration; the client secret only ever goes to GoTrue.
 
 export type OidcTestResult = {
   ok: boolean;
@@ -13,11 +30,9 @@ export type OidcTestResult = {
 };
 
 /**
- * Probes an OIDC discovery document (".well-known/openid-configuration") and
- * reports whether it is reachable and structurally usable.
- *
- * Runs server-side so self-hosted / LAN-only identity providers can be reached
- * and so the browser is not blocked by CORS.
+ * Fetches a discovery document server-side (LAN-only providers are reachable,
+ * no CORS) and reports whether it is usable. Admins only: it makes the server
+ * fetch a URL of the caller's choosing.
  */
 export const testOidcDiscovery = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -26,76 +41,173 @@ export const testOidcDiscovery = createServerFn({ method: "POST" })
     if (!url) throw new Error("Discovery URL is required");
     return { url };
   })
-  .handler(async ({ data }): Promise<OidcTestResult> => {
-    const started = Date.now();
-    let target = data.url;
-    try {
-      const parsed = new URL(target);
-      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-        return { ok: false, durationMs: 0, error: "URL must use http(s)" };
-      }
-      // Accept either the issuer root or the full discovery path.
-      if (!parsed.pathname.includes("/.well-known/")) {
-        parsed.pathname = `${parsed.pathname.replace(/\/$/, "")}/.well-known/openid-configuration`;
-        target = parsed.toString();
-      }
-    } catch {
-      return { ok: false, durationMs: 0, error: "Invalid URL" };
-    }
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
-    try {
-      const res = await fetch(target, {
-        headers: { accept: "application/json" },
-        signal: controller.signal,
-      });
-      const durationMs = Date.now() - started;
-      if (!res.ok) {
-        return { ok: false, durationMs, error: `HTTP ${res.status} ${res.statusText}` };
-      }
-      let doc: Record<string, unknown>;
-      try {
-        doc = (await res.json()) as Record<string, unknown>;
-      } catch {
-        return { ok: false, durationMs, error: "Response is not valid JSON" };
-      }
-      const issuer = typeof doc.issuer === "string" ? doc.issuer : undefined;
-      const authorizationEndpoint =
-        typeof doc.authorization_endpoint === "string" ? doc.authorization_endpoint : undefined;
-      const tokenEndpoint = typeof doc.token_endpoint === "string" ? doc.token_endpoint : undefined;
-      const jwksUri = typeof doc.jwks_uri === "string" ? doc.jwks_uri : undefined;
-      const scopes = Array.isArray(doc.scopes_supported)
-        ? (doc.scopes_supported as unknown[]).filter((s): s is string => typeof s === "string")
-        : undefined;
-
-      const missing: string[] = [];
-      if (!issuer) missing.push("issuer");
-      if (!authorizationEndpoint) missing.push("authorization_endpoint");
-      if (!tokenEndpoint) missing.push("token_endpoint");
-      if (!jwksUri) missing.push("jwks_uri");
-      if (missing.length) {
-        return {
-          ok: false,
-          durationMs,
-          issuer,
-          authorizationEndpoint,
-          tokenEndpoint,
-          jwksUri,
-          error: `Discovery document is missing: ${missing.join(", ")}`,
-        };
-      }
-      return { ok: true, durationMs, issuer, authorizationEndpoint, tokenEndpoint, jwksUri, scopes };
-    } catch (err) {
-      const durationMs = Date.now() - started;
-      const message =
-        err instanceof Error
-          ? err.name === "AbortError"
-            ? "Timed out after 8s"
-            : err.message
-          : "Unknown error";
-      return { ok: false, durationMs, error: message };
-    } finally {
-      clearTimeout(timer);
-    }
+  .handler(async ({ data, context }): Promise<OidcTestResult> => {
+    await assertAdmin(context.userId);
+    const d = await fetchDiscovery(data.url);
+    return {
+      ok: !d.error,
+      issuer: d.issuer,
+      authorizationEndpoint: d.authorizationEndpoint,
+      tokenEndpoint: d.tokenEndpoint,
+      jwksUri: d.jwksUri,
+      scopes: d.scopes,
+      durationMs: d.durationMs,
+      error: d.error,
+    };
   });
+
+/** What the auth service holds for the generic OIDC provider. Never the secret. */
+export const getOidcProviderStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
+    const p = await getOidcProvider();
+    return p
+      ? { configured: true, enabled: p.enabled, client_id: p.client_id, issuer: p.issuer ?? null }
+      : { configured: false, enabled: false, client_id: null, issuer: null };
+  });
+
+export const saveOidcProvider = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (d: {
+      discovery_url: string;
+      client_id: string;
+      client_secret?: string;
+      display_name?: string | null;
+    }) =>
+      z
+        .object({
+          discovery_url: z.string().trim().url().max(500),
+          client_id: z.string().trim().min(1).max(200),
+          // Empty keeps the secret the auth service already has.
+          client_secret: z.string().trim().max(500).optional().default(""),
+          display_name: z.string().trim().max(100).nullish(),
+        })
+        .parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    const d = await fetchDiscovery(data.discovery_url);
+    if (d.error || !d.issuer) throw new Error(d.error ?? "Discovery document has no issuer");
+    if (!d.issuer.startsWith("https://"))
+      throw new Error("The auth service only accepts https issuers");
+
+    const existing = await getOidcProvider();
+    if (!existing && !data.client_secret) throw new Error("Enter the client secret");
+    const name = providerLabel("oidc", data.display_name);
+    const saved = await putOidcProvider(
+      customOidcProviderBody({
+        identifier: OIDC_PROVIDER_ID,
+        name,
+        issuer: d.issuer,
+        discoveryUrl: d.url,
+        clientId: data.client_id,
+        clientSecret: data.client_secret || undefined,
+        enabled: existing?.enabled ?? true,
+      }),
+      !!existing,
+    );
+
+    const { error } = await supabaseAdmin
+      .from("auth_providers")
+      .update({
+        client_id: data.client_id,
+        discovery_url: d.url,
+        display_name: data.display_name || null,
+      })
+      .eq("provider", "oidc");
+    if (error) throw new Error(error.message);
+    return {
+      configured: true,
+      enabled: saved.enabled,
+      client_id: saved.client_id,
+      issuer: saved.issuer ?? d.issuer,
+    };
+  });
+
+export const removeOidcProvider = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
+    await deleteOidcProvider();
+    const { error } = await supabaseAdmin
+      .from("auth_providers")
+      .update({ enabled: false })
+      .eq("provider", "oidc");
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/**
+ * Show or hide a provider on the login page. Refused while the auth service
+ * cannot sign anyone in with it, so the page never offers a dead button.
+ */
+export const setSignInProviderEnabled = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { provider: string; enabled: boolean }) =>
+    z.object({ provider: z.enum(["oidc", "google", "microsoft"]), enabled: z.boolean() }).parse(d),
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context.userId);
+    if (data.provider === "oidc") {
+      const existing = await getOidcProvider();
+      if (!existing) {
+        if (data.enabled) throw new Error("Save the provider's settings first");
+      } else if (existing.enabled !== data.enabled) {
+        await putOidcProvider({ enabled: data.enabled }, true);
+      }
+    } else if (data.enabled) {
+      const external = await builtInProvidersEnabled();
+      const id = toSupabaseProvider(data.provider)!;
+      if (!external[id])
+        throw new Error(`The auth service has no ${providerLabel(data.provider)} credentials`);
+    }
+    const { error } = await supabaseAdmin
+      .from("auth_providers")
+      .update({ enabled: data.enabled })
+      .eq("provider", data.provider);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Which built-in providers the auth service could sign in with (for Settings). */
+export const getBuiltInProviderStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context.userId);
+    const external = await builtInProvidersEnabled();
+    return { google: !!external.google, microsoft: !!external.azure };
+  });
+
+/**
+ * The sign-in buttons for the login page and for linking: enabled in Settings
+ * AND working in the auth service. Public — the login page has no session.
+ */
+export const listSignInProviders = createServerFn({ method: "GET" }).handler(async () => {
+  const { data, error } = await supabaseAdmin
+    .from("auth_providers")
+    .select("provider, display_name")
+    .eq("enabled", true)
+    .order("provider");
+  if (error) throw new Error(error.message);
+  const rows = data ?? [];
+  if (!rows.length) return [];
+
+  const needsBuiltIn = rows.some((r) => r.provider !== "oidc");
+  const [oidc, external] = await Promise.all([
+    rows.some((r) => r.provider === "oidc") ? getOidcProvider().catch(() => null) : null,
+    needsBuiltIn ? builtInProvidersEnabled().catch(() => ({}) as Record<string, boolean>) : {},
+  ]);
+  return rows
+    .filter((r) => {
+      const id = toSupabaseProvider(r.provider);
+      if (!id) return false;
+      return r.provider === "oidc" ? !!oidc?.enabled : !!(external as Record<string, boolean>)[id];
+    })
+    .map((r) => ({
+      provider: r.provider,
+      supabaseProvider: toSupabaseProvider(r.provider)!,
+      label: providerLabel(r.provider, r.display_name),
+    }));
+});

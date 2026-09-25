@@ -1,56 +1,43 @@
 ---
-title: "Generic OIDC sign-in"
-description: "Settings → Integrations configures the OIDC provider (Authentik, Keycloak, Zitadel, …) that users can sign in with."
+title: "OIDC sign-in (Authentik & co.)"
+description: "Settings → Integrations sets up an OIDC provider (Authentik, Keycloak, Zitadel, …) to sign in with — no environment variables involved."
 sidebar:
   icon: key-round
 ---
 
-Only non-secret values live in the app database; the client secret always belongs in the auth backend's environment.
+The whole setup happens in the app: saving writes the provider straight to the auth service. The client secret is kept only there, never in the app's database, and nothing needs a restart.
 
-## Public client or confidential client? [#public-client-or-confidential-client]
+## What do I create at the provider? [#what-do-i-create-at-the-provider]
 
-Both work — pick one and stay consistent:
+An app with a **confidential client** (with a secret). The auth service requires a secret and uses PKCE on top.
 
-**Public client** (no secret)
-- In your IdP: create the app as a *public* client with PKCE.
-- Redirect URI: the callback URL shown in Settings → Integrations.
-- Auth backend: set the issuer/discovery URL and client ID, **leave the secret env var unset**.
+- **Redirect URI:** the callback URL shown under Settings → Integrations (`https://<supabase-host>/auth/v1/callback`).
+- **Scopes:** `openid`, `email`, `profile`.
+- **Subject:** a fixed ID, not the e-mail address. In Authentik that is "Based on the User's hashed ID", the default. If the subject changes later, the auth service no longer recognises you.
 
-**Confidential client** (with secret)
-- In your IdP: create the app as a *confidential* client and copy the generated secret.
-- Auth backend: set the secret env var **in addition** to issuer and client ID.
-- Never paste the secret into the app's Settings screen — that table is readable by every signed-in user.
+## How do I set it up in the app? [#how-do-i-set-it-up-in-the-app]
 
-## Which environment variables do I set? [#which-environment-variables-do-i-set]
+1. Settings → Integrations, section **OIDC**.
+2. Enter the **issuer or discovery URL**, for Authentik e.g. `https://auth.example.com/application/o/<slug>/`. **Test** fetches the discovery document and shows the issuer and authorize endpoint.
+3. Enter the **client ID** and **client secret**, pick a display name (e.g. "Authentik") and press **Save to auth service**.
+4. Switch **Enabled** on. Only now does the button appear on the sign-in page.
 
-The self-hosted auth backend (GoTrue/Supabase Auth) keys its variables by the *provider id*, and the generic OIDC provider is registered under the id `keycloak`. That id is fixed by the auth backend, so the variable names cannot be renamed — only the label in this app says “Generic OIDC”.
+Once the secret is stored, the field stays empty. Leave it empty on the next save and the stored secret is kept.
 
-```bash
-GOTRUE_EXTERNAL_KEYCLOAK_ENABLED=true
-GOTRUE_EXTERNAL_KEYCLOAK_URL=https://auth.example.com/application/o/cashflow/
-GOTRUE_EXTERNAL_KEYCLOAK_CLIENT_ID=cashflow
-GOTRUE_EXTERNAL_KEYCLOAK_REDIRECT_URI=https://<supabase-host>/auth/v1/callback
-# only for a confidential client:
-GOTRUE_EXTERNAL_KEYCLOAK_SECRET=<client secret>
-```
+The sign-in page only shows providers that are enabled in Settings **and** set up in the auth service. There is never a button without a working provider behind it.
 
-With a public client simply omit the last line. Restart the auth container after changing the variables.
+## How do I connect it to my existing account? [#how-do-i-connect-it-to-my-existing-account]
 
-## How do I verify the setup? [#how-do-i-verify-the-setup]
+Sign in with e-mail and password as usual and choose **Link with …** under Settings → Linked sign-in methods. Afterwards either method opens the same account.
 
-Enter the **discovery URL** (`…/.well-known/openid-configuration`) in Settings → Integrations and press **Test**. It fetches the document server-side and shows the issuer and authorize endpoint plus the round-trip time. A failing test means the URL, TLS or network path is wrong — it does *not* validate the client secret; that only shows up on a real sign-in attempt (`invalid_client`).
+If you sign in through the provider straight away instead, the auth service only links when the provider reports the e-mail address as verified (`email_verified: true`). Authentik reports `false` by default. The sign-in then fails, and the sign-in page shows why.
 
-## Linking fails with “manual_linking_disabled” [#linking-fails-with-manual-linking-disabled]
+## Sign-in fails — what now? [#sign-in-fails-what-now]
 
-Manual identity linking is **off by default** in the auth backend. Enable it and restart the auth container:
+The sign-in page shows the auth service's message. The most common ones:
 
-```bash
-GOTRUE_SECURITY_MANUAL_LINKING_ENABLED=true
-```
+- **"Unverified email with custom:oidc"**: See above; link through Settings.
+- **An error page at the provider about the redirect URI**: The redirect URI at the provider does not exactly match the callback URL from Settings.
+- **"invalid_client"**: The client ID or secret is wrong. Enter the secret again and save.
 
-Until that variable is set, the *Link* buttons under Settings → Linked accounts and the post-login prompt return `manual_linking_disabled`. This is independent of the OIDC test, which only checks the discovery document.
-
-## Existing account with the same e-mail [#existing-account-with-the-same-e-mail]
-
-Signing in via OIDC with an e-mail that already has a password account does **not** create a second account when you confirm the linking prompt. You can also link and unlink methods any time under Settings → Linked accounts (requires manual linking enabled, see above).
-
+A successful **Test** only checks the discovery document, not the client ID and secret.

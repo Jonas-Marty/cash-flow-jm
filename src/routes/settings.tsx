@@ -25,7 +25,6 @@ import {
 import { BudgetEditPopover } from "@/components/BudgetEditPopover";
 import { MonthNavigator } from "@/components/MonthNavigator";
 import { useI18n, LANGUAGES, type Lang } from "@/i18n";
-import { helpUrl } from "@/lib/helpUrl";
 import { RecurringRulesCard } from "@/components/RecurringRulesCard";
 import { NextcloudCard } from "@/components/NextcloudCard";
 import { ApiTokensCard } from "@/components/ApiTokensCard";
@@ -44,7 +43,7 @@ import { formatVersion } from "@/lib/version";
 import { AISettingsCard } from "@/components/AISettingsCard";
 import { AIAuditLogCard } from "@/components/AIAuditLogCard";
 import { LinkedAccountsCard } from "@/components/LinkedAccountsCard";
-import { testOidcDiscovery, type OidcTestResult } from "@/utils/oidc.functions";
+import { SignInProvidersCard } from "@/components/SignInProvidersCard";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -968,7 +967,7 @@ function SettingsPage() {
         <section id="webhooks"><WebhooksCard /></section>
        <section id="ai"><AISettingsCard /></section>
         <section id="ai-audit"><AIAuditLogCard /></section>
-        <section id="integrations"><IntegrationsCard /></section>
+        <section id="integrations"><SignInProvidersCard /></section>
         <section id="linked"><LinkedAccountsCard /></section>
         <section id="audit"><AuditLogCard /></section>
         <section id="account"><AccountCard /></section>
@@ -1056,156 +1055,3 @@ function AccountCard() {
   );
 }
 
-function IntegrationsCard() {
-  const { t, lang } = useI18n();
-  const isAdminQ = useIsAdmin();
-  const qc = useQueryClient();
-  const providersQ = useRQ({
-    queryKey: ["auth_providers_admin"],
-    enabled: !!isAdminQ.data,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("auth_providers")
-        .select("id, provider, display_name, enabled, client_id, discovery_url")
-        .order("provider");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-  const [discoveryDraft, setDiscoveryDraft] = React.useState<Record<string, string>>({});
-  const [testing, setTesting] = React.useState<string | null>(null);
-  const [testResult, setTestResult] = React.useState<Record<string, OidcTestResult>>({});
-
-  const runTest = async (id: string, url: string) => {
-    if (!url.trim()) { toast.error(t("settings.integrations.test.no_url")); return; }
-    setTesting(id);
-    try {
-      const res = await testOidcDiscovery({ data: { url } });
-      setTestResult((prev) => ({ ...prev, [id]: res }));
-      if (res.ok) toast.success(t("settings.integrations.test.ok"));
-      else toast.error(`${t("settings.integrations.test.failed")}: ${res.error ?? ""}`);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setTestResult((prev) => ({ ...prev, [id]: { ok: false, durationMs: 0, error: message } }));
-      toast.error(`${t("settings.integrations.test.failed")}: ${message}`);
-    } finally {
-      setTesting(null);
-    }
-  };
-
-  if (isAdminQ.isLoading) return null;
-  if (!isAdminQ.data) {
-    return (
-      <Card>
-        <CardHeader><CardTitle className="text-base">{t("settings.integrations")}</CardTitle></CardHeader>
-        <CardContent className="text-sm text-muted-foreground">{t("settings.integrations.admin_only")}</CardContent>
-      </Card>
-    );
-  }
-
-  const update = async (id: string, patch: { enabled?: boolean; client_id?: string | null; discovery_url?: string | null; display_name?: string | null }) => {
-    const { error } = await supabase.from("auth_providers").update(patch).eq("id", id);
-    if (error) { toast.error(error.message); return; }
-    qc.invalidateQueries({ queryKey: ["auth_providers_admin"] });
-    qc.invalidateQueries({ queryKey: ["auth_providers_enabled"] });
-  };
-
-  const supabaseUrl = (supabase as unknown as { supabaseUrl?: string }).supabaseUrl ?? import.meta.env.VITE_SUPABASE_URL ?? "";
-  const callbackUrl = supabaseUrl ? `${supabaseUrl.replace(/\/$/, "")}/auth/v1/callback` : "";
-
-  return (
-    <Card>
-      <CardHeader><CardTitle className="text-base">{t("settings.integrations")}</CardTitle></CardHeader>
-      <CardContent className="space-y-4">
-        {(providersQ.data ?? []).map((p) => (
-          <div key={p.id} className="space-y-2 rounded-md border p-3">
-            <div className="flex items-center justify-between">
-              <div className="font-medium">{providerLabel(p.provider, p.display_name)}</div>
-              <div className="flex items-center gap-2">
-                <Label htmlFor={`en-${p.id}`} className="text-xs">{t("settings.integrations.enabled")}</Label>
-                <Switch id={`en-${p.id}`} checked={p.enabled} onCheckedChange={(v) => update(p.id, { enabled: v })} />
-              </div>
-            </div>
-            <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-              <div>
-                <Label className="text-xs">{t("settings.integrations.display_name")}</Label>
-                <Input
-                  defaultValue={p.display_name ?? ""}
-                  placeholder={providerLabel(p.provider, null)}
-                  onBlur={(e) => e.currentTarget.value !== (p.display_name ?? "") && update(p.id, { display_name: e.currentTarget.value.trim() || null })}
-                />
-                <p className="mt-1 text-xs text-muted-foreground">{t("settings.integrations.display_name_hint")}</p>
-              </div>
-              <div>
-                <Label className="text-xs">{t("settings.integrations.client_id")}</Label>
-                <Input
-                  defaultValue={p.client_id ?? ""}
-                  onBlur={(e) => e.currentTarget.value !== (p.client_id ?? "") && update(p.id, { client_id: e.currentTarget.value || null })}
-                />
-              </div>
-              {p.provider === "keycloak" && (
-                <div>
-                  <Label className="text-xs">{t("settings.integrations.discovery")}</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={discoveryDraft[p.id] ?? p.discovery_url ?? ""}
-                      onChange={(e) => setDiscoveryDraft((prev) => ({ ...prev, [p.id]: e.target.value }))}
-                      onBlur={(e) => e.currentTarget.value !== (p.discovery_url ?? "") && update(p.id, { discovery_url: e.currentTarget.value || null })}
-                    />
-                    <Button
-                      variant="outline"
-                      disabled={testing === p.id}
-                      onClick={() => runTest(p.id, discoveryDraft[p.id] ?? p.discovery_url ?? "")}
-                    >
-                      {testing === p.id ? "…" : t("settings.integrations.test")}
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-            {p.provider === "keycloak" && testResult[p.id] && (
-              <div
-                className={`rounded-md border p-2 text-xs ${testResult[p.id].ok ? "border-success/60 bg-success/10" : "border-destructive/60 bg-destructive/10"}`}
-              >
-                {testResult[p.id].ok ? (
-                  <div className="space-y-0.5">
-                    <div className="font-medium">
-                      {t("settings.integrations.test.ok")} ({testResult[p.id].durationMs} ms)
-                    </div>
-                    <div className="break-all text-muted-foreground">
-                      issuer: {testResult[p.id].issuer}
-                    </div>
-                    <div className="break-all text-muted-foreground">
-                      authorize: {testResult[p.id].authorizationEndpoint}
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    {t("settings.integrations.test.failed")}: {testResult[p.id].error}
-                  </div>
-                )}
-              </div>
-            )}
-            <p className="text-xs text-muted-foreground">
-              {t("settings.integrations.secret_hint")}{" "}
-              <a
-                href={helpUrl(lang, "oidc")}
-                target="_blank"
-                rel="noreferrer"
-                className="underline underline-offset-2"
-              >
-                {t("settings.integrations.secret_help_link")}
-              </a>
-            </p>
-            {callbackUrl && (
-              <p className="text-xs text-muted-foreground">
-                {t("settings.integrations.redirect_uri_hint", { uri: callbackUrl })}
-              </p>
-            )}
-          </div>
-        ))}
-        <p className="text-xs text-muted-foreground">{t("settings.integrations.hint")}</p>
-      </CardContent>
-    </Card>
-  );
-}

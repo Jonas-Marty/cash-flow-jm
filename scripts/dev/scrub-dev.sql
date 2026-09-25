@@ -22,6 +22,16 @@ UPDATE public.nextcloud_connections
        refresh_token = NULL,
        token_expires_at = NULL;
 
+-- Sign-in providers the auth service holds (GoTrue >= 2.187): production's
+-- carry its client secret and a client whose only callback is production's.
+-- clone-prod-db.sh puts dev's own provider back after this runs.
+DO $$
+BEGIN
+  IF to_regclass('auth.custom_oauth_providers') IS NOT NULL THEN
+    DELETE FROM auth.custom_oauth_providers;
+  END IF;
+END $$;
+
 -- Webhooks: keep the definitions, never fire them from dev.
 UPDATE public.webhooks SET active = false;
 

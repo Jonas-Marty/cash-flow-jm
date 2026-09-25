@@ -68,7 +68,7 @@ accounts                          category_groups
   ├ auto_post, archived
 ```
 
-All tables have `created_at`, `updated_at`, and a nullable `user_id` for future Keycloak/OIDC integration without migration.
+All tables have `created_at`, `updated_at`, and a `user_id` that RLS keys on (see §6 for sign-in providers).
 
 ## 3. Business rules
 
@@ -487,15 +487,14 @@ RLS: every public table has a permissive `open_all` policy (single-user mode). W
 
 Shared shell: `src/components/AppShell.tsx`. Data helpers: `src/lib/finance.ts`. Supabase client: `src/integrations/supabase/client.ts` (auto-generated, do not edit).
 
-## 6. Future auth
+## 6. Sign-in providers
 
-Every public table carries a nullable `user_id UUID`. To plug in Keycloak/OIDC:
-1. Add an auth proxy that mints Supabase JWTs with `sub` = Keycloak subject.
-2. Backfill `user_id` on existing rows.
-3. Replace the `open_all` RLS policies with `USING (user_id = auth.uid())` and `WITH CHECK (user_id = auth.uid())`.
-4. Wrap inserts in app code with the resolved user id (or a `before insert` trigger that fills it from `auth.uid()`).
+Per-user RLS (`user_id = auth.uid()`) is in place, so a new sign-in method needs no schema change: it is one more identity on the same `auth.users` row.
 
-No schema change required for the switch.
+- **Generic OIDC** (Authentik, Keycloak, Zitadel, …) is a GoTrue custom provider, `custom:oidc` (GoTrue ≥ 2.187). Settings → Integrations writes it through GoTrue's admin API as the service role (`src/utils/oidc.functions.ts`, `signInProviders.server.ts`), client secret included. The secret lives only in `auth.custom_oauth_providers`; `public.auth_providers` mirrors the non-secret values and decides which buttons the login page shows.
+- The login page and the linking UI list only providers that are enabled in `auth_providers` **and** working in GoTrue (`listSignInProviders`), so there is never a dead button.
+- `GOTRUE_CUSTOM_OAUTH_EXTERNAL_URL` must be `<API_EXTERNAL_URL>/auth/v1`: GoTrue builds a custom provider's callback as `<that>/callback`, and it sits behind Kong's `/auth/v1`.
+- Existing accounts attach a provider through manual linking (`GOTRUE_SECURITY_MANUAL_LINKING_ENABLED`). Automatic linking by e-mail needs `email_verified: true` from the provider, which Authentik does not send by default.
 
 Encryption at rest with a per-user key (device key + recovery code, pgcrypto blobs behind
 same-name views) was analysed on 2026-09-12/13 and **postponed**. The full design record,

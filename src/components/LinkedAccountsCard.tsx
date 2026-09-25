@@ -7,8 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/i18n";
-import { toSupabaseProvider, providerLabel } from "@/lib/authProviders";
+import type { Provider } from "@supabase/supabase-js";
+import { authReturnUrl, providerLabel } from "@/lib/authProviders";
 import { useAuth } from "@/lib/auth";
+import { listSignInProviders } from "@/utils/oidc.functions";
 
 export function useUserIdentities() {
   const { user } = useAuth();
@@ -23,25 +25,18 @@ export function useUserIdentities() {
   });
 }
 
+/** Providers that work end to end: enabled in Settings and set up in the auth service. */
 export function useEnabledProviders() {
   return useQuery({
-    queryKey: ["auth_providers_enabled"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("auth_providers")
-        .select("provider, display_name, enabled")
-        .eq("enabled", true);
-      return data ?? [];
-    },
+    queryKey: ["sign_in_providers"],
+    queryFn: () => listSignInProviders(),
   });
 }
 
-export async function startLinkIdentity(provider: string) {
-  const mapped = toSupabaseProvider(provider);
-  if (!mapped) return { error: "unsupported" as const };
+export async function startLinkIdentity(provider: Provider) {
   const { error } = await supabase.auth.linkIdentity({
-    provider: mapped,
-    options: { redirectTo: `${window.location.origin}/settings` },
+    provider,
+    options: { redirectTo: authReturnUrl(window.location.origin, "/settings") },
   });
   return { error: error?.message ?? null };
 }
@@ -56,14 +51,10 @@ export function LinkedAccountsCard() {
   const identities = identitiesQ.data ?? [];
   const linkedProviders = new Set(identities.map((i) => i.provider));
 
-  const link = async (provider: string) => {
+  const link = async (provider: Provider) => {
     setBusy(provider);
     const { error } = await startLinkIdentity(provider);
     setBusy(null);
-    if (error === "unsupported") {
-      toast.error(t("linked.unsupported"));
-      return;
-    }
     if (error && /manual.linking.is.disabled/i.test(error)) {
       toast.error(t("linked.manual_disabled"));
       return;
@@ -89,9 +80,11 @@ export function LinkedAccountsCard() {
     qc.invalidateQueries({ queryKey: ["user_identities"] });
   };
 
-  const linkable = (providersQ.data ?? []).filter(
-    (p) => !!toSupabaseProvider(p.provider) && !linkedProviders.has(toSupabaseProvider(p.provider)!),
-  );
+  const providers = providersQ.data ?? [];
+  const linkable = providers.filter((p) => !linkedProviders.has(p.supabaseProvider));
+  // An identity is named like its login button, e.g. "Authentik" for custom:oidc.
+  const identityLabel = (id: string) =>
+    providers.find((p) => p.supabaseProvider === id)?.label ?? providerLabel(id);
 
   return (
     <Card>
@@ -105,7 +98,7 @@ export function LinkedAccountsCard() {
           {identities.map((i) => (
             <li key={i.identity_id} className="flex items-center justify-between gap-3 p-3">
               <div className="min-w-0">
-                <div className="truncate text-sm font-medium capitalize">{i.provider}</div>
+                <div className="truncate text-sm font-medium">{identityLabel(i.provider)}</div>
                 <div className="truncate text-xs text-muted-foreground">
                   {(i.identity_data?.email as string | undefined) ?? i.id}
                 </div>
@@ -135,11 +128,10 @@ export function LinkedAccountsCard() {
                   key={p.provider}
                   variant="outline"
                   size="sm"
-                  disabled={busy === p.provider}
-                  onClick={() => link(p.provider)}
+                  disabled={busy === p.supabaseProvider}
+                  onClick={() => link(p.supabaseProvider)}
                 >
-                  <Link2 className="h-4 w-4" />{" "}
-                  {t("linked.link_with", { p: providerLabel(p.provider, p.display_name) })}
+                  <Link2 className="h-4 w-4" /> {t("linked.link_with", { p: p.label })}
                 </Button>
               ))}
             </div>

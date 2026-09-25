@@ -87,6 +87,31 @@ nc_keep_save() {
     psql_dev "$1" -c "COPY (SELECT $NC_KEEP_COLS FROM public.nextcloud_connections WHERE client_secret <> '') TO STDOUT WITH CSV" > "$2" )
 }
 
+# oidc_keep_save <db container> <file> -> dev's own sign-in providers from the
+# auth service (e.g. its Authentik client), one base64 JSON row per line, so the
+# clone can put them back: the restore brings production's, which scrub drops.
+oidc_keep_save() {
+  if [ "$(psql_dev "$1" -Atc "SELECT to_regclass('auth.custom_oauth_providers') IS NOT NULL")" != "t" ]; then
+    : > "$2"; return 0
+  fi
+  ( umask 077
+    psql_dev "$1" -Atc "SELECT translate(encode(convert_to(row_to_json(p)::text, 'UTF8'), 'base64'), E'\\n', '') FROM auth.custom_oauth_providers p" > "$2" )
+}
+
+# oidc_keep_restore <db container> <file> -> put them back, in one transaction.
+oidc_keep_restore() {
+  [ -s "$2" ] || return 0
+  {
+    echo "BEGIN;"
+    while IFS= read -r row; do
+      [ -n "$row" ] || continue
+      # base64 has no quote characters, so it is safe inline.
+      echo "INSERT INTO auth.custom_oauth_providers SELECT * FROM json_populate_record(NULL::auth.custom_oauth_providers, convert_from(decode('$row', 'base64'), 'UTF8')::json) ON CONFLICT (identifier) DO NOTHING;"
+    done < "$2"
+    echo "COMMIT;"
+  } | psql_dev "$1" -q
+}
+
 # nc_keep_restore <db container> <file> -> put those rows back over the clone.
 # Users missing from the clone are skipped; everything is one transaction.
 nc_keep_restore() {

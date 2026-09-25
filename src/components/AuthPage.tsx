@@ -10,9 +10,11 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
+import type { Provider } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/i18n";
-import { toSupabaseProvider, providerLabel } from "@/lib/authProviders";
+import { authReturnUrl, oauthErrorFromUrl, withoutOAuthError } from "@/lib/authProviders";
+import { listSignInProviders } from "@/utils/oidc.functions";
 
 export function AuthPage() {
   const { t } = useI18n();
@@ -21,18 +23,23 @@ export function AuthPage() {
   const [password, setPassword] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [gdprAccepted, setGdprAccepted] = React.useState(false);
+  const [oauthError, setOauthError] = React.useState<string | null>(null);
 
-  // Show enabled OAuth providers (admins haven't enabled any by default)
+  // Only providers that are enabled in Settings AND configured in the auth
+  // service, so the page never offers a button that ends on an error.
   const providersQ = useQuery({
-    queryKey: ["auth_providers_enabled"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("auth_providers")
-        .select("provider, display_name, enabled")
-        .eq("enabled", true);
-      return data ?? [];
-    },
+    queryKey: ["sign_in_providers"],
+    queryFn: () => listSignInProviders(),
   });
+
+  // A failed provider sign-in lands back here with the reason in the URL.
+  // Say it once, then drop it from the address bar.
+  React.useEffect(() => {
+    const failed = oauthErrorFromUrl(window.location.href);
+    if (!failed) return;
+    setOauthError(failed.description);
+    window.history.replaceState(null, "", withoutOAuthError(window.location.href));
+  }, []);
 
   const onSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +59,7 @@ export function AuthPage() {
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { emailRedirectTo: window.location.origin },
+      options: { emailRedirectTo: authReturnUrl(window.location.origin) },
     });
     setBusy(false);
     if (error) {
@@ -62,15 +69,10 @@ export function AuthPage() {
     toast.success(t("auth.check_email"));
   };
 
-  const onOAuth = async (provider: string) => {
-    const mapped = toSupabaseProvider(provider);
-    if (!mapped) {
-      toast.error(t("auth.provider_not_wired"));
-      return;
-    }
+  const onOAuth = async (provider: Provider) => {
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: mapped,
-      options: { redirectTo: window.location.origin },
+      provider,
+      options: { redirectTo: authReturnUrl(window.location.origin) },
     });
     if (error) toast.error(error.message);
   };
@@ -85,6 +87,12 @@ export function AuthPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {oauthError && (
+            <div role="alert" className="mb-3 rounded-md border border-destructive/60 bg-destructive/10 p-3 text-sm">
+              <div className="font-medium">{t("auth.provider_failed")}</div>
+              <div className="break-words text-muted-foreground">{oauthError}</div>
+            </div>
+          )}
           <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="signin">{t("auth.signin")}</TabsTrigger>
@@ -149,11 +157,9 @@ export function AuthPage() {
                   type="button"
                   variant="outline"
                   className="w-full"
-                  onClick={() => onOAuth(p.provider)}
-                  disabled={!toSupabaseProvider(p.provider)}
-                  title={!toSupabaseProvider(p.provider) ? t("auth.provider_not_wired") : undefined}
+                  onClick={() => onOAuth(p.supabaseProvider)}
                 >
-                  {t("auth.continue_with", { p: providerLabel(p.provider, p.display_name) })}
+                  {t("auth.continue_with", { p: p.label })}
                 </Button>
               ))}
             </div>

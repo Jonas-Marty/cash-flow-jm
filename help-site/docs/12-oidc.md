@@ -1,56 +1,43 @@
 ---
-title: "Generic-OIDC-Anmeldung"
-description: "Unter Einstellungen → Integrationen konfigurierst du den OIDC-Provider (Authentik, Keycloak, Zitadel, …), mit dem sich Nutzer anmelden können."
+title: "OIDC-Anmeldung (Authentik & Co.)"
+description: "Unter Einstellungen → Integrationen richtest du einen OIDC-Anbieter (Authentik, Keycloak, Zitadel, …) ein, mit dem man sich anmelden kann – ganz ohne Umgebungsvariablen."
 sidebar:
   icon: key-round
 ---
 
-In der App-Datenbank stehen nur nicht-geheime Werte; das Client Secret gehört immer in die Umgebung des Auth-Backends.
+Die ganze Einrichtung passiert in der App: Speichern schreibt den Anbieter direkt in den Auth-Dienst. Das Client Secret landet nur dort, nie in der App-Datenbank, und nichts muss neu gestartet werden.
 
-## Public Client oder Confidential Client? [#public-client-or-confidential-client]
+## Was lege ich beim Anbieter an? [#what-do-i-create-at-the-provider]
 
-Beides funktioniert — entscheide dich für eine Variante:
+Eine App mit einem **Confidential Client** (mit Secret). Der Auth-Dienst verlangt ein Secret und nutzt zusätzlich PKCE.
 
-**Public Client** (ohne Secret)
-- Im IdP: App als *public* Client mit PKCE anlegen.
-- Redirect-URI: die Callback-URL aus Einstellungen → Integrationen.
-- Auth-Backend: Issuer/Discovery-URL und Client-ID setzen, die **Secret-Variable weglassen**.
+- **Redirect-URI:** die Callback-URL, die unter Einstellungen → Integrationen steht (`https://<supabase-host>/auth/v1/callback`).
+- **Scopes:** `openid`, `email`, `profile`.
+- **Subject:** eine feste ID, nicht die E-Mail-Adresse. In Authentik ist das «Based on the User's hashed ID», die Voreinstellung. Ändert sich das Subject später, erkennt der Auth-Dienst dich nicht mehr.
 
-**Confidential Client** (mit Secret)
-- Im IdP: App als *confidential* Client anlegen und das Secret kopieren.
-- Auth-Backend: die Secret-Variable **zusätzlich** setzen.
-- Das Secret niemals in die App-Einstellungen eintragen — diese Tabelle ist für alle angemeldeten Nutzer lesbar.
+## Wie richte ich ihn in der App ein? [#how-do-i-set-it-up-in-the-app]
 
-## Welche Umgebungsvariablen brauche ich? [#which-environment-variables-do-i-set]
+1. Einstellungen → Integrationen, Abschnitt **OIDC**.
+2. **Issuer- oder Discovery-URL** eintragen, bei Authentik z. B. `https://auth.example.com/application/o/<slug>/`. **Testen** holt das Discovery-Dokument und zeigt Issuer und Authorize-Endpunkt.
+3. **Client ID** und **Client Secret** eintragen, einen Anzeigenamen wählen (z. B. «Authentik») und **Im Auth-Dienst speichern**.
+4. **Aktiviert** einschalten. Erst jetzt erscheint der Knopf auf der Anmeldeseite.
 
-Das selbst gehostete Auth-Backend (GoTrue/Supabase Auth) benennt seine Variablen nach der *Provider-ID*, und der generische OIDC-Provider ist dort unter der ID `keycloak` registriert. Diese ID gibt das Auth-Backend vor, die Variablennamen lassen sich also nicht umbenennen — nur die Beschriftung in dieser App heisst „Generic OIDC“.
+Ist das Secret einmal gespeichert, bleibt das Feld leer. Lässt du es beim nächsten Speichern leer, bleibt das gespeicherte Secret erhalten.
 
-```bash
-GOTRUE_EXTERNAL_KEYCLOAK_ENABLED=true
-GOTRUE_EXTERNAL_KEYCLOAK_URL=https://auth.example.com/application/o/cashflow/
-GOTRUE_EXTERNAL_KEYCLOAK_CLIENT_ID=cashflow
-GOTRUE_EXTERNAL_KEYCLOAK_REDIRECT_URI=https://<supabase-host>/auth/v1/callback
-# nur bei Confidential Client:
-GOTRUE_EXTERNAL_KEYCLOAK_SECRET=<client secret>
-```
+Die Anmeldeseite zeigt nur Anbieter, die in den Einstellungen aktiviert **und** im Auth-Dienst eingerichtet sind. Einen Knopf ohne funktionierenden Anbieter dahinter gibt es nicht.
 
-Bei einem Public Client lässt du die letzte Zeile einfach weg. Nach Änderungen den Auth-Container neu starten.
+## Wie verbinde ich ihn mit meinem bestehenden Konto? [#how-do-i-connect-it-to-my-existing-account]
 
-## Wie prüfe ich die Konfiguration? [#how-do-i-verify-the-setup]
+Melde dich wie gewohnt mit E-Mail und Passwort an und wähle unter Einstellungen → Verknüpfte Anmeldemethoden **Mit … verknüpfen**. Danach öffnet jede der beiden Methoden dasselbe Konto.
 
-Trage die **Discovery-URL** (`…/.well-known/openid-configuration`) unter Einstellungen → Integrationen ein und klicke **Test**. Das Dokument wird serverseitig geladen und Issuer, Authorize-Endpoint und Laufzeit werden angezeigt. Ein Fehler bedeutet falsche URL, TLS- oder Netzwerkprobleme — das Client Secret wird dabei *nicht* geprüft, ein falsches Secret zeigt sich erst beim echten Login (`invalid_client`).
+Meldest du dich stattdessen gleich über den Anbieter an, verknüpft der Auth-Dienst nur, wenn der Anbieter die E-Mail-Adresse als bestätigt meldet (`email_verified: true`). Authentik meldet in der Voreinstellung `false`. Dann schlägt die Anmeldung fehl, und die Anmeldeseite zeigt den Grund an.
 
-## Verknüpfen schlägt mit „manual_linking_disabled“ fehl [#linking-fails-with-manual-linking-disabled]
+## Die Anmeldung schlägt fehl – was nun? [#sign-in-fails-what-now]
 
-Manuelles Identity-Linking ist im Auth-Backend **standardmässig deaktiviert**. Aktiviere es und starte den Auth-Container neu:
+Die Anmeldeseite zeigt die Meldung des Auth-Dienstes. Die häufigsten:
 
-```bash
-GOTRUE_SECURITY_MANUAL_LINKING_ENABLED=true
-```
+- **«Unverified email with custom:oidc»**: Siehe oben, verknüpfe über die Einstellungen.
+- **Fehlerseite beim Anbieter zur Redirect-URI**: Die Redirect-URI beim Anbieter stimmt nicht genau mit der Callback-URL aus den Einstellungen überein.
+- **«invalid_client»**: Client ID oder Secret sind falsch. Trage das Secret neu ein und speichere.
 
-Solange die Variable fehlt, liefern die *Verknüpfen*-Buttons unter Einstellungen → Verknüpfte Konten und der Hinweis nach dem Login `manual_linking_disabled`. Das hat nichts mit dem OIDC-Test zu tun, der nur das Discovery-Dokument prüft.
-
-## Bestehendes Konto mit gleicher E-Mail [#existing-account-with-the-same-e-mail]
-
-Meldest du dich per OIDC mit einer E-Mail an, die bereits ein Passwort-Konto hat, entsteht kein zweites Konto, sofern du die Verknüpfung bestätigst. Methoden lassen sich jederzeit unter Einstellungen → Verknüpfte Konten verbinden und trennen (setzt aktiviertes manuelles Linking voraus, siehe oben).
-
+Ein erfolgreicher **Test** prüft nur das Discovery-Dokument, nicht Client ID und Secret.

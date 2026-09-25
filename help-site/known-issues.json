@@ -16,6 +16,7 @@
       "api.openai.com": "Example base URL shown in the AI connection form; the user supplies their own.",
       "cloud.example.com": "Placeholder in the Nextcloud setup form.",
       "n8n.example.com": "Placeholder in the webhooks form.",
+      "auth.example.com": "Placeholder in the OIDC sign-in form (Settings -> Integrations).",
       "help.cash-flow.wi-wo.ch": "Our own help site.",
       "cash-flow.wi-wo.ch": "Our own origin, declared as the production server in the OpenAPI spec."
     },

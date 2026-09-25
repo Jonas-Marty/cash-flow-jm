@@ -52,11 +52,14 @@ fi
 # --------------------------------------------------------------------- dump --
 DUMP="/tmp/cash-flow-prod-$(date +%Y%m%d-%H%M%S).dump"
 NC_KEEP="$(mktemp)"
-cleanup() { [ "$KEEP_DUMP" -eq 1 ] || rm -f "$DUMP"; rm -f "$NC_KEEP"; }
+OIDC_KEEP="$(mktemp)"
+cleanup() { [ "$KEEP_DUMP" -eq 1 ] || rm -f "$DUMP"; rm -f "$NC_KEEP" "$OIDC_KEEP"; }
 trap cleanup EXIT
 
 # Dev's own Nextcloud login outlives the clone; see nc_keep_save in lib.sh.
 nc_keep_save "$DEV_DB" "$NC_KEEP"
+# Likewise its own sign-in provider (see oidc_keep_save).
+oidc_keep_save "$DEV_DB" "$OIDC_KEEP"
 
 info "dumping public + auth + storage from production"
 # supabase_admin is the superuser here (postgres is not) and owns public.*;
@@ -99,6 +102,10 @@ psql_dev "$DEV_DB" -q < scripts/dev/scrub-dev.sql
 if [ -s "$NC_KEEP" ]; then
   nc_keep_restore "$DEV_DB" "$NC_KEEP"
   info "kept dev's own Nextcloud login for $(wc -l < "$NC_KEEP") user(s)"
+fi
+if [ -s "$OIDC_KEEP" ]; then
+  oidc_keep_restore "$DEV_DB" "$OIDC_KEEP"
+  info "kept dev's own sign-in provider(s): $(wc -l < "$OIDC_KEEP")"
 fi
 
 # ------------------------------------------------------------------ storage --

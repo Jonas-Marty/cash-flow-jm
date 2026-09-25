@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { useAuth, JUST_SIGNED_IN_KEY } from "@/lib/auth";
-import { toSupabaseProvider, providerLabel } from "@/lib/authProviders";
+import type { Provider } from "@supabase/supabase-js";
 import { startLinkIdentity, useEnabledProviders, useUserIdentities } from "@/components/LinkedAccountsCard";
 
 const SESSION_KEY = "link-prompt-dismissed";
@@ -37,10 +37,7 @@ export function LinkIdentityPrompt() {
   const missing = React.useMemo(() => {
     if (!identities || !providers) return [];
     const linked = new Set(identities.map((i) => i.provider));
-    return providers.filter((p) => {
-      const mapped = toSupabaseProvider(p.provider);
-      return !!mapped && !linked.has(mapped);
-    });
+    return providers.filter((p) => !linked.has(p.supabaseProvider));
   }, [identities, providers]);
 
   React.useEffect(() => {
@@ -64,14 +61,10 @@ export function LinkIdentityPrompt() {
     setOpen(false);
   };
 
-  const link = async (provider: string) => {
+  const link = async (provider: Provider) => {
     setBusy(provider);
     const { error } = await startLinkIdentity(provider);
     setBusy(null);
-    if (error === "unsupported") {
-      toast.error(t("linked.unsupported"));
-      return;
-    }
     if (error && /manual.linking.is.disabled/i.test(error)) {
       toast.error(t("linked.manual_disabled"));
       return;
@@ -99,11 +92,10 @@ export function LinkIdentityPrompt() {
             <Button
               key={p.provider}
               variant="outline"
-              disabled={busy === p.provider}
-              onClick={() => link(p.provider)}
+              disabled={busy === p.supabaseProvider}
+              onClick={() => link(p.supabaseProvider)}
             >
-              <Link2 className="h-4 w-4" />{" "}
-              {t("linked.link_with", { p: providerLabel(p.provider, p.display_name) })}
+              <Link2 className="h-4 w-4" /> {t("linked.link_with", { p: p.label })}
             </Button>
           ))}
         </div>
