@@ -1,15 +1,14 @@
 # Minimal self-hosted Supabase for the throwaway DEV environment.
 #
-# Prod (cash-flow-supabase-e2meaa) runs the full 13-service upstream stack. The
-# app uses five of them, so this file keeps db + auth + rest + storage + kong and
-# drops analytics (1.5 GB on its own), vector, realtime, edge functions, imgproxy
-# and the connection pooler. Studio and pg-meta sit behind the "studio" profile
-# for when you want to browse the data.
+# The app uses four Supabase services -- db, auth, rest, storage -- plus the
+# gateway, now Envoy (docker/envoy/, upstream's config trimmed). Kong, Studio,
+# pg-meta, realtime, imgproxy, analytics, functions and the pooler are gone;
+# for a direct look at the data use a desktop client (docs/database-access.md).
 #
-# Deployed by Dokploy as its own compose resource; Kong is published through the
-# Dokploy "Domains" tab (service kong, port 8000), which injects the Traefik
-# labels. The network is declared external with a fixed name so the dev app and
-# the clone scripts have a stable target — create it once with:
+# Deployed by Dokploy as its own compose resource; Envoy is published through
+# the Dokploy "Domains" tab (service envoy, port 8000), which injects the
+# Traefik labels. The network is declared external with a fixed name so the dev
+# app and the clone scripts have a stable target -- create it once with:
 #   docker network create cash-flow-dev-supabase
 
 services:
@@ -140,39 +139,9 @@ services:
       ENABLE_IMAGE_TRANSFORMATION: "false"
     networks: [dev-supabase]
 
-  kong:
-    image: kong:2.8.5
-    restart: unless-stopped
-    expose:
-      - 8000
-    volumes:
-      - ./docker/dev-supabase/kong.yml:/home/kong/temp.yml:ro
-    depends_on:
-      auth:
-        condition: service_started
-      rest:
-        condition: service_started
-      storage:
-        condition: service_started
-    environment:
-      KONG_DATABASE: "off"
-      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
-      KONG_DNS_ORDER: LAST,A,CNAME
-      KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
-      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
-      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
-      SUPABASE_ANON_KEY: ${ANON_KEY}
-      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
-      DASHBOARD_USERNAME: ${DASHBOARD_USERNAME:-supabase}
-      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
-    # Upstream's trick: shell-expand the $VARS in temp.yml, then hand the result
-    # to Kong. Anything with a $ in kong.yml is expanded, so keep it to the four
-    # variables above.
-    entrypoint: bash -c 'eval "echo \"$$(cat ~/temp.yml)\"" > ~/kong.yml && /docker-entrypoint.sh kong docker-start'
-    networks: [dev-supabase]
-
-  # API gateway replacing Kong: upstream's Envoy, trimmed (docker/envoy/).
-  # While both run, the Dokploy domain decides which one serves traffic.
+  # API gateway: upstream's Envoy, trimmed (docker/envoy/). The Dokploy domain
+  # points here (service envoy, port 8000). A redeploy does not restart it when
+  # only the files under docker/envoy/ change: restart the container then.
   envoy:
     image: envoyproxy/envoy:v1.39.1
     restart: unless-stopped
@@ -200,43 +169,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
-    networks: [dev-supabase]
-
-  # ---- optional data browser: set COMPOSE_PROFILES=studio to run these ----
-  meta:
-    image: supabase/postgres-meta:v0.88.9
-    profiles: ["studio"]
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      PG_META_PORT: 8080
-      PG_META_DB_HOST: db
-      PG_META_DB_PORT: 5432
-      PG_META_DB_NAME: postgres
-      PG_META_DB_USER: supabase_admin
-      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
-    networks: [dev-supabase]
-
-  studio:
-    image: supabase/studio:2025.04.21-sha-173cc56
-    profiles: ["studio"]
-    restart: unless-stopped
-    depends_on:
-      meta:
-        condition: service_started
-    environment:
-      STUDIO_PG_META_URL: http://meta:8080
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      DEFAULT_ORGANIZATION_NAME: Cash Flow DEV
-      DEFAULT_PROJECT_NAME: cash-flow-dev
-      SUPABASE_URL: http://kong:8000
-      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
-      SUPABASE_ANON_KEY: ${ANON_KEY}
-      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
-      AUTH_JWT_SECRET: ${JWT_SECRET}
-      NEXT_PUBLIC_ENABLE_LOGS: "false"
     networks: [dev-supabase]
 
 volumes:

@@ -364,7 +364,7 @@ real browser before it reaches production.
         │  (docker-compose.yml, APP_IMAGE=cash-flow-app:dev)
         ↓
    Dokploy: cash-flow-dev-supabase   ← dev-cash-flow-supabase.wi-wo.ch
-      (docker-compose.dev-supabase.yml: db, auth, rest, storage, kong)
+      (docker-compose.dev-supabase.yml: db, auth, rest, storage, envoy)
 ```
 
 Production is never involved: the dev stack has its own JWT secret, its own
@@ -380,7 +380,7 @@ production is a copy of the data, and only ever by reading it.
 3. In Dokploy, create a **Compose** resource `cash-flow-dev-supabase` from this
    repository, branch `dev`, compose path `./docker-compose.dev-supabase.yml`,
    paste that env, deploy, then add the domain
-   `dev-cash-flow-supabase.wi-wo.ch` → service `kong`, port `8000`.
+   `dev-cash-flow-supabase.wi-wo.ch` → service `envoy`, port `8000`.
 4. `bash scripts/dev/clone-prod-db.sh` — copies production into it.
 5. Create a second **Compose** resource `cash-flow-dev-app`, branch `dev`,
    compose path `./docker-compose.yml`, **auto-deploy on**, domain
