@@ -14,7 +14,7 @@
 
 services:
   db:
-    image: supabase/postgres:15.8.1.060
+    image: supabase/postgres:15.14.1.176
     restart: unless-stopped
     volumes:
       # 98 before 99: roles.sql sets a password for supabase_functions_admin,
