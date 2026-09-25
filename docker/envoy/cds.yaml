@@ -4,11 +4,16 @@ resources:
   - '@type': type.googleapis.com/envoy.config.cluster.v3.Cluster
     name: auth
     connect_timeout: 5s
-    type: STRICT_DNS
-    dns_refresh_rate: 5s
-    dns_failure_refresh_rate:
-      base_interval: 1s
-      max_interval: 1s
+    # Current form of upstream's `type: STRICT_DNS` + dns_refresh_rate, which
+    # Envoy 1.39 flags as deprecated.
+    cluster_type:
+      name: envoy.cluster.dns
+      typed_config:
+        '@type': type.googleapis.com/envoy.extensions.clusters.dns.v3.DnsCluster
+        dns_refresh_rate: 5s
+        dns_failure_refresh_rate:
+          base_interval: 1s
+          max_interval: 1s
     lb_policy: ROUND_ROBIN
     load_assignment:
       cluster_name: auth
@@ -36,11 +41,16 @@ resources:
   - '@type': type.googleapis.com/envoy.config.cluster.v3.Cluster
     name: rest
     connect_timeout: 5s
-    type: STRICT_DNS
-    dns_refresh_rate: 5s
-    dns_failure_refresh_rate:
-      base_interval: 1s
-      max_interval: 1s
+    # Current form of upstream's `type: STRICT_DNS` + dns_refresh_rate, which
+    # Envoy 1.39 flags as deprecated.
+    cluster_type:
+      name: envoy.cluster.dns
+      typed_config:
+        '@type': type.googleapis.com/envoy.extensions.clusters.dns.v3.DnsCluster
+        dns_refresh_rate: 5s
+        dns_failure_refresh_rate:
+          base_interval: 1s
+          max_interval: 1s
     lb_policy: ROUND_ROBIN
     load_assignment:
       cluster_name: rest
@@ -68,11 +78,16 @@ resources:
   - '@type': type.googleapis.com/envoy.config.cluster.v3.Cluster
     name: storage
     connect_timeout: 5s
-    type: STRICT_DNS
-    dns_refresh_rate: 5s
-    dns_failure_refresh_rate:
-      base_interval: 1s
-      max_interval: 1s
+    # Current form of upstream's `type: STRICT_DNS` + dns_refresh_rate, which
+    # Envoy 1.39 flags as deprecated.
+    cluster_type:
+      name: envoy.cluster.dns
+      typed_config:
+        '@type': type.googleapis.com/envoy.extensions.clusters.dns.v3.DnsCluster
+        dns_refresh_rate: 5s
+        dns_failure_refresh_rate:
+          base_interval: 1s
+          max_interval: 1s
     lb_policy: ROUND_ROBIN
     load_assignment:
       cluster_name: storage
