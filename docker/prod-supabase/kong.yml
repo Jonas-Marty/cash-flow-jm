@@ -4,9 +4,8 @@
 # This is the reviewable copy. The live one is a Dokploy File Mount at
 # /volumes/api/kong.yml, mounted read-only at /home/kong/temp.yml; kong's
 # entrypoint shell-expands the $VARS in it before handing it to Kong, so
-# anything with a $ here is expanded -- keep that to SUPABASE_ANON_KEY,
-# SUPABASE_SERVICE_KEY, DASHBOARD_USERNAME, DASHBOARD_PASSWORD and
-# CONTAINER_PREFIX.
+# anything with a $ here is expanded -- keep that to SUPABASE_ANON_KEY and
+# SUPABASE_SERVICE_KEY.
 #
 # Upstream's file, minus the routes whose upstreams no longer exist:
 #   functions-v1  -> the edge runtime is gone. /functions/v1/* now 404s at
@@ -19,7 +18,9 @@
 #   realtime-v1-* -> realtime is gone. Its /api route also let anyone holding
 #                    the public anon key list, create and delete Realtime
 #                    tenants; upstream now blocks it as a security fix.
-# (graphql and realtime removed 2026-09-25.)
+#   meta (/pg/)   -> pg-meta is gone; it gave the service key superuser SQL.
+#   dashboard (/) -> Studio is gone. Unknown paths now get Kong's own 404.
+# (graphql, realtime, meta and dashboard removed 2026-09-25.)
 #
 # This supersedes docker/kong/kong.yml, which was removed in the same change:
 # it was unreferenced by any compose file and routed realtime at a hostname
@@ -32,7 +33,6 @@ _transform: true
 ### Consumers / Users
 ###
 consumers:
-  - username: DASHBOARD
   - username: anon
     keyauth_credentials:
       - key: $SUPABASE_ANON_KEY
@@ -48,14 +48,6 @@ acls:
     group: anon
   - consumer: service_role
     group: admin
-
-###
-### Dashboard credentials
-###
-basicauth_credentials:
-  - consumer: DASHBOARD
-    username: $DASHBOARD_USERNAME
-    password: $DASHBOARD_PASSWORD
 
 ###
 ### API Routes
@@ -143,37 +135,3 @@ services:
           - /storage/v1/
     plugins:
       - name: cors
-
-  ## Secure Database routes
-  - name: meta
-    _comment: 'pg-meta: /pg/* -> http://pg-meta:8080/*'
-    url: http://meta:8080/
-    routes:
-      - name: meta-all
-        strip_path: true
-        paths:
-          - /pg/
-    plugins:
-      - name: key-auth
-        config:
-          hide_credentials: false
-      - name: acl
-        config:
-          hide_groups_header: true
-          allow:
-            - admin
-
-  ## Protected Dashboard - catch all remaining routes
-  - name: dashboard
-    _comment: 'Studio: /* -> http://studio:3000/*'
-    url: http://studio:3000/
-    routes:
-      - name: dashboard-all
-        strip_path: true
-        paths:
-          - /
-    plugins:
-      - name: cors
-      - name: basic-auth
-        config:
-          hide_credentials: true

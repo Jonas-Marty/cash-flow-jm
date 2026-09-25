@@ -8,7 +8,7 @@
 # this in and redeploy rather than expecting a git push to do it. See
 # docs/supabase-stack-trim.md for the full runbook.
 #
-# Upstream ships 13 services; this runs 7. Dropped, with the reason:
+# Upstream ships 13 services; this runs 5. Dropped, with the reason:
 #
 #   analytics (logflare)  1.5 GB resident -- larger than any other container
 #                         on the host -- to collect logs nobody reads. Its
@@ -41,8 +41,11 @@
 # Kong stays: the gateway is upstream's, minus the routes whose services are
 # gone (functions, analytics, realtime, graphql).
 #
-# Studio and pg-meta stay as the data browser. Studio's Logs pages are the
-# one regression: they needed logflare, so NEXT_PUBLIC_ENABLE_LOGS is off.
+# Studio and pg-meta were removed 2026-09-25: an old Next.js with open
+# advisories on the public domain behind one basic-auth password, whose SQL
+# editor ran as the superuser. For the rare direct look at the data, the db
+# port is published on the host's loopback (127.0.0.1:54322) for a desktop
+# client through an SSH tunnel -- see docs/database-access.md.
 #
 # mem_limit on every service is a guardrail against a runaway, not a tuning
 # knob -- the win in this file is the four deleted services, not squeezing the
@@ -66,38 +69,6 @@
 # ====================================================================
 name: supabase
 services:
-  studio:
-    container_name: ${CONTAINER_PREFIX}-studio
-    image: supabase/studio:2025.04.21-sha-173cc56
-    mem_limit: 512m
-    depends_on:
-      meta:
-        condition: service_started
-    restart: unless-stopped
-    healthcheck:
-      test:
-        - CMD
-        - node
-        - -e
-        - fetch('http://studio:3000/api/platform/profile').then((r) => {if (r.status !== 200) throw new Error(r.status)})
-      timeout: 10s
-      interval: 5s
-      retries: 3
-    environment:
-      STUDIO_PG_META_URL: http://meta:8080
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      DEFAULT_ORGANIZATION_NAME: ${STUDIO_DEFAULT_ORGANIZATION}
-      DEFAULT_PROJECT_NAME: ${STUDIO_DEFAULT_PROJECT}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      SUPABASE_URL: ${SUPABASE_PUBLIC_URL}
-      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL}
-      SUPABASE_ANON_KEY: ${ANON_KEY}
-      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
-      AUTH_JWT_SECRET: ${JWT_SECRET}
-      NEXT_PUBLIC_ENABLE_LOGS: false
-      NEXT_ANALYTICS_BACKEND_PROVIDER: postgres
-    networks:
-      - cash-flow-supabase-e2meaa
   kong:
     container_name: ${CONTAINER_PREFIX}-kong
     image: kong:2.8.5
@@ -119,7 +90,7 @@ services:
       KONG_DATABASE: off
       KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
       KONG_DNS_ORDER: LAST,A,CNAME
-      KONG_PLUGINS: request-transformer,cors,key-auth,acl,basic-auth
+      KONG_PLUGINS: request-transformer,cors,key-auth,acl
       KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
       KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
       # Default is one worker per core: 14 workers held ~940 MB against the
@@ -127,8 +98,6 @@ services:
       KONG_NGINX_WORKER_PROCESSES: 2
       SUPABASE_ANON_KEY: ${ANON_KEY}
       SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
-      DASHBOARD_USERNAME: ${DASHBOARD_USERNAME}
-      DASHBOARD_PASSWORD: ${DASHBOARD_PASSWORD}
       CONTAINER_PREFIX: ${CONTAINER_PREFIX}
     entrypoint: bash -c 'eval "echo \"$$(cat ~/temp.yml)\"" > ~/kong.yml && /docker-entrypoint.sh kong docker-start'
     networks:
@@ -254,28 +223,16 @@ services:
       ENABLE_IMAGE_TRANSFORMATION: "false"
     networks:
       - cash-flow-supabase-e2meaa
-  meta:
-    container_name: ${CONTAINER_PREFIX}-meta
-    image: supabase/postgres-meta:v0.88.9
-    mem_limit: 256m
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      PG_META_PORT: 8080
-      PG_META_DB_HOST: ${POSTGRES_HOST}
-      PG_META_DB_PORT: ${POSTGRES_PORT}
-      PG_META_DB_NAME: ${POSTGRES_DB}
-      PG_META_DB_USER: supabase_admin
-      PG_META_DB_PASSWORD: ${POSTGRES_PASSWORD}
-    networks:
-      - cash-flow-supabase-e2meaa
   db:
     container_name: ${CONTAINER_PREFIX}-db
-    image: supabase/postgres:15.8.1.060
+    image: supabase/postgres:15.14.1.176
     mem_limit: 1g
     restart: unless-stopped
+    # For a desktop client (DBeaver, HeidiSQL) through an SSH tunnel to the
+    # host. Bound to the host's loopback only: nothing on the network reaches
+    # it. See docs/database-access.md.
+    ports:
+      - 127.0.0.1:54322:5432
     volumes:
       - ../files/volumes/db/realtime.sql:/docker-entrypoint-initdb.d/migrations/99-realtime.sql:Z
       - ../files/volumes/db/webhooks.sql:/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql:Z
