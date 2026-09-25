@@ -8,15 +8,18 @@
 # SUPABASE_SERVICE_KEY, DASHBOARD_USERNAME, DASHBOARD_PASSWORD and
 # CONTAINER_PREFIX.
 #
-# Upstream's file, minus the two routes whose upstreams no longer exist:
+# Upstream's file, minus the routes whose upstreams no longer exist:
 #   functions-v1  -> the edge runtime is gone. /functions/v1/* now 404s at
 #                    the gateway instead of 502-ing at a dead container.
 #   analytics-v1  -> logflare is gone.
 # Restore either alongside its service block in
 # docker-compose.prod-supabase.yml if you ever need it back.
 #
-# graphql-v1 stays: it proxies to `rest`, so it costs nothing and keeps the
-# surface identical to what the Supabase client library expects.
+#   graphql-v1    -> unused (no GraphQL calls; pg_graphql is not relied on).
+#   realtime-v1-* -> realtime is gone. Its /api route also let anyone holding
+#                    the public anon key list, create and delete Realtime
+#                    tenants; upstream now blocks it as a security fix.
+# (graphql and realtime removed 2026-09-25.)
 #
 # This supersedes docker/kong/kong.yml, which was removed in the same change:
 # it was unreferenced by any compose file and routed realtime at a hostname
@@ -129,73 +132,6 @@ services:
             - admin
             - anon
 
-  ## Secure GraphQL routes
-  - name: graphql-v1
-    _comment: 'PostgREST: /graphql/v1/* -> http://rest:3000/rpc/graphql'
-    url: http://rest:3000/rpc/graphql
-    routes:
-      - name: graphql-v1-all
-        strip_path: true
-        paths:
-          - /graphql/v1
-    plugins:
-      - name: cors
-      - name: key-auth
-        config:
-          hide_credentials: true
-      - name: request-transformer
-        config:
-          add:
-            headers:
-              - Content-Profile:graphql_public
-      - name: acl
-        config:
-          hide_groups_header: true
-          allow:
-            - admin
-            - anon
-
-  ## Secure Realtime routes
-  - name: realtime-v1-ws
-    _comment: 'Realtime: /realtime/v1/* -> ws://realtime:4000/socket/*'
-    url: http://realtime-dev.${CONTAINER_PREFIX}-realtime:4000/socket
-    protocol: ws
-    routes:
-      - name: realtime-v1-ws
-        strip_path: true
-        paths:
-          - /realtime/v1/
-    plugins:
-      - name: cors
-      - name: key-auth
-        config:
-          hide_credentials: false
-      - name: acl
-        config:
-          hide_groups_header: true
-          allow:
-            - admin
-            - anon
-  - name: realtime-v1-rest
-    _comment: 'Realtime: /realtime/v1/* -> ws://realtime:4000/socket/*'
-    url: http://realtime-dev.${CONTAINER_PREFIX}-realtime:4000/api
-    protocol: http
-    routes:
-      - name: realtime-v1-rest
-        strip_path: true
-        paths:
-          - /realtime/v1/api
-    plugins:
-      - name: cors
-      - name: key-auth
-        config:
-          hide_credentials: false
-      - name: acl
-        config:
-          hide_groups_header: true
-          allow:
-            - admin
-            - anon
   ## Storage routes: the storage server manages its own auth
   - name: storage-v1
     _comment: 'Storage: /storage/v1/* -> http://storage:5000/*'

@@ -10,6 +10,13 @@ REST/auth/storage gateway checks passed. Two deviations from the runbook below:
 - **`supabase/edge-runtime:v1.67.4` must not be removed** in step 7: the
   ovtrack stack on the same host still runs it.
 
+**Update 2026-09-25:** realtime and imgproxy were removed as well (unused;
+realtime's `/api/tenants` accepted the public anon key through Kong), together
+with the `realtime-v1-*` and `graphql-v1` routes. Kong moved to 2.8.5, GoTrue to
+2.197.0, PostgREST to 14.18, Storage to 1.74.0 — the same versions dev was
+tested with first. `SECRET_KEY_BASE` and `IMGPROXY_ENABLE_WEBP_DETECTION` are no
+longer read by anything. The tables below describe the original trim.
+
 ## Why
 
 Production ran the full 13-service upstream Supabase stack. Measured on the

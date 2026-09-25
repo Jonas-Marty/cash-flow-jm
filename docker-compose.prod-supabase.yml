@@ -8,7 +8,7 @@
 # this in and redeploy rather than expecting a git push to do it. See
 # docs/supabase-stack-trim.md for the full runbook.
 #
-# Upstream ships 13 services; this runs 9. Dropped, with the reason:
+# Upstream ships 13 services; this runs 7. Dropped, with the reason:
 #
 #   analytics (logflare)  1.5 GB resident -- larger than any other container
 #                         on the host -- to collect logs nobody reads. Its
@@ -29,11 +29,17 @@
 #                         service block plus the functions-v1 route in
 #                         docker/prod-supabase/kong.yml.
 #
-# Kept even though the app does not use them today: realtime (the
-# supabase_realtime publication has 0 tables) and imgproxy (no storage call
-# passes a transform: option). They are cheap and keep the stack matching
-# what the Supabase client library expects. Kong stays for the same reason -- the
-# gateway is upstream, byte for byte, minus the two dead routes.
+#   realtime              Unused (the supabase_realtime publication has 0
+#                         tables, no .channel() in src/), and its /api/tenants
+#                         admin API accepted the public anon key through
+#                         Kong -- upstream now blocks that route as a
+#                         security fix. Removed 2026-09-25 with its routes.
+#   imgproxy              No storage call passes a transform: option; the
+#                         2022 build predated the libwebp fix and was reachable
+#                         through /storage/v1/render/image. Removed 2026-09-25.
+#
+# Kong stays: the gateway is upstream's, minus the routes whose services are
+# gone (functions, analytics, realtime, graphql).
 #
 # Studio and pg-meta stay as the data browser. Studio's Logs pages are the
 # one regression: they needed logflare, so NEXT_PUBLIC_ENABLE_LOGS is off.
@@ -94,7 +100,7 @@ services:
       - cash-flow-supabase-e2meaa
   kong:
     container_name: ${CONTAINER_PREFIX}-kong
-    image: kong:2.8.1
+    image: kong:2.8.5
     mem_limit: 1g
     restart: unless-stopped
     expose:
@@ -129,7 +135,7 @@ services:
       - cash-flow-supabase-e2meaa
   auth:
     container_name: ${CONTAINER_PREFIX}-auth
-    image: supabase/gotrue:v2.171.0
+    image: supabase/gotrue:v2.197.0
     mem_limit: 256m
     restart: unless-stopped
     healthcheck:
@@ -153,7 +159,10 @@ services:
       API_EXTERNAL_URL: ${API_EXTERNAL_URL}
       GOTRUE_DB_DRIVER: postgres
       GOTRUE_DB_DATABASE_URL: postgres://supabase_auth_admin:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
-      GOTRUE_SITE_URL: ${SITE_URL}
+      # The app, not the API host: GoTrue falls back here whenever a
+      # redirect_to is not on the allow list, and the API host only answers
+      # {"message":"Unauthorized"}.
+      GOTRUE_SITE_URL: https://cash-flow.wi-wo.ch
       GOTRUE_URI_ALLOW_LIST: ${ADDITIONAL_REDIRECT_URLS}
       GOTRUE_DISABLE_SIGNUP: ${DISABLE_SIGNUP}
       GOTRUE_JWT_ADMIN_ROLES: service_role
@@ -174,13 +183,22 @@ services:
       GOTRUE_MAILER_URLPATHS_CONFIRMATION: ${MAILER_URLPATHS_CONFIRMATION}
       GOTRUE_MAILER_URLPATHS_RECOVERY: ${MAILER_URLPATHS_RECOVERY}
       GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE: ${MAILER_URLPATHS_EMAIL_CHANGE}
-      GOTRUE_EXTERNAL_PHONE_ENABLED: ${ENABLE_PHONE_SIGNUP}
-      GOTRUE_SMS_AUTOCONFIRM: ${ENABLE_PHONE_AUTOCONFIRM}
+      # Upstream's template defaults both to true, which let anyone create a
+      # confirmed account with any phone number and no SMS provider at all.
+      GOTRUE_EXTERNAL_PHONE_ENABLED: "false"
+      GOTRUE_SMS_AUTOCONFIRM: "false"
+      # Settings -> Linked sign-in methods: attach another sign-in method (e.g.
+      # the OIDC provider) to the account you are signed in with.
+      GOTRUE_SECURITY_MANUAL_LINKING_ENABLED: "true"
+      # Custom OIDC providers (Settings -> Integrations) return to
+      # <this>/callback. GoTrue sits behind Kong's /auth/v1, and without this
+      # it would send the provider back to <API_EXTERNAL_URL>/callback, a 404.
+      GOTRUE_CUSTOM_OAUTH_EXTERNAL_URL: ${API_EXTERNAL_URL}/auth/v1
     networks:
       - cash-flow-supabase-e2meaa
   rest:
     container_name: ${CONTAINER_PREFIX}-rest
-    image: postgrest/postgrest:v12.2.11
+    image: postgrest/postgrest:v14.18
     mem_limit: 512m
     restart: unless-stopped
     depends_on:
@@ -191,57 +209,15 @@ services:
       PGRST_DB_SCHEMAS: ${PGRST_DB_SCHEMAS}
       PGRST_DB_ANON_ROLE: anon
       PGRST_JWT_SECRET: ${JWT_SECRET}
-      PGRST_DB_USE_LEGACY_GUCS: "false"
       PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
       PGRST_APP_SETTINGS_JWT_EXP: ${JWT_EXPIRY}
     command:
       - postgrest
     networks:
       - cash-flow-supabase-e2meaa
-  realtime:
-    container_name: realtime-dev.${CONTAINER_PREFIX}-realtime
-    image: supabase/realtime:v2.34.47
-    mem_limit: 512m
-    restart: unless-stopped
-    depends_on:
-      db:
-        condition: service_healthy
-    healthcheck:
-      test:
-        - CMD
-        - curl
-        - -sSfL
-        - --head
-        - -o
-        - /dev/null
-        - -H
-        - "Authorization: Bearer ${ANON_KEY}"
-        - http://localhost:4000/api/tenants/realtime-dev/health
-      timeout: 5s
-      interval: 5s
-      retries: 3
-    environment:
-      PORT: 4000
-      DB_HOST: ${POSTGRES_HOST}
-      DB_PORT: ${POSTGRES_PORT}
-      DB_USER: supabase_admin
-      DB_PASSWORD: ${POSTGRES_PASSWORD}
-      DB_NAME: ${POSTGRES_DB}
-      DB_AFTER_CONNECT_QUERY: SET search_path TO _realtime
-      DB_ENC_KEY: supabaserealtime
-      API_JWT_SECRET: ${JWT_SECRET}
-      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
-      ERL_AFLAGS: -proto_dist inet_tcp
-      DNS_NODES: "''"
-      RLIMIT_NOFILE: "10000"
-      APP_NAME: realtime
-      SEED_SELF_HOST: true
-      RUN_JANITOR: true
-    networks:
-      - cash-flow-supabase-e2meaa
   storage:
     container_name: ${CONTAINER_PREFIX}-storage
-    image: supabase/storage-api:v1.22.7
+    image: supabase/storage-api:v1.74.0
     mem_limit: 512m
     restart: unless-stopped
     volumes:
@@ -262,8 +238,6 @@ services:
         condition: service_healthy
       rest:
         condition: service_started
-      imgproxy:
-        condition: service_started
     environment:
       ANON_KEY: ${ANON_KEY}
       SERVICE_KEY: ${SERVICE_ROLE_KEY}
@@ -276,30 +250,8 @@ services:
       TENANT_ID: stub
       REGION: stub
       GLOBAL_S3_BUCKET: stub
-      ENABLE_IMAGE_TRANSFORMATION: "true"
-      IMGPROXY_URL: http://imgproxy:5001
-    networks:
-      - cash-flow-supabase-e2meaa
-  imgproxy:
-    container_name: ${CONTAINER_PREFIX}-imgproxy
-    image: darthsim/imgproxy:v3.8.0
-    mem_limit: 256m
-    restart: unless-stopped
-    volumes:
-      - ../files/volumes/storage:/var/lib/storage:z
-    healthcheck:
-      test:
-        - CMD
-        - imgproxy
-        - health
-      timeout: 5s
-      interval: 5s
-      retries: 3
-    environment:
-      IMGPROXY_BIND: :5001
-      IMGPROXY_LOCAL_FILESYSTEM_ROOT: /
-      IMGPROXY_USE_ETAG: "true"
-      IMGPROXY_ENABLE_WEBP_DETECTION: ${IMGPROXY_ENABLE_WEBP_DETECTION}
+      # No imgproxy: nothing passes a transform: option.
+      ENABLE_IMAGE_TRANSFORMATION: "false"
     networks:
       - cash-flow-supabase-e2meaa
   meta:
