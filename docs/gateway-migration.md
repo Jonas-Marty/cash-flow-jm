@@ -1,4 +1,7 @@
-# Replacing Kong (plan — not applied yet)
+# Replacing Kong with Envoy
+
+**Status 2026-09-25:** decided on upstream's Envoy (option A below). Dev runs it
+since 2026-09-25 (`docker/envoy/`, Kong removed); prod still runs Kong 2.8.5.
 
 ## Why
 
@@ -49,22 +52,26 @@ JavaScript). It keeps drive-by scanners away and matches Kong's behaviour.
 − Our own config, not upstream's: we port relevant upstream changes by hand
   (we already do, since our Kong file is trimmed).
 
-**Recommendation: B.** The trimmed route table is five entries; nginx states
-it plainly, costs nothing to run, and matches ov-track, so there is one gateway
-pattern on the host instead of two.
+**Chosen: A** — staying on upstream's gateway, so their gateway fixes port over
+route by route. `docker/envoy/` is their config trimmed to auth, rest and
+storage with the legacy keys, and on current (non-deprecated) Envoy 1.39 config
+forms. Differences from Kong: the OpenAPI root `/rest/v1/` needs the service
+key, and unknown paths get a plain 404.
+
+**Gotcha:** a Dokploy redeploy does not restart Envoy when only the files under
+`docker/envoy/` change (the service definition is unchanged) — restart the
+container after changing them, and check its log for `rejected`.
 
 ## Rollout
 
-1. **Dev first.** Add a `gateway` service (nginx:alpine) next to Kong in
-   `docker-compose.dev-supabase.yml`, not yet on the domain. Run the checks
-   below against it inside the network.
-2. **Switch dev's domain** (Dokploy → supabase-dev → Domains: service `gateway`,
-   port 80 instead of `kong` 8000). Run `scripts/dev/smoke.mjs` and the checks.
-3. Remove Kong from dev after a day of normal use.
-4. **Prod the same way:** add `gateway`, switch the Domains entry, keep Kong
-   running (unrouted) for a quick rollback, remove it later.
-
-**Rollback** at any point: point the domain back at `kong:8000`.
+1. **Dev — done.** Envoy ran next to Kong, passed the checks below inside the
+   network, then took the domain; Kong, Studio and pg-meta were removed.
+2. **Prod:** the Envoy files become Dokploy File Mounts (like `kong.yml` today),
+   the compose gets the `envoy` service in place of `kong`, and the Domains entry
+   `cash-flow-supabase.wi-wo.ch` moves to `envoy:8000`. Git history has the Kong
+   setup for a fix-back.
+3. The blackbox probe for the Supabase host must target a path that answers 200
+   (`/storage/v1/status`): `/` is a 404 now.
 
 ## Checks (dev, then prod)
 
