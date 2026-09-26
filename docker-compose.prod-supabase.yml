@@ -26,20 +26,21 @@
 #                         supabase/functions/ directory. Scheduled work runs
 #                         as token-guarded HTTP routes hit by host cron
 #                         (README section 5). To bring it back, restore the
-#                         service block plus the functions-v1 route in
-#                         docker/prod-supabase/kong.yml.
+#                         service block plus upstream's functions route in
+#                         docker/envoy/lds.template.yaml.
 #
 #   realtime              Unused (the supabase_realtime publication has 0
 #                         tables, no .channel() in src/), and its /api/tenants
 #                         admin API accepted the public anon key through
-#                         Kong -- upstream now blocks that route as a
+#                         the gateway -- upstream now blocks that route as a
 #                         security fix. Removed 2026-09-25 with its routes.
 #   imgproxy              No storage call passes a transform: option; the
 #                         2022 build predated the libwebp fix and was reachable
 #                         through /storage/v1/render/image. Removed 2026-09-25.
 #
-# Kong stays: the gateway is upstream's, minus the routes whose services are
-# gone (functions, analytics, realtime, graphql).
+# The gateway is Envoy (docker/envoy/: upstream's config trimmed to auth, rest
+# and storage). It replaced Kong 2.8.5, which is end of life, on 2026-09-26;
+# see docs/gateway-migration.md.
 #
 # Studio and pg-meta were removed 2026-09-25: an old Next.js with open
 # advisories on the public domain behind one basic-auth password, whose SQL
@@ -48,19 +49,13 @@
 # client through an SSH tunnel -- see docs/database-access.md.
 #
 # mem_limit on every service is a guardrail against a runaway, not a tuning
-# knob -- the win in this file is the four deleted services, not squeezing the
-# nine that remain. The ceilings are deliberately loose (steady state is
-# ~515 MB against ~4.7 GB of headroom) because a limit set too tight turns a
-# normal spike into an OOMKill, which is far worse than the leak it prevents.
-# Kong's 1g in particular is not padding: a freshly started Kong on this host
-# was measured holding 927 MB of anonymous memory across its 12 workers, flat
-# over several minutes, while the long-running production one sits at 83 MB.
-# That difference is unexplained -- if you tighten Kong, watch it through a
-# restart first.
+# knob. The ceilings are deliberately loose because a limit set too tight
+# turns a normal spike into an OOMKill, which is far worse than the leak it
+# prevents.
 #
 # Two things Dokploy owns and this file must NOT restate:
-#   * the traefik.* labels on kong -- injected from the Domains tab
-#     (cash-flow-supabase.wi-wo.ch -> service kong, port 8000);
+#   * the traefik.* labels on envoy -- injected from the Domains tab
+#     (cash-flow-supabase.wi-wo.ch -> service envoy, port 8000);
 #   * the ../files/volumes/* sources -- those are the "File Mounts" tab.
 #
 # Do not rename the "db" service: the nightly backup to Garage S3 is keyed on
@@ -69,16 +64,22 @@
 # ====================================================================
 name: supabase
 services:
-  kong:
-    container_name: ${CONTAINER_PREFIX}-kong
-    image: kong:2.8.5
-    mem_limit: 1g
+  envoy:
+    container_name: ${CONTAINER_PREFIX}-envoy
+    image: envoyproxy/envoy:v1.39.1
+    mem_limit: 256m
     restart: unless-stopped
     expose:
       - 8000
-      - 8443
+    # Same files as docker/envoy/ in the repo; here they are Dokploy File
+    # Mounts under /volumes/api/envoy/. A redeploy does not restart Envoy when
+    # only these files change -- restart the container, then check its log
+    # for "rejected".
     volumes:
-      - ../files/volumes/api/kong.yml:/home/kong/temp.yml:ro,z
+      - ../files/volumes/api/envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro,z
+      - ../files/volumes/api/envoy/cds.yaml:/etc/envoy/cds.yaml:ro,z
+      - ../files/volumes/api/envoy/lds.template.yaml:/etc/envoy/lds.template.yaml:ro,z
+      - ../files/volumes/api/envoy/docker-entrypoint.sh:/docker-entrypoint.sh:ro,z
     depends_on:
       auth:
         condition: service_started
@@ -87,19 +88,15 @@ services:
       storage:
         condition: service_started
     environment:
-      KONG_DATABASE: off
-      KONG_DECLARATIVE_CONFIG: /home/kong/kong.yml
-      KONG_DNS_ORDER: LAST,A,CNAME
-      KONG_PLUGINS: request-transformer,cors,key-auth,acl
-      KONG_NGINX_PROXY_PROXY_BUFFER_SIZE: 160k
-      KONG_NGINX_PROXY_PROXY_BUFFERS: 64 160k
-      # Default is one worker per core: 14 workers held ~940 MB against the
-      # 1g limit. Two are plenty for this app's traffic.
-      KONG_NGINX_WORKER_PROCESSES: 2
-      SUPABASE_ANON_KEY: ${ANON_KEY}
-      SUPABASE_SERVICE_KEY: ${SERVICE_ROLE_KEY}
-      CONTAINER_PREFIX: ${CONTAINER_PREFIX}
-    entrypoint: bash -c 'eval "echo \"$$(cat ~/temp.yml)\"" > ~/kong.yml && /docker-entrypoint.sh kong docker-start'
+      ANON_KEY: ${ANON_KEY}
+      SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
+    entrypoint: ["/bin/sh", "/docker-entrypoint.sh"]
+    healthcheck:
+      # The image has neither curl nor wget.
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/127.0.0.1/8000'"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     networks:
       - cash-flow-supabase-e2meaa
   auth:
@@ -122,7 +119,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      GOTRUE_MAILER_EXTERNAL_HOSTS: kong,${SUPABASE_HOST}
+      GOTRUE_MAILER_EXTERNAL_HOSTS: ${SUPABASE_HOST}
       GOTRUE_API_HOST: 0.0.0.0
       GOTRUE_API_PORT: 9999
       API_EXTERNAL_URL: ${API_EXTERNAL_URL}
@@ -160,8 +157,9 @@ services:
       # the OIDC provider) to the account you are signed in with.
       GOTRUE_SECURITY_MANUAL_LINKING_ENABLED: "true"
       # Custom OIDC providers (Settings -> Integrations) return to
-      # <this>/callback. GoTrue sits behind Kong's /auth/v1, and without this
-      # it would send the provider back to <API_EXTERNAL_URL>/callback, a 404.
+      # <this>/callback. GoTrue sits behind the gateway's /auth/v1, and
+      # without this it would send the provider back to
+      # <API_EXTERNAL_URL>/callback, a 404.
       GOTRUE_CUSTOM_OAUTH_EXTERNAL_URL: ${API_EXTERNAL_URL}/auth/v1
     networks:
       - cash-flow-supabase-e2meaa

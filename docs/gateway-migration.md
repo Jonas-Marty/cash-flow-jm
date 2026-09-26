@@ -1,7 +1,7 @@
 # Replacing Kong with Envoy
 
-**Status 2026-09-25:** decided on upstream's Envoy (option A below). Dev runs it
-since 2026-09-25 (`docker/envoy/`, Kong removed); prod still runs Kong 2.8.5.
+**Status 2026-09-26: done.** Upstream's Envoy (option A below) is the gateway on
+dev (since 2026-09-25) and prod (since 2026-09-26). Kong is removed from both.
 
 ## Why
 
@@ -66,10 +66,13 @@ container after changing them, and check its log for `rejected`.
 
 1. **Dev — done.** Envoy ran next to Kong, passed the checks below inside the
    network, then took the domain; Kong, Studio and pg-meta were removed.
-2. **Prod:** the Envoy files become Dokploy File Mounts (like `kong.yml` today),
-   the compose gets the `envoy` service in place of `kong`, and the Domains entry
-   `cash-flow-supabase.wi-wo.ch` moves to `envoy:8000`. Git history has the Kong
-   setup for a fix-back.
+2. **Prod — done 2026-09-26.** The four files in `docker/envoy/` are Dokploy
+   File Mounts under `/volumes/api/envoy/`, the compose runs `envoy` in place
+   of `kong`, and the Domains entry `cash-flow-supabase.wi-wo.ch` points at
+   `envoy:8000`; the `kong.yml` mount is deleted. When a file in
+   `docker/envoy/` changes, update the matching File Mount by hand, then
+   restart the Envoy container (see the gotcha above). Git history has the
+   Kong setup for a fix-back.
 3. The blackbox probe for the Supabase host must target a path that answers 200
    (`/storage/v1/status`): `/` is a 404 now.
 

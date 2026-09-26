@@ -17,6 +17,11 @@ with the `realtime-v1-*` and `graphql-v1` routes. Kong moved to 2.8.5, GoTrue to
 tested with first. `SECRET_KEY_BASE` and `IMGPROXY_ENABLE_WEBP_DETECTION` are no
 longer read by anything. The tables below describe the original trim.
 
+**Update 2026-09-26:** Kong is gone from production too. The gateway is Envoy
+(`docker/envoy/`, as Dokploy File Mounts under `/volumes/api/envoy/`); see
+`docs/gateway-migration.md`. Where the runbook below mentions `kong.yml`, that
+file is only in git history now.
+
 ## Why
 
 Production ran the full 13-service upstream Supabase stack. Measured on the

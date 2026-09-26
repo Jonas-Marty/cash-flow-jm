@@ -164,12 +164,13 @@ can reach the Supabase containers (Kong, Postgres, etc.) by service name.
    # Internal URL the migrator uses (Postgres, inside the Docker network)
    SUPABASE_DB_URL=postgres://postgres:<password>@db:5432/postgres
 
-   # Public URL clients reach (Kong, exposed via your reverse proxy / TLS)
+   # Public URL clients reach (the gateway, exposed via your reverse proxy / TLS)
    VITE_SUPABASE_URL=https://supabase.example.com
    VITE_SUPABASE_PUBLISHABLE_KEY=eyJhbGciOi...
 
-   # Internal URL the app's server-side code uses (Kong, inside the network)
-   SUPABASE_URL=http://kong:8000
+   # URL the app's server-side code uses. Our deployments use the public URL;
+   # inside the Supabase network the gateway is also reachable as envoy:8000.
+   SUPABASE_URL=https://supabase.example.com
    SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOi...service-role...
 
    METRICS_TOKEN=<long random string>
