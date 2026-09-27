@@ -6,10 +6,27 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { HELP_BASE } from "@/lib/helpUrl";
 import { getHelpSections, rankHelpSections } from "@/lib/helpSearch";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import type { Json } from "@/integrations/supabase/types";
 import { buildSystemPrompt } from "@/lib/ai/systemPrompt";
-import type { AIHealthMode, AIHealthProbe, AssistantAction, AIEndpointOfflinePayload } from "@/lib/ai/types";
+import type {
+  AIHealthMode,
+  AIHealthProbe,
+  AIModelCapabilities,
+  AssistantAction,
+  ChatNotice,
+  AIEndpointOfflinePayload,
+} from "@/lib/ai/types";
 import { AI_ENDPOINT_OFFLINE_PREFIX } from "@/lib/ai/types";
 import { healthBases } from "@/lib/ai/endpointUrls";
+import {
+  isToolsUnsupportedError,
+  isVisionUnsupportedError,
+  looksLikeRawJson,
+  looksLikeTextToolCall,
+  parseToolProbe,
+  parseVisionProbe,
+} from "@/lib/ai/capabilities";
+import type { AttachmentRow } from "./aiAttachments.server";
 
 export interface PingResult {
   ok: boolean;
@@ -137,13 +154,15 @@ export interface EndpointRow {
   transcribe_model: string | null;
   /** How thoroughly availability is probed. */
   health_mode: AIHealthMode;
+  /** Probed capabilities per model id. */
+  capabilities: Record<string, AIModelCapabilities>;
 }
 
 export async function loadEndpointRows(userId: string): Promise<EndpointRow[]> {
   const { data, error } = await supabaseAdmin
     .from("ai_endpoints")
     .select(
-      "id, name, base_url, model, api_token, enabled, priority, context_level, transcribe_model, health_mode, created_at",
+      "id, name, base_url, model, api_token, enabled, priority, context_level, transcribe_model, health_mode, capabilities, created_at",
     )
     .eq("user_id", userId)
     .order("priority", { ascending: true })
@@ -160,6 +179,7 @@ export async function loadEndpointRows(userId: string): Promise<EndpointRow[]> {
     context_level: (r.context_level ?? "compact") as EndpointRow["context_level"],
     transcribe_model: (r.transcribe_model || "").trim() || null,
     health_mode: (r.health_mode ?? "real") as AIHealthMode,
+    capabilities: r.capabilities && typeof r.capabilities === "object" ? r.capabilities : {},
   }));
 }
 
@@ -170,6 +190,124 @@ function toCreds(row: EndpointRow, model?: string | null): FullAICreds {
     model: model || row.model,
     api_token: row.api_token || "",
   };
+}
+
+// ---------------------------------------------------------------------------
+// Model capabilities (tool calling, vision)
+// ---------------------------------------------------------------------------
+
+const UNKNOWN_CAPS: AIModelCapabilities = { tools: null, vision: null, checked_at: null };
+
+export function capsFor(row: EndpointRow, model: string): AIModelCapabilities {
+  return { ...UNKNOWN_CAPS, ...(row.capabilities?.[model] ?? {}) };
+}
+
+/** Merge a finding for one model into the connection's capability map. */
+export async function saveCapabilities(
+  userId: string,
+  endpointId: string,
+  model: string,
+  patch: Partial<AIModelCapabilities>,
+): Promise<void> {
+  try {
+    const { data } = await supabaseAdmin
+      .from("ai_endpoints")
+      .select("capabilities")
+      .eq("id", endpointId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    const raw = data?.capabilities;
+    const all = (raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {}) as unknown as Record<
+      string,
+      AIModelCapabilities
+    >;
+    all[model] = { ...UNKNOWN_CAPS, ...(all[model] ?? {}), ...patch, checked_at: new Date().toISOString() };
+    await supabaseAdmin
+      .from("ai_endpoints")
+      .update({ capabilities: all as unknown as Json })
+      .eq("id", endpointId)
+      .eq("user_id", userId);
+  } catch {
+    // A capability note is an optimisation; never fail the request over it.
+  }
+}
+
+const PROBE_RED_PNG =
+  "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAFklEQVR42mP4z8BAEmIY1TCqYfhqAACQ+f8B8u7oVwAAAABJRU5ErkJggg==";
+
+/**
+ * Two tiny real requests. OpenAI-compatible `/models` lists do not say what a
+ * model can do, so asking is the only reliable way. A network error or 5xx
+ * leaves the verdict null (unknown) rather than false.
+ */
+export async function probeCapabilities(
+  baseUrl: string,
+  token: string | null,
+  model: string,
+  timeoutMs = 30000,
+): Promise<{ tools: boolean | null; vision: boolean | null; errors: string[] }> {
+  const base = baseUrl.trim().replace(/\/+$/, "");
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const errors: string[] = [];
+  const post = async (body: unknown): Promise<{ status: number; text: string } | null> => {
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), timeoutMs);
+    try {
+      const resp = await fetch(`${base}/chat/completions`, {
+        method: "POST",
+        headers,
+        signal: ac.signal,
+        body: JSON.stringify(body),
+      });
+      return { status: resp.status, text: await resp.text() };
+    } catch (e) {
+      errors.push(e instanceof Error ? e.message : String(e));
+      return null;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+  const [toolResp, visionResp] = await Promise.all([
+    // Generous limits: reasoning models think before they answer, and a reply
+    // cut off mid-thought would read as "cannot".
+    post({
+      model,
+      max_tokens: 1024,
+      messages: [{ role: "user", content: "Call the ping tool." }],
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "ping",
+            description: "Health check. Always call this when asked to.",
+            parameters: { type: "object", properties: {}, additionalProperties: false },
+          },
+        },
+      ],
+      tool_choice: "auto",
+    }),
+    post({
+      model,
+      max_tokens: 1024,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: "What colour is this image? Answer with one word." },
+            { type: "image_url", image_url: { url: `data:image/png;base64,${PROBE_RED_PNG}` } },
+          ],
+        },
+      ],
+    }),
+  ]);
+  const verdict = (r: typeof toolResp, parse: (s: number, b: string) => boolean | null) => {
+    if (!r) return null;
+    const v = parse(r.status, r.text);
+    if (v === null) errors.push(`${r.status} ${r.text.slice(0, 160)}`);
+    return v;
+  };
+  return { tools: verdict(toolResp, parseToolProbe), vision: verdict(visionResp, parseVisionProbe), errors };
 }
 
 /**
@@ -427,11 +565,18 @@ export async function resolveEndpoint(
 
 type Sb = SupabaseClient;
 
+/** What a tool can see besides its arguments. */
+export interface ToolCtx {
+  /** Attachments of this conversation (current turn and history), newest last. */
+  attachments: AttachmentRow[];
+  conversationId: string | null;
+}
+
 export interface ToolDef {
   name: string;
   description: string;
   parameters: Record<string, unknown>;
-  exec: (args: Record<string, unknown>, sb: Sb, userId: string) => Promise<ToolResult>;
+  exec: (args: Record<string, unknown>, sb: Sb, userId: string, ctx: ToolCtx) => Promise<ToolResult>;
 }
 
 export type ToolResult =
@@ -488,6 +633,17 @@ async function loadAccounts(sb: Sb) {
 async function loadCategories(sb: Sb) {
   const { data } = await sb.from("categories").select("id, name, archived, is_scope, closed_at").order("name");
   return (data || []) as { id: string; name: string; archived: boolean; is_scope?: boolean; closed_at?: string | null }[];
+}
+
+/** An attachment of this conversation by full id, id prefix or file name. */
+function findAttachment(ctx: ToolCtx, query: string | undefined): AttachmentRow | undefined {
+  if (!query) return ctx.attachments.length === 1 ? ctx.attachments[0] : undefined;
+  const q = query.trim().toLowerCase();
+  return (
+    ctx.attachments.find((a) => a.id === q) ||
+    ctx.attachments.find((a) => q.length >= 6 && a.id.startsWith(q)) ||
+    ctx.attachments.find((a) => a.file_name.toLowerCase() === q)
+  );
 }
 
 export const TOOLS: ToolDef[] = [
@@ -773,6 +929,158 @@ export const TOOLS: ToolDef[] = [
       };
     },
   },
+  {
+    name: "list_recurring_rules",
+    description:
+      "List the user's recurring rules (standing orders, subscriptions, bills) together with the guide for writing a new one: how interval, execution day, reporting period and offset work, the placeholder syntax for descriptions, and worked examples. Call this BEFORE prepare_recurring_rule, and use it to answer questions about the user's recurring payments.",
+    parameters: { type: "object", properties: {}, additionalProperties: false },
+    exec: async (_a, sb) => {
+      const { loadGuideContext } = await import("./recurringAi.server");
+      const { buildRecurringGuide } = await import("@/lib/recurringAi");
+      const ctx = await loadGuideContext(sb);
+      return { ok: true, data: { guide: buildRecurringGuide(ctx) } };
+    },
+  },
+  {
+    name: "prepare_recurring_rule",
+    description:
+      "Prepare a recurring-rule draft and return a button that opens it in the rule editor. Does NOT save; the user reviews and saves. Use it for a bill, invoice or subscription the user wants to set up (from an attachment or described in prose), after calling list_recurring_rules. Account and category may be given by name or id.",
+    parameters: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        type: { type: "string", enum: ["expense", "income", "transfer"] },
+        amount: { type: "number", description: "Fixed amount. Leave out when is_variable_amount." },
+        is_variable_amount: { type: "boolean" },
+        estimated_amount: { type: "number", description: "Typical amount when it varies (e.g. this invoice's total)." },
+        source_account: { type: "string" },
+        destination_account: { type: "string", description: "Only for transfers." },
+        category: { type: "string" },
+        description: { type: "string", description: "Transaction description template; may use placeholders." },
+        note: { type: "string" },
+        recurrence_interval: { type: "integer", minimum: 1, maximum: 12 },
+        execution_day_rule: { type: "string", enum: ["FixedDay", "LastDay", "FirstDay"] },
+        execution_day_of_month: { type: "integer", minimum: 1, maximum: 31 },
+        execution_weekend_adjustment: { type: "string", enum: ["None", "PreviousBusinessDay", "NextBusinessDay"] },
+        period_day_rule: { type: "string", enum: ["FixedDay", "LastDay", "FirstDay"] },
+        period_offset: { type: "integer", minimum: -3, maximum: 3 },
+        starts_on: { type: "string", description: "YYYY-MM-DD" },
+        ends_on: { type: "string", description: "YYYY-MM-DD, only for contracts with a known end." },
+        auto_post: { type: "boolean" },
+        is_variable_date: { type: "boolean" },
+        similar_rule: { type: "string", description: "Id of an existing rule this bill belongs to, if any." },
+        notes: { type: "array", items: { type: "string" }, description: "What you were unsure about." },
+        source_attachment_id: { type: "string", description: "Attachment the rule was read from, if any." },
+      },
+      required: ["name", "type"],
+      additionalProperties: false,
+    },
+    exec: async (a, sb, _userId, ctx) => {
+      const { loadGuideContext, toSuggestionResult } = await import("./recurringAi.server");
+      const guideCtx = await loadGuideContext(sb);
+      const res = toSuggestionResult(a, guideCtx);
+      const att = findAttachment(ctx, str(a.source_attachment_id));
+      const d = res.draft;
+      const every = d.recurrence_interval === 1 ? "monthly" : `every ${d.recurrence_interval} months`;
+      const amount = d.is_variable_amount ? `~${d.estimated_amount || "?"} (variable)` : d.amount;
+      return {
+        ok: true,
+        data: {
+          summary: `${d.name || "Rule"} · ${d.type} ${amount} · ${every} · first ${d.starts_on}`,
+          description_template: d.description,
+          warnings: res.warnings,
+          similar_rule: res.similar_rule,
+          note: "Not saved. The user opens the editor with the button, checks and saves.",
+        },
+        action: {
+          kind: "open_recurring",
+          label: "Open in rule editor",
+          draft: d,
+          warnings: res.warnings,
+          notes: res.notes,
+          similar_rule: res.similar_rule,
+          source_file: att?.file_name ?? null,
+        },
+      };
+    },
+  },
+  {
+    name: "read_attachment",
+    description:
+      "Read more of an attached document's text when the chat only showed its beginning. Returns up to 20000 characters starting at from_char.",
+    parameters: {
+      type: "object",
+      properties: {
+        attachment_id: { type: "string" },
+        from_char: { type: "integer", minimum: 0 },
+      },
+      required: ["attachment_id"],
+      additionalProperties: false,
+    },
+    exec: async (a, _sb, _userId, ctx) => {
+      const att = findAttachment(ctx, str(a.attachment_id));
+      if (!att) return { ok: false, error: "No such attachment in this conversation." };
+      if (att.text == null) return { ok: false, error: "This attachment is an image; it has no text layer." };
+      const from = Math.max(0, Math.floor(num(a.from_char) ?? 0));
+      const chunk = att.text.slice(from, from + 20000);
+      return {
+        ok: true,
+        data: { file_name: att.file_name, from_char: from, total_chars: att.text.length, text: chunk, more: from + chunk.length < att.text.length },
+      };
+    },
+  },
+  {
+    name: "import_statement",
+    description:
+      "Import an attached bank or credit-card statement into the Statements screen for an account: reads every row and matches it against the app's transactions. This WRITES an import record, so only call it when the user asked for it or confirmed your proposal. Needs the account the statement belongs to.",
+    parameters: {
+      type: "object",
+      properties: {
+        attachment_id: { type: "string" },
+        account_name: { type: "string", description: "Account name or id the statement belongs to." },
+        invert_amounts: { type: "boolean", description: "True for credit-card statements that list spending as positive." },
+      },
+      required: ["attachment_id", "account_name"],
+      additionalProperties: false,
+    },
+    exec: async (a, sb, userId, ctx) => {
+      const att = findAttachment(ctx, str(a.attachment_id));
+      if (!att) return { ok: false, error: "No such attachment in this conversation." };
+      const accs = await loadAccounts(sb);
+      const query = str(a.account_name);
+      const acc = accs.find((r) => r.id === query && !r.archived) ?? fuzzyFind(accs, query);
+      if (!acc) return { ok: false, error: `Unknown account "${query ?? ""}". Ask the user which account.` };
+      const { attachmentBase64 } = await import("./aiAttachments.server");
+      const { runStatementExtraction, buildImportDetail } = await import("./statements.detail.server");
+      const { import_id } = await runStatementExtraction(sb, userId, {
+        account_id: acc.id,
+        file_name: att.file_name,
+        file_base64: await attachmentBase64(sb, att),
+        file_type: att.mime,
+        invert_amounts: a.invert_amounts === true,
+      });
+      try {
+        const { classifyOpenStatementLines } = await import("./statements.classify.server");
+        await classifyOpenStatementLines(sb, userId, import_id);
+      } catch {
+        // Field guessing is best effort; the import itself already succeeded.
+      }
+      const detail = await buildImportDetail(sb, import_id);
+      const count = (st: string) => detail.lines.filter((l) => l.match_status === st).length;
+      return {
+        ok: true,
+        data: {
+          account: acc.name,
+          rows: detail.lines.length,
+          matched: count("exact") + count("resolved"),
+          probable: count("probable"),
+          missing_in_app: count("unmatched"),
+          in_app_not_on_statement: detail.unmatched_app.length,
+        },
+        action: { kind: "open_statement", label: "Open statement import", import_id },
+      };
+    },
+  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -784,19 +1092,63 @@ export const TOOLS: ToolDef[] = [
 // OpenAI-compatible chat client (tool-calling loop)
 // ---------------------------------------------------------------------------
 
+export type ContentPart =
+  | { type: "text"; text: string }
+  | { type: "image_url"; image_url: { url: string } };
+
 interface OAIMessage {
   role: "system" | "user" | "assistant" | "tool";
-  content?: string | null;
+  content?: string | ContentPart[] | null;
   tool_calls?: { id: string; type: "function"; function: { name: string; arguments: string } }[];
   tool_call_id?: string;
   name?: string;
 }
+
+export interface ChatTurn {
+  role: "user" | "assistant";
+  content: string | ContentPart[];
+}
+
 
 export interface ChatResult {
   text: string;
   action: AssistantAction | null;
   /** Summed token usage across all provider round-trips of this reply. */
   usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number; steps: number } | null;
+  notices: ChatNotice[];
+}
+
+export interface RunChatOptions {
+  conversationId?: string | null;
+  toolCtx: ToolCtx;
+  /** The connection and model answering, so capability findings can be stored. */
+  endpointId: string;
+  caps: AIModelCapabilities;
+}
+
+const RAW_JSON_CORRECTION =
+  "Your last reply was raw JSON, which the app cannot act on and the user cannot read. Nothing was saved or done. " +
+  "Either call one of the provided tools through the tool-calling interface, or answer the user in plain sentences. " +
+  "Never claim that something was saved.";
+
+function stripImages(messages: OAIMessage[]): void {
+  for (const m of messages) {
+    if (!Array.isArray(m.content)) continue;
+    m.content = m.content
+      .map((p) => (p.type === "image_url" ? { type: "text" as const, text: "[image removed: this model cannot see images]" } : p));
+  }
+}
+
+function hasImages(messages: OAIMessage[]): boolean {
+  return messages.some((m) => Array.isArray(m.content) && m.content.some((p) => p.type === "image_url"));
+}
+
+function lastUserText(history: ChatTurn[]): string {
+  const m = [...history].reverse().find((h) => h.role === "user");
+  if (!m) return "";
+  return typeof m.content === "string"
+    ? m.content
+    : m.content.map((p) => (p.type === "text" ? p.text : "[image]")).join("\n");
 }
 
 export async function runChat(
@@ -804,20 +1156,24 @@ export async function runChat(
   sb: Sb,
   userId: string,
   systemPromptCtx: Parameters<typeof buildSystemPrompt>[0],
-  history: { role: "user" | "assistant" | "tool"; content: string; tool_call_id?: string; tool_calls?: OAIMessage["tool_calls"] }[],
-  conversationId?: string | null,
+  history: ChatTurn[],
+  opts: RunChatOptions,
 ): Promise<ChatResult> {
-  const messages: OAIMessage[] = [
-    { role: "system", content: buildSystemPrompt(systemPromptCtx) },
-    ...history.map((m) => ({
-      role: m.role,
-      content: m.content,
-      tool_call_id: m.tool_call_id,
-      tool_calls: m.tool_calls,
-    })),
-  ];
+  const conversationId = opts.conversationId ?? null;
+  const notices = new Set<ChatNotice>();
+  let useTools = opts.caps.tools !== false;
+  if (!useTools) notices.add("tools_unsupported");
+  if (opts.caps.vision === false && history.some((h) => Array.isArray(h.content) && h.content.some((p) => p.type === "image_url")))
+    notices.add("vision_unsupported");
 
-  const tools = TOOLS.map((t) => ({
+  const system = () => buildSystemPrompt({ ...systemPromptCtx, toolsAvailable: useTools });
+  const messages: OAIMessage[] = [
+    { role: "system", content: system() },
+    ...history.map((m) => ({ role: m.role, content: m.content })),
+  ];
+  if (opts.caps.vision === false) stripImages(messages);
+
+  const toolSpecs = TOOLS.map((t) => ({
     type: "function" as const,
     function: { name: t.name, description: t.description, parameters: t.parameters },
   }));
@@ -836,9 +1192,14 @@ export async function runChat(
     usageTotals.total_tokens += t;
     usageTotals.steps += 1;
   };
-  const lastUser = [...history].reverse().find((m) => m.role === "user")?.content ?? "";
+  const usage = () => (usageTotals.steps > 0 && usageTotals.total_tokens > 0 ? usageTotals : null);
+  const lastUser = lastUserText(history);
+  // Each fallback (drop tools, drop images) is allowed once per reply.
+  let retriesLeft = 2;
+  let correctionsLeft = 1;
+  let toolsConfirmed = opts.caps.tools === true;
 
-  for (let step = 0; step < 6; step++) {
+  for (let step = 0; step < 8; step++) {
     const reqStarted = Date.now();
     const resp = await fetch(`${creds.base_url}/chat/completions`, {
       method: "POST",
@@ -849,8 +1210,7 @@ export async function runChat(
       body: JSON.stringify({
         model: creds.model,
         messages,
-        tools,
-        tool_choice: "auto",
+        ...(useTools ? { tools: toolSpecs, tool_choice: "auto" } : {}),
       }),
     });
     if (!resp.ok) {
@@ -860,7 +1220,7 @@ export async function runChat(
         kind: "chat_request",
         model: creds.model,
         provider_host: host,
-        conversation_id: conversationId ?? null,
+        conversation_id: conversationId,
         duration_ms: Date.now() - reqStarted,
         ok: false,
         error_message: `${resp.status} ${body.slice(0, 200)}`,
@@ -868,10 +1228,26 @@ export async function runChat(
           step,
           status: resp.status,
           message_count: messages.length,
+          tools_sent: useTools,
           last_user_message: preview(lastUser, 500),
           response_body_preview: preview(body, 1000),
         },
       });
+      if (retriesLeft > 0 && hasImages(messages) && isVisionUnsupportedError(resp.status, body)) {
+        retriesLeft--;
+        stripImages(messages);
+        notices.add("vision_unsupported");
+        await saveCapabilities(userId, opts.endpointId, creds.model, { vision: false });
+        continue;
+      }
+      if (retriesLeft > 0 && useTools && isToolsUnsupportedError(resp.status, body)) {
+        retriesLeft--;
+        useTools = false;
+        messages[0] = { role: "system", content: system() };
+        notices.add("tools_unsupported");
+        await saveCapabilities(userId, opts.endpointId, creds.model, { tools: false });
+        continue;
+      }
       throw new Error(`AI provider error (${resp.status}): ${body.slice(0, 500)}`);
     }
     const json = (await resp.json()) as {
@@ -886,13 +1262,14 @@ export async function runChat(
     const stepPrompt = num(u["prompt_tokens"] ?? u["input_tokens"]);
     const stepCompletion = num(u["completion_tokens"] ?? u["output_tokens"]);
     const stepTotal = num(u["total_tokens"]) ?? ((stepPrompt ?? 0) + (stepCompletion ?? 0) || null);
+    const replyText = typeof msg.content === "string" ? msg.content : "";
 
     await writeAudit({
       user_id: userId,
       kind: "chat_request",
       model: creds.model,
       provider_host: host,
-      conversation_id: conversationId ?? null,
+      conversation_id: conversationId,
       duration_ms: Date.now() - reqStarted,
       ok: true,
       prompt_tokens: stepPrompt,
@@ -901,28 +1278,49 @@ export async function runChat(
       payload: {
         step,
         message_count: messages.length,
+        tools_sent: useTools,
         last_user_message: preview(lastUser, 500),
         finish_reason: json.choices?.[0]?.finish_reason ?? null,
         usage: json.usage ?? null,
-        assistant_text_preview: preview(msg.content ?? "", 1000),
+        assistant_text_preview: preview(replyText, 1000),
         tool_call_names: (msg.tool_calls ?? []).map((c) => c.function.name),
       },
     });
 
-    // Push the assistant turn (with any tool_calls) so the next request includes it.
-    messages.push({
-      role: "assistant",
-      content: msg.content ?? "",
-      tool_calls: msg.tool_calls,
-    });
-
     if (!msg.tool_calls || msg.tool_calls.length === 0) {
-      return {
-        text: msg.content || "",
-        action: lastAction,
-        usage: usageTotals.steps > 0 && usageTotals.total_tokens > 0 ? usageTotals : null,
-      };
+      // A model that writes its tool call out as text never gets a result
+      // back; retry without tools so it answers from what it has instead.
+      if (useTools && retriesLeft > 0 && !toolsConfirmed && looksLikeTextToolCall(replyText, TOOLS.map((t) => t.name))) {
+        retriesLeft--;
+        useTools = false;
+        messages[0] = { role: "system", content: system() };
+        notices.add("tools_unsupported");
+        await saveCapabilities(userId, opts.endpointId, creds.model, { tools: false });
+        continue;
+      }
+      // Small models sometimes answer with invented JSON ("action": "save")
+      // instead of words or a real tool call, and may claim to have done
+      // things. Ask once for a proper reply; never show the JSON as an answer.
+      if (looksLikeRawJson(replyText)) {
+        if (correctionsLeft > 0) {
+          correctionsLeft--;
+          messages.push({ role: "assistant", content: replyText });
+          messages.push({ role: "user", content: RAW_JSON_CORRECTION });
+          continue;
+        }
+        notices.add("model_unreliable");
+        return { text: "", action: lastAction, usage: usage(), notices: [...notices] };
+      }
+      return { text: replyText, action: lastAction, usage: usage(), notices: [...notices] };
     }
+
+    if (!toolsConfirmed) {
+      toolsConfirmed = true;
+      if (opts.caps.tools === null) await saveCapabilities(userId, opts.endpointId, creds.model, { tools: true });
+    }
+
+    // Push the assistant turn (with its tool_calls) so the next request includes it.
+    messages.push({ role: "assistant", content: replyText, tool_calls: msg.tool_calls });
 
     // Execute tool calls in order.
     for (const call of msg.tool_calls) {
@@ -939,7 +1337,7 @@ export async function runChat(
         result = { ok: false, error: `Unknown tool: ${call.function.name}` };
       } else {
         try {
-          result = await tool.exec(parsedArgs, sb, userId);
+          result = await tool.exec(parsedArgs, sb, userId, opts.toolCtx);
         } catch (e) {
           result = { ok: false, error: e instanceof Error ? e.message : String(e) };
         }
@@ -951,7 +1349,7 @@ export async function runChat(
         model: creds.model,
         provider_host: host,
         tool_name: call.function.name,
-        conversation_id: conversationId ?? null,
+        conversation_id: conversationId,
         duration_ms: Date.now() - toolStarted,
         ok: result.ok,
         error_message: result.ok ? null : result.error,
@@ -959,14 +1357,16 @@ export async function runChat(
           step,
           args: parsedArgs,
           result_preview: result.ok ? preview(result.data, 2000) : null,
-          action: result.ok ? result.action ?? null : null,
+          action: result.ok ? (result.action ? { kind: result.action.kind, label: result.action.label } : null) : null,
         },
       });
+      // The action (with its draft) goes to the client, not back to the model.
+      const forModel = result.ok ? { ok: true, data: result.data, button_shown: !!result.action } : result;
       messages.push({
         role: "tool",
         tool_call_id: call.id,
         name: call.function.name,
-        content: JSON.stringify(result),
+        content: JSON.stringify(forModel),
       });
     }
   }
@@ -974,7 +1374,8 @@ export async function runChat(
   return {
     text: "(stopped: too many tool-call iterations)",
     action: lastAction,
-    usage: usageTotals.steps > 0 && usageTotals.total_tokens > 0 ? usageTotals : null,
+    usage: usage(),
+    notices: [...notices],
   };
 }
 

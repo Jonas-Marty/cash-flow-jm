@@ -3,7 +3,8 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { log } from "@/lib/logger";
 
 /**
- * Audit log retention pruner.
+ * Audit log retention pruner. Also removes chat attachments not linked to a
+ * conversation after 7 days.
  *
  * Call from your Coolify cron (e.g. nightly):
  *   curl -H "Authorization: Bearer $METRICS_TOKEN" https://<host>/api/public/prune-audit
@@ -37,7 +38,18 @@ async function prune(request: Request): Promise<Response> {
     return new Response(`error: ${error.message}`, { status: 500 });
   }
   log.info({ event: "audit.pruned", deleted: data, days });
-  return new Response(JSON.stringify({ deleted: data, retention_days: days }), {
+
+  // Chat attachments that belong to no conversation (sidebar chat, deleted
+  // conversation) are only needed while that chat is open.
+  let attachmentsDeleted: number | null = null;
+  try {
+    const { pruneUnlinkedAttachments } = await import("@/utils/aiAttachments.server");
+    attachmentsDeleted = await pruneUnlinkedAttachments();
+    log.info({ event: "ai_attachments.pruned", deleted: attachmentsDeleted });
+  } catch (e) {
+    log.error({ event: "ai_attachments.prune_failed", err: e instanceof Error ? e.message : String(e) });
+  }
+  return new Response(JSON.stringify({ deleted: data, retention_days: days, attachments_deleted: attachmentsDeleted }), {
     status: 200,
     headers: { "Content-Type": "application/json" },
   });

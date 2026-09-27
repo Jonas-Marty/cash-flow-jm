@@ -6,23 +6,24 @@ export type DraftMsg = {
   text: string;
   action?: unknown;
   importId?: string;
+  attachments?: unknown;
+  notices?: unknown;
   usage?: unknown;
 };
 
 export interface ChatDraft {
   messages: DraftMsg[];
   input: string;
-  file: File | null;
+  /** Files staged for the next message. */
+  files: File[];
   endpointId: string;
-  accountId: string;
 }
 
 const draft: ChatDraft = {
   messages: [],
   input: "",
-  file: null,
+  files: [],
   endpointId: "auto",
-  accountId: "",
 };
 
 export function getChatDraft(): ChatDraft {
@@ -36,5 +37,5 @@ export function setChatDraft<K extends keyof ChatDraft>(key: K, value: ChatDraft
 export function resetChatDraft() {
   draft.messages = [];
   draft.input = "";
-  draft.file = null;
+  draft.files = [];
 }

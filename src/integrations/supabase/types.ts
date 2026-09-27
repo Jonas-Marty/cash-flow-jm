@@ -213,6 +213,53 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_attachments: {
+        Row: {
+          conversation_id: string | null
+          created_at: string
+          extracted_text: string | null
+          file_name: string
+          id: string
+          mime: string
+          page_count: number | null
+          size_bytes: number
+          storage_path: string
+          user_id: string
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string
+          extracted_text?: string | null
+          file_name: string
+          id?: string
+          mime: string
+          page_count?: number | null
+          size_bytes: number
+          storage_path: string
+          user_id: string
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string
+          extracted_text?: string | null
+          file_name?: string
+          id?: string
+          mime?: string
+          page_count?: number | null
+          size_bytes?: number
+          storage_path?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_attachments_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_conversations: {
         Row: {
           created_at: string
@@ -271,9 +318,11 @@ export type Database = {
         Row: {
           api_token: string | null
           base_url: string
+          capabilities: Json
           context_level: string
           created_at: string
           enabled: boolean
+          extra_models: string[]
           health_mode: string
           id: string
           model: string
@@ -286,9 +335,11 @@ export type Database = {
         Insert: {
           api_token?: string | null
           base_url: string
+          capabilities?: Json
           context_level?: string
           created_at?: string
           enabled?: boolean
+          extra_models?: string[]
           health_mode?: string
           id?: string
           model: string
@@ -301,9 +352,11 @@ export type Database = {
         Update: {
           api_token?: string | null
           base_url?: string
+          capabilities?: Json
           context_level?: string
           created_at?: string
           enabled?: boolean
+          extra_models?: string[]
           health_mode?: string
           id?: string
           model?: string

@@ -11,11 +11,13 @@ import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Sparkles, Plus, Trash2, RefreshCw, Loader2, ChevronsUpDown, Check } from "lucide-react";
+import { Sparkles, Plus, Trash2, RefreshCw, Loader2, ChevronsUpDown, Check, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import {
@@ -26,8 +28,9 @@ import {
   checkAIEndpoints,
   testAIConnection,
   listAIModels,
+  probeAIEndpointCapabilities,
 } from "@/utils/ai.functions";
-import type { AIContextLevel, AIEndpoint, AIEndpointHealth, AIHealthMode } from "@/lib/ai/types";
+import type { AIContextLevel, AIEndpoint, AIEndpointHealth, AIHealthMode, AIModelCapabilities } from "@/lib/ai/types";
 import { AI_ACTIONS } from "@/lib/ai/types";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
@@ -37,6 +40,7 @@ type Draft = {
   name: string;
   base_url: string;
   model: string;
+  extra_models: string[];
   enabled: boolean;
   priority: number;
   context_level: AIContextLevel;
@@ -51,6 +55,7 @@ const emptyDraft = (priority: number): Draft => ({
   name: "",
   base_url: "",
   model: "",
+  extra_models: [],
   enabled: true,
   priority,
   context_level: "compact",
@@ -65,6 +70,7 @@ const toDraft = (e: AIEndpoint): Draft => ({
   name: e.name,
   base_url: e.base_url,
   model: e.model,
+  extra_models: e.extra_models ?? [],
   enabled: e.enabled,
   priority: e.priority,
   context_level: e.context_level ?? "compact",
@@ -100,10 +106,16 @@ function ModelField({
   disabled,
   onLoad,
   placeholder,
+  onPick,
+  onEnter,
   t,
 }: {
   value: string;
   onChange: (v: string) => void;
+  /** Called instead of onChange when a model is picked from the list. */
+  onPick?: (v: string) => void;
+  /** Enter in the text input. */
+  onEnter?: () => void;
   options: string[];
   loading: boolean;
   disabled: boolean;
@@ -114,7 +126,22 @@ function ModelField({
   const [open, setOpen] = React.useState(false);
   return (
     <div className="mt-1 flex gap-2">
-      <Input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="flex-1" />
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={
+          onEnter
+            ? (e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  onEnter();
+                }
+              }
+            : undefined
+        }
+        placeholder={placeholder}
+        className="flex-1"
+      />
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
@@ -142,7 +169,7 @@ function ModelField({
                     key={m}
                     value={m}
                     onSelect={() => {
-                      onChange(m);
+                      (onPick ?? onChange)(m);
                       setOpen(false);
                     }}
                     className="gap-2"
@@ -166,6 +193,76 @@ function ModelField({
   );
 }
 
+/** Chips for the connection's additional models, plus a ModelField to add one. */
+function ExtraModelsField({
+  value,
+  onChange,
+  defaultModel,
+  ...field
+}: {
+  value: string[];
+  onChange: (v: string[]) => void;
+  defaultModel: string;
+  options: string[];
+  loading: boolean;
+  disabled: boolean;
+  onLoad: () => void;
+  t: (k: string) => string;
+}) {
+  const [input, setInput] = React.useState("");
+  const add = (raw: string) => {
+    const m = raw.trim();
+    if (m && m !== defaultModel.trim() && !value.includes(m)) onChange([...value, m]);
+    setInput("");
+  };
+  return (
+    <div>
+      {value.length > 0 && (
+        <div className="mt-1 flex flex-wrap gap-1">
+          {value.map((m) => (
+            <Badge key={m} variant="secondary" className="gap-1 pr-1">
+              <span className="max-w-[240px] truncate">{m}</span>
+              <button
+                type="button"
+                className="rounded-sm opacity-60 hover:opacity-100"
+                onClick={() => onChange(value.filter((x) => x !== m))}
+                aria-label={`${field.t("common.remove")} ${m}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+      <div className="flex items-start gap-2">
+        <div className="flex-1">
+          <ModelField
+            {...field}
+            value={input}
+            onChange={setInput}
+            // Picking from the provider list adds right away; typing waits for Enter or +.
+            onPick={add}
+            onEnter={() => add(input)}
+            placeholder={field.t("ai.conn.extra_models_placeholder")}
+          />
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="mt-1"
+          disabled={!input.trim()}
+          onClick={() => add(input)}
+          title={field.t("ai.conn.extra_models_add")}
+          aria-label={field.t("ai.conn.extra_models_add")}
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function AISettingsCardInner() {
   const { t } = useI18n();
   const qc = useQueryClient();
@@ -176,6 +273,7 @@ function AISettingsCardInner() {
   const checkFn = useServerFn(checkAIEndpoints);
   const testFn = useServerFn(testAIConnection);
   const modelsFn = useServerFn(listAIModels);
+  const probeFn = useServerFn(probeAIEndpointCapabilities);
 
   const [models, setModels] = React.useState<Record<string, string[]>>({});
   const [loadingModels, setLoadingModels] = React.useState<string | null>(null);
@@ -211,6 +309,61 @@ function AISettingsCardInner() {
   const [health, setHealth] = React.useState<Record<string, AIEndpointHealth>>({});
   const [busy, setBusy] = React.useState(false);
   const [checking, setChecking] = React.useState(false);
+  // Fresh probe results, kept locally: refetching the endpoint list would
+  // reset every connection form and throw away unsaved edits.
+  const [capsSeen, setCapsSeen] = React.useState<Record<string, AIModelCapabilities>>({});
+  const [probing, setProbing] = React.useState<string | null>(null);
+
+  const probeCaps = async (id: string) => {
+    setProbing(id);
+    try {
+      const r = await probeFn({ data: { id } });
+      const e = r.endpoints.find((x) => x.id === id);
+      if (e?.capabilities[e.model]) setCapsSeen((prev) => ({ ...prev, [id]: e.capabilities[e.model] }));
+      if (r.errors.length) toast.info(t("ai.conn.caps.inconclusive", { error: r.errors[0] }));
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : String(err));
+    } finally {
+      setProbing(null);
+    }
+  };
+
+  const CapsBadges = ({ id }: { id: string }) => {
+    const saved = endpoints.find((e) => e.id === id);
+    if (!saved) return null;
+    const c = capsSeen[id] ?? saved.capabilities?.[saved.model];
+    const one = (label: string, v: boolean | null | undefined) => (
+      <Badge
+        variant="outline"
+        className={cn(
+          "gap-1 font-normal",
+          v === true && "border-emerald-500/40 text-emerald-700 dark:text-emerald-400",
+          v === false && "border-destructive/40 text-destructive",
+        )}
+      >
+        {v === true ? <Check className="h-3 w-3" /> : v === false ? <X className="h-3 w-3" /> : null}
+        {label}
+        {v == null && <span className="text-muted-foreground">· {t("ai.conn.caps.unknown")}</span>}
+      </Badge>
+    );
+    return (
+      <div className="flex flex-wrap items-center gap-1.5" title={t("ai.conn.caps.hint")}>
+        {one(t("ai.conn.caps.tools"), c?.tools)}
+        {one(t("ai.conn.caps.vision"), c?.vision)}
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="h-6 px-2 text-xs"
+          disabled={probing === id}
+          onClick={() => void probeCaps(id)}
+        >
+          {probing === id ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1 h-3 w-3" />}
+          {probing === id ? t("ai.conn.caps.checking") : t("ai.conn.caps.check")}
+        </Button>
+      </div>
+    );
+  };
 
   React.useEffect(() => {
     setDrafts(Object.fromEntries(endpoints.map((e) => [e.id, toDraft(e)])));
@@ -228,6 +381,7 @@ function AISettingsCardInner() {
           name: d.name.trim(),
           base_url: d.base_url.trim(),
           model: d.model.trim(),
+          extra_models: d.extra_models,
           enabled: d.enabled,
           priority: d.priority,
           context_level: d.context_level,
@@ -359,6 +513,7 @@ function AISettingsCardInner() {
             checked={d.enabled}
             onCheckedChange={(v) => (isNew ? setNewDraft({ ...d, enabled: v }) : patch(d.id!, { enabled: v }))}
           />
+          {!isNew && d.id && <CapsBadges id={d.id} />}
         </div>
         {!isNew && (
           <Button variant="ghost" size="icon" onClick={() => remove(d.id!)} aria-label={t("common.remove")}>
@@ -389,6 +544,20 @@ function AISettingsCardInner() {
             onChange={(v) => (isNew ? setNewDraft({ ...d, model: v }) : patch(d.id!, { model: v }))}
             t={t}
           />
+        </div>
+        <div className="sm:col-span-2">
+          <Label className="text-sm">{t("ai.conn.extra_models")}</Label>
+          <ExtraModelsField
+            value={d.extra_models}
+            defaultModel={d.model}
+            options={models[draftKey(d)] ?? []}
+            loading={loadingModels === draftKey(d)}
+            disabled={!d.base_url.trim()}
+            onLoad={() => loadModels(d)}
+            onChange={(v) => (isNew ? setNewDraft({ ...d, extra_models: v }) : patch(d.id!, { extra_models: v }))}
+            t={t}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">{t("ai.conn.extra_models_hint")}</p>
         </div>
         <div className="sm:col-span-2">
           <Label className="text-sm">{t("ai.settings.base_url")}</Label>
@@ -547,9 +716,20 @@ function AISettingsCardInner() {
               // makes sense once a specific connection is bound.
               const bound = b?.endpoint_id ? drafts[b.endpoint_id] : undefined;
               const boundKey = bound ? draftKey(bound) : null;
-              const listed = boundKey ? (models[boundKey] ?? []) : [];
-              // Keep a stored model selectable before the list has loaded.
-              const options = b?.model && !listed.includes(b.model) ? [b.model, ...listed] : listed;
+              // The saved list comes first; the provider's live list only adds
+              // what is not already there. Both read the saved connection, not
+              // unsaved edits in its draft.
+              const saved = b?.endpoint_id
+                ? endpoints.find((e) => e.id === b.endpoint_id)
+                : undefined;
+              const defaultModel = saved?.model ?? bound?.model ?? "";
+              const configured = (saved?.extra_models ?? []).filter((m) => m !== defaultModel);
+              // Keep a stored model selectable even if it is in neither list.
+              if (b?.model && b.model !== defaultModel && !configured.includes(b.model))
+                configured.push(b.model);
+              const listed = (boundKey ? (models[boundKey] ?? []) : []).filter(
+                (m) => m !== defaultModel && !configured.includes(m),
+              );
               return (
                 <div key={action} className="space-y-2">
                   <Label className="text-xs text-muted-foreground">{t(`ai.conn.action.${action}`)}</Label>
@@ -567,6 +747,7 @@ function AISettingsCardInner() {
                       {endpoints.map((e) => (
                         <SelectItem key={e.id} value={e.id}>
                           {e.name} · {e.model}
+                          {e.extra_models.length > 0 ? ` +${e.extra_models.length}` : ""}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -575,7 +756,7 @@ function AISettingsCardInner() {
                     <Select
                       value={b?.model ?? "default"}
                       onOpenChange={(open) => {
-                        if (open && listed.length === 0 && loadingModels !== boundKey) {
+                        if (open && !(boundKey! in models) && loadingModels !== boundKey) {
                           void loadModels(bound);
                         }
                       }}
@@ -593,13 +774,25 @@ function AISettingsCardInner() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="default">
-                          {t("ai.conn.action_model_default")} · {bound.model}
+                          {t("ai.conn.action_model_default")} · {defaultModel}
                         </SelectItem>
-                        {options.map((m) => (
+                        {configured.map((m) => (
                           <SelectItem key={m} value={m}>
                             {m}
                           </SelectItem>
                         ))}
+                        {listed.length > 0 && (
+                          <SelectGroup>
+                            <SelectLabel className="text-xs text-muted-foreground">
+                              {t("ai.conn.models_from_provider")}
+                            </SelectLabel>
+                            {listed.map((m) => (
+                              <SelectItem key={m} value={m}>
+                                {m}
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        )}
                       </SelectContent>
                     </Select>
                   )}

@@ -3,20 +3,19 @@ import { useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { SendHorizonal, Sparkles, Loader2, ExternalLink, Paperclip, X, FileText, Mic, Square, Plus, Camera, Cloud } from "lucide-react";
+import { SendHorizonal, Sparkles, Loader2, ExternalLink, Paperclip, X, FileText, Mic, Square, Plus, Camera, Cloud, Image as ImageIcon, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Markdown } from "@/components/Markdown";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { chat, listAIEndpoints, getConversation, transcribeAudio } from "@/utils/ai.functions";
+import { chat, listAIEndpoints, getConversation, transcribeAudio, getAttachmentUrl } from "@/utils/ai.functions";
 import { startVoiceRecording, blobToBase64, type VoiceRecorderHandle } from "@/lib/voiceRecorder";
-import { extractStatement, getStatementImport } from "@/utils/statements.functions";
 import { getNextcloudStatus, downloadNextcloudFile } from "@/utils/nextcloud.functions";
 import { NextcloudFilePicker, type PickedFile } from "@/components/NextcloudFilePicker";
-import { fetchAccounts } from "@/lib/finance";
 import { getChatDraft, setChatDraft, resetChatDraft } from "@/lib/ai/chatDraft";
-import type { AssistantAction, ChatMessage, AIEndpointOfflinePayload } from "@/lib/ai/types";
+import type { AssistantAction, ChatAttachmentRef, ChatMessage, ChatNotice, AIEndpoint, AIEndpointOfflinePayload } from "@/lib/ai/types";
+import { setPendingRuleDraft } from "@/lib/ai/recurringHandoff";
 import { parseEndpointOffline } from "@/lib/ai/types";
 import {
   Dialog,
@@ -33,19 +32,24 @@ type LocalMsg = {
   role: "user" | "assistant";
   text: string;
   action?: AssistantAction | null;
-  /** Link to a statement import result, if this message reports one. */
+  /** Link to a statement import result (messages from before attachments became context). */
   importId?: string;
+  /** Files the user attached to this message (ids once the server stored them). */
+  attachments?: (ChatAttachmentRef | { id?: undefined; file_name: string; mime: string })[];
+  notices?: ChatNotice[];
   /** Token usage reported by the provider for this reply. */
   usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number; steps: number } | null;
 };
 
 const ACCEPT =
-  "application/pdf,text/csv,text/plain,.csv,.tsv,image/png,image/jpeg,image/webp,image/gif";
+  "application/pdf,text/csv,text/plain,.csv,.tsv,.txt,image/png,image/jpeg,image/webp,image/gif";
+const MAX_FILES = 3;
+const MAX_FILE_BYTES = 15 * 1024 * 1024;
 const ACCEPT_MIME = ACCEPT.split(",").filter((x) => !x.startsWith("."));
 const isSupportedFile = (f: File) =>
   ACCEPT_MIME.includes(f.type) ||
   /\.(csv|tsv)$/i.test(f.name) ||
-  (f.type === "" && /\.(csv|tsv|pdf)$/i.test(f.name));
+  (f.type === "" && /\.(csv|tsv|pdf|txt)$/i.test(f.name));
 
 function readFileAsBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -59,8 +63,14 @@ function readFileAsBase64(file: File): Promise<string> {
   });
 }
 
+/** The model a connection uses for chat: the action binding's model, else its default. */
+function chatModel(e: AIEndpoint, bindingModel: string | null, bound: boolean): string {
+  return bound && bindingModel ? bindingModel : e.model;
+}
+
 const EXAMPLES = [
   "ai.example.add",
+  "ai.example.rule",
   "ai.example.spend",
   "ai.example.help",
   "ai.example.privacy",
@@ -82,8 +92,7 @@ export function AssistantChat({
   const chatFn = useServerFn(chat);
   const listFn = useServerFn(listAIEndpoints);
   const convFn = useServerFn(getConversation);
-  const extractFn = useServerFn(extractStatement);
-  const importFn = useServerFn(getStatementImport);
+  const attachmentUrlFn = useServerFn(getAttachmentUrl);
   const transcribeFn = useServerFn(transcribeAudio);
   const ncStatusFn = useServerFn(getNextcloudStatus);
   const ncDownloadFn = useServerFn(downloadNextcloudFile);
@@ -112,8 +121,7 @@ export function AssistantChat({
   const scrollerRef = React.useRef<HTMLDivElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const cameraInputRef = React.useRef<HTMLInputElement>(null);
-  const [file, setFile] = React.useState<File | null>(() => (keepDraft ? draft.file : null));
-  const [accountId, setAccountId] = React.useState<string>(() => (keepDraft ? draft.accountId : ""));
+  const [files, setFiles] = React.useState<File[]>(() => (keepDraft ? draft.files : []));
   const [dragging, setDragging] = React.useState(false);
   const recorderRef = React.useRef<VoiceRecorderHandle | null>(null);
   const [recording, setRecording] = React.useState(false);
@@ -132,11 +140,6 @@ export function AssistantChat({
   }, [offline]);
 
 
-  // The Nextcloud file a pending attachment came from, so its import links
-  // back to it instead of storing a copy. Keyed by the File object: once the
-  // user swaps in another file, the link no longer applies.
-  const ncOriginRef = React.useRef<{ file: File; link: string } | null>(null);
-
   const pickFromNextcloud = React.useCallback(
     async (picked: PickedFile) => {
       setNcLoading(true);
@@ -144,15 +147,14 @@ export function AssistantChat({
         const r = await ncDownloadFn({ data: { path: picked.path } });
         const bin = Uint8Array.from(atob(r.base64), (c) => c.charCodeAt(0));
         const type = (r.mime ?? "").split(";")[0] || "";
-        const f = new File([bin], r.name, { type });
-        ncOriginRef.current = { file: f, link: picked.link_url };
-        setFile(f);
+        addFiles([new File([bin], r.name, { type })]);
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));
       } finally {
         setNcLoading(false);
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [ncDownloadFn],
   );
 
@@ -164,19 +166,16 @@ export function AssistantChat({
     if (keepDraft) setChatDraft("input", input);
   }, [keepDraft, input]);
   React.useEffect(() => {
-    if (keepDraft) setChatDraft("file", file);
-  }, [keepDraft, file]);
+    if (keepDraft) setChatDraft("files", files);
+  }, [keepDraft, files]);
   React.useEffect(() => {
     if (keepDraft) setChatDraft("endpointId", endpointId);
   }, [keepDraft, endpointId]);
-  React.useEffect(() => {
-    if (keepDraft) setChatDraft("accountId", accountId);
-  }, [keepDraft, accountId]);
 
   const clearChat = React.useCallback(() => {
     setMessages([]);
     setInput("");
-    setFile(null);
+    setFiles([]);
     if (fileInputRef.current) fileInputRef.current.value = "";
     if (cameraInputRef.current) cameraInputRef.current.value = "";
     if (keepDraft) resetChatDraft();
@@ -189,28 +188,27 @@ export function AssistantChat({
 
   const onPaste = React.useCallback(
     (e: React.ClipboardEvent) => {
-      const items = Array.from(e.clipboardData?.files ?? []);
-      const f = items.find(isAccepted);
-      if (f) {
+      const items = Array.from(e.clipboardData?.files ?? []).filter(isAccepted);
+      if (items.length) {
         e.preventDefault();
-        setFile(f);
+        addFiles(items);
       }
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [isAccepted],
   );
 
-  const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts, enabled: !!file });
-  const accounts = React.useMemo(
-    () => (accountsQ.data ?? []).filter((a) => !a.archived),
-    [accountsQ.data],
-  );
-  React.useEffect(() => {
-    if (!accountId && accounts.length > 0) setAccountId(accounts[0].id);
-  }, [accounts, accountId]);
-
   React.useEffect(() => {
     if (historyQ.data?.messages) {
-      setMessages(historyQ.data.messages.map((m) => ({ role: m.role as "user" | "assistant", text: m.text, action: m.action })));
+      setMessages(
+        historyQ.data.messages.map((m) => ({
+          role: m.role as "user" | "assistant",
+          text: m.text,
+          action: m.action,
+          attachments: m.attachments,
+          notices: m.notices,
+        })),
+      );
     }
   }, [historyQ.data?.messages]);
 
@@ -224,6 +222,36 @@ export function AssistantChat({
   );
   const enabled = endpoints.length > 0;
   const voiceAvailable = endpoints.some((e) => !!e.transcribe_model);
+
+  // What the connection that will answer can do. With "auto", attachments are
+  // only blocked when no enabled connection is known to handle tools.
+  const chatBinding = settingsQ.data?.bindings.find((b) => b.action === "chat");
+  const capsOf = (e: AIEndpoint) =>
+    e.capabilities?.[chatModel(e, chatBinding?.model ?? null, chatBinding?.endpoint_id === e.id)];
+  const candidates = endpointId === "auto" ? endpoints : endpoints.filter((e) => e.id === endpointId);
+  const toolsBlocked = candidates.length > 0 && candidates.every((e) => capsOf(e)?.tools === false);
+  const visionBlocked = candidates.length > 0 && candidates.every((e) => capsOf(e)?.vision === false);
+
+  const addFiles = (incoming: File[]) => {
+    const ok: File[] = [];
+    for (const f of incoming) {
+      if (!isSupportedFile(f)) {
+        toast.error(t("ai.attach.unsupported", { name: f.name }));
+      } else if (f.size > MAX_FILE_BYTES) {
+        toast.error(t("ai.attach.too_big", { name: f.name }));
+      } else if (visionBlocked && f.type.startsWith("image/")) {
+        toast.error(t("ai.attach.no_vision"));
+      } else {
+        ok.push(f);
+      }
+    }
+    if (ok.length === 0) return;
+    setFiles((prev) => {
+      const next = [...prev, ...ok];
+      if (next.length > MAX_FILES) toast.info(t("ai.attach.max", { n: String(MAX_FILES) }));
+      return next.slice(0, MAX_FILES);
+    });
+  };
 
   const stopRecording = React.useCallback(
     async (send: boolean) => {
@@ -285,104 +313,104 @@ export function AssistantChat({
   }, [recording, elapsed, stopRecording]);
   React.useEffect(() => () => recorderRef.current?.cancel(), []);
 
-  const analyseFile = async (f: File, overrideEndpointId?: string) => {
-    if (!accountId) {
-      toast.error(t("statements.err.no_account"));
-      return;
-    }
-    const useId = overrideEndpointId ?? (endpointId === "auto" ? null : endpointId);
-    setMessages((prev) => [...prev, { role: "user", text: `📎 ${f.name}` }]);
-    setFile(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    setBusy(true);
-    try {
-      const base64 = await readFileAsBase64(f);
-      const { import_id } = await extractFn({
-        data: {
-          account_id: accountId,
-          file_name: f.name,
-          file_base64: base64,
-          file_type: f.type || null,
-          endpoint_id: useId,
-          ...(ncOriginRef.current?.file === f
-            ? { external_url: ncOriginRef.current.link, external_source: "nextcloud" }
-            : {}),
-        },
-      });
-      const detail = await importFn({ data: { id: import_id } });
-      const lines = detail.lines;
-      const count = (s: string) => lines.filter((l) => l.match_status === s).length;
-      const text = t("ai.attach.result", {
-        total: String(lines.length),
-        matched: String(count("exact") + count("resolved")),
-        probable: String(count("probable")),
-        missing: String(count("unmatched")),
-        extra: String(detail.unmatched_app.length),
-      });
-      setMessages((prev) => [...prev, { role: "assistant", text, importId: import_id }]);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      const offline = parseEndpointOffline(msg);
-      if (offline) {
-        setOffline({ payload: offline, retry: (id) => void analyseFile(f, id) });
-        setMessages((prev) => prev.slice(0, -1));
-        setFile(f);
-      } else {
-        setMessages((prev) => [...prev, { role: "assistant", text: `⚠️ ${msg}` }]);
-      }
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const send = async (text: string, overrideEndpointId?: string) => {
-    if (file && !overrideEndpointId) {
-      const f = file;
-      void analyseFile(f);
-      return;
-    }
-    if (!text.trim() || busy) return;
+  const send = async (text: string, overrideEndpointId?: string, filesOverride?: File[]) => {
+    const toSend = filesOverride ?? files;
+    if ((!text.trim() && toSend.length === 0) || busy) return;
     if (!enabled) {
       toast.error(t("ai.error.disabled"));
       return;
     }
-    setMessages((prev) => [...prev, { role: "user", text }]);
+    // Earlier turns go along for the sidebar chat, which the server does not store.
+    const history = persist
+      ? undefined
+      : messages
+          .filter((m) => m.text || m.attachments?.length)
+          .slice(-30)
+          .map((m) => ({
+            role: m.role,
+            text: m.text.slice(0, 20_000),
+            attachment_ids: (m.attachments ?? []).map((a) => a.id).filter((id): id is string => !!id),
+          }));
+    setMessages((prev) => [
+      ...prev,
+      { role: "user", text, attachments: toSend.map((f) => ({ file_name: f.name, mime: f.type })) },
+    ]);
     setInput("");
+    setFiles([]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
     setBusy(true);
     try {
+      const attachments = await Promise.all(
+        toSend.map(async (f) => ({ file_name: f.name, file_type: f.type || null, file_base64: await readFileAsBase64(f) })),
+      );
       const r = await chatFn({
         data: {
           conversation_id: conversationId ?? null,
           message: text,
           persist,
           endpoint_id: overrideEndpointId ?? (endpointId === "auto" ? null : endpointId),
+          ...(attachments.length ? { attachments } : {}),
+          ...(history ? { history } : {}),
         },
       });
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", text: r.message.text, action: r.message.action, usage: (r.message as any).usage ?? null },
-      ]);
+      setMessages((prev) => {
+        const next = [...prev];
+        // Swap the local file names for the stored attachments (with ids).
+        const lastUser = next.length - 1;
+        if (next[lastUser]?.role === "user" && r.attachments.length) {
+          next[lastUser] = { ...next[lastUser], attachments: r.attachments };
+        }
+        next.push({
+          role: "assistant",
+          text: r.message.text,
+          action: r.message.action,
+          usage: r.message.usage ?? null,
+          notices: r.message.notices,
+        });
+        return next;
+      });
       if (r.endpoint?.fell_back) toast.info(t("ai.conn.fell_back", { name: r.endpoint.name }));
       if (r.conversation_id && r.conversation_id !== conversationId) onConversationChange?.(r.conversation_id);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       const offline = parseEndpointOffline(msg);
+      // Drop the echoed user message and give the input and files back.
+      setMessages((prev) => prev.slice(0, -1));
+      setInput(text);
+      setFiles(toSend);
       if (offline) {
-        // Drop the echoed user message; it is re-sent after the user picks.
-        setMessages((prev) => prev.slice(0, -1));
-        setOffline({ payload: offline, retry: (id) => void send(text, id) });
+        setOffline({ payload: offline, retry: (id) => void send(text, id, toSend) });
       } else {
-        setMessages((prev) => [...prev, { role: "assistant", text: `⚠️ ${msg}` }]);
+        toast.error(msg);
       }
     } finally {
       setBusy(false);
     }
   };
 
+  const openAttachment = async (id: string) => {
+    try {
+      const { url } = await attachmentUrlFn({ data: { id } });
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
+  };
 
   const runAction = (action: AssistantAction, searchOverride?: Record<string, string>) => {
     if (action.kind === "open_add") {
       navigate({ to: "/add", search: (searchOverride ?? action.search) as never });
+    } else if (action.kind === "open_recurring") {
+      setPendingRuleDraft({
+        draft: action.draft,
+        warnings: action.warnings ?? [],
+        notes: action.notes ?? [],
+        similar_rule: action.similar_rule ?? null,
+        source_file: action.source_file ?? null,
+      });
+      navigate({ to: "/settings", hash: "recurring" });
+    } else if (action.kind === "open_statement") {
+      navigate({ to: "/statements", search: { import: action.import_id } as never });
     }
   };
 
@@ -398,8 +426,8 @@ export function AssistantChat({
       onDrop={(e) => {
         e.preventDefault();
         setDragging(false);
-        const f = e.dataTransfer.files?.[0];
-        if (f) setFile(f);
+        const dropped = Array.from(e.dataTransfer.files ?? []);
+        if (dropped.length && !toolsBlocked) addFiles(dropped);
       }}
     >
       {dragging && (
@@ -431,7 +459,7 @@ export function AssistantChat({
           size="sm"
           variant="ghost"
           className="ml-auto h-8 text-xs"
-          disabled={busy || (messages.length === 0 && !input && !file)}
+          disabled={busy || (messages.length === 0 && !input && files.length === 0)}
           onClick={clearChat}
         >
           <Plus className="mr-1 h-3 w-3" />
@@ -473,8 +501,25 @@ export function AssistantChat({
                   : "bg-muted text-foreground",
               )}
             >
-              {m.role === "assistant" ? <Markdown>{m.text || ""}</Markdown> : <p className="whitespace-pre-wrap">{m.text}</p>}
-              {m.action && (
+              {m.attachments && m.attachments.length > 0 && (
+                <div className={cn("flex flex-wrap gap-1.5", m.text && "mb-1.5")}>
+                  {m.attachments.map((a, j) => (
+                    <button
+                      key={a.id ?? j}
+                      type="button"
+                      disabled={!a.id}
+                      onClick={() => a.id && void openAttachment(a.id)}
+                      className="inline-flex max-w-full items-center gap-1 rounded-md bg-primary-foreground/15 px-2 py-0.5 text-xs hover:bg-primary-foreground/25 disabled:cursor-default"
+                      title={a.file_name}
+                    >
+                      {a.mime.startsWith("image/") ? <ImageIcon className="h-3 w-3 shrink-0" /> : <FileText className="h-3 w-3 shrink-0" />}
+                      <span className="truncate">{a.file_name}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {m.role === "assistant" ? <Markdown>{m.text || ""}</Markdown> : m.text ? <p className="whitespace-pre-wrap">{m.text}</p> : null}
+              {m.action?.kind === "open_add" && (
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Button size="sm" variant="secondary" onClick={() => runAction(m.action!)}>
                     <ExternalLink className="mr-1 h-3 w-3" />
@@ -486,7 +531,7 @@ export function AssistantChat({
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => runAction(m.action!, m.action!.alternate!.search)}
+                      onClick={() => m.action?.kind === "open_add" && runAction(m.action, m.action.alternate!.search)}
                     >
                       <ExternalLink className="mr-1 h-3 w-3" />
                       {m.action.active_scope_name
@@ -494,6 +539,20 @@ export function AssistantChat({
                         : m.action.alternate.label}
                     </Button>
                   )}
+                </div>
+              )}
+              {(m.action?.kind === "open_recurring" || m.action?.kind === "open_statement") && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  <Button size="sm" variant="secondary" onClick={() => runAction(m.action!)}>
+                    <ExternalLink className="mr-1 h-3 w-3" />
+                    {m.action.kind === "open_recurring" ? t("ai.action.open_rule") : t("ai.attach.open")}
+                  </Button>
+                </div>
+              )}
+              {m.role === "assistant" && m.notices && m.notices.length > 0 && (
+                <div className="mt-1.5 flex items-start gap-1 text-[11px] text-muted-foreground">
+                  <Info className="mt-px h-3 w-3 shrink-0" />
+                  <span>{m.notices.map((n) => t(`ai.notice.${n}`)).join(" ")}</span>
                 </div>
               )}
               {m.importId && (
@@ -525,36 +584,27 @@ export function AssistantChat({
           </div>
         )}
       </div>
-      {file && (
+      {files.length > 0 && (
         <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 p-2 text-xs">
-          <FileText className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="max-w-[40%] truncate font-medium">{file.name}</span>
-          <Select value={accountId} onValueChange={setAccountId}>
-            <SelectTrigger className="h-7 w-[180px] text-xs">
-              <SelectValue placeholder={t("statements.field.account")} />
-            </SelectTrigger>
-            <SelectContent>
-              {accounts.map((a) => (
-                <SelectItem key={a.id} value={a.id}>
-                  {a.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button size="sm" className="h-7" disabled={busy || !accountId} onClick={() => void analyseFile(file)}>
-            {busy ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : null}
-            {t("ai.attach.analyse")}
-          </Button>
-          <button
-            type="button"
-            className="text-muted-foreground hover:text-destructive"
-            onClick={() => {
-              setFile(null);
-              if (fileInputRef.current) fileInputRef.current.value = "";
-            }}
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
+          {files.map((f, i) => (
+            <span key={`${f.name}-${i}`} className="inline-flex max-w-[45%] items-center gap-1 rounded bg-background px-2 py-0.5">
+              {f.type.startsWith("image/") ? (
+                <ImageIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              ) : (
+                <FileText className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              )}
+              <span className="truncate font-medium">{f.name}</span>
+              <button
+                type="button"
+                className="text-muted-foreground hover:text-destructive"
+                aria-label={t("common.remove")}
+                onClick={() => setFiles((prev) => prev.filter((_, j) => j !== i))}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+          <span className="text-muted-foreground">{t("ai.attach.staged_hint")}</span>
         </div>
       )}
       <form
@@ -569,7 +619,11 @@ export function AssistantChat({
           type="file"
           accept={ACCEPT}
           className="hidden"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          multiple
+          onChange={(e) => {
+            addFiles(Array.from(e.target.files ?? []));
+            e.target.value = "";
+          }}
         />
         <input
           ref={cameraInputRef}
@@ -577,14 +631,18 @@ export function AssistantChat({
           accept="image/*"
           capture="environment"
           className="hidden"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          onChange={(e) => {
+            addFiles(Array.from(e.target.files ?? []));
+            e.target.value = "";
+          }}
         />
         <Button
           type="button"
           size="icon"
           variant="ghost"
-          disabled={busy}
-          title={t("ai.attach.title")}
+          disabled={busy || toolsBlocked || files.length >= MAX_FILES}
+          title={toolsBlocked ? t("ai.attach.no_tools") : t("ai.attach.title")}
+          aria-label={t("ai.attach.title")}
           onClick={() => fileInputRef.current?.click()}
         >
           <Paperclip className="h-4 w-4" />
@@ -593,8 +651,8 @@ export function AssistantChat({
           type="button"
           size="icon"
           variant="ghost"
-          disabled={busy}
-          title={t("ai.attach.camera")}
+          disabled={busy || toolsBlocked || visionBlocked || files.length >= MAX_FILES}
+          title={toolsBlocked ? t("ai.attach.no_tools") : visionBlocked ? t("ai.attach.no_vision") : t("ai.attach.camera")}
           aria-label={t("ai.attach.camera")}
           onClick={() => cameraInputRef.current?.click()}
         >
@@ -605,8 +663,8 @@ export function AssistantChat({
             type="button"
             size="icon"
             variant="ghost"
-            disabled={busy || ncLoading}
-            title={t("ai.attach.nextcloud")}
+            disabled={busy || ncLoading || toolsBlocked || files.length >= MAX_FILES}
+            title={toolsBlocked ? t("ai.attach.no_tools") : t("ai.attach.nextcloud")}
             aria-label={t("ai.attach.nextcloud")}
             onClick={() => setNcOpen(true)}
           >
@@ -654,7 +712,7 @@ export function AssistantChat({
           }}
           disabled={!enabled || busy || recording || transcribing}
         />
-        <Button type="submit" size="icon" disabled={!enabled || busy || !input.trim()}>
+        <Button type="submit" size="icon" disabled={!enabled || busy || (!input.trim() && files.length === 0)}>
           <SendHorizonal className="h-4 w-4" />
         </Button>
       </form>

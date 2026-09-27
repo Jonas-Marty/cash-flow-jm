@@ -216,6 +216,7 @@ describe("code and docs agree", () => {
       },
       pending_enrich: { de: /Vorschlag|Vorschläge|unbestätigt/i, en: /suggest|pending/i },
       transcribe: { de: /Sprache|Spracheingabe|Diktat|Aufnahme/i, en: /voice|transcri/i },
+      recurring_extract: { de: /Dauerauftr|wiederkehrende Regel/i, en: /recurring rule/i },
     };
     const skip: string[] = known.aiActionsUndocumented.ids;
     const aiDe = readDocPage(DOCS_DE, "08-ai.md").raw;

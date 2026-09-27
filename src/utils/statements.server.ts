@@ -10,7 +10,9 @@ import { preview, providerHost, writeAudit } from "./ai.server";
 
 export async function extractPdfText(bytes: Uint8Array): Promise<{ text: string; pages: number }> {
   const { extractText, getDocumentProxy } = await import("unpdf");
-  const pdf = await getDocumentProxy(bytes);
+  // pdf.js takes ownership of the buffer it is given and leaves the caller's
+  // array empty (length 0) — so give it a copy; callers still need the bytes.
+  const pdf = await getDocumentProxy(bytes.slice());
   const { text, totalPages } = await extractText(pdf, { mergePages: false });
   const pageTexts = Array.isArray(text) ? text : [String(text)];
   return {

@@ -3,7 +3,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
-import { Plus, Pencil, Copy, Trash2 } from "lucide-react";
+import { Plus, Pencil, Copy, Trash2, Sparkles } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { RecurringAiDialog } from "@/components/RecurringAiDialog";
+import { listAIEndpoints } from "@/utils/ai.functions";
+import { subscribePendingRuleDraft, takePendingRuleDraft, type RuleHandoff } from "@/lib/ai/recurringHandoff";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -204,6 +209,37 @@ export function RecurringRulesCard() {
   // saving never touches the original. For a subscription that changed its
   // billing cycle: end the old rule, copy it, adjust the dates.
   const openDuplicate = (r: RecurringRule) => { setDraft(duplicateDraft(r)); setOpen(true); };
+
+  // ✨ AI-prepared drafts: from the dialog below, or handed over by the chat.
+  const aiListFn = useServerFn(listAIEndpoints);
+  const aiQ = useQuery({ queryKey: ["ai_endpoints"], queryFn: () => aiListFn() });
+  const aiEnabled = (aiQ.data?.endpoints ?? []).some((e) => e.enabled);
+  const [aiOpen, setAiOpen] = React.useState(false);
+  const [aiInfo, setAiInfo] = React.useState<Omit<RuleHandoff, "draft"> | null>(null);
+  const openFromAi = React.useCallback((h: RuleHandoff) => {
+    setDraft(h.draft);
+    setAiInfo({ warnings: h.warnings, notes: h.notes, similar_rule: h.similar_rule, source_file: h.source_file });
+    setOpen(true);
+    document.getElementById("recurring")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, []);
+  React.useEffect(() => {
+    const take = () => {
+      const h = takePendingRuleDraft();
+      if (h) openFromAi(h);
+    };
+    take();
+    return subscribePendingRuleDraft(take);
+  }, [openFromAi]);
+  React.useEffect(() => {
+    if (!open) setAiInfo(null);
+  }, [open]);
+  const aiWarning = (w: string): string => {
+    const [code, ...rest] = w.split(":");
+    const arg = rest.join(":");
+    const key = `recurring.ai.warn.${code}`;
+    const text = t(key, { value: arg });
+    return text === key ? w : text;
+  };
 
   // Deep link: /settings#rule-<id> scrolls to this card and opens the rule editor.
   const hash = useRouterState({ select: (s) => s.location.hash });
@@ -495,7 +531,24 @@ export function RecurringRulesCard() {
     <Card>
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle className="text-base">{t("recurring.title")}</CardTitle>
-        <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4" /> {t("recurring.add")}</Button>
+        <div className="flex items-center gap-2">
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {/* A span, because a disabled button fires no hover events. */}
+                <span tabIndex={aiEnabled ? -1 : 0}>
+                  <Button size="sm" variant="outline" disabled={!aiEnabled} onClick={() => setAiOpen(true)}>
+                    <Sparkles className="h-4 w-4" /> {t("recurring.ai.button")}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p>{aiEnabled ? t("recurring.ai.button_hint") : t("recurring.ai.disabled_hint")}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4" /> {t("recurring.add")}</Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {rules.length === 0 ? (
@@ -534,6 +587,8 @@ export function RecurringRulesCard() {
         )}
       </CardContent>
 
+      <RecurringAiDialog open={aiOpen} onOpenChange={setAiOpen} onDraft={openFromAi} />
+
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent
           className="max-h-[90vh] overflow-y-auto"
@@ -547,6 +602,37 @@ export function RecurringRulesCard() {
           <DialogHeader>
             <DialogTitle>{draft.id ? t("recurring.edit") : t("recurring.add")}</DialogTitle>
           </DialogHeader>
+          {aiInfo && (
+            <div className="space-y-1.5 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs">
+              <div className="flex items-center gap-1.5 font-medium">
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
+                {aiInfo.source_file
+                  ? t("recurring.ai.banner_file", { file: aiInfo.source_file })
+                  : t("recurring.ai.banner")}
+              </div>
+              {[...aiInfo.warnings.map(aiWarning), ...aiInfo.notes].length > 0 && (
+                <ul className="list-disc space-y-0.5 pl-4 text-muted-foreground">
+                  {aiInfo.warnings.map((w, i) => <li key={`w${i}`}>{aiWarning(w)}</li>)}
+                  {aiInfo.notes.map((n, i) => <li key={`n${i}`}>{n}</li>)}
+                </ul>
+              )}
+              {aiInfo.similar_rule && (() => {
+                const similar = (rulesQ.data ?? []).find((r) => r.id === aiInfo.similar_rule!.id);
+                if (!similar) return null;
+                return (
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <span>{t("recurring.ai.similar", { name: similar.name })}</span>
+                    <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setAiInfo(null); openEdit(similar); }}>
+                      <Pencil className="mr-1 h-3 w-3" /> {t("recurring.ai.similar_edit")}
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setAiInfo(null); openDuplicate(similar); }}>
+                      <Copy className="mr-1 h-3 w-3" /> {t("recurring.ai.similar_duplicate")}
+                    </Button>
+                  </div>
+                );
+              })()}
+            </div>
+          )}
           <div className="grid gap-3">
             <div>
               <Label className="text-xs">{t("recurring.field.name")}</Label>

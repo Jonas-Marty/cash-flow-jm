@@ -146,10 +146,44 @@ function formatRespectingMMM(d: Date, fmt: string, locale: Locale): string {
 
   return parts
     .map((p) => {
-      const rendered = fmtDate(d, p.text, { locale });
+      const rendered = fmtDate(d, p.isMMM ? p.text : bracketsToQuotes(p.text), { locale });
       return p.isMMM ? rendered.replace(/\.$/, "") : rendered;
     })
     .join("");
+}
+
+/**
+ * Our templates escape literal text with `[...]` (as the SQL formatter does),
+ * but date-fns escapes with single quotes and would print the brackets and
+ * choke on letters inside them. Rewrite `[x]` → `'x'` right before date-fns
+ * sees the format; a literal `'` becomes date-fns' doubled `''`.
+ *
+ * Adjacent literals (`[Q][2]`, which `formatDateExtended` produces) are
+ * merged into one quoted run: `'Q''2'` would read as "Q'2".
+ */
+function bracketsToQuotes(fmt: string): string {
+  let out = "";
+  let literal = "";
+  const flush = () => {
+    if (literal) out += "'" + literal.replace(/'/g, "''") + "'";
+    literal = "";
+  };
+  let i = 0;
+  while (i < fmt.length) {
+    if (fmt[i] === "[") {
+      const close = fmt.indexOf("]", i);
+      literal += close === -1 ? fmt.slice(i + 1) : fmt.slice(i + 1, close);
+      if (close === -1) break;
+      i = close + 1;
+      continue;
+    }
+    if (fmt[i] === "'") { literal += "'"; i += 1; continue; }
+    flush();
+    out += fmt[i];
+    i += 1;
+  }
+  flush();
+  return out;
 }
 
 function padNumber(n: number, fmt: string | undefined): string {
