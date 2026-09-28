@@ -7,8 +7,9 @@
 //   node scripts/dev/screenshot.mjs --path /pending --mobile --login
 //   node scripts/dev/screenshot.mjs --url http://localhost:8080 --device "iPhone 13"
 //
-// Login uses DEV_LOGIN_EMAIL / DEV_LOGIN_PASSWORD and caches the session in
-// screenshots/.auth-state.json, so later runs skip the form.
+// Signed in when screenshots/.auth-state.json exists: create it without a
+// password with `node scripts/dev/dev-session.mjs` (or --login with
+// DEV_LOGIN_EMAIL / DEV_LOGIN_PASSWORD, which caches the session there too).
 import { chromium, devices } from "playwright";
 import { mkdir, writeFile, access } from "node:fs/promises";
 import path from "node:path";

@@ -230,8 +230,14 @@ export function RecurringRulesCard() {
     take();
     return subscribePendingRuleDraft(take);
   }, [openFromAi]);
+  // Drop the AI note when the dialog closes, i.e. on an open → closed change.
+  // Not on "is closed": on mount this effect runs after the hand-off above has
+  // opened the dialog, still sees the first render's `open === false`, and
+  // would wipe the note of a draft that just arrived from the chat.
+  const wasOpen = React.useRef(open);
   React.useEffect(() => {
-    if (!open) setAiInfo(null);
+    if (wasOpen.current && !open) setAiInfo(null);
+    wasOpen.current = open;
   }, [open]);
   const aiWarning = (w: string): string => {
     const [code, ...rest] = w.split(":");

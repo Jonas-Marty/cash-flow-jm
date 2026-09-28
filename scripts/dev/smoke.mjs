@@ -5,15 +5,25 @@
 //
 // Runs inside the toolbox (scripts/dev/tools.sh), which has Playwright:
 //
+//   node scripts/dev/dev-session.mjs && scripts/dev/tools.sh node scripts/dev/smoke.mjs
 //   DEV_LOGIN_EMAIL=… DEV_LOGIN_PASSWORD=… scripts/dev/tools.sh node scripts/dev/smoke.mjs
+//
+// It uses the session dev-session.mjs saved (screenshots/.auth-state.json,
+// override with DEV_STORAGE_STATE) and falls back to the login form when
+// DEV_LOGIN_EMAIL / DEV_LOGIN_PASSWORD are set.
 //
 // Exits 1 if anything failed.
 import { chromium } from "playwright";
+import { existsSync } from "node:fs";
 
 const baseUrl = (process.env.DEV_APP_URL ?? "https://dev-cash-flow.wi-wo.ch").replace(/\/$/, "");
 const email = process.env.DEV_LOGIN_EMAIL;
 const password = process.env.DEV_LOGIN_PASSWORD;
-if (!email || !password) throw new Error("needs DEV_LOGIN_EMAIL and DEV_LOGIN_PASSWORD");
+const statePath = process.env.DEV_STORAGE_STATE ?? "screenshots/.auth-state.json";
+const storageState = !password && existsSync(statePath) ? statePath : undefined;
+if (!storageState && (!email || !password)) {
+  throw new Error("run scripts/dev/dev-session.mjs first, or set DEV_LOGIN_EMAIL and DEV_LOGIN_PASSWORD");
+}
 
 const pages = [
   "/", "/transactions", "/add", "/pending", "/statements", "/envelopes", "/insights",
@@ -21,7 +31,7 @@ const pages = [
 ];
 
 const browser = await chromium.launch();
-const page = await (await browser.newContext({ viewport: { width: 1280, height: 900 } })).newPage();
+const page = await (await browser.newContext({ viewport: { width: 1280, height: 900 }, storageState })).newPage();
 let current = "login";
 const problems = [];
 const calls = new Map();
@@ -43,12 +53,14 @@ page.on("response", (r) => {
 });
 
 await page.goto(baseUrl, { waitUntil: "networkidle" });
-await page.fill("#email-in", email);
-await page.fill("#pw-in", password);
-await page.locator("form button[type=submit]").first().click();
-await page
-  .waitForFunction(() => Object.keys(localStorage).some((k) => k.endsWith("-auth-token")), null, { timeout: 15_000 })
-  .catch(() => {});
+if (!storageState) {
+  await page.fill("#email-in", email);
+  await page.fill("#pw-in", password);
+  await page.locator("form button[type=submit]").first().click();
+  await page
+    .waitForFunction(() => Object.keys(localStorage).some((k) => k.endsWith("-auth-token")), null, { timeout: 15_000 })
+    .catch(() => {});
+}
 
 for (const p of pages) {
   current = p;

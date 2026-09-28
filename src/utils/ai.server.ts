@@ -990,7 +990,7 @@ export const TOOLS: ToolDef[] = [
           description_template: d.description,
           warnings: res.warnings,
           similar_rule: res.similar_rule,
-          note: "Not saved. The user opens the editor with the button, checks and saves.",
+          note: "Not saved. A button under your reply opens the editor, where the user checks and saves.",
         },
         action: {
           kind: "open_recurring",
