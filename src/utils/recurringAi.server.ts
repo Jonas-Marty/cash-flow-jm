@@ -20,7 +20,7 @@ export async function loadGuideContext(sb: SupabaseClient): Promise<GuideContext
     sb
       .from("recurring_rules")
       .select(
-        "id, name, type, amount, is_variable_amount, estimated_amount, source_account_id, destination_account_id, category_id, description, recurrence_interval, execution_day_rule, execution_day_of_month, period_offset, starts_on, ends_on, archived",
+        "id, name, type, amount, is_variable_amount, estimated_amount, source_account_id, destination_account_id, category_id, description, recurrence_interval, execution_day_rule, execution_day_of_month, period_offset_months, starts_on, ends_on, archived",
       )
       .order("name"),
     sb.from("accounts").select("id, name, archived").order("name"),

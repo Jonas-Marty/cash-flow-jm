@@ -26,6 +26,7 @@ function rule(over: Partial<RecurringRule> = {}): RecurringRule {
     period_day_rule: "FixedDay",
     period_day_of_month: 1,
     period_offset: 0,
+    period_offset_months: 0,
     starts_on: "2026-03-04",
     ends_on: null,
     auto_post: true,

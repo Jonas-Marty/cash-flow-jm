@@ -26,7 +26,8 @@ export type Draft = {
   execution_weekend_adjustment: WeekendAdjust;
   period_day_rule: DayRule;
   period_day_of_month: string;
-  period_offset: number; // -3..3
+  /** Months from starts_on's month to the first period's start (-36..36). */
+  period_offset_months: number;
   starts_on: string;
   ends_on: string;
   auto_post: boolean;
@@ -73,7 +74,7 @@ export function emptyDraft(): Draft {
     execution_day_rule: "FixedDay", execution_day_of_month: "1",
     execution_weekend_adjustment: "None",
     period_day_rule: "FixedDay", period_day_of_month: "1",
-    period_offset: 0,
+    period_offset_months: 0,
     starts_on: todayStr(), ends_on: "",
     auto_post: true,
     backfill: "none",
@@ -99,7 +100,7 @@ export function ruleToDraft(r: RecurringRule): Draft {
     execution_weekend_adjustment: r.execution_weekend_adjustment,
     period_day_rule: r.period_day_rule,
     period_day_of_month: String(r.period_day_of_month ?? 1),
-    period_offset: r.period_offset ?? 0,
+    period_offset_months: r.period_offset_months ?? (r.period_offset ?? 0) * (r.recurrence_interval ?? 1),
     starts_on: r.starts_on, ends_on: r.ends_on ?? "",
     auto_post: r.auto_post,
     backfill: "none",

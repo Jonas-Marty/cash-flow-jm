@@ -2,7 +2,7 @@ import * as React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, type Locale } from "date-fns";
 import { Plus, Pencil, Copy, Trash2, Sparkles } from "lucide-react";
 import { useServerFn } from "@tanstack/react-start";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -110,7 +110,7 @@ export function RecurringRulesCard() {
       execution_weekend_adjustment: savedRule.execution_weekend_adjustment,
       period_day_rule: savedRule.period_day_rule,
       period_day_of_month: savedRule.period_day_of_month ?? null,
-      period_offset: savedRule.period_offset,
+      period_offset_months: savedRule.period_offset_months ?? (savedRule.period_offset ?? 0) * (savedRule.recurrence_interval ?? 1),
     };
     return JSON.stringify(saved) !== JSON.stringify(draftRuleShape(draft));
   }, [savedRule, draft]);
@@ -341,7 +341,7 @@ export function RecurringRulesCard() {
       execution_weekend_adjustment: draft.execution_weekend_adjustment,
       period_day_rule: draft.period_day_rule,
       period_day_of_month: draft.period_day_rule === "FixedDay" ? Number(draft.period_day_of_month) || 1 : null,
-      period_offset: draft.period_offset,
+      period_offset_months: draft.period_offset_months,
       starts_on: draft.starts_on,
       ends_on: draft.ends_on || null,
       auto_post: (draft.is_variable_amount || draft.is_variable_date) ? false : draft.auto_post,
@@ -833,21 +833,27 @@ export function RecurringRulesCard() {
                 )}
               </div>
               <div>
-                <Label className="text-xs">{t("recurring.field.period_offset")}</Label>
-                <Select value={String(draft.period_offset)} onValueChange={(v) => setDraft({ ...draft, period_offset: Number(v) })}>
+                <Label className="text-xs">{t("recurring.field.first_period")}</Label>
+                <Select
+                  value={String(draft.period_offset_months)}
+                  onValueChange={(v) => setDraft({ ...draft, period_offset_months: Number(v) })}
+                >
                   <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {[-3,-2,-1,0,1,2,3].map((n) => (
+                  <SelectContent className="max-h-72">
+                    {periodOffsetChoices(draft.period_offset_months).map((n) => (
                       <SelectItem key={n} value={String(n)}>
-                        {n === 0 ? t("recurring.period_offset.zero")
-                          : n < 0 ? t("recurring.period_offset.back", { n: Math.abs(n) })
-                          : t("recurring.period_offset.forward", { n })}
+                        {firstPeriodLabel(draft, n, locale)}
+                        <span className="ml-1 text-muted-foreground">
+                          {n === 0 ? t("recurring.first_period.same")
+                            : n < 0 ? t("recurring.first_period.before", { n: Math.abs(n) })
+                            : t("recurring.first_period.after", { n })}
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 <div className="mt-1 text-[11px] text-muted-foreground">
-                  {t("recurring.period_offset.hint")}
+                  {t("recurring.first_period.hint")}
                 </div>
               </div>
             </div>
@@ -1400,7 +1406,7 @@ function PreviewPanel({
       execution_weekend_adjustment: shape.execution_weekend_adjustment,
       period_day_rule: shape.period_day_rule,
       period_day_of_month: shape.period_day_of_month,
-      period_offset: shape.period_offset,
+      period_offset_months: shape.period_offset_months,
       starts_on: shape.starts_on,
       ends_on: shape.ends_on,
       from: fromISO,
@@ -1622,6 +1628,22 @@ function PreviewPanel({
   );
 }
 
+/** Month offsets offered for the first period: two years back, one ahead, and the current value. */
+function periodOffsetChoices(current: number): number[] {
+  const lo = Math.min(-24, current);
+  const hi = Math.max(12, current);
+  return Array.from({ length: hi - lo + 1 }, (_, i) => hi - i);
+}
+
+/** "Jul 2026 – Sep 2026": the months the first payment reports with this offset. */
+function firstPeriodLabel(draft: Draft, offsetMonths: number, locale: Locale): string {
+  const start = parseISODate(draft.starts_on || todayStr());
+  const from = new Date(start.getFullYear(), start.getMonth() + offsetMonths, 1);
+  const to = new Date(from.getFullYear(), from.getMonth() + Math.max(1, draft.recurrence_interval) - 1, 1);
+  const f = (d: Date) => format(d, "MMM yyyy", { locale }).replace(".", "");
+  return draft.recurrence_interval <= 1 ? f(from) : `${f(from)} – ${f(to)}`;
+}
+
 /** Build a v2 RuleShape from the in-progress draft, for TS-side preview. */
 function draftRuleShape(draft: Draft): RuleShape {
   return {
@@ -1633,6 +1655,6 @@ function draftRuleShape(draft: Draft): RuleShape {
     execution_weekend_adjustment: draft.execution_weekend_adjustment,
     period_day_rule: draft.period_day_rule,
     period_day_of_month: draft.period_day_rule === "FixedDay" ? Number(draft.period_day_of_month) || 1 : null,
-    period_offset: draft.period_offset,
+    period_offset_months: draft.period_offset_months,
   };
 }

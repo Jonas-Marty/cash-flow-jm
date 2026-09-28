@@ -353,7 +353,10 @@ export interface RecurringRule {
   execution_weekend_adjustment: WeekendAdjust;
   period_day_rule: DayRule;
   period_day_of_month: number | null;
-  period_offset: number; // -3..3
+  /** Months from starts_on's month to the first occurrence's period start (-36..36). */
+  period_offset_months: number;
+  /** Deprecated, kept in sync by the database: period_offset_months / interval. */
+  period_offset?: number;
   starts_on: string;
   ends_on: string | null;
   auto_post: boolean;
@@ -1090,7 +1093,7 @@ export async function previewRecurringRule(input: {
   execution_weekend_adjustment: WeekendAdjust;
   period_day_rule: DayRule;
   period_day_of_month: number | null;
-  period_offset: number;
+  period_offset_months: number;
   starts_on: string;
   ends_on: string | null;
   from: string;
@@ -1103,7 +1106,7 @@ export async function previewRecurringRule(input: {
     p_execution_weekend_adjustment: input.execution_weekend_adjustment,
     p_period_day_rule: input.period_day_rule,
     p_period_day_of_month: input.period_day_of_month as number,
-    p_period_offset: input.period_offset,
+    p_period_offset_months: input.period_offset_months,
     p_starts_on: input.starts_on,
     p_ends_on: input.ends_on as string,
     p_from: input.from,

@@ -36,7 +36,7 @@ describe("suggestionToDraft", () => {
         recurrence_interval: 3,
         execution_day_rule: "fixedday",
         execution_day_of_month: "15",
-        period_offset: -1,
+        first_period_from: "2026-07-01",
         starts_on: "01.10.2026",
         notes: "Due date read from the payment slip",
       },
@@ -53,7 +53,7 @@ describe("suggestionToDraft", () => {
       execution_day_rule: "FixedDay",
       execution_day_of_month: "15",
       period_day_rule: "FirstDay",
-      period_offset: -1,
+      period_offset_months: -3,
       starts_on: "2026-10-01",
       backfill: "none",
     });
@@ -75,12 +75,12 @@ describe("suggestionToDraft", () => {
 
   it("clamps interval, days and offset", () => {
     const r = suggestionToDraft(
-      { amount: 5, recurrence_interval: 24, execution_day_of_month: 40, period_offset: -7 },
+      { amount: 5, recurrence_interval: 24, execution_day_of_month: 40, period_offset_months: -50 },
       ctx,
     );
     expect(r.draft.recurrence_interval).toBe(12);
     expect(r.draft.execution_day_of_month).toBe("31");
-    expect(r.draft.period_offset).toBe(-3);
+    expect(r.draft.period_offset_months).toBe(-36);
     expect(r.warnings).toContain("offset_clamped");
   });
 
@@ -114,6 +114,20 @@ describe("suggestionToDraft", () => {
     expect(suggestionToDraft({ similar_rule: "miete" }, ctx).similar_rule?.id).toBe("rule-rent");
   });
 
+  it("derives the month offset from the billing period, not the model's arithmetic", () => {
+    const base = { amount: 272.45, recurrence_interval: 3, starts_on: "2026-11-01" };
+    expect(suggestionToDraft({ ...base, first_period_from: "2026-07-01" }, ctx).draft.period_offset_months).toBe(-4);
+    expect(suggestionToDraft({ ...base, first_period_from: "01.12.2026" }, ctx).draft.period_offset_months).toBe(1);
+    expect(suggestionToDraft({ ...base, period_offset_months: -2 }, ctx).draft.period_offset_months).toBe(-2);
+    // Legacy interval offset: -1 quarter = -3 months.
+    expect(suggestionToDraft({ ...base, period_offset: -1 }, ctx).draft.period_offset_months).toBe(-3);
+  });
+
+  it("a billing period starting mid-month becomes a fixed period day", () => {
+    const r = suggestionToDraft({ amount: 50, starts_on: "2026-11-01", first_period_from: "2026-10-15" }, ctx);
+    expect(r.draft).toMatchObject({ period_offset_months: -1, period_day_rule: "FixedDay", period_day_of_month: "15" });
+  });
+
   it("survives garbage", () => {
     expect(() => suggestionToDraft(null, ctx)).not.toThrow();
     expect(() => suggestionToDraft({ amount: { nested: 1 } }, ctx)).not.toThrow();
@@ -141,19 +155,19 @@ describe("guide", () => {
       id: "rule-rent", name: "Miete", type: "expense", amount: 1850, is_variable_amount: false, estimated_amount: null,
       source_account_id: "acc-ubs", destination_account_id: null, category_id: "cat-home",
       description: "Miete ${periodFrom:MMMM yyyy}", recurrence_interval: 1, execution_day_rule: "FixedDay",
-      execution_day_of_month: 1, period_offset: 0, starts_on: "2024-01-01", ends_on: null, archived: false,
+      execution_day_of_month: 1, period_offset_months: 0, starts_on: "2024-01-01", ends_on: null, archived: false,
     },
     {
       id: "rule-old", name: "Altes Abo", type: "expense", amount: 9, is_variable_amount: false, estimated_amount: null,
       source_account_id: "acc-ubs", destination_account_id: null, category_id: null,
       description: null, recurrence_interval: 1, execution_day_rule: "LastDay",
-      execution_day_of_month: null, period_offset: 0, starts_on: "2024-01-01", ends_on: "2025-01-01", archived: false,
+      execution_day_of_month: null, period_offset_months: 0, starts_on: "2024-01-01", ends_on: "2025-01-01", archived: false,
     },
   ];
   const g = buildRecurringGuide({ rules: guideRules, accounts, categories, today: "2026-09-27", currency: "CHF", language: "de" });
 
   it("lists active rules with names instead of ids", () => {
-    expect(g).toContain('"Miete" | expense 1850 | UBS Privatkonto, category Wohnen | every 1 mo, day 1, offset 0');
+    expect(g).toContain('"Miete" | expense 1850 | UBS Privatkonto, category Wohnen | every 1 mo, day 1, starts 2024-01-01, first period 2024-01');
     expect(g).not.toContain("Altes Abo");
   });
 
@@ -162,8 +176,8 @@ describe("guide", () => {
     expect(g).not.toContain("Altes Konto");
   });
 
-  it("contains all five examples", () => {
-    for (let i = 1; i <= 5; i++) expect(RECURRING_RULE_GUIDE).toContain(`\n${i}. `);
+  it("contains all six examples", () => {
+    for (let i = 1; i <= 6; i++) expect(RECURRING_RULE_GUIDE).toContain(`\n${i}. `);
   });
 
   it("extraction prompt embeds the guide", () => {
@@ -176,7 +190,7 @@ describe("guide", () => {
   // before the model starts proposing wrong rules.
   const examples = [...RECURRING_RULE_GUIDE.matchAll(/^\d\. .*\n\s+(\{.*\})\n\s+→ (\d{1,2} \w{3}(?: \d{4})?) reports .* → "(.*)"\./gm)];
 
-  it("parses every example", () => expect(examples).toHaveLength(5));
+  it("parses every example", () => expect(examples).toHaveLength(6));
 
   it.each(examples.map((m, i) => [i + 1, m[1], m[3]]))(
     "example %i renders what the guide promises",
@@ -194,7 +208,7 @@ describe("guide", () => {
           execution_weekend_adjustment: "None",
           period_day_rule: draft.period_day_rule,
           period_day_of_month: 1,
-          period_offset: draft.period_offset,
+          period_offset_months: draft.period_offset_months,
         },
         1,
         new Date(2026, 0, 1),

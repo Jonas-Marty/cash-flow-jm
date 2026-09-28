@@ -22,7 +22,7 @@ function rule(overrides: Partial<RuleShape>): RuleShape {
     execution_weekend_adjustment: "None",
     period_day_rule: "FixedDay",
     period_day_of_month: 1,
-    period_offset: 0,
+    period_offset_months: 0,
     ...overrides,
   };
 }
@@ -102,8 +102,8 @@ describe("Scenario C — Option 2 (StartDate 10.05.26, Interval 3, FixedDay(15)/
     expect(iso(p2.to)).toBe("2026-10-31");
   });
 
-  it("offset +1 shifts the period one interval forward", () => {
-    const rr = { ...r, period_offset: 1 };
+  it("+3 months (one quarter) shifts the period one interval forward", () => {
+    const rr = { ...r, period_offset_months: 3 };
     const p1 = periodBoundsForDue(rr, parseISODate("2026-05-15"));
     expect(iso(p1.from)).toBe("2026-08-01");
     expect(iso(p1.to)).toBe("2026-10-31");
@@ -112,14 +112,48 @@ describe("Scenario C — Option 2 (StartDate 10.05.26, Interval 3, FixedDay(15)/
     expect(iso(p2.to)).toBe("2027-01-31");
   });
 
-  it("offset -2 walks back two intervals (crosses into previous year)", () => {
-    const rr = { ...r, period_offset: -2 };
+  it("-6 months walks back two quarters (crosses into previous year)", () => {
+    const rr = { ...r, period_offset_months: -6 };
     const p1 = periodBoundsForDue(rr, parseISODate("2026-05-15"));
     expect(iso(p1.from)).toBe("2025-11-01");
     expect(iso(p1.to)).toBe("2026-01-31");
     const p2 = periodBoundsForDue(rr, parseISODate("2026-08-15"));
     expect(iso(p2.from)).toBe("2026-02-01");
     expect(iso(p2.to)).toBe("2026-04-30");
+  });
+
+  // Offsets that are not whole intervals: impossible before period_offset_months.
+  it("quarterly bill for Jul–Sep paid 4 Nov: -4 months", () => {
+    const q = rule({
+      starts_on: "2026-11-01", recurrence_interval: 3,
+      execution_day_of_month: 4, period_day_rule: "FirstDay", period_day_of_month: null,
+      period_offset_months: -4,
+    });
+    const got = previewOccurrences(q, 3).map((p) => `${iso(p.due)} ${iso(p.periodFrom)}..${iso(p.periodTo)}`);
+    expect(got).toEqual([
+      "2026-11-04 2026-07-01..2026-09-30",
+      "2027-02-04 2026-10-01..2026-12-31",
+      "2027-05-04 2027-01-01..2027-03-31",
+    ]);
+  });
+
+  it("quarter paid on its last day (30 Jun for Apr–Jun): -2 months", () => {
+    const q = rule({
+      starts_on: "2026-06-01", recurrence_interval: 3,
+      execution_day_rule: "LastDay", execution_day_of_month: null,
+      period_day_rule: "FirstDay", period_day_of_month: null, period_offset_months: -2,
+    });
+    const p = periodBoundsForDue(q, parseISODate("2026-06-30"));
+    expect(`${iso(p.from)}..${iso(p.to)}`).toBe("2026-04-01..2026-06-30");
+  });
+
+  it("yearly premium billed in December for the next calendar year: +1 month", () => {
+    const y = rule({
+      starts_on: "2026-12-01", recurrence_interval: 12, execution_day_of_month: 20,
+      period_day_rule: "FirstDay", period_day_of_month: null, period_offset_months: 1,
+    });
+    const p = periodBoundsForDue(y, parseISODate("2026-12-20"));
+    expect(`${iso(p.from)}..${iso(p.to)}`).toBe("2027-01-01..2027-12-31");
   });
 });
 

@@ -1039,6 +1039,7 @@ export type Database = {
           period_day_of_month: number | null
           period_day_rule: Database["public"]["Enums"]["day_rule"]
           period_offset: number
+          period_offset_months: number
           recurrence_interval: number
           source_account_id: string
           starts_on: string
@@ -1068,6 +1069,7 @@ export type Database = {
           period_day_of_month?: number | null
           period_day_rule: Database["public"]["Enums"]["day_rule"]
           period_offset?: number
+          period_offset_months?: number
           recurrence_interval: number
           source_account_id: string
           starts_on: string
@@ -1097,6 +1099,7 @@ export type Database = {
           period_day_of_month?: number | null
           period_day_rule?: Database["public"]["Enums"]["day_rule"]
           period_offset?: number
+          period_offset_months?: number
           recurrence_interval?: number
           source_account_id?: string
           starts_on?: string
@@ -1879,6 +1882,20 @@ export type Database = {
         Args: { p_action: string; p_metadata?: Json }
         Returns: number
       }
+      period_bounds_for_due_months: {
+        Args: {
+          p_due: string
+          p_ends_on: string
+          p_exec_dom: number
+          p_exec_rule: Database["public"]["Enums"]["day_rule"]
+          p_interval_months: number
+          p_offset_months: number
+          p_period_dom: number
+          p_period_rule: Database["public"]["Enums"]["day_rule"]
+          p_starts_on: string
+        }
+        Returns: Record<string, unknown>
+      }
       period_bounds_for_due: {
         Args: {
           p_due: string
@@ -1902,7 +1919,7 @@ export type Database = {
           p_from: string
           p_period_day_of_month: number
           p_period_day_rule: Database["public"]["Enums"]["day_rule"]
-          p_period_offset: number
+          p_period_offset_months: number
           p_recurrence_interval: number
           p_starts_on: string
           p_to: string

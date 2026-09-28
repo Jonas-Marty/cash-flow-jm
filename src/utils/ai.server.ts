@@ -963,7 +963,10 @@ export const TOOLS: ToolDef[] = [
         execution_day_of_month: { type: "integer", minimum: 1, maximum: 31 },
         execution_weekend_adjustment: { type: "string", enum: ["None", "PreviousBusinessDay", "NextBusinessDay"] },
         period_day_rule: { type: "string", enum: ["FixedDay", "LastDay", "FirstDay"] },
-        period_offset: { type: "integer", minimum: -3, maximum: 3 },
+        first_period_from: {
+          type: "string",
+          description: "YYYY-MM-DD: first day of the billing period the FIRST payment covers (the invoice's Leistungszeitraum). Copy it; the app works out the offset.",
+        },
         starts_on: { type: "string", description: "YYYY-MM-DD" },
         ends_on: { type: "string", description: "YYYY-MM-DD, only for contracts with a known end." },
         auto_post: { type: "boolean" },

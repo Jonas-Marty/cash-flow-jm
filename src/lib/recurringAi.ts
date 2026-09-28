@@ -44,6 +44,10 @@ export const ruleSuggestionSchema = z
     execution_weekend_adjustment: looseStr,
     period_day_rule: looseStr,
     period_day_of_month: looseNum,
+    /** Start of the period the FIRST payment covers (the invoice's billing period). Preferred. */
+    first_period_from: looseStr,
+    period_offset_months: looseNum,
+    /** Legacy, in whole intervals. */
     period_offset: looseNum,
     starts_on: looseStr,
     ends_on: looseStr,
@@ -243,20 +247,38 @@ export function suggestionToDraft(raw: unknown, ctx: SuggestionContext): Suggest
   if (execDay !== undefined) d.execution_day_of_month = String(execDay);
   d.execution_weekend_adjustment = pickEnum(s.execution_weekend_adjustment, WEEKEND) ?? d.execution_weekend_adjustment;
 
-  d.period_day_rule = pickEnum(s.period_day_rule, DAY_RULES) ?? "FirstDay";
-  const periodDay = clampInt(toNum(s.period_day_of_month), 1, 31);
-  if (periodDay !== undefined) d.period_day_of_month = String(periodDay);
-  const offset = toNum(s.period_offset);
-  if (offset !== undefined) {
-    const clamped = clampInt(offset, -3, 3)!;
-    if (clamped !== Math.round(offset)) warnings.push("offset_clamped");
-    d.period_offset = clamped;
-  }
-
   const starts = toIsoDate(s.starts_on);
   if (starts) {
     d.starts_on = starts;
     if (starts < today) warnings.push("starts_in_past");
+  }
+
+  d.period_day_rule = pickEnum(s.period_day_rule, DAY_RULES) ?? "FirstDay";
+  const periodDay = clampInt(toNum(s.period_day_of_month), 1, 31);
+  if (periodDay !== undefined) d.period_day_of_month = String(periodDay);
+
+  // The period offset in months, from the most reliable thing the model gave:
+  // the billing period it read off the invoice, then an explicit month
+  // offset, then the legacy interval offset.
+  const firstPeriod = toIsoDate(s.first_period_from);
+  let offsetMonths: number | undefined;
+  if (firstPeriod) {
+    const [fy, fm, fd] = firstPeriod.split("-").map(Number);
+    const [sy, sm] = d.starts_on.split("-").map(Number);
+    offsetMonths = (fy - sy) * 12 + (fm - sm);
+    if (fd > 1 && !pickEnum(s.period_day_rule, DAY_RULES)) {
+      d.period_day_rule = "FixedDay";
+      d.period_day_of_month = String(fd);
+    }
+  } else if (toNum(s.period_offset_months) !== undefined) {
+    offsetMonths = Math.round(toNum(s.period_offset_months)!);
+  } else if (toNum(s.period_offset) !== undefined) {
+    offsetMonths = Math.round(toNum(s.period_offset)!) * d.recurrence_interval;
+  }
+  if (offsetMonths !== undefined) {
+    const clamped = clampInt(offsetMonths, -36, 36)!;
+    if (clamped !== offsetMonths) warnings.push("offset_clamped");
+    d.period_offset_months = clamped;
   }
   const ends = toIsoDate(s.ends_on);
   if (ends && ends >= d.starts_on) d.ends_on = ends;
@@ -302,7 +324,7 @@ export interface GuideRule {
   recurrence_interval: number;
   execution_day_rule: DayRule;
   execution_day_of_month: number | null;
-  period_offset: number;
+  period_offset_months: number;
   starts_on: string;
   ends_on: string | null;
   archived: boolean;
@@ -324,6 +346,13 @@ function dayLabel(rule: DayRule, dom: number | null): string {
   return `day ${dom ?? 1}`;
 }
 
+/** YYYY-MM of the first period a rule reports, from its start month and offset. */
+function firstPeriodOf(r: Pick<GuideRule, "starts_on" | "period_offset_months">): string {
+  const [y, m] = r.starts_on.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + (r.period_offset_months ?? 0), 1));
+  return d.toISOString().slice(0, 7);
+}
+
 /** One line per rule, cheap enough to send every rule the user has. */
 export function describeRules(ctx: Pick<GuideContext, "rules" | "accounts" | "categories" | "today">): string {
   const name = (rows: NamedRow[], id: string | null) => (id ? rows.find((r) => r.id === id)?.name ?? "?" : null);
@@ -338,27 +367,22 @@ export function describeRules(ctx: Pick<GuideContext, "rules" | "accounts" | "ca
         r.type === "transfer"
           ? `${name(ctx.accounts, r.source_account_id)} → ${name(ctx.accounts, r.destination_account_id)}`
           : `${name(ctx.accounts, r.source_account_id)}, category ${name(ctx.categories, r.category_id) ?? "-"}`;
-      return `- id ${r.id} | "${r.name}" | ${r.type} ${amount} | ${target} | every ${r.recurrence_interval} mo, ${dayLabel(r.execution_day_rule, r.execution_day_of_month)}, offset ${r.period_offset} | description "${r.description ?? ""}"`;
+      return `- id ${r.id} | "${r.name}" | ${r.type} ${amount} | ${target} | every ${r.recurrence_interval} mo, ${dayLabel(r.execution_day_rule, r.execution_day_of_month)}, starts ${r.starts_on}, first period ${firstPeriodOf(r)} | description "${r.description ?? ""}"`;
     })
     .join("\n");
 }
 
 /**
- * The rules of the recurrence engine and five worked examples, verified
+ * The rules of the recurrence engine and six worked examples, verified
  * against `previewOccurrences` (see recurringAi.test.ts). Plain text so it
  * works both as a system prompt and inside a tool result.
  */
 export const RECURRING_RULE_GUIDE = `HOW A RECURRING RULE WORKS
 - recurrence_interval: months between payments (1 monthly, 2 every two months, 3 quarterly, 6 half-yearly, 12 yearly).
-- starts_on (YYYY-MM-DD): pick a date in the month of the FIRST payment, no later than the execution day. Payments then fall every interval months from that month.
+- starts_on (YYYY-MM-DD): the 1st of the month of the FIRST payment. Payments then fall every interval months from that month.
 - execution_day_rule: "FixedDay" (with execution_day_of_month 1-31, short months snap to their last day), "LastDay" or "FirstDay". Use the due date / payment deadline of the invoice.
 - execution_weekend_adjustment: "None", "PreviousBusinessDay" or "NextBusinessDay" (shifts only the payment date).
-- Reporting period: each payment reports a period of interval months. The periods start on period_day_rule (normally "FirstDay") of the months counted from starts_on's month.
-- period_offset (-3..3, in whole intervals): which period a payment is for.
-    0  = the period that starts in the payment month (paid in advance, e.g. rent for October paid on 1 October).
-    -1 = the period before (paid in arrears: "invoice for last month / last quarter").
-    +1 = the next period (e.g. rent for November paid at the end of October).
-  With -1, the period grid is still counted from starts_on's month, so for calendar quarters the payment month must be January, April, July or October.
+- first_period_from (YYYY-MM-DD): the first day of the period the FIRST payment covers — the invoice's billing period / "Leistungszeitraum" / "Abrechnungsperiode". It may lie before the payment (bill paid in arrears), in the same month (paid in advance) or after it (paid ahead). Each later payment covers the next period of interval months. Just copy it from the invoice; do not calculate anything.
 - is_variable_amount: true when the amount changes each time (electricity, phone usage). Then set estimated_amount to the invoice amount; amount is ignored. Such rules are never auto-posted.
 - is_variable_date: true when the payment date is not predictable.
 - auto_post: true only for fixed amounts that are debited automatically (standing order / direct debit). Otherwise false.
@@ -375,20 +399,23 @@ Only use these tokens; anything else is removed.
 
 WORKED EXAMPLES (JSON fields you return)
 1. Monthly rent, CHF 1'850, due on the 1st for that month, standing order:
-   {"name":"Miete","type":"expense","amount":1850,"recurrence_interval":1,"execution_day_rule":"FixedDay","execution_day_of_month":1,"period_offset":0,"starts_on":"2026-11-01","auto_post":true,"description":"Miete \${periodFrom:MMMM yyyy}"}
+   {"name":"Miete","type":"expense","amount":1850,"recurrence_interval":1,"execution_day_rule":"FixedDay","execution_day_of_month":1,"starts_on":"2026-11-01","first_period_from":"2026-11-01","auto_post":true,"description":"Miete \${periodFrom:MMMM yyyy}"}
    → 1 Nov 2026 reports November 2026 → "Miete November 2026".
 2. Invoice for LAST month, e.g. a cleaning service billing September on 10 October, same amount every month:
-   {"name":"Reinigung","type":"expense","amount":240,"recurrence_interval":1,"execution_day_rule":"FixedDay","execution_day_of_month":10,"period_offset":-1,"starts_on":"2026-10-01","auto_post":false,"description":"Reinigung \${periodFrom:MMMM}"}
+   {"name":"Reinigung","type":"expense","amount":240,"recurrence_interval":1,"execution_day_rule":"FixedDay","execution_day_of_month":10,"starts_on":"2026-10-01","first_period_from":"2026-09-01","auto_post":false,"description":"Reinigung \${periodFrom:MMMM}"}
    → 10 Oct reports 1–30 Sep → "Reinigung September".
 3. Electricity every two months, amount varies, invoice for September–October due 20 November:
-   {"name":"Strom","type":"expense","is_variable_amount":true,"estimated_amount":132.4,"recurrence_interval":2,"execution_day_rule":"FixedDay","execution_day_of_month":20,"period_offset":-1,"starts_on":"2026-11-01","description":"Strom \${periodFrom:MM}–\${periodTo:MM.yyyy}"}
+   {"name":"Strom","type":"expense","is_variable_amount":true,"estimated_amount":132.4,"recurrence_interval":2,"execution_day_rule":"FixedDay","execution_day_of_month":20,"starts_on":"2026-11-01","first_period_from":"2026-09-01","description":"Strom \${periodFrom:MM}–\${periodTo:MM.yyyy}"}
    → 20 Nov reports 1 Sep–31 Oct → "Strom 09–10.2026".
 4. Quarterly, paid in arrears: invoice for Q3 (July–September) due 15 October:
-   {"name":"BSZ Wohnheim","type":"expense","amount":1350,"recurrence_interval":3,"execution_day_rule":"FixedDay","execution_day_of_month":15,"period_offset":-1,"starts_on":"2026-10-01","description":"BSZ Wohnheim, Ingenbohl Quartal \${periodTo:Q}"}
+   {"name":"BSZ Wohnheim","type":"expense","amount":1350,"recurrence_interval":3,"execution_day_rule":"FixedDay","execution_day_of_month":15,"starts_on":"2026-10-01","first_period_from":"2026-07-01","description":"BSZ Wohnheim, Ingenbohl Quartal \${periodTo:Q}"}
    → 15 Oct reports 1 Jul–30 Sep → "BSZ Wohnheim, Ingenbohl Quartal 3".
 5. Yearly insurance premium for the calendar year, due 31 January:
-   {"name":"Hausrat","type":"expense","amount":312.6,"recurrence_interval":12,"execution_day_rule":"FixedDay","execution_day_of_month":31,"period_offset":0,"starts_on":"2027-01-01","description":"Hausratversicherung \${periodFrom:yyyy}"}
+   {"name":"Hausrat","type":"expense","amount":312.6,"recurrence_interval":12,"execution_day_rule":"FixedDay","execution_day_of_month":31,"starts_on":"2027-01-01","first_period_from":"2027-01-01","description":"Hausratversicherung \${periodFrom:yyyy}"}
    → 31 Jan 2027 reports 2027 → "Hausratversicherung 2027".
+6. Quarterly electricity paid a month after the quarter: invoice for July–September, due 4 November:
+   {"name":"Enertech Strom","type":"expense","is_variable_amount":true,"estimated_amount":272.45,"recurrence_interval":3,"execution_day_rule":"FixedDay","execution_day_of_month":4,"starts_on":"2026-11-01","first_period_from":"2026-07-01","description":"Strom Q\${periodTo:Q} \${periodTo:yyyy}"}
+   → 4 Nov reports 1 Jul–30 Sep → "Strom Q3 2026".
 
 STYLE
 - Match the user's existing rules below: same language, naming, capitalisation, and the same account and category for the same kind of bill.
@@ -433,7 +460,7 @@ First decide what the document is:
 Return ONLY a JSON object:
 {"document_kind":"invoice"|"statement"|"other","rule":{…fields as in the examples…,"source_account":"<account id>","category":"<category id>","similar_rule":"<rule id or null>","notes":["…"]}}
 
-Work out the interval from the period the invoice covers (a month, two months, a quarter, a year) and the offset from whether it is paid before, during or after that period. If the document states the user's hint differently, follow the hint.
+Work out the interval from the period the invoice covers (a month, two months, a quarter, a year), and copy that period's first day into first_period_from. If the document states the user's hint differently, follow the hint.
 
 ${buildRecurringGuide(ctx)}`;
 }

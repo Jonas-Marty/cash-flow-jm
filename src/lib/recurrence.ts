@@ -74,7 +74,8 @@ export interface RuleShape {
   execution_weekend_adjustment: WeekendAdjust;
   period_day_rule: DayRule;
   period_day_of_month: number | null;
-  period_offset: number;
+  /** Months from starts_on's month to the start of the first occurrence's period. */
+  period_offset_months: number;
 }
 
 /**
@@ -105,26 +106,30 @@ export interface PeriodBounds {
 }
 
 /**
- * Reporting period [from, to] for a given execution due-date. The period
- * series has no "skip before starts_on" filter — the anchor is `starts_on`'s
- * month/year, so period anchor #0 sits in the same month as `starts_on`.
+ * Reporting period [from, to] for a given execution due-date. Mirrors
+ * public.period_bounds_for_due_months: the period of occurrence #idx starts
+ * (idx - 1) * interval + period_offset_months months after `starts_on`'s
+ * month, so it can sit any number of months before or after the payment
+ * (a quarterly bill for July–September paid in November: -4). The period
+ * series has no "skip before starts_on" filter.
  */
 export function periodBoundsForDue(r: RuleShape, dueDate: Date): PeriodBounds {
   const starts = parseISODate(r.starts_on);
   const idx = execIndexForDue(r, dueDate);
+  const offset = r.period_offset_months ?? 0;
   const from = seriesStep(
     starts,
     r.period_day_rule,
     r.period_day_of_month,
-    r.recurrence_interval,
-    idx - 1 + r.period_offset,
+    1,
+    (idx - 1) * r.recurrence_interval + offset,
   );
   const nextStart = seriesStep(
     starts,
     r.period_day_rule,
     r.period_day_of_month,
-    r.recurrence_interval,
-    idx + r.period_offset,
+    1,
+    idx * r.recurrence_interval + offset,
   );
   const to = new Date(nextStart);
   to.setDate(to.getDate() - 1);
