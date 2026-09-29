@@ -592,6 +592,7 @@ const de: Dict = {
   "tx.bulk.partial": "{n} aktualisiert, {e} fehlgeschlagen",
 
   "tx.clear_all": "Alle zurücksetzen",
+  "tx.show_more": "Mehr anzeigen ({n} weitere)",
   "tx.filters": "Filter",
   "tx.view.label": "Ansicht",
   "tx.link.marker": "Verknüpft mit „{title}“",
@@ -1984,6 +1985,7 @@ const en: Dict = {
   "tx.bulk.partial": "{n} updated, {e} failed",
 
   "tx.clear_all": "Clear all",
+  "tx.show_more": "Show more ({n} left)",
   "tx.filters": "Filters",
   "tx.view.label": "View",
   "tx.link.marker": "Linked to \"{title}\"",

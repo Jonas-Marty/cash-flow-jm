@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, subMonths, subDays, startOfYear } from "date-fns";
 import {
-  ArrowDown, ArrowUp, ArrowLeftRight, Trash2, ChevronRight, ChevronDown, Layers, X, Pencil, FileText, MapPin,
+  Trash2, ChevronDown, X,
   LayoutList, Table as TableIcon, Tag, TagsIcon, FolderTree, Link2, SlidersHorizontal,
 } from "lucide-react";
 
@@ -15,7 +15,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription,
 } from "@/components/ui/dialog";
@@ -31,21 +30,26 @@ import {
   fetchAccounts, fetchCategories, fetchSettings, fetchTransactions, fetchTransactionTags,
   fetchRecurringRules, fetchReimbursementLinks,
   bulkSetCategory, bulkAddTags, bulkRemoveTags, bulkDeleteTransactions, parseTagInput,
-  fmtMoney, type TxType, type Transaction, type BulkResult,
+  type TxType, type Transaction, type BulkResult,
 } from "@/lib/finance";
 import { MultiSelectCombobox, type MSCOption } from "@/components/MultiSelectCombobox";
 import { DatePicker } from "@/components/DatePicker";
 import { EntityVisual } from "@/components/EntityVisual";
-import { TransactionTable, type LinkSummary } from "@/components/transactions/TransactionTable";
-import { useIsDesktop } from "@/hooks/use-media-query";
+import { TransactionTable } from "@/components/transactions/TransactionTable";
+import {
+  CardRow, SplitGroupRow, type LinkSummary, type RowContext, type StatementRef,
+} from "@/components/transactions/rows";
+import { useIsDesktop, useMediaQuery } from "@/hooks/use-media-query";
+import { useProgressiveCount } from "@/hooks/use-progressive-count";
+import { useStableCallback } from "@/hooks/use-stable-callback";
+import { buildCardUnits, groupUnitsByDate } from "@/lib/transactionsView";
 import { SearchBox } from "@/components/transactions/SearchBox";
-import { highlightTokens, tokenize, normalize, parseLooseNumber } from "@/lib/highlight";
+import { tokenize, normalize, parseLooseNumber } from "@/lib/highlight";
 import { matchesAmount, type AmountOp } from "@/lib/amountFilter";
 import { fetchTransactionLinks, fetchTransactionLinkMembers, attachTransactionsToLink, createTransactionLink, linkTotals } from "@/lib/links";
-import { TransactionLinkPicker } from "@/components/TransactionLinkPicker";
-import { TransactionLinkSheet, KIND_ICON } from "@/components/TransactionLinkSheet";
+import { TransactionLinkSheet } from "@/components/TransactionLinkSheet";
 import { LocationPeekDialog } from "@/components/LocationPeekDialog";
-import { locationFromRow, type TxLocation } from "@/lib/location";
+import type { TxLocation } from "@/lib/location";
 
 
 const SORT_VALUES = ["date_desc", "date_asc", "created_desc", "amount_desc", "amount_asc"] as const;
@@ -92,67 +96,10 @@ type SortKey = (typeof SORT_VALUES)[number];
 
 const NO_CATEGORY = "__none__";
 
-/**
- * Render a note string with inline #hashtags shown as chips. Plain text
- * segments still get search-token highlighting; tag chips highlight when a
- * search token matches the tag body.
- */
-function renderNoteWithTags(note: string, tokens: string[]): React.ReactNode {
-  const re = /#([\p{L}\p{N}_][\p{L}\p{N}_-]*)/gu;
-  const out: React.ReactNode[] = [];
-  let last = 0;
-  let m: RegExpExecArray | null;
-  let i = 0;
-  while ((m = re.exec(note)) !== null) {
-    if (m.index > last) {
-      const text = note.slice(last, m.index);
-      out.push(<span key={`t${i}`}>{highlightTokens(text, tokens)}</span>);
-    }
-    const tagBody = m[1];
-    const matched = tokens.some((tok) => normalize(tagBody).includes(normalize(tok.replace(/^#/, ""))));
-    out.push(
-      <Badge
-        key={`g${i}`}
-        variant="secondary"
-        className={cn(
-          "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
-          matched && "ring-1 ring-yellow-400/60",
-        )}
-      >
-        {`#${tagBody}`}
-      </Badge>,
-    );
-    last = m.index + m[0].length;
-    i++;
-  }
-  if (last < note.length) {
-    out.push(<span key={`t${i}`}>{highlightTokens(note.slice(last), tokens)}</span>);
-  }
-  return out;
-}
+/** Freshness of the page's large lists (all transactions, tags, links, statement refs). */
+const HEAVY_STALE_MS = 5 * 60_000;
 
-function TagBadges({ tags, tokens }: { tags: string[]; tokens: string[] }) {
-  if (tags.length === 0) return null;
-  return (
-    <div className="mt-1 flex flex-wrap items-center gap-1">
-      {tags.map((t) => {
-        const matched = tokens.some((tok) => normalize(t).includes(normalize(tok.replace(/^#/, ""))));
-        return (
-          <Badge
-            key={t}
-            variant="secondary"
-            className={cn(
-              "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
-              matched && "ring-1 ring-yellow-400/60",
-            )}
-          >
-            {`#${t}`}
-          </Badge>
-        );
-      })}
-    </div>
-  );
-}
+const NO_STATEMENT_REFS: Record<string, StatementRef> = {};
 
 function TransactionsPage() {
   const { t: tr, locale, lang } = useI18n();
@@ -168,38 +115,42 @@ function TransactionsPage() {
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
-  const txQ = useQuery({ queryKey: ["transactions", "all"], queryFn: () => fetchTransactions() });
-  const tagsQ = useQuery({ queryKey: ["transaction_tags"], queryFn: fetchTransactionTags });
+  // The full lists are big; every mutation invalidates them explicitly, so a
+  // refetch on each return to the tab (the 10 s default) only re-downloads them.
+  const txQ = useQuery({ queryKey: ["transactions", "all"], queryFn: () => fetchTransactions(), staleTime: HEAVY_STALE_MS });
+  const tagsQ = useQuery({ queryKey: ["transaction_tags"], queryFn: fetchTransactionTags, staleTime: HEAVY_STALE_MS });
   const rulesQ = useQuery({ queryKey: ["recurring_rules"], queryFn: fetchRecurringRules });
   const reimbLinksQ = useQuery({ queryKey: ["reimbursement_links"], queryFn: fetchReimbursementLinks });
   const linksQ = useQuery({ queryKey: ["transaction_links"], queryFn: fetchTransactionLinks });
-  const linkMembersQ = useQuery({ queryKey: ["transaction_link_members"], queryFn: fetchTransactionLinkMembers });
+  const linkMembersQ = useQuery({
+    queryKey: ["transaction_link_members"],
+    queryFn: fetchTransactionLinkMembers,
+    staleTime: HEAVY_STALE_MS,
+  });
+  // A plain object, not a Map: React Query can then keep the previous value
+  // when a refetch brings nothing new, and nothing re-renders.
   const stmtRefsQ = useQuery({
     queryKey: ["statement_refs"],
-    queryFn: async () => {
+    staleTime: HEAVY_STALE_MS,
+    queryFn: async (): Promise<Record<string, StatementRef>> => {
       const { data, error } = await supabase
         .from("statement_import_lines")
         .select("matched_transaction_id, line_no, statement_imports!inner(id, file_name, file_source)")
         .not("matched_transaction_id", "is", null);
       if (error) throw error;
-      const m = new Map<string, { importId: string; fileName: string; hasDoc: boolean }>();
+      const m: Record<string, StatementRef> = {};
       for (const r of (data ?? []) as any[]) {
         const imp = r.statement_imports;
-        if (!imp || m.has(r.matched_transaction_id)) continue;
-        m.set(r.matched_transaction_id, {
+        if (!imp || m[r.matched_transaction_id]) continue;
+        m[r.matched_transaction_id] = {
           importId: imp.id,
           fileName: imp.file_name,
           hasDoc: imp.file_source !== "none",
-        });
+        };
       }
       return m;
     },
   });
-  const linkByTx = React.useMemo(() => {
-    const map = new Map<string, string>();
-    (linkMembersQ.data ?? []).forEach((m) => map.set(m.transaction_id, m.link_id));
-    return map;
-  }, [linkMembersQ.data]);
   const linkById = React.useMemo(
     () => new Map((linksQ.data ?? []).map((l) => [l.id, l])),
     [linksQ.data],
@@ -217,7 +168,7 @@ function TransactionsPage() {
     () => new Map((categoriesQ.data ?? []).map((c) => [c.id, c])),
     [categoriesQ.data],
   );
-  const ruleById = new Map((rulesQ.data ?? []).map((r) => [r.id, r]));
+  const ruleById = React.useMemo(() => new Map((rulesQ.data ?? []).map((r) => [r.id, r])), [rulesQ.data]);
 
   // What the table's 🔗 marker shows: per transaction, its link with the
   // member count and total (computed once per data change, not per row).
@@ -339,8 +290,10 @@ function TransactionsPage() {
 
   // The normalised text each transaction is searched in. Built once per data
   // change instead of on every keystroke for every transaction.
+  const searching = tokens.length > 0;
   const searchIndex = React.useMemo(() => {
     const m = new Map<string, { haystack: string; amtAbs: number; groupAbs: number | null }>();
+    if (!searching) return m;
     const nf = new Intl.NumberFormat(lang === "de" ? "de-CH" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     for (const t of txQ.data ?? []) {
       const desc = t.description ?? "";
@@ -357,7 +310,7 @@ function TransactionsPage() {
       m.set(t.id, { haystack, amtAbs, groupAbs });
     }
     return m;
-  }, [txQ.data, categoryById, accountById, tagsByTx, splitGroupTotals, lang]);
+  }, [searching, txQ.data, categoryById, accountById, tagsByTx, splitGroupTotals, lang]);
   const normTokens = React.useMemo(() => tokens.map((tok) => ({ n: normalize(tok), num: parseLooseNumber(tok) })), [tokens]);
 
   const matchesSearch = (t: Transaction) => {
@@ -454,18 +407,18 @@ function TransactionsPage() {
     () => sorted.filter((t) => selected.has(t.id)),
     [sorted, selected],
   );
-  const toggleSelect = (id: string, checked: boolean) =>
+  const toggleSelect = React.useCallback((id: string, checked: boolean) =>
     setSelected((prev) => {
       const next = new Set(prev);
       if (checked) next.add(id); else next.delete(id);
       return next;
-    });
-  const toggleSelectMany = (ids: string[], checked: boolean) =>
+    }), []);
+  const toggleSelectMany = React.useCallback((ids: string[], checked: boolean) =>
     setSelected((prev) => {
       const next = new Set(prev);
       ids.forEach((id) => (checked ? next.add(id) : next.delete(id)));
       return next;
-    });
+    }), []);
   const toggleSelectAll = (checked: boolean) =>
     setSelected(checked ? new Set(sorted.map((t) => t.id)) : new Set());
   const clearSelection = () => setSelected(new Set());
@@ -523,18 +476,6 @@ function TransactionsPage() {
     }
   };
 
-  const rowActions = (t: Transaction) => (
-    <>
-      <Button asChild variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label={tr("common.edit")}>
-        <Link to="/edit/$id" params={{ id: t.id }} search={{ back: s as Record<string, unknown> }}><Pencil className="h-4 w-4" /></Link>
-      </Button>
-      <TransactionLinkPicker transactionId={t.id} currentLinkId={linkByTx.get(t.id) ?? null} compact />
-      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => del(t.id)} aria-label={tr("common.delete")}>
-        <Trash2 className="h-4 w-4" />
-      </Button>
-    </>
-  );
-
   const reimbursementIds = React.useMemo(
     () => new Set((reimbLinksQ.data ?? []).map((l) => l.settling_transaction_id)),
     [reimbLinksQ.data],
@@ -542,43 +483,24 @@ function TransactionsPage() {
 
 
 
-  // Group by date (only for date sort)
-  const groups = React.useMemo(() => {
-    if (sort !== "date_desc" && sort !== "date_asc") {
-      return [["__flat__", sorted]] as [string, Transaction[]][];
-    }
-    const m = new Map<string, Transaction[]>();
-    sorted.forEach((t) => {
-      const k = t.occurred_on;
-      const arr = m.get(k) ?? [];
-      arr.push(t);
-      m.set(k, arr);
-    });
-    const entries = Array.from(m.entries());
-    if (sort === "date_asc") entries.sort((a, b) => (a[0] < b[0] ? -1 : 1));
-    else entries.sort((a, b) => (a[0] < b[0] ? 1 : -1));
-    return entries;
-  }, [sorted, sort]);
-
-  const del = async (id: string) => {
+  const del = useStableCallback(async (id: string) => {
     if (!confirm(tr("confirm.delete_transaction"))) return;
     const { error } = await supabase.from("transactions").delete().eq("id", id);
     if (error) { toast.error(error.message); return; }
     toast.success(tr("toast.deleted"));
     qc.invalidateQueries();
-  };
+  });
 
-  const delGroup = async (groupId: string) => {
+  const delGroup = useStableCallback(async (groupId: string) => {
     if (!confirm(tr("confirm.delete_transaction"))) return;
     const { error } = await supabase.from("transactions").delete().eq("split_group_id", groupId);
     if (error) { toast.error(error.message); return; }
     toast.success(tr("toast.deleted"));
     qc.invalidateQueries();
-  };
+  });
 
   const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>({});
-  const toggleGroup = (gid: string) =>
-    setOpenGroups((p) => ({ ...p, [gid]: !p[gid] }));
+  const toggleGroup = React.useCallback((gid: string) => setOpenGroups((p) => ({ ...p, [gid]: !p[gid] })), []);
 
   // ----- Dropdown options -----
   const typeOptions: MSCOption[] = [
@@ -641,14 +563,67 @@ function TransactionsPage() {
     amountOp === "any";
 
   // amount-match flag for highlighting
-  const amountMatchedFor = (amt: number): boolean => {
+  const amountMatchedFor = React.useCallback((amt: number): boolean => {
     if (amountOp !== "any" && amountTarget != null && matchesAmount(amt, amountOp, amountTarget, tolerance)) return true;
     if (numericTokens.length > 0) {
       const a = Math.abs(amt);
       return numericTokens.some((n) => Math.abs(a - Math.abs(n)) < 0.005);
     }
     return false;
-  };
+  }, [amountOp, amountTarget, tolerance, numericTokens]);
+
+  // ----- Rows: shared context, window -----
+  const isSm = useMediaQuery("(min-width: 640px)");
+  // Keyed by content: the search object may be a new one on unrelated renders,
+  // and a new `backSearch` would re-render every row.
+  const windowKey = JSON.stringify(s);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const backSearch = React.useMemo(() => s as Record<string, unknown>, [windowKey]);
+  const rowCtx = React.useMemo<RowContext>(() => ({
+    accountById,
+    categoryById,
+    tagsByTx,
+    reimbursementIds,
+    stmtRefs: stmtRefsQ.data ?? NO_STATEMENT_REFS,
+    linkByTx: linkSummaryByTx,
+    ruleById,
+    tokens,
+    amountMatched: amountMatchedFor,
+    symbol,
+    showDate: sort !== "date_desc" && sort !== "date_asc",
+    dateFmt: dateFmt || "dd.MM.yyyy",
+    locale,
+    tr,
+    backSearch,
+    isSm,
+    today: new Date().toISOString().slice(0, 10),
+    onToggle: toggleSelect,
+    onToggleMany: toggleSelectMany,
+    onDelete: del,
+    onDeleteGroup: delGroup,
+    onOpenLink: setOpenLinkId,
+    onPeekLocation: setPeekLoc,
+    onToggleGroup: toggleGroup,
+  }), [accountById, categoryById, tagsByTx, reimbursementIds, stmtRefsQ.data, linkSummaryByTx, ruleById, tokens,
+      amountMatchedFor, symbol, sort, dateFmt, locale, tr, backSearch, isSm, toggleSelect, toggleSelectMany, del,
+      delGroup, toggleGroup]);
+
+  // Only a window of rows is in the DOM; it grows while scrolling and starts
+  // over when the filters, sort, search or view change.
+  const cardUnits = React.useMemo(() => buildCardUnits(sorted), [sorted]);
+  const win = useProgressiveCount({ total: view === "table" ? sorted.length : cardUnits.length, resetKey: windowKey });
+  const tableRows = React.useMemo(() => sorted.slice(0, win.count), [sorted, win.count]);
+  const cardSections = React.useMemo(
+    () => groupUnitsByDate(cardUnits.slice(0, win.count), sort === "date_desc" || sort === "date_asc"),
+    [cardUnits, win.count, sort],
+  );
+  const showMoreFooter = win.hasMore ? (
+    <div ref={win.sentinelRef} className="flex justify-center py-4">
+      <Button type="button" variant="outline" size="sm" onClick={win.showMore}>
+        {tr("tx.show_more", { n: win.remaining })}
+      </Button>
+    </div>
+  ) : null;
 
   return (
     <AppShell wide={view === "table"}>
@@ -967,345 +942,51 @@ function TransactionsPage() {
 
         {txQ.isLoading ? (
           <Skeleton className="h-64 w-full" />
-        ) : groups.length === 0 || sorted.length === 0 ? (
+        ) : sorted.length === 0 ? (
           <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
             {tr("tx.no_match")} <Link to="/add" className="text-primary underline-offset-2 hover:underline">{tr("tx.add_one")}</Link>.
           </CardContent></Card>
         ) : view === "table" ? (
           <Card><CardContent className="p-0">
             <TransactionTable
-              rows={sorted}
-              accountById={accountById}
-              categoryById={categoryById}
-              tagsByTx={tagsByTx}
-              reimbursementIds={reimbursementIds}
+              rows={tableRows}
+              ctx={rowCtx}
               selected={selected}
-              onToggle={toggleSelect}
+              allChecked={selected.size > 0 && selected.size === sorted.length}
               onToggleAll={toggleSelectAll}
-              symbol={symbol}
-              dateFmt={dateFmt}
-              locale={locale}
-              backSearch={s as Record<string, unknown>}
-              renderActions={rowActions}
-              linkByTx={linkSummaryByTx}
-              onOpenLink={setOpenLinkId}
+              footer={showMoreFooter}
             />
           </CardContent></Card>
-        ) : groups.map(([date, items]) => (
-          <div key={date}>
-
-            {date !== "__flat__" && (
-              <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {format(new Date(date), "EEE, MMM d, yyyy", { locale })}
+        ) : (
+          <>
+            {cardSections.map(([date, units]) => (
+              <div key={date}>
+                {date !== "__flat__" && (
+                  <div className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {format(new Date(date), "EEE, MMM d, yyyy", { locale })}
+                  </div>
+                )}
+                <Card><CardContent className="divide-y p-0">
+                  {units.map((u) =>
+                    u.kind === "single" ? (
+                      <CardRow key={u.key} tx={u.tx} selected={selected.has(u.tx.id)} ctx={rowCtx} />
+                    ) : (
+                      <SplitGroupRow
+                        key={u.key}
+                        groupId={u.groupId}
+                        txs={u.txs}
+                        selected={u.txs.every((x) => selected.has(x.id))}
+                        open={!!openGroups[u.groupId]}
+                        ctx={rowCtx}
+                      />
+                    ),
+                  )}
+                </CardContent></Card>
               </div>
-            )}
-            <Card><CardContent className="divide-y p-0">
-              {(() => {
-                type Row =
-                  | { kind: "single"; tx: Transaction }
-                  | { kind: "group"; groupId: string; txs: Transaction[] };
-                const seen = new Set<string>();
-                const rows: Row[] = [];
-                for (const t of items) {
-                  if (t.split_group_id) {
-                    if (seen.has(t.split_group_id)) continue;
-                    seen.add(t.split_group_id);
-                    const grp = items.filter((x) => x.split_group_id === t.split_group_id);
-                    rows.push({ kind: "group", groupId: t.split_group_id, txs: grp });
-                  } else {
-                    rows.push({ kind: "single", tx: t });
-                  }
-                }
-                return rows.map((row) => {
-                  if (row.kind === "group") {
-                    const first = row.txs[0];
-                    const total = row.txs.reduce((s, x) => s + Number(x.amount), 0);
-                    const Icon = first.type === "expense" ? ArrowDown : first.type === "income" ? ArrowUp : ArrowLeftRight;
-                    const tone = first.type === "expense" ? "text-destructive" : first.type === "income" ? "text-success" : "text-muted-foreground";
-                    const sign = first.type === "expense" ? "-" : first.type === "income" ? "+" : "";
-                    const src = accountById.get(first.source_account_id);
-                    const grpSym = src?.currency_symbol ?? symbol;
-                    const open = !!openGroups[row.groupId];
-                    const ChevIcon = open ? ChevronDown : ChevronRight;
-                    const headerLabel = row.txs.map((x) => x.description).filter(Boolean).slice(0, 2).join(", ") || tr("tx.split.label");
-                    const amtMatch = amountMatchedFor(total);
-                    const perSliceTags = row.txs.map((x) => tagsByTx.get(x.id) ?? []);
-                    const unionTags = Array.from(new Set(perSliceTags.flat()));
-                    const sharedTags = perSliceTags.length > 0
-                      ? perSliceTags.reduce<string[]>((acc, cur, idx) => (idx === 0 ? [...cur] : acc.filter((t) => cur.includes(t))), [])
-                      : [];
-                    return (
-                      <div key={`g-${row.groupId}`} className="bg-muted/20">
-                        <div className="flex w-full items-start gap-3 px-4 py-3 hover:bg-muted/40">
-                          <Checkbox
-                            className="mt-3"
-                            checked={row.txs.every((x) => selected.has(x.id))}
-                            onCheckedChange={(v) => toggleSelectMany(row.txs.map((x) => x.id), v === true)}
-                            aria-label={tr("tx.bulk.select_row")}
-                          />
-
-                          <button
-                            type="button"
-                            onClick={() => toggleGroup(row.groupId)}
-                            className="flex min-w-0 flex-1 items-start gap-3 text-left"
-                          >
-                          <RowVisual entity={src ?? null} typeIcon={<Icon className="h-3 w-3" />} tone={tone} />
-                          <div className="min-w-0 flex-1">
-                            <div className="grid min-w-0 grid-cols-1 items-start gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-2">
-                              <div className="flex min-w-0 items-start gap-1.5">
-                                <ChevIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                <span className="min-w-0 break-words text-sm font-medium">{highlightTokens(headerLabel, tokens)}</span>
-                              </div>
-                              <div className={cn("hidden text-sm font-semibold tabular-nums whitespace-nowrap sm:block sm:text-right", tone)}>
-                                {amtMatch ? (
-                                  <mark className="rounded bg-yellow-200/70 px-1 dark:bg-yellow-500/30">{sign}{fmtMoney(total, grpSym).replace("-", "")}</mark>
-                                ) : (
-                                  <>{sign}{fmtMoney(total, grpSym).replace("-", "")}</>
-                                )}
-                              </div>
-                            </div>
-                            <div className="mt-1 flex items-center gap-1.5">
-                              <span className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded bg-accent px-1.5 py-0.5 text-[10px] font-semibold uppercase text-accent-foreground">
-                                <Layers className="h-3 w-3" /> {tr("tx.split.label")}
-                              </span>
-                            </div>
-                            <div className="mt-1 text-xs text-muted-foreground">
-                              {highlightTokens(src?.name ?? "?", tokens)} · {open ? tr("tx.split.collapse") : tr("tx.split.expand", { n: row.txs.length })}
-                            </div>
-                            <TagBadges tags={open ? sharedTags : unionTags} tokens={tokens} />
-                            <div className={cn("mt-1.5 text-sm font-semibold tabular-nums whitespace-nowrap sm:hidden", tone)}>
-                              {amtMatch ? (
-                                <mark className="rounded bg-yellow-200/70 px-1 dark:bg-yellow-500/30">{sign}{fmtMoney(total, grpSym).replace("-", "")}</mark>
-                              ) : (
-                                <>{sign}{fmtMoney(total, grpSym).replace("-", "")}</>
-                              )}
-                            </div>
-                          </div>
-                          </button>
-                          <div className="flex shrink-0 items-center self-center">
-                            <Button asChild variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label={tr("common.edit")}>
-                              <Link to="/edit/$id" params={{ id: first.id }} search={{ back: s as Record<string, unknown> }}><Pencil className="h-4 w-4" /></Link>
-                            </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" aria-label={tr("common.delete")} onClick={() => delGroup(row.groupId)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
-                        {open && (
-                          <ul className="border-t bg-background">
-                            {row.txs.map((t) => {
-                              const cat = t.category_id ? categoryById.get(t.category_id) : null;
-                              const sliceTags = tagsByTx.get(t.id) ?? [];
-                              return (
-                                 <li key={t.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 px-4 py-2 pl-14 text-sm">
-                                   <div className="min-w-0">
-                                     <div className="break-words font-medium">{highlightTokens(t.description || tr("add.split.no_category"), tokens)}</div>
-                                    <div className="text-xs text-muted-foreground">{highlightTokens(cat?.name ?? tr("add.split.no_category"), tokens)}</div>
-                                    <TagBadges tags={sliceTags} tokens={tokens} />
-                                  </div>
-                                  <div className={cn("tabular-nums font-medium", tone)}>
-                                    {sign}{fmtMoney(Number(t.amount), grpSym).replace("-", "")}
-                                  </div>
-                                </li>
-                              );
-                            })}
-                          </ul>
-                        )}
-                      </div>
-                    );
-                  }
-                  const t = row.tx;
-                  const Icon = t.type === "expense" ? ArrowDown : t.type === "income" ? ArrowUp : ArrowLeftRight;
-                  const tone = t.type === "expense" ? "text-destructive" : t.type === "income" ? "text-success" : "text-muted-foreground";
-                  const sign = t.type === "expense" ? "-" : t.type === "income" ? "+" : "";
-                  const isReimb = t.type === "income" && (reimbLinksQ.data ?? []).some(
-                    (l) => l.settling_transaction_id === t.id,
-                  );
-                  const src = accountById.get(t.source_account_id) ?? null;
-                  const dst = t.destination_account_id ? accountById.get(t.destination_account_id) ?? null : null;
-                  const cat = t.category_id ? categoryById.get(t.category_id) ?? null : null;
-                  const tags = tagsByTx.get(t.id) ?? [];
-                  const primary = cat ?? src;
-                  const amtMatch = amountMatchedFor(Number(t.amount));
-                  const txSym = src?.currency_symbol ?? symbol;
-                  const dstSym = dst?.currency_symbol ?? txSym;
-                  const showDstAmount = t.type === "transfer" && dst && t.destination_amount != null && (src?.currency_code ?? "") !== (dst?.currency_code ?? "");
-                  const amountNode = (
-                    <div className={cn("text-sm font-semibold tabular-nums whitespace-nowrap", tone)}>
-                      {amtMatch ? (
-                        <mark className="rounded bg-yellow-200/70 px-1 dark:bg-yellow-500/30">{sign}{fmtMoney(Number(t.amount), txSym).replace("-", "")}</mark>
-                      ) : (
-                        <>{sign}{fmtMoney(Number(t.amount), txSym).replace("-", "")}</>
-                      )}
-                      {showDstAmount && (
-                        <span className="ml-1 text-xs font-normal text-muted-foreground">
-                          → {fmtMoney(Number(t.destination_amount), dstSym).replace("-", "")}
-                        </span>
-                      )}
-                    </div>
-                  );
-                  const linkId = linkByTx.get(t.id);
-                  const lnk = linkId ? linkById.get(linkId) : null;
-                  const LinkIcon = lnk ? KIND_ICON[lnk.kind] : null;
-                  const chips: React.ReactNode[] = [];
-                  if (isReimb) chips.push(<span key="reimb" className="shrink-0 whitespace-nowrap rounded bg-success/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-success">{tr("tx.reimbursement")}</span>);
-                  if (t.is_reimbursable && t.reimbursable_status) chips.push(
-                    <span
-                      key="reimb-status"
-                      className={cn(
-                        "shrink-0 whitespace-nowrap rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase",
-                        t.reimbursable_status === "open" && "bg-warning/15 text-warning",
-                        t.reimbursable_status === "settled" && "bg-success/15 text-success",
-                        t.reimbursable_status === "written_off" && "bg-muted text-muted-foreground",
-                        t.reimbursable_status === "cancelled" && "bg-muted text-muted-foreground",
-                      )}
-                      title={t.reimbursable_counterparty ?? ""}
-                    >
-                      {tr(`tx.reimb.status.${t.reimbursable_status}` as never)}
-                    </span>,
-                  );
-                  if (t.recurring_rule_id) chips.push(
-                    <Link
-                      key="rule"
-                      to="/settings"
-                      hash={`rule-${t.recurring_rule_id}`}
-                      onClick={(ev) => ev.stopPropagation()}
-                      className="shrink-0 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground hover:bg-accent hover:text-foreground"
-                      title={ruleById.get(t.recurring_rule_id)?.name ?? ""}
-                    >
-                      {tr("tx.from_rule")}{ruleById.get(t.recurring_rule_id) ? `: ${ruleById.get(t.recurring_rule_id)!.name}` : ""}
-                    </Link>,
-                  );
-                  if (t.occurred_on > new Date().toISOString().slice(0, 10)) chips.push(
-                    <span key="upcoming" className="shrink-0 whitespace-nowrap rounded bg-warning/20 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-warning">
-                      {tr("dashboard.top_month.upcoming")}
-                    </span>,
-                  );
-                  if (lnk && LinkIcon) chips.push(
-                    <button
-                      key="link"
-                      type="button"
-                      onClick={(ev) => { ev.preventDefault(); setOpenLinkId(lnk.id); }}
-                      className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-primary hover:bg-primary/20"
-                      title={lnk.title}
-                    >
-                      <LinkIcon className="h-3 w-3" /> {lnk.title}
-                    </button>,
-                  );
-                  const stmt = stmtRefsQ.data?.get(t.id);
-                  const txLoc = locationFromRow(t as never);
-                  if (txLoc) chips.push(
-                    <button
-                      key="loc"
-                      type="button"
-                      onClick={(ev) => { ev.preventDefault(); ev.stopPropagation(); setPeekLoc(txLoc); }}
-                      className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground hover:bg-accent hover:text-foreground"
-                      title={txLoc.label ?? tr("loc.title")}
-                    >
-                      <MapPin className="h-3 w-3" /> {txLoc.label ? txLoc.label.split(",")[0] : tr("loc.title")}
-                    </button>,
-                  );
-                  if (stmt) chips.push(
-                    <Link
-                      key="stmt"
-                      to="/statements"
-                      search={{ import: stmt.importId }}
-                      onClick={(ev) => ev.stopPropagation()}
-                      className="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded bg-muted px-1.5 py-0.5 text-[10px] font-semibold uppercase text-muted-foreground hover:bg-accent hover:text-foreground"
-                      title={stmt.fileName}
-                    >
-                      <FileText className="h-3 w-3" /> {stmt.fileName}
-                    </Link>,
-                  );
-                  const actionsNode = (
-                    <>
-                      <Button asChild variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label={tr("common.edit")}>
-                        <Link to="/edit/$id" params={{ id: t.id }} search={{ back: s as Record<string, unknown> }}><Pencil className="h-4 w-4" /></Link>
-                      </Button>
-                      <TransactionLinkPicker
-                        transactionId={t.id}
-                        currentLinkId={linkByTx.get(t.id) ?? null}
-                        compact
-                      />
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => del(t.id)} aria-label={tr("common.delete")}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </>
-                  );
-                  return (
-                    <div key={t.id} className="flex items-start gap-3 px-4 py-3">
-                      <Checkbox
-                        className="mt-3"
-                        checked={selected.has(t.id)}
-                        onCheckedChange={(v) => toggleSelect(t.id, v === true)}
-                        aria-label={tr("tx.bulk.select_row")}
-                      />
-
-                      <RowVisual entity={primary} typeIcon={<Icon className="h-3 w-3" />} tone={tone} />
-                      <div className="min-w-0 flex-1">
-                        <div className="grid grid-cols-1 items-start gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-2">
-                          <div className="min-w-0 break-words text-sm font-medium">
-                            {highlightTokens(
-                              t.description || (t.type === "transfer" ? tr("tx.transfer_label") : t.type === "income" ? tr("add.income") : tr("add.expense")),
-                              tokens,
-                            )}
-                          </div>
-                          <div className="hidden sm:block">{amountNode}</div>
-                        </div>
-                        {chips.length > 0 && (
-                          <div className="-mx-1 mt-1 flex items-center gap-1.5 overflow-x-auto px-1 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                            {chips}
-                          </div>
-                        )}
-                        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                          {/* account / transfer chain */}
-                          <span className="inline-flex items-center gap-1">
-                            {src && <EntityVisual entity={src} size="xs" />}
-                            {highlightTokens(src?.name ?? "?", tokens)}
-                          </span>
-                          {t.type === "transfer" && dst && (
-                            <>
-                              <ArrowRightDot />
-                              <span className="inline-flex items-center gap-1">
-                                <EntityVisual entity={dst} size="xs" />
-                                {highlightTokens(dst.name, tokens)}
-                              </span>
-                            </>
-                          )}
-                          {cat && t.type !== "transfer" && (
-                            <>
-                              <span>·</span>
-                              <span className="inline-flex items-center gap-1">
-                                <EntityVisual entity={cat} size="xs" />
-                                {highlightTokens(cat.name, tokens)}
-                              </span>
-                            </>
-                          )}
-                          {sort !== "date_desc" && sort !== "date_asc" && (
-                            <>
-                              <span>·</span>
-                              <span>{format(new Date(t.occurred_on), "MMM d, yyyy", { locale })}</span>
-                            </>
-                          )}
-                        </div>
-                        {t.note && (
-                          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                            {renderNoteWithTags(t.note, tokens)}
-                          </div>
-                        )}
-                        <div className="mt-1.5 flex items-center justify-between gap-2 sm:hidden">
-                          {amountNode}
-                          <div className="flex items-center">{actionsNode}</div>
-                        </div>
-                      </div>
-                      <div className="hidden shrink-0 items-center sm:flex">{actionsNode}</div>
-                    </div>
-                  );
-                });
-              })()}
-            </CardContent></Card>
-          </div>
-        ))}
+            ))}
+            {showMoreFooter}
+          </>
+        )}
 
         {selected.size > 0 && <div className="h-20" aria-hidden />}
       </div>
@@ -1510,33 +1191,4 @@ function FilterPill({ children, onRemove }: { children: React.ReactNode; onRemov
       </button>
     </span>
   );
-}
-
-function RowVisual({
-  entity,
-  typeIcon,
-  tone,
-}: {
-  entity: { name: string; icon?: string | null; emoji?: string | null; image_url?: string | null; color?: string | null } | null;
-  typeIcon: React.ReactNode;
-  tone: string;
-}) {
-  return (
-    <div className="relative mt-0.5 shrink-0">
-      {entity ? (
-        <EntityVisual entity={entity} size="md" />
-      ) : (
-        <div className={cn("flex h-9 w-9 items-center justify-center rounded-full bg-muted", tone)}>{typeIcon}</div>
-      )}
-      {entity && (
-        <div className={cn("absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-background ring-1 ring-border", tone)}>
-          {typeIcon}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ArrowRightDot() {
-  return <span className="text-muted-foreground">→</span>;
 }
