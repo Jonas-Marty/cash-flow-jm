@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, subMonths, subDays, startOfYear } from "date-fns";
 import {
   ArrowDown, ArrowUp, ArrowLeftRight, Trash2, ChevronRight, ChevronDown, Layers, X, Pencil, FileText, MapPin,
-  LayoutList, Table as TableIcon, Tag, TagsIcon, FolderTree, Link2,
+  LayoutList, Table as TableIcon, Tag, TagsIcon, FolderTree, Link2, SlidersHorizontal,
 } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
@@ -36,10 +36,12 @@ import {
 import { MultiSelectCombobox, type MSCOption } from "@/components/MultiSelectCombobox";
 import { DatePicker } from "@/components/DatePicker";
 import { EntityVisual } from "@/components/EntityVisual";
-import { TransactionTable } from "@/components/transactions/TransactionTable";
+import { TransactionTable, type LinkSummary } from "@/components/transactions/TransactionTable";
+import { useIsDesktop } from "@/hooks/use-media-query";
+import { SearchBox } from "@/components/transactions/SearchBox";
 import { highlightTokens, tokenize, normalize, parseLooseNumber } from "@/lib/highlight";
 import { matchesAmount, type AmountOp } from "@/lib/amountFilter";
-import { fetchTransactionLinks, fetchTransactionLinkMembers, attachTransactionsToLink, createTransactionLink } from "@/lib/links";
+import { fetchTransactionLinks, fetchTransactionLinkMembers, attachTransactionsToLink, createTransactionLink, linkTotals } from "@/lib/links";
 import { TransactionLinkPicker } from "@/components/TransactionLinkPicker";
 import { TransactionLinkSheet, KIND_ICON } from "@/components/TransactionLinkSheet";
 import { LocationPeekDialog } from "@/components/LocationPeekDialog";
@@ -67,7 +69,8 @@ const searchSchema = z.object({
   tol: fallback(z.number(), 0.15).default(0.15),
   sort: fallback(z.enum(SORT_VALUES), "date_desc").default("date_desc"),
   reimb: fallback(z.enum(REIMB_VALUES), "any").default("any"),
-  view: fallback(z.string(), "cards").default("cards"),
+  /** "cards" | "table"; empty = the device default (table on desktop). */
+  view: fallback(z.string(), "").default(""),
 });
 
 const SEARCH_DEFAULTS = {
@@ -75,7 +78,7 @@ const SEARCH_DEFAULTS = {
   rules: [] as string[],
   from: "", to: "", op: "any" as AmountOp, val: "", tol: 0.15,
   sort: "date_desc" as SortKey, reimb: "any" as (typeof REIMB_VALUES)[number],
-  view: "cards",
+  view: "",
 };
 
 
@@ -215,6 +218,37 @@ function TransactionsPage() {
     [categoriesQ.data],
   );
   const ruleById = new Map((rulesQ.data ?? []).map((r) => [r.id, r]));
+
+  // What the table's 🔗 marker shows: per transaction, its link with the
+  // member count and total (computed once per data change, not per row).
+  const linkSummaryByTx = React.useMemo(() => {
+    const out = new Map<string, LinkSummary>();
+    if (!linksQ.data || !linkMembersQ.data || !txQ.data) return out;
+    const txById = new Map(txQ.data.map((t) => [t.id, t]));
+    const membersByLink = new Map<string, Transaction[]>();
+    for (const m of linkMembersQ.data) {
+      const tx = txById.get(m.transaction_id);
+      if (!tx) continue;
+      const arr = membersByLink.get(m.link_id) ?? [];
+      arr.push(tx);
+      membersByLink.set(m.link_id, arr);
+    }
+    const fallback = settingsQ.data?.currency_symbol ?? "CHF";
+    for (const [linkId, members] of membersByLink) {
+      const link = linkById.get(linkId);
+      if (!link) continue;
+      const summary: LinkSummary = {
+        id: link.id,
+        title: link.title,
+        kind: link.kind,
+        note: link.note,
+        count: members.length,
+        totals: linkTotals(members, (id) => accountById.get(id)?.currency_symbol ?? fallback),
+      };
+      for (const tx of members) out.set(tx.id, summary);
+    }
+    return out;
+  }, [linksQ.data, linkMembersQ.data, txQ.data, linkById, accountById, settingsQ.data]);
   const tagsByTx = React.useMemo(() => {
     const m = new Map<string, string[]>();
     (tagsQ.data ?? []).forEach((r) => {
@@ -256,20 +290,8 @@ function TransactionsPage() {
   const setFilterCategories = (v: string[]) => patchSearch({ cats: v });
   const setFilterTags = (v: string[]) => patchSearch({ tags: v });
   const setFilterRules = (v: string[]) => patchSearch({ rules: v });
-  /**
-   * The search box reads from local state rather than straight from the URL.
-   * Navigation is asynchronous, so a controlled input bound to `s.q` has its
-   * DOM value rewritten a tick after each keystroke; the browser then drops
-   * the caret at the end, and the next character lands there instead of where
-   * the user was typing.
-   */
-  const [searchDraft, setSearchDraft] = React.useState(search);
-  const pushedSearch = React.useRef(search);
-  const setSearch = (v: string) => {
-    setSearchDraft(v);
-    pushedSearch.current = v;
-    patchSearch({ q: v });
-  };
+  // Typing stays inside <SearchBox>; it commits here after a pause.
+  const commitSearch = React.useCallback((v: string) => patchSearch({ q: v }), [patchSearch]);
   const setFrom = (d: Date | null) => patchSearch({ from: d ? format(d, "yyyy-MM-dd") : "" });
   const setTo = (d: Date | null) => patchSearch({ to: d ? format(d, "yyyy-MM-dd") : "" });
   const setAmountOp = (v: AmountOp) => patchSearch({ op: v });
@@ -277,23 +299,17 @@ function TransactionsPage() {
   const setTolerance = (v: number) => patchSearch({ tol: v });
   const setSort = (v: SortKey) => patchSearch({ sort: v });
   const setFilterReimb = (v: typeof filterReimb) => patchSearch({ reimb: v });
-  const view = s.view === "table" ? "table" : "cards";
+  // Desktop defaults to the table, phones to cards; a choice made with the
+  // switch is kept in the URL and wins.
+  const isDesktop = useIsDesktop();
+  const view: "cards" | "table" =
+    s.view === "table" || s.view === "cards" ? s.view : isDesktop ? "table" : "cards";
   const setView = (v: "cards" | "table") => patchSearch({ view: v });
+  // Collapsed by default: search, view switch and active-filter pills stay visible.
+  const [filtersOpen, setFiltersOpen] = React.useState(false);
 
 
   const searchRef = React.useRef<HTMLInputElement>(null);
-  /**
-   * Adopt `q` when it changed for some reason other than typing here — history
-   * navigation, mostly. Never while the box has focus: an in-flight navigation
-   * resolving mid-word would otherwise rewind the text under the caret.
-   * Callers that clear the box on purpose reset the draft themselves.
-   */
-  React.useEffect(() => {
-    if (search === pushedSearch.current) return;
-    if (typeof document !== "undefined" && document.activeElement === searchRef.current) return;
-    pushedSearch.current = search;
-    setSearchDraft(search);
-  }, [search]);
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -321,35 +337,36 @@ function TransactionsPage() {
     [tokens],
   );
 
-  const matchesSearch = (t: Transaction) => {
-    if (tokens.length === 0) return true;
-    const desc = t.description ?? "";
-    const note = t.note ?? "";
-    const cat = t.category_id ? categoryById.get(t.category_id)?.name ?? "" : "";
-    const src = accountById.get(t.source_account_id)?.name ?? "";
-    const dst = t.destination_account_id ? accountById.get(t.destination_account_id)?.name ?? "" : "";
-    const tags = tagsByTx.get(t.id) ?? [];
-    const amtAbs = Math.abs(Number(t.amount));
-    const groupAbs = t.split_group_id
-      ? Math.abs(splitGroupTotals.get(t.split_group_id) ?? 0)
-      : null;
-    const amtStrs = [
-      amtAbs.toFixed(2),
-      String(Math.round(amtAbs)),
-      amtAbs.toLocaleString(lang === "de" ? "de-CH" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-    ];
-    if (groupAbs != null) {
-      amtStrs.push(
-        groupAbs.toFixed(2),
-        String(Math.round(groupAbs)),
-        groupAbs.toLocaleString(lang === "de" ? "de-CH" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
-      );
+  // The normalised text each transaction is searched in. Built once per data
+  // change instead of on every keystroke for every transaction.
+  const searchIndex = React.useMemo(() => {
+    const m = new Map<string, { haystack: string; amtAbs: number; groupAbs: number | null }>();
+    const nf = new Intl.NumberFormat(lang === "de" ? "de-CH" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    for (const t of txQ.data ?? []) {
+      const desc = t.description ?? "";
+      const note = t.note ?? "";
+      const cat = t.category_id ? categoryById.get(t.category_id)?.name ?? "" : "";
+      const src = accountById.get(t.source_account_id)?.name ?? "";
+      const dst = t.destination_account_id ? accountById.get(t.destination_account_id)?.name ?? "" : "";
+      const tags = tagsByTx.get(t.id) ?? [];
+      const amtAbs = Math.abs(Number(t.amount));
+      const groupAbs = t.split_group_id ? Math.abs(splitGroupTotals.get(t.split_group_id) ?? 0) : null;
+      const amtStrs = [amtAbs.toFixed(2), String(Math.round(amtAbs)), nf.format(amtAbs)];
+      if (groupAbs != null) amtStrs.push(groupAbs.toFixed(2), String(Math.round(groupAbs)), nf.format(groupAbs));
+      const haystack = normalize([desc, note, cat, src, dst, tags.join(" "), amtStrs.join(" ")].join("  "));
+      m.set(t.id, { haystack, amtAbs, groupAbs });
     }
-    const haystack = normalize([desc, note, cat, src, dst, tags.join(" "), amtStrs.join(" ")].join("  "));
-    return tokens.every((tok) => {
-      const ntok = normalize(tok);
+    return m;
+  }, [txQ.data, categoryById, accountById, tagsByTx, splitGroupTotals, lang]);
+  const normTokens = React.useMemo(() => tokens.map((tok) => ({ n: normalize(tok), num: parseLooseNumber(tok) })), [tokens]);
+
+  const matchesSearch = (t: Transaction) => {
+    if (normTokens.length === 0) return true;
+    const entry = searchIndex.get(t.id);
+    if (!entry) return false;
+    const { haystack, amtAbs, groupAbs } = entry;
+    return normTokens.every(({ n: ntok, num }) => {
       if (haystack.includes(ntok)) return true;
-      const num = parseLooseNumber(tok);
       if (num != null) {
         const target = Math.abs(num);
         if (Math.abs(amtAbs - target) < 0.005) return true;
@@ -399,7 +416,7 @@ function TransactionsPage() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [txQ.data, filterTypes, filterAccounts, filterCategories, filterTags, filterRules, filterReimb, fromStr, toStr,
-      amountOp, amountTarget, tolerance, tokens, accountById, categoryById, tagsByTx, splitGroupTotals]);
+      amountOp, amountTarget, tolerance, normTokens, searchIndex, tagsByTx, splitGroupTotals]);
 
   const sorted = React.useMemo(() => {
     const arr = filtered.slice();
@@ -608,16 +625,16 @@ function TransactionsPage() {
 
   // Layout is a display preference, not a filter, so it survives a reset.
   const clearAll = () => {
-    pushedSearch.current = "";
-    setSearchDraft("");
-    navigate({ search: { view } as never, replace: true });
+    navigate({ search: (s.view ? { view: s.view } : {}) as never, replace: true });
   };
 
-  const activeFilterCount =
+  // Filters that live in the collapsible panel (everything but the search box).
+  const hiddenFilterCount =
     filterTypes.length + filterAccounts.length + filterCategories.length + filterTags.length +
     filterRules.length +
     (fromStr ? 1 : 0) + (toStr ? 1 : 0) + (amountOp !== "any" && amountTarget != null ? 1 : 0) +
-    (search.trim() ? 1 : 0) + (filterReimb !== "any" ? 1 : 0);
+    (filterReimb !== "any" ? 1 : 0);
+  const activeFilterCount = hiddenFilterCount + (search.trim() ? 1 : 0);
 
   // Did-you-mean hint: numeric search with no exact-match results
   const showAroundHint = filtered.length === 0 && tokens.length === 1 && numericTokens.length === 1 &&
@@ -639,14 +656,62 @@ function TransactionsPage() {
         <h1 className="text-2xl font-semibold tracking-tight">{tr("tx.title")}</h1>
 
         <Card><CardContent className="space-y-3 py-4">
-          <Input
-            ref={searchRef}
-            placeholder={tr("tx.search_placeholder")}
-            value={searchDraft}
-            onChange={(e) => setSearch(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Escape") setSearch(""); }}
-          />
+          <SearchBox ref={searchRef} value={search} onCommit={commitSearch} placeholder={tr("tx.search_placeholder")} />
 
+          {/* Always visible: filter toggle, layout switch, result count, reset. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => setFiltersOpen((o) => !o)}
+              aria-expanded={filtersOpen}
+              aria-controls="tx-filters"
+            >
+              <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
+              {tr("tx.filters")}
+              {hiddenFilterCount > 0 && (
+                <span className="ml-1.5 rounded-full bg-primary px-1.5 text-[10px] font-semibold leading-4 text-primary-foreground">
+                  {hiddenFilterCount}
+                </span>
+              )}
+              <ChevronDown className={cn("ml-1 h-3.5 w-3.5 transition-transform", filtersOpen && "rotate-180")} />
+            </Button>
+            <div className="inline-flex rounded-md border border-border p-0.5" role="group" aria-label={tr("tx.view.label")}>
+              <button
+                type="button"
+                onClick={() => setView("cards")}
+                aria-pressed={view === "cards"}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded px-2 py-1 text-xs",
+                  view === "cards" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <LayoutList className="h-3.5 w-3.5" /> {tr("tx.view.cards")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setView("table")}
+                aria-pressed={view === "table"}
+                className={cn(
+                  "inline-flex items-center gap-1 rounded px-2 py-1 text-xs",
+                  view === "table" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <TableIcon className="h-3.5 w-3.5" /> {tr("tx.view.table")}
+              </button>
+            </div>
+            <span className="text-xs text-muted-foreground">{tr("tx.results_count", { n: filtered.length })}</span>
+            {activeFilterCount > 0 && (
+              <Button type="button" variant="ghost" size="sm" className="ml-auto h-8" onClick={clearAll}>
+                <X className="mr-1 h-3.5 w-3.5" /> {tr("tx.clear_all")}
+              </Button>
+            )}
+          </div>
+
+          {filtersOpen && (
+          <div id="tx-filters" className="space-y-3">
           <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
             <MultiSelectCombobox
               options={typeOptions}
@@ -764,7 +829,7 @@ function TransactionsPage() {
           </div>
 
           {/* Amount filter + sort */}
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
             <div>
               <Label className="text-xs text-muted-foreground">{tr("tx.amount")}</Label>
               <div className="flex items-center gap-1">
@@ -835,41 +900,13 @@ function TransactionsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-end justify-between gap-2">
-              <div className="inline-flex rounded-md border border-border p-0.5">
-                <button
-                  type="button"
-                  onClick={() => setView("cards")}
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded px-2 py-1 text-xs",
-                    view === "cards" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <LayoutList className="h-3.5 w-3.5" /> {tr("tx.view.cards")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setView("table")}
-                  className={cn(
-                    "inline-flex items-center gap-1 rounded px-2 py-1 text-xs",
-                    view === "table" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <TableIcon className="h-3.5 w-3.5" /> {tr("tx.view.table")}
-                </button>
-              </div>
-              {activeFilterCount > 0 && (
-                <Button type="button" variant="ghost" size="sm" onClick={clearAll}>
-                  <X className="mr-1 h-3.5 w-3.5" /> {tr("tx.clear_all")}
-                </Button>
-              )}
-            </div>
-
           </div>
+          </div>
+          )}
 
-          {/* Result count + active filter pills */}
-          <div className="flex flex-wrap items-center gap-1.5 pt-1">
-            <span className="text-xs text-muted-foreground">{tr("tx.results_count", { n: filtered.length })}</span>
+          {/* Active filter pills: visible even while the filters are collapsed. */}
+          {hiddenFilterCount > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
             {filterTypes.map((v) => (
               <FilterPill key={`t-${v}`} onRemove={() => setFilterTypes(filterTypes.filter((x) => x !== v))}>
                 {tr(`add.${v}` as never)}
@@ -902,7 +939,13 @@ function TransactionsPage() {
             )}
             {fromStr && <FilterPill onRemove={() => setFrom(null)}>{tr("common.from")}: {format(from!, dateFmt || "yyyy-MM-dd")}</FilterPill>}
             {toStr && <FilterPill onRemove={() => setTo(null)}>{tr("common.to")}: {format(to!, dateFmt || "yyyy-MM-dd")}</FilterPill>}
+            {filterReimb !== "any" && (
+              <FilterPill onRemove={() => setFilterReimb("any")}>
+                {tr("tx.reimb.filter")}: {tr(`tx.reimb.filter.${filterReimb}` as never)}
+              </FilterPill>
+            )}
           </div>
+          )}
 
           {showAroundHint && (
             <div className="rounded-md border border-dashed border-border bg-muted/30 p-2 text-xs text-muted-foreground">
@@ -913,7 +956,7 @@ function TransactionsPage() {
                 onClick={() => {
                   setAmountOp("around");
                   setAmountVal(String(numericTokens[0]));
-                  setSearch("");
+                  patchSearch({ q: "" });
                 }}
               >
                 {tr("tx.amount_op.around")} ({tr("tx.amount.tolerance", { x: Math.round(tolerance * 100) })})
@@ -944,6 +987,8 @@ function TransactionsPage() {
               locale={locale}
               backSearch={s as Record<string, unknown>}
               renderActions={rowActions}
+              linkByTx={linkSummaryByTx}
+              onOpenLink={setOpenLinkId}
             />
           </CardContent></Card>
         ) : groups.map(([date, items]) => (

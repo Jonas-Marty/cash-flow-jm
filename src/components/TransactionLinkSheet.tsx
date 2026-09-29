@@ -22,7 +22,7 @@ import { useI18n } from "@/i18n";
 import {
   attachTransactionToLink, deleteTransactionLink, detachTransactionFromLink,
   fetchTransactionLinks, fetchTransactionLinkMembers, updateTransactionLink,
-  LINK_KINDS, type TransactionLink, type TransactionLinkKind,
+  LINK_KINDS, linkTotals, type TransactionLink, type TransactionLinkKind,
 } from "@/lib/links";
 import { fetchAccounts, fetchCategories, fetchSettings, fetchTransactions, fmtMoney, type Transaction } from "@/lib/finance";
 import { supabase } from "@/integrations/supabase/client";
@@ -118,16 +118,14 @@ export function TransactionLinkSheet({ linkId, open, onOpenChange }: Props) {
   };
 
   /** Per-currency signed total. Transfers contribute 0 (excluded). */
-  const totals = React.useMemo(() => {
-    const m = new Map<string, number>();
-    for (const tx of memberTxs) {
-      if (tx.type === "transfer") continue;
-      const sym = accountById.get(tx.source_account_id)?.currency_symbol ?? settingsQ.data?.currency_symbol ?? "CHF";
-      const sign = tx.type === "expense" ? -1 : 1;
-      m.set(sym, (m.get(sym) ?? 0) + sign * Number(tx.amount));
-    }
-    return Array.from(m.entries());
-  }, [memberTxs, accountById, settingsQ.data]);
+  const totals = React.useMemo(
+    () =>
+      linkTotals(
+        memberTxs,
+        (id) => accountById.get(id)?.currency_symbol ?? settingsQ.data?.currency_symbol ?? "CHF",
+      ),
+    [memberTxs, accountById, settingsQ.data],
+  );
 
   // Edit state
   const [editing, setEditing] = React.useState(false);

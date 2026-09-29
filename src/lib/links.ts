@@ -7,6 +7,24 @@ export type TransactionLinkMember = Database["public"]["Tables"]["transaction_li
 
 export const LINK_KINDS: TransactionLinkKind[] = ["purchase", "event", "trip", "other"];
 
+/**
+ * A link's signed total per currency symbol, expenses negative. Transfers
+ * move money between own accounts and are left out. Display only.
+ */
+export function linkTotals(
+  members: { type: string; amount: number | string; source_account_id: string }[],
+  symbolOf: (accountId: string) => string,
+): [string, number][] {
+  const m = new Map<string, number>();
+  for (const tx of members) {
+    if (tx.type === "transfer") continue;
+    const sym = symbolOf(tx.source_account_id);
+    const sign = tx.type === "expense" ? -1 : 1;
+    m.set(sym, (m.get(sym) ?? 0) + sign * Number(tx.amount));
+  }
+  return Array.from(m.entries());
+}
+
 export async function fetchTransactionLinks(): Promise<TransactionLink[]> {
   const { data, error } = await supabase
     .from("transaction_links")

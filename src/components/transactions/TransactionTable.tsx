@@ -2,14 +2,29 @@ import * as React from "react";
 import { Link } from "@tanstack/react-router";
 import { format } from "date-fns";
 import type { Locale } from "date-fns";
-import { Layers, Repeat, Undo2 } from "lucide-react";
+import { Layers, Link2, Repeat, Undo2 } from "lucide-react";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { KIND_ICON } from "@/components/TransactionLinkSheet";
+import type { TransactionLinkKind } from "@/lib/links";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
 import { EntityVisual } from "@/components/EntityVisual";
 import { fmtMoney, type Account, type Category, type Transaction } from "@/lib/finance";
+
+/** What the 🔗 marker shows about the link a transaction belongs to. */
+export interface LinkSummary {
+  id: string;
+  title: string;
+  kind: TransactionLinkKind;
+  note: string | null;
+  /** Transactions in the link, this one included. */
+  count: number;
+  /** Signed total per currency symbol (transfers excluded). */
+  totals: [string, number][];
+}
 
 interface Props {
   rows: Transaction[];
@@ -26,6 +41,58 @@ interface Props {
   backSearch: Record<string, unknown>;
   /** Per-row action controls (edit / link / delete) rendered by the parent. */
   renderActions?: (t: Transaction) => React.ReactNode;
+  /** Link membership per transaction id; rows in a link get a 🔗 marker. */
+  linkByTx?: Map<string, LinkSummary>;
+  /** Opens the link sheet when the marker is clicked. */
+  onOpenLink?: (linkId: string) => void;
+}
+
+/**
+ * Small 🔗 marker for a transaction that belongs to a link. Hover (desktop)
+ * shows what the link is; click opens it, as the chip in the card view does.
+ */
+function LinkMarker({ link, onOpen }: { link: LinkSummary; onOpen?: (id: string) => void }) {
+  const { t: tr } = useI18n();
+  const KindIcon = KIND_ICON[link.kind];
+  return (
+    <HoverCard openDelay={150} closeDelay={80}>
+      <HoverCardTrigger asChild>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onOpen?.(link.id);
+          }}
+          className="inline-flex shrink-0 items-center rounded p-0.5 text-primary hover:bg-primary/10"
+          aria-label={tr("tx.link.marker", { title: link.title })}
+        >
+          <Link2 className="h-3.5 w-3.5" />
+        </button>
+      </HoverCardTrigger>
+      <HoverCardContent align="start" className="w-72 space-y-1.5 p-3 text-xs">
+        <div className="flex items-center gap-1.5 text-sm font-medium">
+          <KindIcon className="h-4 w-4 shrink-0 text-primary" />
+          <span className="truncate">{link.title}</span>
+        </div>
+        <div className="text-muted-foreground">
+          {tr(`links.kind.${link.kind}` as never)} · {tr(link.count === 1 ? "tx.link.count_one" : "tx.link.count", { n: link.count })}
+        </div>
+        {link.totals.length > 0 && (
+          <div className="flex flex-wrap items-baseline gap-x-2">
+            <span className="text-muted-foreground">{tr("links.totals.label")}:</span>
+            {link.totals.map(([sym, sum]) => (
+              <span key={sym} className={cn("font-medium tabular-nums", sum < 0 ? "text-destructive" : "text-success")}>
+                {fmtMoney(sum, sym)}
+              </span>
+            ))}
+          </div>
+        )}
+        {link.note && <p className="line-clamp-3 whitespace-pre-wrap text-muted-foreground">{link.note}</p>}
+        <div className="pt-0.5 text-[11px] text-muted-foreground">{tr("tx.link.open_hint")}</div>
+      </HoverCardContent>
+    </HoverCard>
+  );
 }
 
 /**
@@ -47,6 +114,8 @@ export function TransactionTable({
   locale,
   backSearch,
   renderActions,
+  linkByTx,
+  onOpenLink,
 }: Props) {
   const { t: tr } = useI18n();
   const allChecked = rows.length > 0 && rows.every((r) => selected.has(r.id));
@@ -126,15 +195,18 @@ export function TransactionTable({
                     {format(new Date(t.occurred_on), df, { locale })}
                   </td>
                   <td className="max-w-[22rem] px-2 py-1.5 align-middle">
-                    <Link
-                      to="/edit/$id"
-                      params={{ id: t.id }}
-                      search={{ back: backSearch }}
-                      className="flex items-center gap-1.5 hover:underline"
-                    >
-                      {markers(t)}
-                      <span className="truncate">{title(t)}</span>
-                    </Link>
+                    <div className="flex min-w-0 items-center gap-1">
+                      <Link
+                        to="/edit/$id"
+                        params={{ id: t.id }}
+                        search={{ back: backSearch }}
+                        className="flex min-w-0 items-center gap-1.5 hover:underline"
+                      >
+                        {markers(t)}
+                        <span className="truncate">{title(t)}</span>
+                      </Link>
+                      {linkByTx?.get(t.id) && <LinkMarker link={linkByTx.get(t.id)!} onOpen={onOpenLink} />}
+                    </div>
                   </td>
                   <td className="px-2 py-1.5 align-middle text-xs text-muted-foreground">
                     {cat ? (
@@ -191,15 +263,18 @@ export function TransactionTable({
               />
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-2">
-                  <Link
-                    to="/edit/$id"
-                    params={{ id: t.id }}
-                    search={{ back: backSearch }}
-                    className="flex min-w-0 items-center gap-1.5 text-sm"
-                  >
-                    {markers(t)}
-                    <span className="truncate">{title(t)}</span>
-                  </Link>
+                  <div className="flex min-w-0 items-center gap-1">
+                    <Link
+                      to="/edit/$id"
+                      params={{ id: t.id }}
+                      search={{ back: backSearch }}
+                      className="flex min-w-0 items-center gap-1.5 text-sm"
+                    >
+                      {markers(t)}
+                      <span className="truncate">{title(t)}</span>
+                    </Link>
+                    {linkByTx?.get(t.id) && <LinkMarker link={linkByTx.get(t.id)!} onOpen={onOpenLink} />}
+                  </div>
                   {amountCell(t)}
                 </div>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] text-muted-foreground">
