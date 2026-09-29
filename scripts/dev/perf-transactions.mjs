@@ -206,11 +206,14 @@ async function interactions(page, view) {
   const other = view === "table" ? "cards" : "table";
   I.switchView = await T((target) => {
     const re = target === "table" ? /Table|Tabelle/ : /Cards|Karten/;
+    // Done when the switch shows the new view as pressed and rows are back
+    // (the phone's table view is a list, not a <table>).
     return window.__timed(
       () => [...document.querySelectorAll('[role="group"] button')].find((b) => re.test(b.textContent)).click(),
-      () =>
-        (target === "cards" ? !document.querySelector("table") : !!document.querySelector("table tbody tr")) &&
-        window.__rows() > 1,
+      () => {
+        const pressed = document.querySelector('[role="group"] button[aria-pressed="true"]');
+        return !!pressed && re.test(pressed.textContent) && window.__rows() > 1;
+      },
     );
   }, other);
   // Real key presses; Event Timing durations (what INP is made of).
