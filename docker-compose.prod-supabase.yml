@@ -3,10 +3,12 @@
 # "supabase" in project Cash Flow -> production, app name
 # cash-flow-supabase-e2meaa).
 #
-# This file is the reviewable source of truth. The deployed copy lives in
-# Dokploy's database (sourceType "raw"), edited through the UI -- so paste
-# this in and redeploy rather than expecting a git push to do it. See
-# docs/supabase-stack-trim.md for the full runbook.
+# Dokploy deploys this file from git (branch main, compose path
+# docker-compose.prod-supabase.yml) since 2026-09-29; before, it was a pasted
+# copy (sourceType "raw") and changes had to be pasted in by hand. The
+# database and storage keep their data under ../files/volumes/ -- the same
+# host directory as before, because Dokploy puts the checkout in code/ next
+# to files/. See docs/supabase-stack-trim.md for the full runbook.
 #
 # Upstream ships 13 services; this runs 5. Dropped, with the reason:
 #
@@ -56,7 +58,9 @@
 # Two things Dokploy owns and this file must NOT restate:
 #   * the traefik.* labels on envoy -- injected from the Domains tab
 #     (cash-flow-supabase.wi-wo.ch -> service envoy, port 8000);
-#   * the ../files/volumes/* sources -- those are the "File Mounts" tab.
+#   * the ../files/volumes/* sources -- those are the "File Mounts" tab
+#     (database init SQL, data, storage). Envoy's config is no longer there:
+#     it is built into the image from docker/envoy/.
 #
 # Do not rename the "db" service: the nightly backup to Garage S3 is keyed on
 # it. Do not rename the network: docker-compose.yml joins it by the fixed name
@@ -66,20 +70,16 @@ name: supabase
 services:
   envoy:
     container_name: ${CONTAINER_PREFIX}-envoy
-    image: envoyproxy/envoy:v1.39.1
+    # docker/envoy/ baked into an image: a config change is a new image, and
+    # a deploy recreates the container with it. Check the log for "rejected"
+    # after a change (Envoy keeps running with a config it rejects).
+    build:
+      context: .
+      dockerfile: docker/envoy/Dockerfile
     mem_limit: 256m
     restart: unless-stopped
     expose:
       - 8000
-    # Same files as docker/envoy/ in the repo; here they are Dokploy File
-    # Mounts under /volumes/api/envoy/. A redeploy does not restart Envoy when
-    # only these files change -- restart the container, then check its log
-    # for "rejected".
-    volumes:
-      - ../files/volumes/api/envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro,z
-      - ../files/volumes/api/envoy/cds.yaml:/etc/envoy/cds.yaml:ro,z
-      - ../files/volumes/api/envoy/lds.template.yaml:/etc/envoy/lds.template.yaml:ro,z
-      - ../files/volumes/api/envoy/docker-entrypoint.sh:/docker-entrypoint.sh:ro,z
     depends_on:
       auth:
         condition: service_started

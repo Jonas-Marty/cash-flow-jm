@@ -87,7 +87,11 @@ COPY --chown=app:app --from=prod-deps /app/node_modules ./node_modules
 # Copy build artifacts with correct ownership
 COPY --chown=app:app --from=build /app/dist ./dist
 COPY --chown=app:app --from=build /app/.env.build ./.env.build
-COPY --chown=app:app server/node-server.mjs ./server/node-server.mjs
+COPY --chown=app:app server/node-server.mjs server/static-files.mjs ./server/
+
+# Brotli and gzip copies of the client assets, served by static-files.mjs.
+COPY --chown=app:app scripts/precompress.mjs ./scripts/precompress.mjs
+RUN node scripts/precompress.mjs dist/client
 
 EXPOSE 3000
 

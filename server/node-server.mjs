@@ -9,7 +9,8 @@
  * Layout produced by `vite build --config vite.config.node.ts`:
  *   dist/
  *     server/server.js   <- SSR entry (exports default { fetch })
- *     client/            <- static client assets
+ *     client/            <- static client assets (with .br/.gz copies from
+ *                           scripts/precompress.mjs; see static-files.mjs)
  *
  * Env:
  *   PORT      (default 3000)
@@ -18,10 +19,10 @@
  *   SERVER_ENTRY (default /app/dist/server/server.js)
  */
 import { createServer } from "node:http";
-import { readFile, stat } from "node:fs/promises";
 import { existsSync, readFileSync } from "node:fs";
-import { extname, join, normalize, resolve } from "node:path";
+import { resolve } from "node:path";
 import { Readable } from "node:stream";
+import { serveStatic } from "./static-files.mjs";
 
 // Build stamp written by the Dockerfile (VITE_APP_VERSION / _COMMIT / _BUILD_TIME).
 // Exposed to the SSR bundle as APP_VERSION / APP_COMMIT / APP_BUILD_TIME.
@@ -49,52 +50,6 @@ const handler = mod.default ?? mod;
 if (!handler || typeof handler.fetch !== "function") {
   console.error(JSON.stringify({ level: "error", event: "boot.invalid_server_entry", keys: Object.keys(mod) }));
   process.exit(1);
-}
-
-const MIME = {
-  ".js": "application/javascript; charset=utf-8",
-  ".mjs": "application/javascript; charset=utf-8",
-  ".css": "text/css; charset=utf-8",
-  ".html": "text/html; charset=utf-8",
-  ".json": "application/json; charset=utf-8",
-  ".svg": "image/svg+xml",
-  ".png": "image/png",
-  ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg",
-  ".webp": "image/webp",
-  ".ico": "image/x-icon",
-  ".woff": "font/woff",
-  ".woff2": "font/woff2",
-  ".map": "application/json; charset=utf-8",
-  ".txt": "text/plain; charset=utf-8",
-};
-
-function safeJoin(base, urlPath) {
-  const decoded = decodeURIComponent(urlPath.split("?")[0]);
-  const joined = normalize(join(base, decoded));
-  if (!joined.startsWith(base)) return null;
-  return joined;
-}
-
-async function tryServeStatic(req, res) {
-  if (req.method !== "GET" && req.method !== "HEAD") return false;
-  const filePath = safeJoin(PUBLIC_DIR, new URL(req.url, "http://x").pathname);
-  if (!filePath) return false;
-  try {
-    const s = await stat(filePath);
-    if (!s.isFile()) return false;
-    const buf = await readFile(filePath);
-    const type = MIME[extname(filePath).toLowerCase()] ?? "application/octet-stream";
-    const cache = filePath.includes("/assets/") || filePath.includes("/_build/")
-      ? "public, max-age=31536000, immutable"
-      : "public, max-age=300";
-    res.writeHead(200, { "Content-Type": type, "Cache-Control": cache, "Content-Length": buf.length });
-    if (req.method === "HEAD") return res.end(), true;
-    res.end(buf);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 function nodeReqToWebRequest(req) {
@@ -134,7 +89,7 @@ async function writeWebResponse(webRes, res) {
 
 const server = createServer(async (req, res) => {
   try {
-    if (await tryServeStatic(req, res)) return;
+    if (await serveStatic(req, res, PUBLIC_DIR)) return;
     const webReq = nodeReqToWebRequest(req);
     const webRes = await handler.fetch(webReq);
     await writeWebResponse(webRes, res);

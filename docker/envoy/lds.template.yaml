@@ -187,6 +187,46 @@ resources:
                         typed_per_filter_config: *allow_all
 
               http_filters:
+                # Compress JSON answers for browsers that accept it: the full
+                # transaction list is ~1 KB of JSON per row and was sent raw
+                # (470 KB for 490 rows, ~10 MB at 10k). First in the chain, so
+                # every response passes these on the way out, local replies
+                # included. Brotli when the browser offers it, else gzip.
+                # Images and PDFs from storage are not in the list.
+                - name: compressor.brotli
+                  typed_config:
+                    '@type': >-
+                      type.googleapis.com/envoy.extensions.filters.http.compressor.v3.Compressor
+                    choose_first: true
+                    response_direction_config:
+                      common_config:
+                        min_content_length: 1024
+                        content_type: &compressible
+                          - application/json
+                          - application/vnd.pgrst.object+json
+                          - application/openapi+json
+                          - text/plain
+                    compressor_library:
+                      name: brotli
+                      typed_config:
+                        '@type': >-
+                          type.googleapis.com/envoy.extensions.compression.brotli.compressor.v3.Brotli
+                        quality: 5
+                - name: compressor.gzip
+                  typed_config:
+                    '@type': >-
+                      type.googleapis.com/envoy.extensions.filters.http.compressor.v3.Compressor
+                    response_direction_config:
+                      common_config:
+                        min_content_length: 1024
+                        content_type: *compressible
+                    compressor_library:
+                      name: gzip
+                      typed_config:
+                        '@type': >-
+                          type.googleapis.com/envoy.extensions.compression.gzip.compressor.v3.Gzip
+                        window_bits: 15
+
                 - name: envoy.filters.http.cors
                   typed_config:
                     '@type': >-

@@ -140,10 +140,12 @@ services:
     networks: [dev-supabase]
 
   # API gateway: upstream's Envoy, trimmed (docker/envoy/). The Dokploy domain
-  # points here (service envoy, port 8000). A redeploy does not restart it when
-  # only the files under docker/envoy/ change: restart the container then.
+  # points here (service envoy, port 8000). The config is baked into an image
+  # built from docker/envoy/, so a change to it deploys like any other change.
   envoy:
-    image: envoyproxy/envoy:v1.39.1
+    build:
+      context: .
+      dockerfile: docker/envoy/Dockerfile
     restart: unless-stopped
     depends_on:
       auth:
@@ -154,11 +156,6 @@ services:
         condition: service_started
     expose:
       - 8000
-    volumes:
-      - ./docker/envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro
-      - ./docker/envoy/cds.yaml:/etc/envoy/cds.yaml:ro
-      - ./docker/envoy/lds.template.yaml:/etc/envoy/lds.template.yaml:ro
-      - ./docker/envoy/docker-entrypoint.sh:/docker-entrypoint.sh:ro
     environment:
       ANON_KEY: ${ANON_KEY}
       SERVICE_ROLE_KEY: ${SERVICE_ROLE_KEY}
