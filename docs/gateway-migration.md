@@ -58,21 +58,20 @@ storage with the legacy keys, and on current (non-deprecated) Envoy 1.39 config
 forms. Differences from Kong: the OpenAPI root `/rest/v1/` needs the service
 key, and unknown paths get a plain 404.
 
-**Gotcha:** a Dokploy redeploy does not restart Envoy when only the files under
-`docker/envoy/` change (the service definition is unchanged) — restart the
-container after changing them, and check its log for `rejected`.
+The config is baked into an image (`docker/envoy/Dockerfile`), so a change to
+`docker/envoy/` builds a new image and recreates the container on the next
+deploy — no manual restart. Still check the log for `rejected` afterwards.
 
 ## Rollout
 
 1. **Dev — done.** Envoy ran next to Kong, passed the checks below inside the
    network, then took the domain; Kong, Studio and pg-meta were removed.
-2. **Prod — done 2026-09-26.** The four files in `docker/envoy/` are Dokploy
-   File Mounts under `/volumes/api/envoy/`, the compose runs `envoy` in place
-   of `kong`, and the Domains entry `cash-flow-supabase.wi-wo.ch` points at
-   `envoy:8000`; the `kong.yml` mount is deleted. When a file in
-   `docker/envoy/` changes, update the matching File Mount by hand, then
-   restart the Envoy container (see the gotcha above). Git history has the
-   Kong setup for a fix-back.
+2. **Prod — done 2026-09-26.** The compose runs `envoy` in place of `kong`,
+   and the Domains entry `cash-flow-supabase.wi-wo.ch` points at
+   `envoy:8000`. Since 2026-10-02 the prod stack deploys from git (`main`,
+   `docker-compose.prod-supabase.yml`) with auto-deploy limited to
+   `docker/envoy/**` and that compose file; the Envoy File Mounts are gone.
+   Git history has the Kong setup for a fix-back.
 3. The blackbox probe for the Supabase host must target a path that answers 200
    (`/storage/v1/status`): `/` is a 404 now.
 

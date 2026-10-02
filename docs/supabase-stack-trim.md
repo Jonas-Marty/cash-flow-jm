@@ -18,7 +18,7 @@ tested with first. `SECRET_KEY_BASE` and `IMGPROXY_ENABLE_WEBP_DETECTION` are no
 longer read by anything. The tables below describe the original trim.
 
 **Update 2026-09-26:** Kong is gone from production too. The gateway is Envoy
-(`docker/envoy/`, as Dokploy File Mounts under `/volumes/api/envoy/`); see
+(`docker/envoy/`, built into an image); see
 `docs/gateway-migration.md`. Where the runbook below mentions `kong.yml`, that
 file is only in git history now.
 
@@ -79,9 +79,11 @@ generates against.
 
 ## Runbook
 
-The deployed compose lives in Dokploy's database (`sourceType: raw`), edited
-through the UI — a git push will not move it. Dokploy resource: project
-**Cash Flow → production → supabase** (`cash-flow-supabase-e2meaa`).
+This runbook is historical: at the time the deployed compose lived in
+Dokploy's database (`sourceType: raw`) and was edited through the UI. Since
+2026-10-02 it deploys from git (`main`, `docker-compose.prod-supabase.yml`).
+Dokploy resource: project **Cash Flow → production → supabase**
+(`cash-flow-supabase-e2meaa`).
 
 **1. Back up first.** Backups tab → run `backup-copy-neural-capacitor-pslgvo`
 manually and confirm a fresh object under `/db/cashflow` in the Garage S3
