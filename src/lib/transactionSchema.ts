@@ -7,7 +7,7 @@ import * as z from "zod";
  *  - the public REST API (`/api/public/transactions`)
  *  - server-side admin operations
  *
- * The UI in `src/routes/add.tsx` currently performs equivalent inline checks
+ * The UI in `src/components/TransactionForm.tsx` currently performs equivalent inline checks
  * (positive amount, source account required, transfer destination required and
  * different from source, category cleared on transfers). Future UI work should
  * migrate to use `transactionInputSchema` / `normalizeTransactionInput` so the

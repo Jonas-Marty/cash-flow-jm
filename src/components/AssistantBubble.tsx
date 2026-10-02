@@ -1,10 +1,16 @@
 import * as React from "react";
 import { useLocation, Link } from "@tanstack/react-router";
-import { Sparkles, ExternalLink } from "lucide-react";
+import { Sparkles, ExternalLink, Loader2 } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { AssistantChat } from "@/components/AssistantChat";
 import { useI18n } from "@/i18n";
+
+// The chat (with the Markdown renderer and file pickers) is most of a chunk on
+// its own and the sheet is closed on most visits, so it loads on demand.
+// Hovering or focusing the button starts the download before the click.
+const loadChat = () => import("@/components/AssistantChat");
+const AssistantChat = React.lazy(() => loadChat().then((m) => ({ default: m.AssistantChat })));
+const prefetchChat = () => void loadChat();
 
 const HIDDEN_PREFIXES = ["/add", "/auth", "/privacy", "/assistant", "/edit"];
 
@@ -19,6 +25,8 @@ export function AssistantBubble() {
       <SheetTrigger asChild>
         <button
           aria-label={t("ai.bubble.label")}
+          onPointerEnter={prefetchChat}
+          onFocus={prefetchChat}
           className="fixed bottom-20 right-4 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg ring-2 ring-background hover:opacity-90 md:bottom-6"
         >
           <Sparkles className="h-5 w-5" />
@@ -33,7 +41,15 @@ export function AssistantBubble() {
             </Button>
           </SheetTitle>
         </SheetHeader>
-        <AssistantChat conversationId={convId} onConversationChange={setConvId} persist={false} compact />
+        <React.Suspense
+          fallback={
+            <div className="flex flex-1 items-center justify-center text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" />
+            </div>
+          }
+        >
+          <AssistantChat conversationId={convId} onConversationChange={setConvId} persist={false} compact />
+        </React.Suspense>
       </SheetContent>
     </Sheet>
   );

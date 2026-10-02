@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { TransactionForm } from "./add";
+import { TransactionForm } from "@/components/TransactionForm";
 
 export const Route = createFileRoute("/edit/$id")({
   // `back` carries the transaction-list filters so they survive the round trip.
