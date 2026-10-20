@@ -5,7 +5,7 @@ import { format, startOfMonth, endOfMonth, isValid, parseISO } from "date-fns";
 import type { Locale as DateFnsLocale } from "date-fns";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import * as z from "zod";
-import { ArrowLeftRight, ChevronDown, LayoutGrid, Rows3 } from "lucide-react";
+import { ArrowLeftRight, ChevronDown, History, LayoutGrid, Rows3 } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -611,27 +611,30 @@ function EnvelopesPage() {
                   header = (
                     <>
                       <div className="flex items-baseline justify-between gap-3">
-                        <div className="font-semibold flex items-center gap-2">
+                        <div className="font-semibold flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
                           <span>{r.name}</span>
+                          <div className="flex gap-2">
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
-                            className="h-6 px-2 text-xs"
+                            className="h-6 gap-1 px-2 text-xs text-primary"
                             onClick={() => { setReallocFrom(r.category_id); setReallocOpen(true); }}
                           >
-                            <ArrowLeftRight className="h-3 w-3 mr-1" />
+                            <ArrowLeftRight />
                             {tr("envelopes.reallocate")}
                           </Button>
                           <Button
-                            variant="ghost"
+                            variant="outline"
                             size="sm"
-                            className="h-6 px-2 text-xs"
+                            className="h-6 gap-1 px-2 text-xs text-primary"
                             onClick={() => setDetailCat({ id: r.category_id, name: r.name })}
                           >
+                            <History />
                             {tr("env.detail.open")}
                           </Button>
+                          </div>
                         </div>
-                        <PrivacyValue className={cn("text-base font-bold tabular-nums", balance < 0 ? "text-destructive" : "text-foreground")}>
+                        <PrivacyValue className={cn("shrink-0 text-base font-bold tabular-nums", balance < 0 ? "text-destructive" : "text-foreground")}>
                           {fmtMoney(balance, symbol)}
                         </PrivacyValue>
                       </div>
