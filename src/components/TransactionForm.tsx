@@ -103,9 +103,22 @@ export interface AddPrefill {
   pending_id?: string;
 }
 
-export function TransactionForm({ editId, prefill, backSearch }: { editId: string | null; prefill?: AddPrefill; backSearch?: Record<string, unknown> }) {
+export function TransactionForm({
+  editId,
+  prefill,
+  backSearch,
+  backTo = "transactions",
+}: {
+  editId: string | null;
+  prefill?: AddPrefill;
+  backSearch?: Record<string, unknown>;
+  /** Where save and cancel return to; `backSearch` is that page's search. */
+  backTo?: "transactions" | "envelopes";
+}) {
   const { t: tr, locale, lang } = useI18n();
   const navigate = useNavigate();
+  const goBack = () =>
+    navigate({ to: backTo === "envelopes" ? "/envelopes" : "/transactions", search: (backSearch ?? {}) as never });
   const qc = useQueryClient();
   const notifyCreated = useServerFn(notifyTransactionCreated);
   const linkStatementLineFn = useServerFn(resolveStatementLine);
@@ -901,7 +914,7 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
         setSaving(false);
         toast.success(tr("toast.saved"));
         qc.invalidateQueries();
-        navigate({ to: "/transactions", search: (backSearch ?? {}) as never });
+        goBack();
         return;
       }
       const groupId = (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
@@ -1045,7 +1058,7 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
       setSaving(false);
       toast.success(tr("toast.saved"));
       qc.invalidateQueries();
-      navigate({ to: "/transactions", search: (backSearch ?? {}) as never });
+      goBack();
       return;
     }
     const { data: inserted, error } = await supabase
@@ -2141,7 +2154,7 @@ export function TransactionForm({ editId, prefill, backSearch }: { editId: strin
         <div className="flex gap-2 pt-2">
           {isEdit ? (
             <>
-              <Button variant="outline" className="flex-1" disabled={saving} onClick={() => navigate({ to: "/transactions", search: (backSearch ?? {}) as never })}>{tr("common.cancel")}</Button>
+              <Button variant="outline" className="flex-1" disabled={saving} onClick={() => goBack()}>{tr("common.cancel")}</Button>
               <Button className="flex-1" disabled={saving} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("edit.save_changes")}</Button>
             </>
           ) : (

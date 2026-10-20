@@ -1818,6 +1818,23 @@ export type Database = {
           transaction_id: string | null
         }[]
       }
+      category_ledger_month: {
+        Args: { p_month: string }
+        Returns: {
+          account_id: string | null
+          amount: number
+          category_id: string
+          counterpart_category_id: string | null
+          description: string | null
+          entry_key: string
+          kind: string
+          meta: Json | null
+          occurred_on: string | null
+          reallocation_id: string | null
+          running_balance: number
+          transaction_id: string | null
+        }[]
+      }
       category_month_spending: {
         Args: { p_month: string }
         Returns: {

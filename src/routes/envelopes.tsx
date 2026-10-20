@@ -5,7 +5,7 @@ import { format, startOfMonth, endOfMonth, isValid, parseISO } from "date-fns";
 import type { Locale as DateFnsLocale } from "date-fns";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import * as z from "zod";
-import { ArrowLeftRight, ChevronDown, History, LayoutGrid, Rows3 } from "lucide-react";
+import { ArrowDownToLine, ArrowLeftRight, ChevronDown, History, LayoutGrid, Plus, Rows3 } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,6 +29,7 @@ import {
   fetchCategoryGroups,
   fetchCategories,
   fetchReallocations,
+  fetchCategoryLedgerMonth,
   type Transaction,
   type CategoryMonthRow,
 } from "@/lib/finance";
@@ -38,6 +39,7 @@ import { MonthBudgetSummary } from "@/components/MonthBudgetSummary";
 import { ReallocateDialog } from "@/components/ReallocateDialog";
 import { SavingsHistoryCard } from "@/components/envelopes/SavingsHistoryCard";
 import { EnvelopeDetailSheet } from "@/components/envelopes/EnvelopeDetailSheet";
+import { ReallocationEditDialog } from "@/components/envelopes/ReallocationEditDialog";
 import { DatePicker } from "@/components/DatePicker";
 import { MonthNavigator } from "@/components/MonthNavigator";
 import { BudgetEditPopover } from "@/components/BudgetEditPopover";
@@ -57,6 +59,8 @@ const searchSchema = z.object({
   asOf: fallback(z.string(), "").default(""),
   /** `grid` opens the category × month table. Cards otherwise, and on a phone. */
   view: fallback(z.string(), "").default(""),
+  /** Category id whose Verlauf is open, so a round trip to a transaction returns to it. */
+  detail: fallback(z.string(), "").default(""),
 });
 
 export const Route = createFileRoute("/envelopes")({
@@ -66,12 +70,73 @@ export const Route = createFileRoute("/envelopes")({
 
 type ReallocEntry = {
   id: string;
+  reallocationId: string;
   occurred_on: string;
   amount: number;
   inflow: boolean;
   counterpart: string | null;
   note: string | null;
 };
+
+/**
+ * An allocation or leftover in a budget's month list, styled like the reallocation
+ * rows next to it. Leftovers swept in open the Verlauf, which breaks them down.
+ */
+function LedgerExtraRow({
+  kind,
+  label,
+  sub,
+  amount,
+  symbol,
+  onClick,
+}: {
+  kind: "allocation" | "sweep";
+  label: string;
+  sub: string;
+  amount: number;
+  symbol: string;
+  onClick?: () => void;
+}) {
+  const Icon = kind === "allocation" ? Plus : ArrowDownToLine;
+  return (
+    <li
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (ev) => {
+              if (ev.key === "Enter" || ev.key === " ") {
+                ev.preventDefault();
+                onClick();
+              }
+            }
+          : undefined
+      }
+      className={cn(
+        "flex items-center justify-between gap-3 rounded-sm bg-muted/40 px-2 py-2 text-sm",
+        onClick && "cursor-pointer hover:bg-muted",
+      )}
+    >
+      <div className="min-w-0 flex-1">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <Icon
+            className={cn(
+              "h-3.5 w-3.5 shrink-0",
+              kind === "allocation" ? "text-success" : "text-sky-600 dark:text-sky-400",
+            )}
+          />
+          <span className="truncate">{label}</span>
+        </div>
+        <div className="truncate text-xs text-muted-foreground">{sub}</div>
+      </div>
+      <div className={cn("font-medium tabular-nums", amount >= 0 ? "text-success" : "text-destructive")}>
+        {amount >= 0 ? "+" : "-"}
+        {fmtMoney(Math.abs(amount), symbol)}
+      </div>
+    </li>
+  );
+}
 
 async function fetchMonthCategoryTx(monthStart: Date): Promise<Transaction[]> {
   const from = format(startOfMonth(monthStart), "yyyy-MM-dd");
@@ -233,6 +298,12 @@ function EnvelopesPage() {
   });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
   const reallocQ = useQuery({ queryKey: ["reallocations"], queryFn: fetchReallocations });
+  // Allocation and leftovers per envelope for the month, from the same ledger as the Verlauf.
+  const monthLedgerQ = useQuery({
+    queryKey: ["category_ledger_month", m],
+    queryFn: () => fetchCategoryLedgerMonth(m),
+    placeholderData: keepPreviousData,
+  });
 
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
   const mainCode = settingsQ.data?.currency_code ?? "CHF";
@@ -254,7 +325,21 @@ function EnvelopesPage() {
 
   const [reallocOpen, setReallocOpen] = React.useState(false);
   const [reallocFrom, setReallocFrom] = React.useState<string | null>(null);
-  const [detailCat, setDetailCat] = React.useState<{ id: string; name: string } | null>(null);
+  const detailCat = React.useMemo(() => {
+    if (!search.detail) return null;
+    return { id: search.detail, name: categoriesById.get(search.detail)?.name ?? "" };
+  }, [search.detail, categoriesById]);
+  const setDetailCat = React.useCallback(
+    (c: { id: string; name?: string } | null) =>
+      navigate({ search: (prev) => ({ ...prev, detail: c?.id ?? "" }), replace: !c }),
+    [navigate],
+  );
+  const [editReallocId, setEditReallocId] = React.useState<string | null>(null);
+  const openTransaction = React.useCallback(
+    (id: string) =>
+      navigate({ to: "/edit/$id", params: { id }, search: { back: search, backTo: "envelopes" } }),
+    [navigate, search],
+  );
   const [expandedCats, setExpandedCats] = React.useState<Set<string>>(() => new Set());
   const toggleExpanded = React.useCallback((id: string) => {
     setExpandedCats((prev) => {
@@ -340,6 +425,7 @@ function EnvelopesPage() {
       const amount = Number(r.amount);
       push(r.to_category_id, {
         id: `${r.id}-in`,
+        reallocationId: r.id,
         occurred_on: r.occurred_on,
         amount,
         inflow: true,
@@ -348,6 +434,7 @@ function EnvelopesPage() {
       });
       push(r.from_category_id, {
         id: `${r.id}-out`,
+        reallocationId: r.id,
         occurred_on: r.occurred_on,
         amount,
         inflow: false,
@@ -732,7 +819,14 @@ function EnvelopesPage() {
 
                 const isExpanded = expandedCats.has(r.category_id);
                 const reallocs = reallocByCategory.get(r.category_id) ?? [];
-                const entryCount = items.length + reallocs.length;
+                const ledger = monthLedgerQ.data?.get(r.category_id) ?? [];
+                // Income budgets show the plan as their target already; an allocation
+                // row there would read as money received.
+                const allocRows = rowKind === "income" ? [] : ledger.filter((l) => l.kind === "allocation");
+                const sweepOut = ledger.filter((l) => l.kind === "sweep_out");
+                const sweepIn = ledger.filter((l) => l.kind === "sweep_in");
+                const extraCount = allocRows.length + sweepOut.length + (sweepIn.length > 0 ? 1 : 0);
+                const entryCount = items.length + reallocs.length + extraCount;
                 // Heatmap intensity per outflow tx, scaled to the largest outflow in this category
                 const maxOutflow = items.reduce((m, t) => {
                   if (t.type !== "expense") return m;
@@ -751,7 +845,7 @@ function EnvelopesPage() {
                           aria-expanded={isExpanded}
                         >
                           <span>
-                            {reallocs.length > 0
+                            {reallocs.length + extraCount > 0
                               ? tr("env.entry_count", { n: String(entryCount) })
                               : tr("env.tx_count", { n: String(items.length) })}
                           </span>
@@ -759,10 +853,31 @@ function EnvelopesPage() {
                         </button>
                         {isExpanded && (
                           <ul className="mt-1 divide-y border-t pt-1">
+                            {sweepOut.map((l) => (
+                              <LedgerExtraRow
+                                key={l.entry_key}
+                                kind="sweep"
+                                label={tr(l.amount > 0 ? "env.ledger.sweep_out_cover" : "env.ledger.sweep_out", {
+                                  name: (l.counterpart_category_id && categoriesById.get(l.counterpart_category_id)?.name) || "",
+                                })}
+                                sub={l.occurred_on ? format(parseISO(l.occurred_on), "MMM d", { locale }) : ""}
+                                amount={l.amount}
+                                symbol={symbol}
+                              />
+                            ))}
                             {reallocs.map((e) => (
                               <li
                                 key={e.id}
-                                className="flex items-center justify-between gap-3 px-2 py-2 text-sm rounded-sm bg-muted/40"
+                                role="button"
+                                tabIndex={0}
+                                onClick={() => setEditReallocId(e.reallocationId)}
+                                onKeyDown={(ev) => {
+                                  if (ev.key === "Enter" || ev.key === " ") {
+                                    ev.preventDefault();
+                                    setEditReallocId(e.reallocationId);
+                                  }
+                                }}
+                                className="flex cursor-pointer items-center justify-between gap-3 px-2 py-2 text-sm rounded-sm bg-muted/40 hover:bg-muted"
                               >
                                 <div className="min-w-0 flex-1">
                                   <div className="flex items-center gap-1.5 min-w-0">
@@ -814,6 +929,32 @@ function EnvelopesPage() {
                                 </li>
                               );
                             })}
+                            {allocRows.map((l) => (
+                              <LedgerExtraRow
+                                key={l.entry_key}
+                                kind="allocation"
+                                label={tr("env.ledger.allocation")}
+                                sub={`${l.occurred_on ? format(parseISO(l.occurred_on), "MMM d", { locale }) : ""} · ${tr("env.ledger.allocation_sub")}`}
+                                amount={l.amount}
+                                symbol={symbol}
+                              />
+                            ))}
+                            {sweepIn.length > 0 && (
+                              <LedgerExtraRow
+                                kind="sweep"
+                                label={tr("env.ledger.sweep_in", {
+                                  month: sweepIn[0].meta?.month ? format(parseISO(sweepIn[0].meta.month), "MMMM", { locale }) : "",
+                                })}
+                                sub={`${sweepIn[0].occurred_on ? format(parseISO(sweepIn[0].occurred_on), "MMM d", { locale }) : ""} · ${
+                                  sweepIn.length === 1
+                                    ? tr("env.ledger.sweep_in_sub_one")
+                                    : tr("env.ledger.sweep_in_sub", { n: String(sweepIn.length) })
+                                }`}
+                                amount={sweepIn.reduce((sum, l) => sum + l.amount, 0)}
+                                symbol={symbol}
+                                onClick={() => setDetailCat({ id: r.category_id })}
+                              />
+                            )}
                           </ul>
                         )}
                       </>
@@ -835,7 +976,13 @@ function EnvelopesPage() {
         defaultFromId={reallocFrom}
         onOpenChange={setReallocOpen}
       />
+      <ReallocationEditDialog
+        reallocationId={editReallocId}
+        onOpenChange={(v) => { if (!v) setEditReallocId(null); }}
+      />
       <EnvelopeDetailSheet
+        onEditReallocation={setEditReallocId}
+        onOpenTransaction={openTransaction}
         categoryId={detailCat?.id ?? null}
         categoryName={detailCat?.name ?? ""}
         asOf={asOf}

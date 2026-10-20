@@ -80,6 +80,8 @@ export function EnvelopeDetailSheet({
   symbol,
   open,
   onOpenChange,
+  onEditReallocation,
+  onOpenTransaction,
 }: {
   categoryId: string | null;
   categoryName: string;
@@ -87,6 +89,10 @@ export function EnvelopeDetailSheet({
   symbol: string;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  /** Tap on a reallocation row. */
+  onEditReallocation?: (id: string) => void;
+  /** Tap on a transaction row. */
+  onOpenTransaction?: (id: string) => void;
 }) {
   const { t, locale } = useI18n();
   const [months, setMonths] = React.useState(12);
@@ -195,7 +201,9 @@ export function EnvelopeDetailSheet({
         };
       case "sweep_out":
         return {
-          label: t("env.ledger.sweep_out", { name: catName(r.counterpart_category_id) ?? "" }),
+          label: t(r.amount > 0 ? "env.ledger.sweep_out_cover" : "env.ledger.sweep_out", {
+            name: catName(r.counterpart_category_id) ?? "",
+          }),
           sub: day,
         };
       case "reallocation": {
@@ -215,6 +223,18 @@ export function EnvelopeDetailSheet({
         };
       }
     }
+  };
+
+  const rowAction = (r: LedgerRow): (() => void) | null => {
+    if (r.kind === "reallocation" && r.reallocation_id && onEditReallocation) {
+      const id = r.reallocation_id;
+      return () => onEditReallocation(id);
+    }
+    if (r.kind === "transaction" && r.transaction_id && onOpenTransaction) {
+      const id = r.transaction_id;
+      return () => onOpenTransaction(id);
+    }
+    return null;
   };
 
   const toggleSweep = (key: string) =>
@@ -410,6 +430,14 @@ export function EnvelopeDetailSheet({
                                 className="flex w-full items-center gap-3 rounded text-left hover:bg-muted/50"
                                 aria-expanded={expanded}
                                 onClick={() => toggleSweep(item.key)}
+                              >
+                                {body}
+                              </button>
+                            ) : item.type === "row" && rowAction(item.row) ? (
+                              <button
+                                type="button"
+                                className="flex w-full items-center gap-3 rounded text-left hover:bg-muted/50"
+                                onClick={rowAction(item.row)!}
                               >
                                 {body}
                               </button>

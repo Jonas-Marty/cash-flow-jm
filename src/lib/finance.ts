@@ -1189,6 +1189,23 @@ export async function fetchCategoryLedger(categoryId: string, from: string | nul
   }));
 }
 
+/**
+ * The month's ledger rows for every envelope, keyed by category: what is dated in
+ * the month, plus a monthly envelope's own leftover for it (dated the 1st after).
+ */
+export async function fetchCategoryLedgerMonth(month: string): Promise<Map<string, LedgerRow[]>> {
+  const { data, error } = await supabase.rpc("category_ledger_month", { p_month: month });
+  if (error) throw error;
+  const out = new Map<string, LedgerRow[]>();
+  for (const r of (data || []) as unknown as (LedgerRow & { category_id: string })[]) {
+    const { category_id, ...row } = r;
+    const list = out.get(category_id) ?? [];
+    list.push({ ...row, amount: Number(row.amount), running_balance: Number(row.running_balance) });
+    out.set(category_id, list);
+  }
+  return out;
+}
+
 export interface SavingsBalancePoint {
   category_id: string;
   name: string;

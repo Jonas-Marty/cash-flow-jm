@@ -6,7 +6,7 @@ import type { QueryClient } from "@tanstack/react-query";
  * - `category_month_rows` — the month's allocations.
  * - `category_budget_range` — the grid's own reader.
  * - `savings-balances` — a rolling envelope's balance is the sum of its allocations.
- * - `category_ledger` — the same allocations, one row each, in the Verlauf.
+ * - `category_ledger`, `category_ledger_month` — the same allocations, one row each.
  * - `reconciliation` — the plan gap is computed from every budget row up to the date.
  * - `categories` — the `and later` scope also rewrites `allocated_budget`.
  */
@@ -15,6 +15,7 @@ const AFFECTED = new Set([
   "category_budget_range",
   "savings-balances",
   "category_ledger",
+  "category_ledger_month",
   "reconciliation",
   "categories",
 ]);
@@ -31,4 +32,19 @@ export function invalidateBudgetQueries(qc: QueryClient): Promise<void> {
   return qc.invalidateQueries({
     predicate: (q) => AFFECTED.has(String(q.queryKey[0])),
   });
+}
+
+/** Everything a reallocation feeds: balances, both ledgers, the month lists, the check. */
+export async function invalidateReallocationQueries(qc: QueryClient) {
+  await Promise.all(
+    [
+      "reallocations",
+      "savings-balances",
+      "savings_balance_series",
+      "category_ledger",
+      "category_ledger_month",
+      "reconciliation",
+      "scopes",
+    ].map((k) => qc.invalidateQueries({ queryKey: [k] })),
+  );
 }

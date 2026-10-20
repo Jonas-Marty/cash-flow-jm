@@ -45,6 +45,7 @@ export function SavingsAndSweepsCard() {
       await qc.invalidateQueries({ queryKey: ["reconciliation"] });
       await qc.invalidateQueries({ queryKey: ["savings-balances"] });
       await qc.invalidateQueries({ queryKey: ["category_ledger"] });
+      await qc.invalidateQueries({ queryKey: ["category_ledger_month"] });
       toast.success(tr("common.save"));
     },
     onError: (e: Error) => toast.error(e.message),
@@ -56,6 +57,7 @@ export function SavingsAndSweepsCard() {
       await qc.invalidateQueries({ queryKey: ["reconciliation"] });
       await qc.invalidateQueries({ queryKey: ["savings-balances"] });
       await qc.invalidateQueries({ queryKey: ["category_ledger"] });
+      await qc.invalidateQueries({ queryKey: ["category_ledger_month"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
@@ -66,6 +68,7 @@ export function SavingsAndSweepsCard() {
       await qc.invalidateQueries({ queryKey: ["reconciliation"] });
       await qc.invalidateQueries({ queryKey: ["savings-balances"] });
       await qc.invalidateQueries({ queryKey: ["category_ledger"] });
+      await qc.invalidateQueries({ queryKey: ["category_ledger_month"] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
