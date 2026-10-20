@@ -72,6 +72,7 @@ export function ReallocateDialog({ open, defaultFromId, defaultToId, defaultAmou
     onSuccess: async () => {
       toast.success(t("envelopes.reallocate.success"));
       await qc.invalidateQueries({ queryKey: ["savings-balances"] });
+      await qc.invalidateQueries({ queryKey: ["category_ledger"] });
       await qc.invalidateQueries({ queryKey: ["reallocations"] });
       await qc.invalidateQueries({ queryKey: ["reconciliation"] });
       onReallocated?.();

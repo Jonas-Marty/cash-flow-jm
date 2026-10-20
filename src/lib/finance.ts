@@ -1151,6 +1151,44 @@ export async function fetchSavingsBalances(asOf?: string): Promise<CategorySavin
   return (data || []) as CategorySavingsBalance[];
 }
 
+export type LedgerKind = "opening" | "allocation" | "sweep_in" | "sweep_out" | "reallocation" | "transaction";
+
+/** One movement of an envelope, from `category_ledger`, with the balance after it. */
+export interface LedgerRow {
+  entry_key: string;
+  /** null for the opening balance, which has no date. */
+  occurred_on: string | null;
+  kind: LedgerKind;
+  amount: number;
+  running_balance: number;
+  transaction_id: string | null;
+  reallocation_id: string | null;
+  /** The other envelope: sweep source, sweep target or reallocation partner. */
+  counterpart_category_id: string | null;
+  account_id: string | null;
+  description: string | null;
+  /** allocation: { month }; sweeps: { month, allocated, actual, income } */
+  meta: { month?: string; allocated?: number; actual?: number; income?: boolean } | null;
+}
+
+/**
+ * Every movement of one envelope up to `to`, oldest first. `from` null returns the
+ * whole history including the opening balance.
+ */
+export async function fetchCategoryLedger(categoryId: string, from: string | null, to: string): Promise<LedgerRow[]> {
+  const { data, error } = await supabase.rpc("category_ledger", {
+    p_category_id: categoryId,
+    p_from: from,
+    p_to: to,
+  });
+  if (error) throw error;
+  return ((data || []) as unknown as LedgerRow[]).map((r) => ({
+    ...r,
+    amount: Number(r.amount),
+    running_balance: Number(r.running_balance),
+  }));
+}
+
 export interface SavingsBalancePoint {
   category_id: string;
   name: string;

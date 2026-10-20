@@ -6,6 +6,7 @@ import type { QueryClient } from "@tanstack/react-query";
  * - `category_month_rows` — the month's allocations.
  * - `category_budget_range` — the grid's own reader.
  * - `savings-balances` — a rolling envelope's balance is the sum of its allocations.
+ * - `category_ledger` — the same allocations, one row each, in the Verlauf.
  * - `reconciliation` — the plan gap is computed from every budget row up to the date.
  * - `categories` — the `and later` scope also rewrites `allocated_budget`.
  */
@@ -13,6 +14,7 @@ const AFFECTED = new Set([
   "category_month_rows",
   "category_budget_range",
   "savings-balances",
+  "category_ledger",
   "reconciliation",
   "categories",
 ]);
