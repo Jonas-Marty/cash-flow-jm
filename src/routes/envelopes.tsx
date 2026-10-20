@@ -5,7 +5,7 @@ import { format, startOfMonth, endOfMonth, isValid, parseISO } from "date-fns";
 import type { Locale as DateFnsLocale } from "date-fns";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import * as z from "zod";
-import { ArrowDownToLine, ArrowLeftRight, ChevronDown, History, LayoutGrid, Plus, Rows3 } from "lucide-react";
+import { ArrowDownToLine, ArrowLeftRight, ChevronDown, History, LayoutGrid, ListTree, Plus, Rows3 } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +40,8 @@ import { ReallocateDialog } from "@/components/ReallocateDialog";
 import { SavingsHistoryCard } from "@/components/envelopes/SavingsHistoryCard";
 import { EnvelopeDetailSheet } from "@/components/envelopes/EnvelopeDetailSheet";
 import { ReallocationEditDialog } from "@/components/envelopes/ReallocationEditDialog";
+import { AllocationsView } from "@/components/envelopes/AllocationsView";
+import { buildMonthMoves, monthNet } from "@/lib/allocations";
 import { DatePicker } from "@/components/DatePicker";
 import { MonthNavigator } from "@/components/MonthNavigator";
 import { BudgetEditPopover } from "@/components/BudgetEditPopover";
@@ -57,7 +59,8 @@ const searchSchema = z.object({
    * derived from `month`, so stepping through months moves the balances with them.
    */
   asOf: fallback(z.string(), "").default(""),
-  /** `grid` opens the category × month table. Cards otherwise, and on a phone. */
+  /** `grid` opens the category × month table (desktop), `allocations` the list of
+   *  movements between budgets. Cards otherwise. */
   view: fallback(z.string(), "").default(""),
   /** Category id whose Verlauf is open, so a round trip to a transaction returns to it. */
   detail: fallback(z.string(), "").default(""),
@@ -226,11 +229,13 @@ function EnvelopesPage() {
     },
     [navigate],
   );
-  const gridView = search.view === "grid";
+  const view: "cards" | "grid" | "allocations" =
+    search.view === "grid" ? "grid" : search.view === "allocations" ? "allocations" : "cards";
+  const gridView = view === "grid";
   const setView = React.useCallback(
-    (v: "cards" | "grid") => {
+    (v: "cards" | "grid" | "allocations") => {
       navigate({
-        search: (prev) => ({ ...prev, view: v === "grid" ? "grid" : "" }),
+        search: (prev) => ({ ...prev, view: v === "cards" ? "" : v }),
         replace: true,
       });
     },
@@ -349,6 +354,14 @@ function EnvelopesPage() {
       return next;
     });
   }, []);
+  const incomeIds = React.useMemo(
+    () => new Set(rows.filter((r) => r.kind === "income").map((r) => r.category_id)),
+    [rows],
+  );
+  const monthMoves = React.useMemo(
+    () => (monthLedgerQ.data ? buildMonthMoves(monthLedgerQ.data, incomeIds, m) : []),
+    [monthLedgerQ.data, incomeIds, m],
+  );
   const pendingMap = React.useMemo(() => buildPendingMap(pendingImpactQ.data ?? []), [pendingImpactQ.data]);
   const txs = txQ.data ?? [];
   const accountById = React.useMemo(
@@ -476,9 +489,9 @@ function EnvelopesPage() {
         <div className="flex items-center justify-between gap-3">
           <h1 className="text-2xl font-semibold tracking-tight">{tr("env.title")}</h1>
           <div className="flex items-center gap-2">
-            <div className="hidden rounded-md border p-0.5 sm:flex">
+            <div className="flex rounded-md border p-0.5">
               <Button
-                variant={gridView ? "ghost" : "secondary"}
+                variant={view === "cards" ? "secondary" : "ghost"}
                 size="sm"
                 className="h-7 px-2"
                 aria-label={tr("env.view.cards")}
@@ -487,15 +500,26 @@ function EnvelopesPage() {
               >
                 <Rows3 className="h-4 w-4" />
               </Button>
+              {/* The grid needs a wide screen; on a phone it is cards or allocations. */}
               <Button
                 variant={gridView ? "secondary" : "ghost"}
                 size="sm"
-                className="h-7 px-2"
+                className="hidden h-7 px-2 sm:inline-flex"
                 aria-label={tr("env.view.grid")}
                 title={tr("env.view.grid")}
                 onClick={() => setView("grid")}
               >
                 <LayoutGrid className="h-4 w-4" />
+              </Button>
+              <Button
+                variant={view === "allocations" ? "secondary" : "ghost"}
+                size="sm"
+                className="h-7 px-2"
+                aria-label={tr("env.view.allocations")}
+                title={tr("env.view.allocations")}
+                onClick={() => setView("allocations")}
+              >
+                <ListTree className="h-4 w-4" />
               </Button>
             </div>
             <Button
@@ -616,7 +640,19 @@ function EnvelopesPage() {
                 )}
               </>
             )}
-            {!gridView && groups.map((g) => {
+            {view === "allocations" && (
+              monthLedgerQ.isLoading ? (
+                <Skeleton className="h-64 w-full" />
+              ) : (
+                <AllocationsView
+                  moves={monthMoves}
+                  categoriesById={categoriesById}
+                  symbol={symbol}
+                  onEditReallocation={setEditReallocId}
+                />
+              )
+            )}
+            {view === "cards" && groups.map((g) => {
               const totalAlloc = g.rows.reduce((s, r) => s + Number(r.allocated), 0);
               const totalActual = g.rows.reduce((s, r) => s + Number(r.spent_or_received), 0);
               const totalPending = g.rows.reduce((s, r) => {
@@ -694,7 +730,11 @@ function EnvelopesPage() {
                 if (rowKind === "savings") {
                   const v2 = savingsBalanceMap.get(r.category_id);
                   const balance = Number(v2?.cumulative_balance ?? 0);
-                  const monthly = v2 ? Number(v2.month_activity) : 0;
+                  // The month as the Verlauf counts it, leftovers swept in included;
+                  // month_activity leaves those out.
+                  const monthly = monthLedgerQ.data
+                    ? (monthNet(monthLedgerQ.data.get(r.category_id) ?? [], m) ?? 0)
+                    : v2 ? Number(v2.month_activity) : 0;
                   header = (
                     <>
                       <div className="flex items-baseline justify-between gap-3">
@@ -969,7 +1009,7 @@ function EnvelopesPage() {
           </>
         )}
 
-        {!gridView && <SavingsHistoryCard symbol={symbol} />}
+        {view === "cards" && <SavingsHistoryCard symbol={symbol} />}
       </div>
       <ReallocateDialog
         open={reallocOpen}
