@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Check that category_ledger adds up to category_savings_balance on the dev DB.
+# Check that category_ledger adds up to category_savings_balance on the dev DB,
+# and that the books close.
 #
 # For every user, every rolling envelope and a spread of dates, the running
 # balance of the last ledger row on or before the date has to equal the
-# envelope's balance. Read-only: runs in a transaction that is rolled back.
+# envelope's balance, and envelope_reconciliation's residual has to be 0.
+# Read-only: runs in a transaction that is rolled back.
 #
 #   scripts/dev/check-ledger.sh            # dates from April to next month
 #   scripts/dev/check-ledger.sh 2026-01-01 # from another start
@@ -23,6 +25,7 @@ DB=$(find_container "$DEV_PROJECT_NAME" db)
 docker exec -i "$DB" psql -U postgres -d postgres -q -v ON_ERROR_STOP=1 -At -F' | ' <<SQL
 BEGIN;
 CREATE TEMP TABLE mismatches (user_id uuid, name text, d date, balance numeric, ledger numeric) ON COMMIT DROP;
+CREATE TEMP TABLE unbalanced (user_id uuid, d date, residual numeric) ON COMMIT DROP;
 DO \$\$
 DECLARE u uuid; checks int := 0;
 BEGIN
@@ -43,6 +46,11 @@ BEGIN
                                             ORDER BY y.rn DESC LIMIT 1), 0) AS led) l
      WHERE c.user_id = u AND c.rolls_over
        AND abs(b.bal - l.led) > 0.005;
+    INSERT INTO unbalanced
+    SELECT u, gs::date, r.residual
+      FROM generate_series('$START'::date, current_date + 40, '6 days') gs
+      CROSS JOIN LATERAL public.envelope_reconciliation(gs::date) r
+     WHERE abs(r.residual) > 0.005;
     checks := checks + (SELECT count(*) FROM public.categories WHERE user_id = u AND rolls_over)
                      * (SELECT count(*) FROM generate_series('$START'::date, current_date + 40, '6 days'));
   END LOOP;
@@ -50,5 +58,7 @@ BEGIN
 END \$\$;
 SELECT count(*) || ' mismatches' FROM mismatches;
 SELECT name, d, balance, ledger FROM mismatches ORDER BY name, d LIMIT 20;
+SELECT count(*) || ' dates where the books do not close' FROM unbalanced;
+SELECT d, residual FROM unbalanced ORDER BY d LIMIT 10;
 ROLLBACK;
 SQL

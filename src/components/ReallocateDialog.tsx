@@ -15,10 +15,11 @@ import {
   type Category,
 } from "@/lib/finance";
 import { toast } from "sonner";
+import { UNASSIGNED_ENVELOPE } from "@/lib/allocations";
 
 interface Props {
   open: boolean;
-  /** Pre-selected source envelope (savings) */
+  /** Pre-selected source envelope (savings), or UNASSIGNED_ENVELOPE */
   defaultFromId?: string | null;
   /** Pre-selected target envelope (savings) */
   defaultToId?: string | null;
@@ -62,8 +63,8 @@ export function ReallocateDialog({ open, defaultFromId, defaultToId, defaultAmou
       if (!fromId || !toId) throw new Error(t("envelopes.reallocate.same_endpoint"));
       if (fromId === toId) throw new Error(t("envelopes.reallocate.same_endpoint"));
       await createReallocation({
-        from_category_id: fromId,
-        to_category_id: toId,
+        from_category_id: fromId === UNASSIGNED_ENVELOPE ? null : fromId,
+        to_category_id: toId === UNASSIGNED_ENVELOPE ? null : toId,
         amount: amt,
         occurred_on: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`,
         note: note.trim() || null,
@@ -95,6 +96,7 @@ export function ReallocateDialog({ open, defaultFromId, defaultToId, defaultAmou
             <Select value={fromId} onValueChange={setFromId}>
               <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
               <SelectContent>
+                <SelectItem value={UNASSIGNED_ENVELOPE} disabled={toId === UNASSIGNED_ENVELOPE}>{t("env.moves.unassigned")}</SelectItem>
                 {savings.map((c) => (
                   <SelectItem key={c.id} value={c.id} disabled={c.id === toId}>{c.name}</SelectItem>
                 ))}
@@ -106,6 +108,7 @@ export function ReallocateDialog({ open, defaultFromId, defaultToId, defaultAmou
             <Select value={toId} onValueChange={setToId}>
               <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
               <SelectContent>
+                <SelectItem value={UNASSIGNED_ENVELOPE} disabled={fromId === UNASSIGNED_ENVELOPE}>{t("env.moves.unassigned")}</SelectItem>
                 {savings.map((c) => (
                   <SelectItem key={c.id} value={c.id} disabled={c.id === fromId}>{c.name}</SelectItem>
                 ))}

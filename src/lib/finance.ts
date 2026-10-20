@@ -109,15 +109,29 @@ export interface EnvelopeReconciliation {
   income_open: number;
   /** Laid out for someone else and not back yet — an asset in transit. */
   outstanding_reimbursements: number;
-  /** Uncategorised flow, transfer FX, and planned income never assigned. */
+  /** Money no envelope holds: the sum of the five parts below. */
   unallocated: number;
   residual: number;
+  /** Account opening balances not given to an envelope. */
+  unallocated_openings: number;
+  /** Transactions without a category, open reimbursements aside. */
+  unallocated_uncategorized: number;
+  /** Transfers that received more or less than they sent. */
+  unallocated_transfers: number;
+  /** Planned income the plan did not hand out. */
+  unallocated_plan_gap: number;
+  /** Minus what was assigned to envelopes from here by hand. */
+  unallocated_assigned: number;
 }
 
 export interface CategoryReallocation {
   id: string;
-  from_category_id: string;
-  to_category_id: string;
+  /** null: from "Nicht zugeordnet" (money no envelope held yet). */
+  from_category_id: string | null;
+  /** null: back to "Nicht zugeordnet". Never both null. */
+  to_category_id: string | null;
+  /** The transfer this came from, when it was created by one. */
+  transaction_id?: string | null;
   amount: number;
   occurred_on: string;
   note: string | null;
@@ -1241,7 +1255,7 @@ export async function fetchEnvelopeReconciliation(asOf?: string): Promise<Envelo
 export async function fetchReallocations(): Promise<CategoryReallocation[]> {
   const { data, error } = await supabase
     .from("category_reallocations")
-    .select("id, from_category_id, to_category_id, amount, occurred_on, note, created_at")
+    .select("id, from_category_id, to_category_id, transaction_id, amount, occurred_on, note, created_at")
     .order("occurred_on", { ascending: false })
     .order("created_at", { ascending: false });
   if (error) throw error;
@@ -1249,8 +1263,8 @@ export async function fetchReallocations(): Promise<CategoryReallocation[]> {
 }
 
 export async function createReallocation(input: {
-  from_category_id: string;
-  to_category_id: string;
+  from_category_id: string | null;
+  to_category_id: string | null;
   amount: number;
   occurred_on?: string;
   note?: string | null;

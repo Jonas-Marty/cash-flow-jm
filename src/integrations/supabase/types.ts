@@ -678,33 +678,36 @@ export type Database = {
         Row: {
           amount: number
           created_at: string
-          from_category_id: string
+          from_category_id: string | null
           id: string
           note: string | null
           occurred_on: string
-          to_category_id: string
+          to_category_id: string | null
+          transaction_id: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           amount: number
           created_at?: string
-          from_category_id: string
+          from_category_id?: string | null
           id?: string
           note?: string | null
           occurred_on?: string
-          to_category_id: string
+          to_category_id?: string | null
+          transaction_id?: string | null
           updated_at?: string
           user_id?: string
         }
         Update: {
           amount?: number
           created_at?: string
-          from_category_id?: string
+          from_category_id?: string | null
           id?: string
           note?: string | null
           occurred_on?: string
-          to_category_id?: string
+          to_category_id?: string | null
+          transaction_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -1989,6 +1992,11 @@ export type Database = {
           residual: number
           rollover_total: number
           unallocated: number
+          unallocated_assigned: number
+          unallocated_openings: number
+          unallocated_plan_gap: number
+          unallocated_transfers: number
+          unallocated_uncategorized: number
         }[]
       }
       save_split_group: {

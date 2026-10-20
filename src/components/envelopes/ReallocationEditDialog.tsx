@@ -101,8 +101,11 @@ export function ReallocationEditDialog({
   });
   const busy = save.isPending || del.isPending;
 
-  const from = r ? catById.get(r.from_category_id) : null;
-  const to = r ? catById.get(r.to_category_id) : null;
+  const from = r?.from_category_id ? catById.get(r.from_category_id) : null;
+  const to = r?.to_category_id ? catById.get(r.to_category_id) : null;
+  // An empty side is money no envelope held: "Nicht zugeordnet".
+  const sideName = (id: string | null | undefined, c: typeof from) =>
+    id ? (c?.name ?? t("env.ledger.unknown_category")) : t("env.moves.unassigned");
   const scope = to?.is_scope ? to : from?.is_scope ? from : null;
 
   return (
@@ -120,9 +123,9 @@ export function ReallocationEditDialog({
           <div className="grid gap-3">
             <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
               <span className="text-muted-foreground">{t("envelopes.reallocate.from")}</span>
-              <span className="truncate font-medium">{from?.name ?? "—"}</span>
+              <span className="truncate font-medium">{sideName(r.from_category_id, from)}</span>
               <span className="text-muted-foreground">{t("envelopes.reallocate.to")}</span>
-              <span className="truncate font-medium">{to?.name ?? "—"}</span>
+              <span className="truncate font-medium">{sideName(r.to_category_id, to)}</span>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-1.5">

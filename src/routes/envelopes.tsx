@@ -41,7 +41,8 @@ import { SavingsHistoryCard } from "@/components/envelopes/SavingsHistoryCard";
 import { EnvelopeDetailSheet } from "@/components/envelopes/EnvelopeDetailSheet";
 import { ReallocationEditDialog } from "@/components/envelopes/ReallocationEditDialog";
 import { AllocationsView } from "@/components/envelopes/AllocationsView";
-import { buildMonthMoves, monthNet } from "@/lib/allocations";
+import { buildMonthMoves, monthNet, UNASSIGNED_ENVELOPE } from "@/lib/allocations";
+import { UnallocatedCard } from "@/components/envelopes/UnallocatedCard";
 import { DatePicker } from "@/components/DatePicker";
 import { MonthNavigator } from "@/components/MonthNavigator";
 import { BudgetEditPopover } from "@/components/BudgetEditPopover";
@@ -330,6 +331,7 @@ function EnvelopesPage() {
 
   const [reallocOpen, setReallocOpen] = React.useState(false);
   const [reallocFrom, setReallocFrom] = React.useState<string | null>(null);
+  const [reallocAmount, setReallocAmount] = React.useState<number | null>(null);
   const detailCat = React.useMemo(() => {
     if (!search.detail) return null;
     return { id: search.detail, name: categoriesById.get(search.detail)?.name ?? "" };
@@ -436,27 +438,34 @@ function EnvelopesPage() {
     for (const r of reallocQ.data ?? []) {
       if (r.occurred_on < from || r.occurred_on > to) continue;
       const amount = Number(r.amount);
-      push(r.to_category_id, {
-        id: `${r.id}-in`,
-        reallocationId: r.id,
-        occurred_on: r.occurred_on,
-        amount,
-        inflow: true,
-        counterpart: categoriesById.get(r.from_category_id)?.name ?? null,
-        note: r.note ?? null,
-      });
-      push(r.from_category_id, {
-        id: `${r.id}-out`,
-        reallocationId: r.id,
-        occurred_on: r.occurred_on,
-        amount,
-        inflow: false,
-        counterpart: categoriesById.get(r.to_category_id)?.name ?? null,
-        note: r.note ?? null,
-      });
+      // An empty side is "Nicht zugeordnet": money no envelope held yet.
+      const name = (id: string | null) =>
+        id ? (categoriesById.get(id)?.name ?? null) : tr("env.moves.unassigned");
+      if (r.to_category_id) {
+        push(r.to_category_id, {
+          id: `${r.id}-in`,
+          reallocationId: r.id,
+          occurred_on: r.occurred_on,
+          amount,
+          inflow: true,
+          counterpart: name(r.from_category_id),
+          note: r.note ?? null,
+        });
+      }
+      if (r.from_category_id) {
+        push(r.from_category_id, {
+          id: `${r.id}-out`,
+          reallocationId: r.id,
+          occurred_on: r.occurred_on,
+          amount,
+          inflow: false,
+          counterpart: name(r.to_category_id),
+          note: r.note ?? null,
+        });
+      }
     }
     return map;
-  }, [reallocQ.data, month, categoriesById]);
+  }, [reallocQ.data, month, categoriesById, tr]);
 
   // Group rows by group_id preserving sort. The RPC already returns the
   // effective per-row kind (driven by categories.rolls_over, falling back to
@@ -525,7 +534,7 @@ function EnvelopesPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => { setReallocFrom(null); setReallocOpen(true); }}
+              onClick={() => { setReallocFrom(null); setReallocAmount(null); setReallocOpen(true); }}
             >
               <ArrowLeftRight className="h-4 w-4 mr-1" />
               {tr("envelopes.reallocate")}
@@ -579,33 +588,17 @@ function EnvelopesPage() {
           </CardContent>
         </Card>
 
-        {reconQ.data && (() => {
-          const rec = reconQ.data;
-          const balanced = Math.abs(Number(rec.residual)) < 0.005;
-          const rows2 = ([
-            [tr("env.recon.outstanding"), Number(rec.outstanding_reimbursements)],
-            [tr("env.recon.unallocated"), Number(rec.unallocated)],
-          ] as Array<[string, number]>).filter(([, v]) => Math.abs(v) > 0.005);
-          if (rows2.length === 0 && balanced) return null;
-          return (
-            <Card>
-              <CardContent className="space-y-1 py-3 text-sm">
-                {rows2.map(([label, v]) => (
-                  <div key={label} className="flex items-baseline justify-between gap-3">
-                    <span className="text-muted-foreground">{label}</span>
-                    <PrivacyValue className="tabular-nums">{fmtMoney(v, symbol)}</PrivacyValue>
-                  </div>
-                ))}
-                <div className="flex items-baseline justify-between gap-3 border-t pt-1.5 text-xs">
-                  <span className="text-muted-foreground">{tr("env.recon.check")}</span>
-                  <span className={cn("tabular-nums font-medium", balanced ? "text-success" : "text-warning")}>
-                    {balanced ? tr("env.recon.balances") : fmtMoney(Number(rec.residual), symbol)}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })()}
+        {reconQ.data && (
+          <UnallocatedCard
+            rec={reconQ.data}
+            symbol={symbol}
+            onAssign={(amount) => {
+              setReallocFrom(UNASSIGNED_ENVELOPE);
+              setReallocAmount(amount != null ? Math.round(amount * 100) / 100 : null);
+              setReallocOpen(true);
+            }}
+          />
+        )}
 
         {rowsQ.isLoading ? (
           <Skeleton className="h-32 w-full" />
@@ -745,7 +738,7 @@ function EnvelopesPage() {
                             variant="outline"
                             size="sm"
                             className="h-6 gap-1 px-2 text-xs text-primary"
-                            onClick={() => { setReallocFrom(r.category_id); setReallocOpen(true); }}
+                            onClick={() => { setReallocFrom(r.category_id); setReallocAmount(null); setReallocOpen(true); }}
                           >
                             <ArrowLeftRight />
                             {tr("envelopes.reallocate")}
@@ -1014,6 +1007,7 @@ function EnvelopesPage() {
       <ReallocateDialog
         open={reallocOpen}
         defaultFromId={reallocFrom}
+        defaultAmount={reallocAmount}
         onOpenChange={setReallocOpen}
       />
       <ReallocationEditDialog

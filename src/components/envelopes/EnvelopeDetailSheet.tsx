@@ -208,7 +208,7 @@ export function EnvelopeDetailSheet({
         };
       case "reallocation": {
         const inflow = r.amount > 0;
-        const other = catName(r.counterpart_category_id);
+        const other = catName(r.counterpart_category_id) ?? t("env.moves.unassigned");
         return {
           label: r.description || (inflow ? t("env.realloc_in") : t("env.realloc_out")),
           sub: other ? `${day} · ${inflow ? "←" : "→"} ${other}` : day,

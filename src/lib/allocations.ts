@@ -12,6 +12,9 @@ import type { LedgerRow } from "@/lib/finance";
  * and a monthly budget's own leftover leaving it is the same movement as the
  * sweep arriving next month, so only the arrival is listed.
  */
+/** Select value for "Nicht zugeordnet", the empty side of a reallocation. */
+export const UNASSIGNED_ENVELOPE = "__unassigned__";
+
 export type MoveKind = "plan" | "sweep" | "realloc";
 export type MoveFilter = "all" | MoveKind;
 
