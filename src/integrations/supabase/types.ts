@@ -1529,6 +1529,7 @@ export type Database = {
           destination_account_id: string | null
           destination_amount: number | null
           fee_amount: number | null
+          difference_category_id: string | null
           fee_category_id: string | null
           fee_transaction_id: string | null
           id: string
@@ -1561,6 +1562,7 @@ export type Database = {
           destination_account_id?: string | null
           destination_amount?: number | null
           fee_amount?: number | null
+          difference_category_id?: string | null
           fee_category_id?: string | null
           fee_transaction_id?: string | null
           id?: string
@@ -1593,6 +1595,7 @@ export type Database = {
           destination_account_id?: string | null
           destination_amount?: number | null
           fee_amount?: number | null
+          difference_category_id?: string | null
           fee_category_id?: string | null
           fee_transaction_id?: string | null
           id?: string
@@ -1997,6 +2000,7 @@ export type Database = {
           unallocated_plan_gap: number
           unallocated_transfers: number
           unallocated_uncategorized: number
+          unallocated_unswept: number
         }[]
       }
       save_split_group: {

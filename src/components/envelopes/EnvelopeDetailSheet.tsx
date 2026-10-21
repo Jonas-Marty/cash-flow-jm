@@ -1,7 +1,15 @@
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, parseISO, startOfMonth, subMonths } from "date-fns";
-import { ArrowDownToLine, ArrowLeftRight, ChevronDown, Flag, Plus, Receipt } from "lucide-react";
+import {
+  ArrowDownToLine,
+  ArrowLeftRight,
+  ArrowUpRight,
+  ChevronDown,
+  Flag,
+  Plus,
+  Receipt,
+} from "lucide-react";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -46,6 +54,12 @@ const KIND_STYLE = {
     bar: "bg-sky-500",
   },
   reallocation: { Icon: ArrowLeftRight, cls: "bg-warning/20 text-warning", bar: "bg-warning" },
+  // The difference of a transfer that received more than it paid.
+  transfer: {
+    Icon: ArrowUpRight,
+    cls: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400",
+    bar: "bg-indigo-500",
+  },
   transaction: { Icon: Receipt, cls: "bg-muted text-muted-foreground", bar: "bg-muted-foreground" },
 } as const;
 
@@ -54,6 +68,7 @@ type StyleKey = keyof typeof KIND_STYLE;
 function styleKey(item: LedgerItem): StyleKey {
   if (item.type === "sweep") return "sweep";
   const k = item.row.kind;
+  if (k === "reallocation" && item.row.transaction_id) return "transfer";
   return k === "sweep_in" || k === "sweep_out" ? "sweep" : k;
 }
 
@@ -207,6 +222,12 @@ export function EnvelopeDetailSheet({
           sub: day,
         };
       case "reallocation": {
+        if (r.transaction_id) {
+          return {
+            label: r.description || t("env.ledger.transfer_gain"),
+            sub: `${day} · ${t("env.ledger.transfer_gain")}`,
+          };
+        }
         const inflow = r.amount > 0;
         const other = catName(r.counterpart_category_id) ?? t("env.moves.unassigned");
         return {
@@ -226,6 +247,11 @@ export function EnvelopeDetailSheet({
   };
 
   const rowAction = (r: LedgerRow): (() => void) | null => {
+    // Made by a transfer: it is edited there, so the transfer opens.
+    if (r.kind === "reallocation" && r.transaction_id && onOpenTransaction) {
+      const id = r.transaction_id;
+      return () => onOpenTransaction(id);
+    }
     if (r.kind === "reallocation" && r.reallocation_id && onEditReallocation) {
       const id = r.reallocation_id;
       return () => onEditReallocation(id);

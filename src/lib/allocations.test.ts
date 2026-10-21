@@ -137,3 +137,32 @@ describe("monthNet", () => {
     expect(monthNet(undefined, "2026-09-01")).toBeNull();
   });
 });
+
+describe("transfer differences", () => {
+  it("lists a reallocation made by a transfer as its own kind, from nowhere to the budget", () => {
+    const l = new Map<string, LedgerRow[]>([
+      [
+        "sparen",
+        [
+          row("reallocation", "2026-10-19", 40, {
+            reallocation_id: "r9",
+            transaction_id: "tx9",
+            description: "Coop Geschenkkarte 1000",
+          }),
+        ],
+      ],
+    ]);
+    const moves = buildMonthMoves(l, new Set(), "2026-10-01");
+    expect(moves).toHaveLength(1);
+    expect(moves[0]).toMatchObject({
+      kind: "transfer",
+      fromId: null,
+      toId: "sparen",
+      amount: 40,
+      transactionId: "tx9",
+    });
+    expect(moveTotals(moves).transfer).toEqual({ amount: 40, count: 1 });
+    expect(filterMoves(moves, "transfer", "sparen")[0].signed).toBe(40);
+    expect(filterMoves(moves, "realloc", null)).toHaveLength(0);
+  });
+});

@@ -274,8 +274,14 @@ export const CardRow = React.memo(function CardRow({
   const primary = cat ?? src;
   const txSym = src?.currency_symbol ?? ctx.symbol;
   const dstSym = dst?.currency_symbol ?? txSym;
+  // Another currency, or the same one with more received than paid (a gift card
+  // bought at a discount): either way the arriving amount differs.
   const showDstAmount =
-    t.type === "transfer" && dst && t.destination_amount != null && (src?.currency_code ?? "") !== (dst?.currency_code ?? "");
+    t.type === "transfer" && dst && t.destination_amount != null && Number(t.destination_amount) !== Number(t.amount);
+  const gain =
+    t.type === "transfer" && dst && t.destination_amount != null && (src?.currency_code ?? "") === (dst?.currency_code ?? "")
+      ? Number(t.destination_amount) - Number(t.amount)
+      : 0;
   const amount = (
     <div className="flex items-baseline">
       <Amount value={Number(t.amount)} sym={txSym} sign={sign} tone={tone} marked={ctx.amountMatched(Number(t.amount))} />
@@ -288,6 +294,21 @@ export const CardRow = React.memo(function CardRow({
   );
 
   const chips: React.ReactNode[] = [];
+  if (gain > 0.005) {
+    // The difference went to a budget (or waits under "Nicht zugeordnet"); the
+    // chip opens that budget's Verlauf in the transfer's month.
+    const target = t.difference_category_id ? ctx.categoryById.get(t.difference_category_id) ?? null : null;
+    chips.push(
+      <Link
+        key="gain"
+        to="/envelopes"
+        search={{ month: t.occurred_on.slice(0, 7), detail: target?.id ?? "" } as never}
+        className={cn(CHIP, "bg-success/15 text-success hover:bg-success/25")}
+      >
+        +{fmtMoney(gain, dstSym).replace("-", "")} → {target?.name ?? tr("env.moves.unassigned")}
+      </Link>,
+    );
+  }
   if (t.type === "income" && ctx.reimbursementIds.has(t.id)) {
     chips.push(<span key="reimb" className={cn(CHIP, "bg-success/15 text-success")}>{tr("tx.reimbursement")}</span>);
   }

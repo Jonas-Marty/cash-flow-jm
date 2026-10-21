@@ -1,6 +1,13 @@
 import * as React from "react";
 import { format, parseISO, subMonths } from "date-fns";
-import { ArrowDownToLine, ArrowLeftRight, ChevronDown, Pencil, Plus } from "lucide-react";
+import {
+  ArrowDownToLine,
+  ArrowLeftRight,
+  ArrowUpRight,
+  ChevronDown,
+  Pencil,
+  Plus,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -25,13 +32,13 @@ import {
   type ShownMove,
 } from "@/lib/allocations";
 
-const FILTERS: MoveFilter[] = ["all", "plan", "sweep", "realloc"];
 const ALL = "__all__";
 
 const KIND = {
   plan: { Icon: Plus, cls: "bg-success/15 text-success" },
   sweep: { Icon: ArrowDownToLine, cls: "bg-sky-500/15 text-sky-600 dark:text-sky-400" },
   realloc: { Icon: ArrowLeftRight, cls: "bg-warning/20 text-warning" },
+  transfer: { Icon: ArrowUpRight, cls: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400" },
 } as const;
 
 function KindIcon({ kind }: { kind: MoveKind }) {
@@ -56,11 +63,14 @@ export function AllocationsView({
   categoriesById,
   symbol,
   onEditReallocation,
+  onOpenTransaction,
 }: {
   moves: Move[];
   categoriesById: Map<string, Category>;
   symbol: string;
   onEditReallocation: (id: string) => void;
+  /** A transfer's difference is edited on the transfer. */
+  onOpenTransaction: (id: string) => void;
 }) {
   const { t, locale } = useI18n();
   const isDesktop = useIsDesktop();
@@ -78,6 +88,11 @@ export function AllocationsView({
     });
 
   const totals = React.useMemo(() => moveTotals(moves), [moves]);
+  // Transfers with a difference are rare; their tile and chip appear when present.
+  const hasTransfers = totals.transfer.count > 0;
+  const filters: MoveFilter[] = hasTransfers
+    ? ["all", "plan", "sweep", "realloc", "transfer"]
+    : ["all", "plan", "sweep", "realloc"];
   const shown = React.useMemo(
     () => filterMoves(moves, filter, budget === ALL ? null : budget),
     [moves, filter, budget],
@@ -109,7 +124,7 @@ export function AllocationsView({
   const fromLabel = (m: Move) =>
     m.kind === "plan"
       ? t("env.moves.plan")
-      : m.fromId || m.kind === "realloc"
+      : m.fromId || m.kind === "realloc" || m.kind === "transfer"
         ? name(m.fromId)
         : count(m.parts.length);
   const toLabel = (m: Move) => (m.toId ? name(m.toId) : count(m.parts.length));
@@ -126,7 +141,8 @@ export function AllocationsView({
     s.signed === null ? "" : s.signed > 0 ? "text-success" : s.signed < 0 ? "text-destructive" : "";
   const expandable = (m: Move) => m.parts.length > 1;
   const activate = (m: Move) => {
-    if (m.kind === "realloc" && m.reallocationId) onEditReallocation(m.reallocationId);
+    if (m.kind === "transfer" && m.transactionId) onOpenTransaction(m.transactionId);
+    else if (m.kind === "realloc" && m.reallocationId) onEditReallocation(m.reallocationId);
     else if (expandable(m)) toggle(m.key);
   };
   const partDetail = (m: Move, p: MovePart) =>
@@ -138,7 +154,12 @@ export function AllocationsView({
       : null;
 
   const summary = (
-    <div className="grid grid-cols-3 gap-px overflow-hidden rounded-lg border bg-border">
+    <div
+      className={cn(
+        "grid gap-px overflow-hidden rounded-lg border bg-border",
+        hasTransfers ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-3",
+      )}
+    >
       {(
         [
           [
@@ -161,28 +182,36 @@ export function AllocationsView({
             totals.realloc.amount,
             t("env.moves.sum.realloc_sub", { n: String(totals.realloc.count) }),
           ],
+          [
+            "transfer",
+            t("env.moves.filter.transfer"),
+            totals.transfer.amount,
+            t("env.moves.sum.realloc_sub", { n: String(totals.transfer.count) }),
+          ],
         ] as Array<[MoveKind, string, number, string]>
-      ).map(([k, label, amount, sub]) => (
-        <div key={k} className="flex min-w-0 items-center gap-3 bg-card px-2 py-2 sm:px-3">
-          <span className="hidden sm:block">
-            <KindIcon kind={k} />
-          </span>
-          <div className="min-w-0">
-            <div className="truncate text-[11px] text-muted-foreground sm:text-xs">{label}</div>
-            <PrivacyValue className="block truncate text-sm font-semibold tabular-nums sm:text-base">
-              {fmtMoney(amount, symbol)}
-            </PrivacyValue>
-            <div className="truncate text-[11px] text-muted-foreground sm:text-xs">{sub}</div>
+      )
+        .filter(([k]) => k !== "transfer" || hasTransfers)
+        .map(([k, label, amount, sub]) => (
+          <div key={k} className="flex min-w-0 items-center gap-3 bg-card px-2 py-2 sm:px-3">
+            <span className="hidden sm:block">
+              <KindIcon kind={k} />
+            </span>
+            <div className="min-w-0">
+              <div className="truncate text-[11px] text-muted-foreground sm:text-xs">{label}</div>
+              <PrivacyValue className="block truncate text-sm font-semibold tabular-nums sm:text-base">
+                {fmtMoney(amount, symbol)}
+              </PrivacyValue>
+              <div className="truncate text-[11px] text-muted-foreground sm:text-xs">{sub}</div>
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
     </div>
   );
 
   const controls = (
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex flex-wrap gap-1.5" role="group">
-        {FILTERS.map((f) => (
+        {filters.map((f) => (
           <Button
             key={f}
             size="sm"
@@ -249,7 +278,7 @@ export function AllocationsView({
             {shown.map((s) => {
               const m = s.move;
               const open = expandable(m) && isOpen(m);
-              const clickable = m.kind === "realloc" || expandable(m);
+              const clickable = m.kind === "realloc" || m.kind === "transfer" || expandable(m);
               return (
                 <React.Fragment key={m.key}>
                   <tr
@@ -359,7 +388,7 @@ export function AllocationsView({
               {list.map((s) => {
                 const m = s.move;
                 const open = expandable(m) && isOpen(m);
-                const clickable = m.kind === "realloc" || expandable(m);
+                const clickable = m.kind === "realloc" || m.kind === "transfer" || expandable(m);
                 const inner = (
                   <>
                     <KindIcon kind={m.kind} />

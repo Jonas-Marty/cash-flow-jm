@@ -75,6 +75,8 @@ export const Route = createFileRoute("/envelopes")({
 type ReallocEntry = {
   id: string;
   reallocationId: string;
+  /** Made by a transfer (its difference): opens the transfer, not the edit sheet. */
+  transactionId: string | null;
   occurred_on: string;
   amount: number;
   inflow: boolean;
@@ -445,10 +447,11 @@ function EnvelopesPage() {
         push(r.to_category_id, {
           id: `${r.id}-in`,
           reallocationId: r.id,
+          transactionId: r.transaction_id ?? null,
           occurred_on: r.occurred_on,
           amount,
           inflow: true,
-          counterpart: name(r.from_category_id),
+          counterpart: r.transaction_id ? tr("env.ledger.transfer_gain") : name(r.from_category_id),
           note: r.note ?? null,
         });
       }
@@ -456,6 +459,7 @@ function EnvelopesPage() {
         push(r.from_category_id, {
           id: `${r.id}-out`,
           reallocationId: r.id,
+          transactionId: r.transaction_id ?? null,
           occurred_on: r.occurred_on,
           amount,
           inflow: false,
@@ -642,6 +646,7 @@ function EnvelopesPage() {
                   categoriesById={categoriesById}
                   symbol={symbol}
                   onEditReallocation={setEditReallocId}
+                  onOpenTransaction={openTransaction}
                 />
               )
             )}
@@ -903,11 +908,12 @@ function EnvelopesPage() {
                                 key={e.id}
                                 role="button"
                                 tabIndex={0}
-                                onClick={() => setEditReallocId(e.reallocationId)}
+                                onClick={() => (e.transactionId ? openTransaction(e.transactionId) : setEditReallocId(e.reallocationId))}
                                 onKeyDown={(ev) => {
                                   if (ev.key === "Enter" || ev.key === " ") {
                                     ev.preventDefault();
-                                    setEditReallocId(e.reallocationId);
+                                    if (e.transactionId) openTransaction(e.transactionId);
+                                    else setEditReallocId(e.reallocationId);
                                   }
                                 }}
                                 className="flex cursor-pointer items-center justify-between gap-3 px-2 py-2 text-sm rounded-sm bg-muted/40 hover:bg-muted"
@@ -1012,6 +1018,7 @@ function EnvelopesPage() {
       />
       <ReallocationEditDialog
         reallocationId={editReallocId}
+        onOpenTransaction={(id) => { setEditReallocId(null); openTransaction(id); }}
         onOpenChange={(v) => { if (!v) setEditReallocId(null); }}
       />
       <EnvelopeDetailSheet

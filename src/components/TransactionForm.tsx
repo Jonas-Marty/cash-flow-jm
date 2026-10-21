@@ -253,6 +253,12 @@ export function TransactionForm({
     }));
   }, [categories, recentQ.data, type, sourceId, destId, description]);
 
+  // Where a transfer's difference can go: budgets that keep their balance.
+  const rollingCategoryChips: ChipPickerItem[] = React.useMemo(() => {
+    const rolling = new Set(categories.filter((c) => c.rolls_over && !c.is_scope).map((c) => c.id));
+    return categoryChips.filter((c) => rolling.has(c.id));
+  }, [categories, categoryChips]);
+
   const [date, setDate] = React.useState<Date>(new Date());
   const [saving, setSaving] = React.useState(false);
   const [helpOpen, setHelpOpen] = React.useState(false);
@@ -283,6 +289,14 @@ export function TransactionForm({
   const [feeCategoryId, setFeeCategoryId] = React.useState<string>("");
   // Tracks an already-linked fee transaction id when editing.
   const [existingFeeTxId, setExistingFeeTxId] = React.useState<string | null>(null);
+
+  // Same-currency transfer that received more than it paid (a gift card bought
+  // at a discount): the amount received and the budget the difference goes to.
+  // Saved as destination_amount + difference_category_id; a database trigger
+  // books the difference into that budget. Receiving less is a fee instead.
+  const [diffOpen, setDiffOpen] = React.useState(false);
+  const [received, setReceived] = React.useState("");
+  const [diffCategoryId, setDiffCategoryId] = React.useState<string>("");
 
   const sourceAccount = sourceId ? accountById.get(sourceId) : undefined;
   const destAccount = destId ? accountById.get(destId) : undefined;
@@ -326,6 +340,9 @@ export function TransactionForm({
   // the row, but we also reset the UI).
   React.useEffect(() => {
     if (type !== "transfer") {
+      setDiffOpen(false);
+      setReceived("");
+      setDiffCategoryId("");
       setFeeOpen(false);
       setFeeAmount("");
       setFeeCategoryId("");
@@ -478,7 +495,12 @@ export function TransactionForm({
       if (tx.destination_amount != null) {
         setDestAmount(Number(tx.destination_amount).toFixed(2));
         setDestAmountTouched(true);
+        // Same currency: only a "received more" transfer has one. The section
+        // only shows when the currencies match, so this is harmless for FX.
+        setReceived(Number(tx.destination_amount).toFixed(2));
+        setDiffOpen(true);
       }
+      setDiffCategoryId(tx.difference_category_id ?? "");
       if (tx.fee_amount != null && Number(tx.fee_amount) > 0) {
         setFeeOpen(true);
         setFeeAmount(Number(tx.fee_amount).toFixed(2));
@@ -736,6 +758,9 @@ export function TransactionForm({
     setFeeAmount("");
     setFeeCategoryId("");
     setExistingFeeTxId(null);
+    setDiffOpen(false);
+    setReceived("");
+    setDiffCategoryId("");
     setScopeSkipped(false);
     linkSelectionsTouchedRef.current = false;
     setLocation(null);
@@ -793,6 +818,16 @@ export function TransactionForm({
         toast.error(tr("toast.dest_amount_required"));
         return;
       }
+    }
+    // Same currency, received more than paid: the received amount must really
+    // be more. Less is a fee, which has its own field.
+    if (type === "transfer" && !isCrossCurrency && diffOpen && received.trim() !== "") {
+      const rn = Number(received.replace(",", "."));
+      if (!Number.isFinite(rn) || rn <= amt) {
+        toast.error(tr("toast.received_must_exceed"));
+        return;
+      }
+      destAmountNum = Math.round(rn * 100) / 100;
     }
 
     // Guard: don't allow turning off `is_reimbursable` on the parent edit row
@@ -1013,8 +1048,9 @@ export function TransactionForm({
       source_account_id: sourceId,
       destination_account_id: type === "transfer" ? destId : null,
       category_id: type === "transfer" ? null : (categoryId || null),
-      destination_amount:
-        type === "transfer" && isCrossCurrency ? destAmountNum : null,
+      destination_amount: type === "transfer" ? destAmountNum : null,
+      difference_category_id:
+        type === "transfer" && !isCrossCurrency && destAmountNum != null ? diffCategoryId || null : null,
       // Reimbursable flag only meaningful for expenses (or income that you
       // expect to receive — rare, but allowed). Transfers can't be reimbursable.
       is_reimbursable: type !== "transfer" ? isReimbursable : false,
@@ -1387,6 +1423,107 @@ export function TransactionForm({
                   </p>
                 </div>
               )}
+              {/* Received more than paid, same currency (gift card at a discount) */}
+              {sourceAccount && destAccount && !isCrossCurrency && (() => {
+                if (!diffOpen) {
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => setDiffOpen(true)}
+                      className="mt-2 mr-4 text-xs text-primary underline-offset-2 hover:underline"
+                    >
+                      + {tr("add.transfer.diff.add")}
+                    </button>
+                  );
+                }
+                const paid = Number(amount.replace(",", "."));
+                const got = Number(received.replace(",", "."));
+                const diff = Number.isFinite(paid) && Number.isFinite(got) && received.trim() !== "" ? got - paid : null;
+                const target = diffCategoryId ? categoryById.get(diffCategoryId) : null;
+                return (
+                  <div className="mt-3 rounded-md border border-dashed border-border/60 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <Label htmlFor="received-amount" className="text-xs">
+                        {tr("add.transfer.diff.label", { sym: destSymbol })}
+                      </Label>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs"
+                        onClick={() => {
+                          setDiffOpen(false);
+                          setReceived("");
+                          setDiffCategoryId("");
+                        }}
+                      >
+                        {tr("add.transfer.fee.remove")}
+                      </Button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs uppercase tracking-wide text-muted-foreground">{destSymbol}</span>
+                      <Input
+                        id="received-amount"
+                        inputMode="decimal"
+                        placeholder="0.00"
+                        value={received}
+                        onChange={(e) => setReceived(e.target.value.replace(/[^0-9.,]/g, ""))}
+                        className="tabular-nums"
+                      />
+                    </div>
+                    {diff != null && diff > 0.005 && (
+                      <div className="mt-2 flex items-baseline justify-between rounded-md bg-success/10 px-2 py-1.5 text-xs">
+                        <span>{tr("add.transfer.diff.gain")}</span>
+                        <span className="font-semibold tabular-nums text-success">
+                          +{fmtMoney(diff, destSymbol)}
+                          {paid > 0 && (
+                            <span className="ml-1 font-normal text-muted-foreground">
+                              ({((diff / paid) * 100).toFixed(1)} %)
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                    )}
+                    {diff != null && diff <= 0.005 && (
+                      <p className="mt-2 text-xs text-warning">
+                        {tr("add.transfer.diff.less")}{" "}
+                        {!feeOpen && (
+                          <button
+                            type="button"
+                            className="text-primary underline underline-offset-2"
+                            onClick={() => {
+                              setFeeOpen(true);
+                              if (diff < 0) setFeeAmount((-diff).toFixed(2));
+                              setDiffOpen(false);
+                              setReceived("");
+                              setDiffCategoryId("");
+                            }}
+                          >
+                            {tr("add.transfer.fee.add")}
+                          </button>
+                        )}
+                      </p>
+                    )}
+                    <div className="mt-2">
+                      <Label className="mb-1 block text-xs">{tr("add.transfer.diff.category")}</Label>
+                      <ChipPicker
+                        items={rollingCategoryChips}
+                        value={diffCategoryId || null}
+                        onChange={(v) => setDiffCategoryId(v ?? "")}
+                        placeholder={tr("add.transfer.diff.none")}
+                        moreLabel={tr("picker.more")}
+                        searchPlaceholder={tr("picker.search")}
+                        emptyLabel={tr("picker.no_match")}
+                      />
+                    </div>
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      {target
+                        ? tr("add.transfer.diff.help", { name: target.name })
+                        : tr("add.transfer.diff.help_none")}
+                    </p>
+                  </div>
+                );
+              })()}
               {/* Optional fee on the transfer (e.g. ATM withdrawal fee) */}
               {sourceAccount && destAccount && (
                 feeOpen ? (
@@ -2097,7 +2234,7 @@ export function TransactionForm({
           type={type}
           amountNum={amountNum}
           destAmountNum={(() => {
-            const n = Number(destAmount.replace(",", "."));
+            const n = Number((isCrossCurrency ? destAmount : diffOpen ? received : "").replace(",", "."));
             return Number.isFinite(n) && n > 0 ? n : null;
           })()}
           feeAmountNum={(() => {

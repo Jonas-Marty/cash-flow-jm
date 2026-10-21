@@ -36,9 +36,12 @@ const isoDate = (d: Date) =>
 export function ReallocationEditDialog({
   reallocationId,
   onOpenChange,
+  onOpenTransaction,
 }: {
   reallocationId: string | null;
   onOpenChange: (open: boolean) => void;
+  /** For a reallocation made by a transfer, which is edited there. */
+  onOpenTransaction?: (id: string) => void;
 }) {
   const { t } = useI18n();
   const qc = useQueryClient();
@@ -107,6 +110,46 @@ export function ReallocationEditDialog({
   const sideName = (id: string | null | undefined, c: typeof from) =>
     id ? (c?.name ?? t("env.ledger.unknown_category")) : t("env.moves.unassigned");
   const scope = to?.is_scope ? to : from?.is_scope ? from : null;
+
+  // Made by a transfer that received more than it paid: amount, date and budget
+  // follow the transfer, so it is changed there and only shown here.
+  if (r?.transaction_id) {
+    const txId = r.transaction_id;
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("env.ledger.transfer_gain")}</DialogTitle>
+            <DialogDescription>{t("env.realloc_edit.linked_description")}</DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+            <span className="text-muted-foreground">{t("envelopes.reallocate.to")}</span>
+            <span className="truncate font-medium">{sideName(r.to_category_id, to)}</span>
+            <span className="text-muted-foreground">{t("envelopes.reallocate.amount")}</span>
+            <span className="font-medium tabular-nums text-success">
+              +{Number(r.amount).toFixed(2)} {symbol}
+            </span>
+            {r.note && (
+              <>
+                <span className="text-muted-foreground">{t("envelopes.reallocate.note")}</span>
+                <span className="truncate">{r.note}</span>
+              </>
+            )}
+          </div>
+          <DialogFooter className="flex-row justify-end gap-2">
+            <Button variant="ghost" onClick={() => onOpenChange(false)}>
+              {t("common.cancel")}
+            </Button>
+            {onOpenTransaction && (
+              <Button onClick={() => onOpenTransaction(txId)}>
+                {t("env.realloc_edit.open_transfer")}
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

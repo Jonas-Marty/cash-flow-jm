@@ -122,6 +122,8 @@ export interface EnvelopeReconciliation {
   unallocated_plan_gap: number;
   /** Minus what was assigned to envelopes from here by hand. */
   unallocated_assigned: number;
+  /** Leftovers of monthly envelopes with no sweep target anywhere. */
+  unallocated_unswept: number;
 }
 
 export interface CategoryReallocation {
@@ -162,6 +164,9 @@ export interface Transaction {
   recurring_rule_id?: string | null;
   split_group_id?: string | null;
   destination_amount?: number | null;
+  /** Transfer that received more than it sent (same currency): the budget the
+   *  difference goes to. A database trigger keeps the linked reallocation. */
+  difference_category_id?: string | null;
   is_reimbursable?: boolean;
   reimbursable_status?: "open" | "settled" | "cancelled" | "written_off" | null;
   reimbursable_counterparty?: string | null;

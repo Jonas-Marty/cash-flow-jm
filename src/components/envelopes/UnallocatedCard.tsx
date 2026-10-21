@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Link } from "@tanstack/react-router";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, TriangleAlert } from "lucide-react";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,11 @@ export function UnallocatedCard({
       ],
       ["transfers", Number(rec.unallocated_transfers), null],
       ["plan_gap", Number(rec.unallocated_plan_gap), null],
+      [
+        "unswept",
+        Number(rec.unallocated_unswept),
+        { to: "/settings" as const, label: t("env.recon.part.unswept_link") },
+      ],
       ["assigned", Number(rec.unallocated_assigned), null],
     ] as Array<[string, number, { to: "/settings" | "/transactions"; label: string } | null]>
   ).filter(([, v]) => Math.abs(v) > 0.005);
@@ -116,14 +121,14 @@ export function UnallocatedCard({
             )}
           </>
         )}
-        <div className="flex items-baseline justify-between gap-3 border-t pt-1.5 text-xs">
-          <span className="text-muted-foreground">{t("env.recon.check")}</span>
-          <span
-            className={cn("font-medium tabular-nums", balanced ? "text-success" : "text-warning")}
-          >
-            {balanced ? t("env.recon.balances") : fmtMoney(Number(rec.residual), symbol)}
-          </span>
-        </div>
+        {/* Every known way for money to leave the books is accounted for, so a
+            gap here is a bug: say so plainly, and stay silent while it closes. */}
+        {!balanced && (
+          <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-2 py-1.5 text-xs">
+            <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
+            <span>{t("env.recon.gap", { amount: fmtMoney(Number(rec.residual), symbol) })}</span>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

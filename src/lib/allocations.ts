@@ -7,6 +7,7 @@ import type { LedgerRow } from "@/lib/finance";
  *   plan     the month's allocations, one move from the plan to every budget
  *   sweep    last month's leftovers arriving in a sweep target, one move per target
  *   realloc  one reallocation (Umschichten, scope close, archive move)
+ *   transfer the difference of a transfer that received more than it paid
  *
  * Income budgets are not allocated anything (their plan is the money coming in),
  * and a monthly budget's own leftover leaving it is the same movement as the
@@ -15,7 +16,7 @@ import type { LedgerRow } from "@/lib/finance";
 /** Select value for "Nicht zugeordnet", the empty side of a reallocation. */
 export const UNASSIGNED_ENVELOPE = "__unassigned__";
 
-export type MoveKind = "plan" | "sweep" | "realloc";
+export type MoveKind = "plan" | "sweep" | "realloc" | "transfer";
 export type MoveFilter = "all" | MoveKind;
 
 export type MovePart = {
@@ -38,11 +39,13 @@ export type Move = {
   amount: number;
   note: string | null;
   reallocationId: string | null;
+  /** Transfer moves: the transfer, which is where they are edited. */
+  transactionId?: string | null;
   /** Plan: each budget's allocation. Leftovers: each source. Empty for a reallocation. */
   parts: MovePart[];
 };
 
-const ORDER: Record<MoveKind, number> = { sweep: 1, plan: 2, realloc: 3 };
+const ORDER: Record<MoveKind, number> = { sweep: 1, plan: 2, realloc: 3, transfer: 3 };
 
 /** Moves of `month` (yyyy-MM-01), newest first. */
 export function buildMonthMoves(
@@ -84,7 +87,8 @@ export function buildMonthMoves(
         reallocs.set(r.reallocation_id, {
           key: `realloc-${r.reallocation_id}`,
           date: r.occurred_on!,
-          kind: "realloc",
+          kind: r.transaction_id ? "transfer" : "realloc",
+          transactionId: r.transaction_id,
           fromId: inflow ? r.counterpart_category_id : categoryId,
           toId: inflow ? categoryId : r.counterpart_category_id,
           amount: Math.abs(r.amount),
@@ -153,7 +157,7 @@ export function filterMoves(
       out.push({ move: m, signed: null });
       continue;
     }
-    if (m.kind === "realloc") {
+    if (m.kind === "realloc" || m.kind === "transfer") {
       if (m.toId === categoryId) out.push({ move: m, signed: m.amount });
       else if (m.fromId === categoryId) out.push({ move: m, signed: -m.amount });
       continue;
@@ -191,6 +195,7 @@ export type MoveTotals = {
   plan: { amount: number; count: number };
   sweep: { amount: number; count: number };
   realloc: { amount: number; count: number };
+  transfer: { amount: number; count: number };
 };
 
 export function moveTotals(moves: Move[]): MoveTotals {
@@ -198,6 +203,7 @@ export function moveTotals(moves: Move[]): MoveTotals {
     plan: { amount: 0, count: 0 },
     sweep: { amount: 0, count: 0 },
     realloc: { amount: 0, count: 0 },
+    transfer: { amount: 0, count: 0 },
   };
   for (const m of moves) {
     if (m.kind === "plan") {
@@ -207,8 +213,8 @@ export function moveTotals(moves: Move[]): MoveTotals {
       t.sweep.amount += m.amount;
       t.sweep.count += m.parts.length;
     } else {
-      t.realloc.amount += m.amount;
-      t.realloc.count += 1;
+      t[m.kind].amount += m.amount;
+      t[m.kind].count += 1;
     }
   }
   return t;
