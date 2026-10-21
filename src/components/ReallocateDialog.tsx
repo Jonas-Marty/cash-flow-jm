@@ -37,7 +37,8 @@ export function ReallocateDialog({ open, defaultFromId, defaultToId, defaultAmou
 
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
   const savings = React.useMemo<Category[]>(
-    () => (cats.data ?? []).filter((c) => c.rolls_over && !c.archived),
+    // Closed scopes are settled and archived budgets are gone; neither takes money.
+    () => (cats.data ?? []).filter((c) => c.rolls_over && !c.archived && !c.closed_at),
     [cats.data],
   );
 
