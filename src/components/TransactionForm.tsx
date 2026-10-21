@@ -1837,12 +1837,15 @@ export function TransactionForm({
                         />
                       </div>
                       <div>
-                        <Label className="mb-1 block text-xs">{tr("add.split.description")}</Label>
-                        <Input
+                        <Label htmlFor={`slice-description-${idx}`} className="mb-1 block text-xs">{tr("add.split.description")}</Label>
+                        {/* The same suggestions as the single description field. */}
+                        <DescriptionAutocomplete
+                          id={`slice-description-${idx}`}
                           value={s.description}
-                          onChange={(e) =>
-                            setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, description: e.target.value } : x)))
+                          onChange={(v) =>
+                            setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, description: v } : x)))
                           }
+                          transactions={recentQ.data ?? []}
                           placeholder={tr("add.description_placeholder")}
                         />
                       </div>
@@ -2332,13 +2335,16 @@ export function TransactionForm({
             amount: Number(s.amount.replace(",", ".")) || 0,
             description: s.description,
             category: s.categoryId ? categoryById.get(s.categoryId) ?? null : null,
+            reimb: s.isReimbursable ? { from: s.reimbCounterparty.trim() } : null,
           })) : null}
+          reimb={type !== "transfer" && isReimbursable ? { from: reimbCounterparty.trim() } : null}
           labels={{
             transfer: tr("tx.transfer_label"),
             income: tr("add.income"),
             expense: tr("add.expense"),
             preview: tr("add.preview.title"),
             split: tr("add.split.title"),
+            reimb: (from) => (from ? tr("add.preview.reimb_from", { name: from }) : tr("add.preview.reimb")),
           }}
         />
 
@@ -2455,12 +2461,15 @@ function TransactionPreview({
   destSymbol,
   splitMode,
   slices,
+  reimb,
   labels,
 }: {
   type: TxType;
   amountNum: number | null;
   destAmountNum: number | null;
   isCrossCurrency: boolean;
+  /** Money you get back: who pays it ("" when not named). null when it is not. */
+  reimb: { from: string } | null;
   source: PreviewEntity;
   destination: PreviewEntity;
   category: PreviewEntity;
@@ -2471,8 +2480,15 @@ function TransactionPreview({
   symbol: string;
   destSymbol: string;
   splitMode: boolean;
-  slices: Array<{ amount: number; description: string; category: PreviewEntity }> | null;
-  labels: { transfer: string; income: string; expense: string; preview: string; split: string };
+  slices: Array<{ amount: number; description: string; category: PreviewEntity; reimb: { from: string } | null }> | null;
+  labels: {
+    transfer: string;
+    income: string;
+    expense: string;
+    preview: string;
+    split: string;
+    reimb: (from: string) => string;
+  };
 }) {
   if (amountNum == null || !source) return null;
 
@@ -2540,6 +2556,13 @@ function TransactionPreview({
               <span>·</span>
               <span>{format(date, "dd.MM.yyyy", { locale })}</span>
             </div>
+            {!splitMode && reimb && (
+              <div className="mt-1.5">
+                <span className="inline-flex items-center rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-medium text-warning">
+                  {labels.reimb(reimb.from)}
+                </span>
+              </div>
+            )}
             {note.trim() && (
               <div className="mt-1 text-xs text-muted-foreground">
                 <Markdown>{note.trim()}</Markdown>
@@ -2552,9 +2575,14 @@ function TransactionPreview({
             <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{labels.split}</div>
             {slices.map((s, i) => (
               <li key={i} className="flex items-center justify-between gap-2">
-                <span className="inline-flex min-w-0 items-center gap-1.5 truncate text-muted-foreground">
+                <span className="inline-flex min-w-0 items-center gap-1.5 text-muted-foreground">
                   {s.category && <EntityVisual entity={s.category} size="xs" />}
                   <span className="truncate">{s.description.trim() || s.category?.name || "—"}</span>
+                  {s.reimb && (
+                    <span className="shrink-0 rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-medium text-warning">
+                      {labels.reimb(s.reimb.from)}
+                    </span>
+                  )}
                 </span>
                 <span className={cn("tabular-nums", tone)}>
                   {sign}

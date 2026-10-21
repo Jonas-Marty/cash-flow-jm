@@ -5,11 +5,17 @@
 export type NcKind = "receipt" | "statement" | "any";
 
 /**
- * Name order, A to Z or Z to A. By name rather than by modification date:
- * the modification date is when a file was filed in Nextcloud, not the date
- * of the document, and names usually start with the document's date.
+ * Name order, A to Z or Z to A, or by creation date, newest or oldest first.
+ * Name is the default rather than the modification date: that is when a file
+ * was last touched in Nextcloud, not the date of the document, and names
+ * usually start with the document's date. The creation date is when the file
+ * came into Nextcloud, which is the next best thing when names say nothing.
  */
-export type NcOrder = "desc" | "asc";
+export type NcOrder = "desc" | "asc" | "created_desc" | "created_asc";
+
+export const NC_ORDERS: NcOrder[] = ["desc", "asc", "created_desc", "created_asc"];
+
+const byCreated = (o: NcOrder) => o === "created_desc" || o === "created_asc";
 
 export interface NcEntry {
   name: string;
@@ -22,6 +28,11 @@ export interface NcEntry {
   size: number | null;
   /** ISO timestamp of the last modification, as Nextcloud reports it. */
   modified: string | null;
+  /**
+   * ISO timestamp the file was created (nc:creation_time), else uploaded
+   * (nc:upload_time), else null: older files and some storages report 0.
+   */
+  created: string | null;
   is_dir: boolean;
 }
 
@@ -89,7 +100,14 @@ const PROPS = `<d:prop>
         <d:getlastmodified/>
         <oc:fileid/>
         <d:resourcetype/>
+        <nc:creation_time/>
+        <nc:upload_time/>
       </d:prop>`;
+
+/** When a file came into Nextcloud: created, else uploaded, else last modified. */
+export function entryDate(e: NcEntry): string | null {
+  return e.created ?? e.modified;
+}
 
 function mimeCondition(kind: NcKind): string {
   if (kind === "any") return "";
@@ -115,6 +133,10 @@ export function buildSearchXml(
   kind: NcKind,
   limit: number,
   order: NcOrder = "desc",
+  /** Only this folder and the ones inside it; "/" searches everything. */
+  folder = "/",
+  /** For a server that cannot sort by creation date: modification date instead. */
+  dateProp: "creation_time" | "getlastmodified" = "creation_time",
 ): string {
   const like = `<d:like><d:prop><d:displayname/></d:prop><d:literal>%${xmlEscape(likeEscape(query))}%</d:literal></d:like>`;
   const mime = mimeCondition(kind);
@@ -122,21 +144,26 @@ export function buildSearchXml(
   // folders by browsing, so search only ever returns files.
   const notDir = `<d:not><d:is-collection/></d:not>`;
   const where = mime ? `<d:and>${like}${mime}</d:and>` : `<d:and>${like}${notDir}</d:and>`;
+  const sortProp = !byCreated(order)
+    ? "<d:displayname/>"
+    : dateProp === "creation_time"
+      ? "<nc:creation_time/>"
+      : "<d:getlastmodified/>";
   return `<?xml version="1.0" encoding="UTF-8"?>
-<d:searchrequest xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns">
+<d:searchrequest xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns" xmlns:nc="http://nextcloud.org/ns">
   <d:basicsearch>
     <d:select>
       ${PROPS}
     </d:select>
     <d:from>
       <d:scope>
-        <d:href>/files/${xmlEscape(user)}</d:href>
+        <d:href>/files/${xmlEscape(user)}${xmlEscape(cleanFolder(folder) === "/" ? "" : encodePath(cleanFolder(folder)))}</d:href>
         <d:depth>infinity</d:depth>
       </d:scope>
     </d:from>
     <d:where>${where}</d:where>
     <d:orderby>
-      <d:order><d:prop><d:displayname/></d:prop><d:${order === "asc" ? "ascending" : "descending"}/></d:order>
+      <d:order><d:prop>${sortProp}</d:prop><d:${order === "asc" || order === "created_asc" ? "ascending" : "descending"}/></d:order>
     </d:orderby>
     <d:limit><d:nresults>${limit}</d:nresults></d:limit>
   </d:basicsearch>
@@ -144,7 +171,7 @@ export function buildSearchXml(
 }
 
 export const PROPFIND_XML = `<?xml version="1.0" encoding="UTF-8"?>
-<d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns">
+<d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns" xmlns:nc="http://nextcloud.org/ns">
   ${PROPS}
 </d:propfind>`;
 
@@ -210,6 +237,10 @@ export function parseMultistatus(xml: string, base: string, user: string): NcEnt
     const modified = tag(r, "d:getlastmodified");
     const fileId = tag(r, "oc:fileid");
     const modDate = modified ? new Date(modified) : null;
+    // Unix seconds; 0 means the server does not know.
+    const secs = [tag(r, "nc:creation_time"), tag(r, "nc:upload_time")]
+      .map((v) => Number(v))
+      .find((v) => Number.isFinite(v) && v > 0);
     out.push({
       name,
       path,
@@ -218,6 +249,7 @@ export function parseMultistatus(xml: string, base: string, user: string): NcEnt
       mime: isDir ? null : tag(r, "d:getcontenttype") || null,
       size: size ? Number(size) : null,
       modified: modDate && !Number.isNaN(modDate.getTime()) ? modDate.toISOString() : null,
+      created: secs ? new Date(secs * 1000).toISOString() : null,
       is_dir: isDir,
     });
   }
@@ -225,16 +257,24 @@ export function parseMultistatus(xml: string, base: string, user: string): NcEnt
 }
 
 /**
- * Folders first, then files, each by name in `order`. Natural order, so
- * "Receipt-2" comes before "Receipt-10", and case does not matter.
+ * Folders first, then files, each in `order`: by name in natural order (so
+ * "Receipt-2" comes before "Receipt-10", and case does not matter), or by
+ * creation date (falling back to the modification date), ties by name.
  */
 export function sortEntries(entries: NcEntry[], order: NcOrder = "desc"): NcEntry[] {
-  const sign = order === "asc" ? 1 : -1;
-  const byName = (a: NcEntry, b: NcEntry) =>
-    sign * a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+  const sign = order === "asc" || order === "created_asc" ? 1 : -1;
+  const name = (a: NcEntry, b: NcEntry) =>
+    a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" });
+  const cmp = byCreated(order)
+    ? (a: NcEntry, b: NcEntry) => {
+        const da = entryDate(a) ?? "";
+        const db = entryDate(b) ?? "";
+        return da === db ? name(a, b) : sign * (da < db ? -1 : 1);
+      }
+    : (a: NcEntry, b: NcEntry) => sign * name(a, b);
   return [
-    ...entries.filter((e) => e.is_dir).sort(byName),
-    ...entries.filter((e) => !e.is_dir).sort(byName),
+    ...entries.filter((e) => e.is_dir).sort(cmp),
+    ...entries.filter((e) => !e.is_dir).sort(cmp),
   ];
 }
 

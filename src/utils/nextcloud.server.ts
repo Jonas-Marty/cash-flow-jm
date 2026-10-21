@@ -13,6 +13,7 @@ import {
 } from "@/lib/nextcloudAuth";
 import {
   PROPFIND_XML,
+  sortEntries,
   buildSearchXml,
   cleanFolder,
   davFileUrl,
@@ -215,25 +216,38 @@ async function davFetch(
   return out;
 }
 
-/** Files whose name contains `query`, by name (Z to A unless asked otherwise), limited to what `kind` can use. */
+/**
+ * Files whose name contains `query`, in `order` (name Z to A unless asked
+ * otherwise), limited to what `kind` can use, inside `folder` and below.
+ */
 export async function searchFiles(
   userId: string,
   query: string,
   kind: NcKind,
   limit = 25,
   order: NcOrder = "desc",
+  folder = "/",
 ): Promise<NcEntry[]> {
-  const { conn, res } = await davFetch(userId, (c) => [
-    `${trimBaseUrl(c.base_url)}/remote.php/dav`,
-    {
-      method: "SEARCH",
-      headers: { "Content-Type": "application/xml; charset=utf-8", Accept: "application/xml" },
-      body: buildSearchXml(c.nextcloud_user, query, kind, limit, order),
-    },
-  ]);
-  const text = await res.text();
+  const run = (dateProp: "creation_time" | "getlastmodified") =>
+    davFetch(userId, (c) => [
+      `${trimBaseUrl(c.base_url)}/remote.php/dav`,
+      {
+        method: "SEARCH",
+        headers: { "Content-Type": "application/xml; charset=utf-8", Accept: "application/xml" },
+        body: buildSearchXml(c.nextcloud_user, query, kind, limit, order, folder, dateProp),
+      },
+    ]);
+  let { conn, res } = await run("creation_time");
+  let text = await res.text();
+  // Older servers cannot sort a search by creation date: let them sort by the
+  // modification date, then put the results in creation order here.
+  if (res.status !== 207 && (order === "created_desc" || order === "created_asc")) {
+    ({ conn, res } = await run("getlastmodified"));
+    text = await res.text();
+  }
   if (res.status !== 207) throw new Error(`Nextcloud search failed [${res.status}]: ${text.slice(0, 300)}`);
-  return parseMultistatus(text, trimBaseUrl(conn.base_url), conn.nextcloud_user).filter((e) => !e.is_dir);
+  const files = parseMultistatus(text, trimBaseUrl(conn.base_url), conn.nextcloud_user).filter((e) => !e.is_dir);
+  return sortEntries(files, order);
 }
 
 /** One folder's contents: subfolders first, then usable files, each by name. */

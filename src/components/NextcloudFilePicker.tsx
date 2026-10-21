@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -22,6 +23,8 @@ import { isReconnectError } from "@/lib/nextcloudAuth";
 import {
   previewKind,
   sortEntries,
+  entryDate,
+  NC_ORDERS,
   type NcEntry,
   type NcKind,
   type NcOrder,
@@ -95,6 +98,9 @@ export function NextcloudFilePicker({
   // Deliberately not remembered: Z to A puts date-prefixed names newest first,
   // and the other direction is for one hunt, not a preference.
   const [order, setOrder] = React.useState<NcOrder>("desc");
+  // Search everywhere by default; in a subfolder it can be kept to that folder
+  // (and the folders inside it).
+  const [inFolder, setInFolder] = React.useState(false);
   const q = useDebounced(query.trim(), 300);
   const searching = q.length >= 2;
   // Statements are always filtered: extraction cannot read anything else.
@@ -106,12 +112,14 @@ export function NextcloudFilePicker({
       setQuery("");
       setPreview(null);
       setOrder("desc");
+      setInFolder(false);
     }
   }, [open, kind]);
+  const scope = inFolder && folder !== "/" ? folder : "/";
 
   const searchQ = useQuery({
-    queryKey: ["nc-search", q, effKind, order],
-    queryFn: () => search({ data: { query: q, kind: effKind, order } }),
+    queryKey: ["nc-search", q, effKind, order, scope],
+    queryFn: () => search({ data: { query: q, kind: effKind, order, folder: scope } }),
     enabled: open && searching,
     retry: false,
     staleTime: 30_000,
@@ -179,13 +187,19 @@ export function NextcloudFilePicker({
             </DialogHeader>
             <Input
               autoFocus
-              placeholder={t("attachments.picker.placeholder")}
+              placeholder={
+                scope === "/" ? t("attachments.picker.placeholder") : t("attachments.picker.placeholder_folder")
+              }
               value={query}
               onChange={(e) => setQuery(e.target.value)}
             />
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
               {searching ? (
-                <span className="min-w-0 flex-1">{t("attachments.picker.searching_all")}</span>
+                <span className="min-w-0 flex-1">
+                  {scope === "/"
+                    ? t("attachments.picker.searching_all")
+                    : t("attachments.picker.searching_in", { folder: scope.split("/").filter(Boolean).pop() ?? scope })}
+                </span>
               ) : (
                 <nav
                   className="flex min-w-0 flex-1 flex-wrap items-center gap-0.5"
@@ -213,20 +227,32 @@ export function NextcloudFilePicker({
                 </nav>
               )}
               <div className="flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  className="inline-flex items-center gap-1 hover:text-foreground"
-                  onClick={() => setOrder(order === "desc" ? "asc" : "desc")}
-                >
-                  {order === "desc" ? (
-                    <ArrowDownZA className="h-3.5 w-3.5" />
-                  ) : (
-                    <ArrowDownAZ className="h-3.5 w-3.5" />
-                  )}
-                  {order === "desc"
-                    ? t("attachments.picker.name_desc")
-                    : t("attachments.picker.name_asc")}
-                </button>
+                <Select value={order} onValueChange={(v) => setOrder(v as NcOrder)}>
+                  <SelectTrigger
+                    className="h-7 w-auto gap-1 border-none px-1 text-xs text-muted-foreground shadow-none hover:text-foreground"
+                    aria-label={t("attachments.picker.sort")}
+                  >
+                    {order === "desc" || order === "created_desc" ? (
+                      <ArrowDownZA className="h-3.5 w-3.5" />
+                    ) : (
+                      <ArrowDownAZ className="h-3.5 w-3.5" />
+                    )}
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {NC_ORDERS.map((o) => (
+                      <SelectItem key={o} value={o} className="text-xs">
+                        {t(`attachments.picker.order.${o}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {folder !== "/" && (
+                  <label className="flex items-center gap-1.5">
+                    <Checkbox checked={inFolder} onCheckedChange={(v) => setInFolder(v === true)} />
+                    {t("attachments.picker.only_folder")}
+                  </label>
+                )}
                 {kind === "receipt" ? (
                   <label className="flex items-center gap-1.5">
                     <Checkbox checked={onlyDocs} onCheckedChange={(v) => setOnlyDocs(v === true)} />
@@ -285,7 +311,10 @@ export function NextcloudFilePicker({
                       e.path.slice(0, e.path.length - e.name.length).replace(/\/+$/, "") || "/";
                     const meta = [
                       searching ? dir : null,
-                      e.modified ? dateFmt.format(new Date(e.modified)) : null,
+                      // The date the list is sorted by, when it is sorted by date.
+                      (order === "created_desc" || order === "created_asc" ? entryDate(e) : e.modified)
+                        ? dateFmt.format(new Date((order === "created_desc" || order === "created_asc" ? entryDate(e) : e.modified)!))
+                        : null,
                       e.is_dir ? null : fmtSize(e.size),
                     ].filter(Boolean);
                     const Icon = e.is_dir

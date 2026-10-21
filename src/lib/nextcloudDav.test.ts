@@ -221,3 +221,64 @@ describe("previewKind", () => {
     expect(previewKind(null)).toBeNull();
   });
 });
+
+describe("creation date", () => {
+  const xml = (creation: string, upload: string) => `<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns" xmlns:nc="http://nextcloud.org/ns">
+  <d:response>
+    <d:href>/remote.php/dav/files/jonas/a.pdf</d:href>
+    <d:propstat><d:prop>
+      <d:getcontenttype>application/pdf</d:getcontenttype>
+      <d:getlastmodified>Sun, 20 Sep 2026 12:00:00 GMT</d:getlastmodified>
+      <nc:creation_time>${creation}</nc:creation_time>
+      <nc:upload_time>${upload}</nc:upload_time>
+    </d:prop></d:propstat>
+  </d:response>
+</d:multistatus>`;
+
+  it("reads nc:creation_time, falls back to nc:upload_time, and knows 0 means unknown", () => {
+    expect(parseMultistatus(xml("1789000000", "0"), BASE, "jonas")[0].created).toBe(
+      new Date(1789000000 * 1000).toISOString(),
+    );
+    expect(parseMultistatus(xml("0", "1789000500"), BASE, "jonas")[0].created).toBe(
+      new Date(1789000500 * 1000).toISOString(),
+    );
+    expect(parseMultistatus(xml("0", "0"), BASE, "jonas")[0].created).toBeNull();
+  });
+
+  it("sorts by creation date, using the modification date when there is none", () => {
+    const base = parseMultistatus(xml("0", "0"), BASE, "jonas")[0];
+    const e = (name: string, created: string | null, modified: string) => ({
+      ...base,
+      name,
+      path: `/${name}`,
+      created,
+      modified,
+    });
+    const list = [
+      e("old.pdf", "2026-01-01T00:00:00Z", "2026-10-01T00:00:00Z"),
+      e("unknown.pdf", null, "2026-05-01T00:00:00Z"),
+      e("new.pdf", "2026-09-01T00:00:00Z", "2026-09-01T00:00:00Z"),
+    ];
+    expect(sortEntries(list, "created_desc").map((x) => x.name)).toEqual(["new.pdf", "unknown.pdf", "old.pdf"]);
+    expect(sortEntries(list, "created_asc").map((x) => x.name)).toEqual(["old.pdf", "unknown.pdf", "new.pdf"]);
+  });
+});
+
+describe("buildSearchXml scope and date order", () => {
+  it("searches one folder and below when asked, with each segment encoded", () => {
+    expect(buildSearchXml("jonas", "x", "any", 25, "desc", "/Finanzen/Belege 2026")).toContain(
+      "<d:href>/files/jonas/Finanzen/Belege%202026</d:href>",
+    );
+    expect(buildSearchXml("jonas", "x", "any", 25, "desc", "/")).toContain("<d:href>/files/jonas</d:href>");
+  });
+
+  it("orders by creation date, or by modification date for servers that cannot", () => {
+    expect(buildSearchXml("jonas", "x", "any", 25, "created_desc")).toMatch(
+      /<d:order><d:prop><nc:creation_time\/><\/d:prop><d:descending\/>/,
+    );
+    expect(buildSearchXml("jonas", "x", "any", 25, "created_asc", "/", "getlastmodified")).toMatch(
+      /<d:order><d:prop><d:getlastmodified\/><\/d:prop><d:ascending\/>/,
+    );
+  });
+});
