@@ -677,6 +677,7 @@ export type Database = {
       category_reallocations: {
         Row: {
           amount: number
+          closes_scope: boolean
           created_at: string
           from_category_id: string | null
           id: string
@@ -689,6 +690,7 @@ export type Database = {
         }
         Insert: {
           amount: number
+          closes_scope?: boolean
           created_at?: string
           from_category_id?: string | null
           id?: string
@@ -701,6 +703,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          closes_scope?: boolean
           created_at?: string
           from_category_id?: string | null
           id?: string
@@ -1815,6 +1818,11 @@ export type Database = {
         }
         Returns: string | null
       }
+      close_scope: {
+        Args: { p_note?: string | null; p_scope_id: string }
+        Returns: { amount: number; reallocation_id: string | null }[]
+      }
+      reopen_scope: { Args: { p_scope_id: string }; Returns: undefined }
       archive_savings_envelope: {
         Args: { p_id: string; p_move_remaining_to: string }
         Returns: undefined

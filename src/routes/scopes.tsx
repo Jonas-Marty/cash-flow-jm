@@ -219,7 +219,7 @@ function ScopeRow({
   });
 
   const close = useMutation({
-    mutationFn: () => closeScope(scope.id),
+    mutationFn: () => closeScope(scope.id, t("scopes.close_note")),
     onSuccess: async (res) => {
       await qc.invalidateQueries({ queryKey: ["scopes"] });
       await qc.invalidateQueries({ queryKey: ["categories"] });

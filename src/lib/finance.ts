@@ -134,6 +134,8 @@ export interface CategoryReallocation {
   to_category_id: string | null;
   /** The transfer this came from, when it was created by one. */
   transaction_id?: string | null;
+  /** Made by closing a scope; it goes away when the scope is reopened. */
+  closes_scope?: boolean;
   amount: number;
   occurred_on: string;
   note: string | null;
@@ -1260,7 +1262,7 @@ export async function fetchEnvelopeReconciliation(asOf?: string): Promise<Envelo
 export async function fetchReallocations(): Promise<CategoryReallocation[]> {
   const { data, error } = await supabase
     .from("category_reallocations")
-    .select("id, from_category_id, to_category_id, transaction_id, amount, occurred_on, note, created_at")
+    .select("id, from_category_id, to_category_id, transaction_id, closes_scope, amount, occurred_on, note, created_at")
     .order("occurred_on", { ascending: false })
     .order("created_at", { ascending: false });
   if (error) throw error;
@@ -1863,45 +1865,28 @@ export async function updateScope(id: string, patch: Partial<{
  * spent, then mark closed_at. Returns the reallocation id (for undo) and total.
  * If funding_category_id is null, only marks closed_at.
  */
-export async function closeScope(scopeId: string): Promise<{ reallocationId: string | null; total: number }> {
-  const { data: scope, error: sErr } = await supabase
-    .from("categories")
-    .select("id,funding_category_id,closed_at")
-    .eq("id", scopeId)
-    .single();
-  if (sErr) throw sErr;
-  const s = scope as { id: string; funding_category_id: string | null; closed_at: string | null };
-  if (s.closed_at) throw new Error("Scope already closed");
-  const { spent } = await fetchScopeTotal(scopeId);
-  let reallocationId: string | null = null;
-  if (s.funding_category_id && spent > 0) {
-    const { data: ins, error: rErr } = await supabase
-      .from("category_reallocations")
-      .insert({
-        from_category_id: s.funding_category_id,
-        to_category_id: scopeId,
-        amount: spent,
-        occurred_on: new Date().toISOString().slice(0, 10),
-        note: "Scope close",
-      })
-      .select("id")
-      .single();
-    if (rErr) throw rErr;
-    reallocationId = (ins as { id: string }).id;
-  }
-  const { error: uErr } = await supabase
-    .from("categories")
-    .update({ closed_at: new Date().toISOString() })
-    .eq("id", scopeId);
-  if (uErr) throw uErr;
-  return { reallocationId, total: spent };
+/**
+ * Close a scope: the database brings its balance to exactly 0 against its
+ * funding envelope (one reallocation marked closes_scope) and sets closed_at.
+ * Returns the reallocation id (for undo) and the amount it moved.
+ */
+export async function closeScope(
+  scopeId: string,
+  note?: string,
+): Promise<{ reallocationId: string | null; total: number }> {
+  const { data, error } = await supabase.rpc("close_scope", { p_scope_id: scopeId, p_note: note ?? null });
+  if (error) throw error;
+  const row = (data ?? [])[0] as { reallocation_id: string | null; amount: number } | undefined;
+  return { reallocationId: row?.reallocation_id ?? null, total: Number(row?.amount ?? 0) };
 }
 
-export async function reopenScope(scopeId: string, reallocationId: string | null): Promise<void> {
-  if (reallocationId) {
-    await supabase.from("category_reallocations").delete().eq("id", reallocationId);
-  }
-  const { error } = await supabase.from("categories").update({ closed_at: null }).eq("id", scopeId);
+/**
+ * Reopen a scope: clears closed_at and removes every reallocation that closed
+ * it, so the next close settles once at the new total. The second argument is
+ * kept for callers of the old undo; the database finds the reallocations itself.
+ */
+export async function reopenScope(scopeId: string, _reallocationId?: string | null): Promise<void> {
+  const { error } = await supabase.rpc("reopen_scope", { p_scope_id: scopeId });
   if (error) throw error;
 }
 

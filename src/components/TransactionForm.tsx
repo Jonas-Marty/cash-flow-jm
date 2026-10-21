@@ -117,6 +117,28 @@ export function TransactionForm({
 }) {
   const { t: tr, locale, lang } = useI18n();
   const navigate = useNavigate();
+  // A closed scope reopens in the database when a save changes its money. Say
+  // so: the scopes this booking touched that were closed before and are not now.
+  const noticeReopenedScopes = async () => {
+    const before = (categoriesQ.data ?? []).filter((c) => c.is_scope && c.closed_at);
+    if (before.length === 0) return;
+    const touched = new Set<string>();
+    const og = editQ.data;
+    if (og) for (const r of og.group && og.group.length > 1 ? og.group : [og.tx]) if (r.category_id) touched.add(r.category_id);
+    if (categoryId) touched.add(categoryId);
+    for (const sl of slices) if (sl.categoryId) touched.add(sl.categoryId);
+    const candidates = before.filter((c) => touched.has(c.id));
+    if (candidates.length === 0) return;
+    const { data } = await supabase
+      .from("categories")
+      .select("id, closed_at")
+      .in("id", candidates.map((c) => c.id));
+    for (const c of candidates) {
+      if ((data ?? []).some((d) => d.id === c.id && !d.closed_at)) {
+        toast.info(tr("toast.scope_reopened", { name: c.name }));
+      }
+    }
+  };
   const goBack = () =>
     navigate({ to: backTo === "envelopes" ? "/envelopes" : "/transactions", search: (backSearch ?? {}) as never });
   const qc = useQueryClient();
@@ -948,6 +970,7 @@ export function TransactionForm({
 
         setSaving(false);
         toast.success(tr("toast.saved"));
+        void noticeReopenedScopes();
         qc.invalidateQueries();
         goBack();
         return;
@@ -979,6 +1002,7 @@ export function TransactionForm({
         void notifyCreated({ data: { ids: newIds } }).catch(() => {});
       }
       toast.success(tr("toast.saved"));
+        void noticeReopenedScopes();
       qc.invalidateQueries();
       if (newIds.length > 0 && (await linkStatementLine(newIds[0]))) return;
       if (newIds.length > 0 && (await linkPendingRow(newIds[0]))) return;
@@ -1093,6 +1117,7 @@ export function TransactionForm({
       }
       setSaving(false);
       toast.success(tr("toast.saved"));
+        void noticeReopenedScopes();
       qc.invalidateQueries();
       goBack();
       return;
@@ -1137,6 +1162,7 @@ export function TransactionForm({
     }
     setSaving(false);
     toast.success(tr("toast.saved"));
+        void noticeReopenedScopes();
     qc.invalidateQueries();
     if (newTxId && (await linkStatementLine(newTxId))) return;
     if (newTxId && (await linkPendingRow(newTxId))) return;

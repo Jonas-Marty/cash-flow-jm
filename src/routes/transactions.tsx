@@ -483,19 +483,29 @@ function TransactionsPage() {
 
 
 
+  // Deleting a booking on a closed scope reopens it in the database; say so.
+  const noticeReopenedScope = (categoryIds: (string | null | undefined)[]) => {
+    for (const id of new Set(categoryIds)) {
+      const c = id ? categoryById.get(id) : undefined;
+      if (c?.is_scope && c.closed_at) toast.info(tr("toast.scope_reopened", { name: c.name }));
+    }
+  };
+
   const del = useStableCallback(async (id: string) => {
     if (!confirm(tr("confirm.delete_transaction"))) return;
-    const { error } = await supabase.from("transactions").delete().eq("id", id);
+    const { data: gone, error } = await supabase.from("transactions").delete().eq("id", id).select("category_id");
     if (error) { toast.error(error.message); return; }
     toast.success(tr("toast.deleted"));
+    noticeReopenedScope((gone ?? []).map((r) => r.category_id));
     qc.invalidateQueries();
   });
 
   const delGroup = useStableCallback(async (groupId: string) => {
     if (!confirm(tr("confirm.delete_transaction"))) return;
-    const { error } = await supabase.from("transactions").delete().eq("split_group_id", groupId);
+    const { data: gone, error } = await supabase.from("transactions").delete().eq("split_group_id", groupId).select("category_id");
     if (error) { toast.error(error.message); return; }
     toast.success(tr("toast.deleted"));
+    noticeReopenedScope((gone ?? []).map((r) => r.category_id));
     qc.invalidateQueries();
   });
 

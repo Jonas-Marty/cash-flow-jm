@@ -22,6 +22,7 @@ import {
   fetchCategories,
   fetchReallocations,
   fetchSettings,
+  reopenScope,
   updateReallocation,
 } from "@/lib/finance";
 import { invalidateReallocationQueries } from "@/lib/budgetQueries";
@@ -102,6 +103,14 @@ export function ReallocationEditDialog({
     onSuccess: () => done(t("env.realloc_edit.deleted")),
     onError: (e: Error) => toast.error(e.message),
   });
+  const reopen = useMutation({
+    mutationFn: (scopeId: string) => reopenScope(scopeId),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["categories"] });
+      await done(t("env.realloc_edit.reopened"));
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
   const busy = save.isPending || del.isPending;
 
   const from = r?.from_category_id ? catById.get(r.from_category_id) : null;
@@ -110,6 +119,43 @@ export function ReallocationEditDialog({
   const sideName = (id: string | null | undefined, c: typeof from) =>
     id ? (c?.name ?? t("env.ledger.unknown_category")) : t("env.moves.unassigned");
   const scope = to?.is_scope ? to : from?.is_scope ? from : null;
+
+  // Made by closing a scope that is still closed: changing it would leave money
+  // in the scope, so the database refuses. Reopening removes it and returns the
+  // money; closing again settles at the new total.
+  if (r?.closes_scope && scope?.closed_at) {
+    const closed = scope;
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("env.realloc_edit.scope_title", { name: closed.name })}</DialogTitle>
+            <DialogDescription>
+              {t("env.realloc_edit.scope_closed", { name: closed.name })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+            <span className="text-muted-foreground">{t("envelopes.reallocate.from")}</span>
+            <span className="truncate font-medium">{sideName(r.from_category_id, from)}</span>
+            <span className="text-muted-foreground">{t("envelopes.reallocate.to")}</span>
+            <span className="truncate font-medium">{sideName(r.to_category_id, to)}</span>
+            <span className="text-muted-foreground">{t("envelopes.reallocate.amount")}</span>
+            <span className="font-medium tabular-nums">
+              {Number(r.amount).toFixed(2)} {symbol}
+            </span>
+          </div>
+          <DialogFooter className="flex-row justify-end gap-2">
+            <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={reopen.isPending}>
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={() => reopen.mutate(closed.id)} disabled={reopen.isPending}>
+              {t("env.realloc_edit.reopen_scope")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   // Made by a transfer that received more than it paid: amount, date and budget
   // follow the transfer, so it is changed there and only shown here.
