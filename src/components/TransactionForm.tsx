@@ -676,6 +676,16 @@ export function TransactionForm({
   // Only an answer for what is on screen now counts; an older one is dropped.
   const serverImpact =
     previewKey && previewOps && previewKey === JSON.stringify(previewOps) ? (previewQ.data ?? null) : null;
+  // Received no more than was paid on a same-currency transfer: that is a fee,
+  // and the database refuses it. Said at the field, and saving waits for a fix.
+  const receivedTooLow = (() => {
+    if (type !== "transfer" || isCrossCurrency || !diffOpen || received.trim() === "" || amountNum == null) return false;
+    const n = Number(received.replace(",", "."));
+    return !Number.isFinite(n) || n <= amountNum;
+  })();
+  // Anything else the database would refuse. Shown, but saving is not blocked
+  // on it: the trial run is a preview, and saving reports the real reason.
+  const previewRefusal = receivedTooLow ? null : (serverImpact?.find((r) => r.kind === "error")?.error ?? null);
 
   // Month bucket for the chosen transaction date — used by the impact preview
   // to read the affected category's monthly envelope (spent vs allocated).
@@ -1568,7 +1578,9 @@ export function TransactionForm({
                         placeholder="0.00"
                         value={received}
                         onChange={(e) => setReceived(e.target.value.replace(/[^0-9.,]/g, ""))}
-                        className="tabular-nums"
+                        aria-invalid={receivedTooLow || undefined}
+                        aria-describedby={receivedTooLow ? "received-error" : undefined}
+                        className={cn("tabular-nums", receivedTooLow && "border-destructive focus-visible:ring-destructive")}
                       />
                     </div>
                     {diff != null && diff > 0.005 && (
@@ -1584,8 +1596,8 @@ export function TransactionForm({
                         </span>
                       </div>
                     )}
-                    {diff != null && diff <= 0.005 && (
-                      <p className="mt-2 text-xs text-warning">
+                    {receivedTooLow && (
+                      <p id="received-error" role="alert" className="mt-2 text-xs text-destructive">
                         {tr("add.transfer.diff.less")}{" "}
                         {!feeOpen && (
                           <button
@@ -1593,7 +1605,7 @@ export function TransactionForm({
                             className="text-primary underline underline-offset-2"
                             onClick={() => {
                               setFeeOpen(true);
-                              if (diff < 0) setFeeAmount((-diff).toFixed(2));
+                              if (diff != null && diff < 0) setFeeAmount((-diff).toFixed(2));
                               setDiffOpen(false);
                               setReceived("");
                               setDiffCategoryId("");
@@ -2390,16 +2402,19 @@ export function TransactionForm({
           <div className="pt-2 text-xs text-muted-foreground">{tr("statements.linking_hint")}</div>
         )}
 
+        {previewRefusal && (
+          <p role="status" className="text-xs text-warning">{tr("add.impact.refused", { x: previewRefusal })}</p>
+        )}
         <div className="flex gap-2 pt-2">
           {isEdit ? (
             <>
               <Button variant="outline" className="flex-1" disabled={saving} onClick={() => goBack()}>{tr("common.cancel")}</Button>
-              <Button className="flex-1" disabled={saving} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("edit.save_changes")}</Button>
+              <Button className="flex-1" disabled={saving || receivedTooLow} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("edit.save_changes")}</Button>
             </>
           ) : (
             <>
-              <Button variant="outline" className="flex-1" disabled={saving} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("common.save")}</Button>
-              <Button className="flex-1" disabled={saving} onClick={() => save(true)}>{tr("add.save_new")}</Button>
+              <Button variant="outline" className="flex-1" disabled={saving || receivedTooLow} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("common.save")}</Button>
+              <Button className="flex-1" disabled={saving || receivedTooLow} onClick={() => save(true)}>{tr("add.save_new")}</Button>
             </>
           )}
         </div>
@@ -2814,7 +2829,7 @@ function ImpactPreview({
   const serverImpactRows = (rows: PreviewImpactRow[]) => {
     const order = { envelope: 0, month: 1, unallocated: 2, account: 3, error: 4 } as const;
     const shown = rows
-      .filter((r) => r.kind !== "account")
+      .filter((r) => r.kind !== "account" && r.kind !== "error")
       .sort((a, b) => order[a.kind] - order[b.kind]);
     return shown.map((r, i) => {
       if (r.kind === "error") {
