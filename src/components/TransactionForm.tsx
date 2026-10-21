@@ -30,6 +30,7 @@ import {
 } from "@/lib/finance";
 import { fetchSavingsBalances, type CategorySavingsBalance } from "@/lib/finance";
 import { markPendingConfirmed } from "@/lib/finance";
+import { fetchPreviewImpact, type PreviewImpactRow, type PreviewOp } from "@/lib/finance";
 import { EntityVisual } from "@/components/EntityVisual";
 import { AlertTriangle, Link as LinkIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -602,6 +603,79 @@ export function TransactionForm({
     const n = Number(amount.replace(",", "."));
     return isFinite(n) && n > 0 ? n : null;
   }, [amount]);
+
+  // The change as the database would get it on save, for the exact preview:
+  // inserts for a new booking, an update (plus fee changes) for an edit, and
+  // delete + insert for a split. null while it cannot be saved yet.
+  const previewOps = React.useMemo((): PreviewOp[] | null => {
+    if (!sourceId || amountNum == null) return null;
+    if (type === "transfer" && (!destId || destId === sourceId)) return null;
+    const on = format(date, "yyyy-MM-dd");
+    const num = (v: string) => {
+      const n = Number(v.replace(",", "."));
+      return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null;
+    };
+    const receivedNum = type === "transfer" && !isCrossCurrency && diffOpen ? num(received) : null;
+    const base: Record<string, unknown> = {
+      type,
+      amount: amountNum,
+      occurred_on: on,
+      source_account_id: sourceId,
+      destination_account_id: type === "transfer" ? destId : null,
+      category_id: type === "transfer" ? null : categoryId || null,
+      destination_amount:
+        type !== "transfer" ? null : isCrossCurrency ? num(destAmount) : receivedNum,
+      difference_category_id:
+        type === "transfer" && !isCrossCurrency && receivedNum != null ? diffCategoryId || null : null,
+      is_reimbursable: type !== "transfer" ? isReimbursable : false,
+    };
+    const fee = type === "transfer" && feeOpen ? num(feeAmount) : null;
+    const feeRow = fee != null && feeCategoryId
+      ? { type: "expense", amount: fee, occurred_on: on, source_account_id: sourceId, category_id: feeCategoryId }
+      : null;
+    const ops: PreviewOp[] = [];
+    const og = editQ.data;
+    if (splitMode && type !== "transfer") {
+      if (isEdit && og) for (const r of og.group && og.group.length > 0 ? og.group : [og.tx]) ops.push({ op: "delete", id: r.id });
+      for (const sl of slices) {
+        const a = num(sl.amount);
+        if (a == null) continue;
+        ops.push({ op: "insert", row: { ...base, amount: a, category_id: sl.categoryId || null } });
+      }
+      return ops.length > 0 ? ops : null;
+    }
+    if (isEdit && editId) {
+      ops.push({ op: "update", id: editId, row: base });
+      if (existingFeeTxId && feeRow) ops.push({ op: "update", id: existingFeeTxId, row: feeRow });
+      else if (existingFeeTxId) ops.push({ op: "delete", id: existingFeeTxId });
+      else if (feeRow) ops.push({ op: "insert", row: feeRow });
+    } else {
+      ops.push({ op: "insert", row: base });
+      if (feeRow) ops.push({ op: "insert", row: feeRow });
+    }
+    return ops;
+  }, [
+    sourceId, amountNum, type, destId, date, isCrossCurrency, diffOpen, received, destAmount,
+    categoryId, diffCategoryId, isReimbursable, feeOpen, feeAmount, feeCategoryId, editQ.data,
+    splitMode, slices, isEdit, editId, existingFeeTxId,
+  ]);
+  // Ask once typing pauses, not on every keystroke.
+  const [previewKey, setPreviewKey] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    const key = previewOps ? JSON.stringify(previewOps) : null;
+    const timer = setTimeout(() => setPreviewKey(key), 400);
+    return () => clearTimeout(timer);
+  }, [previewOps]);
+  const previewQ = useQuery({
+    queryKey: ["preview_transaction_change", previewKey],
+    queryFn: () => fetchPreviewImpact(JSON.parse(previewKey!) as PreviewOp[]),
+    enabled: !!previewKey,
+    staleTime: 0,
+    gcTime: 30_000,
+  });
+  // Only an answer for what is on screen now counts; an older one is dropped.
+  const serverImpact =
+    previewKey && previewOps && previewKey === JSON.stringify(previewOps) ? (previewQ.data ?? null) : null;
 
   // Month bucket for the chosen transaction date — used by the impact preview
   // to read the affected category's monthly envelope (spent vs allocated).
@@ -2228,7 +2302,7 @@ export function TransactionForm({
           type={type}
           amountNum={amountNum}
           destAmountNum={(() => {
-            const n = Number(destAmount.replace(",", "."));
+            const n = Number((isCrossCurrency ? destAmount : diffOpen ? received : "").replace(",", "."));
             return Number.isFinite(n) && n > 0 ? n : null;
           })()}
           isCrossCurrency={isCrossCurrency}
@@ -2286,6 +2360,8 @@ export function TransactionForm({
           mainSymbol={mainSymbol}
           fxRates={fxQ.data}
           editOriginal={isEdit ? editQ.data ?? null : null}
+          serverImpact={serverImpact}
+          locale={locale}
           tr={tr}
         />
 
@@ -2390,7 +2466,9 @@ function TransactionPreview({
     type === "expense" ? "text-destructive" : type === "income" ? "text-success" : "text-muted-foreground";
   const sign = type === "expense" ? "-" : type === "income" ? "+" : "";
   const primary = (type !== "transfer" ? category : null) ?? source;
-  const showDst = type === "transfer" && isCrossCurrency && destAmountNum != null;
+  // Another currency, or more received than paid (a gift card at a discount).
+  const showDst =
+    type === "transfer" && destAmountNum != null && (isCrossCurrency || destAmountNum !== amountNum);
   const fallbackTitle = type === "transfer" ? labels.transfer : type === "income" ? labels.income : labels.expense;
 
   return (
@@ -2490,7 +2568,7 @@ function ImpactPreview({
   source, destination, category, date,
   splitMode, slices, categoryById,
   balances, categoryRows, savingsBalances, mainCode, mainSymbol, fxRates,
-  editOriginal, tr,
+  editOriginal, tr, serverImpact, locale,
 }: {
   type: TxType;
   amountNum: number | null;
@@ -2512,6 +2590,9 @@ function ImpactPreview({
   fxRates: FxRates | undefined;
   editOriginal: { tx: Transaction; group: Transaction[] | null } | null;
   tr: (k: string, p?: Record<string, string>) => string;
+  /** What the database says saving would move; replaces the estimated budget rows. */
+  serverImpact: PreviewImpactRow[] | null;
+  locale: Locale;
 }) {
   if (!source || amountNum == null || amountNum <= 0) return null;
 
@@ -2727,6 +2808,60 @@ function ImpactPreview({
 
   const showNetWorth = type !== "transfer" || xCur;
 
+  // Budget rows as the database computed them: budgets that roll over (Sparen,
+  // scopes), monthly budgets in the booking's month, and unassigned money.
+  // Accounts stay on the instant estimate above, which already matches.
+  const serverImpactRows = (rows: PreviewImpactRow[]) => {
+    const order = { envelope: 0, month: 1, unallocated: 2, account: 3, error: 4 } as const;
+    const shown = rows
+      .filter((r) => r.kind !== "account")
+      .sort((a, b) => order[a.kind] - order[b.kind]);
+    return shown.map((r, i) => {
+      if (r.kind === "error") {
+        return (
+          <li key={"err-" + i} className="text-warning">
+            {tr("add.impact.refused", { x: r.error ?? "" })}
+          </li>
+        );
+      }
+      const delta = r.after - r.before;
+      const name =
+        r.kind === "unallocated"
+          ? tr("env.moves.unassigned")
+          : (categoryById.get(r.ref_id ?? "")?.name ?? "?");
+      const label =
+        r.kind === "month" && r.month
+          ? `${tr("add.impact.category")} · ${name} (${format(new Date(r.month + "T00:00:00"), "MMM yyyy", { locale })})`
+          : r.kind === "unallocated"
+            ? name
+            : `${tr("add.impact.category")} · ${name}`;
+      const what =
+        r.kind === "month"
+          ? r.income
+            ? tr("add.impact.received")
+            : tr("add.impact.remaining")
+          : r.kind === "envelope"
+            ? tr("add.impact.saved")
+            : null;
+      return (
+        <li key={`${r.kind}-${r.ref_id ?? ""}-${r.month ?? ""}`} className="flex flex-wrap items-baseline justify-between gap-x-3">
+          <span className="min-w-0 text-muted-foreground">{label}</span>
+          <span className="ml-auto text-right tabular-nums">
+            {what && <>{what}: </>}
+            {fmt(r.before, mainSymbol)} →{" "}
+            <span className={cn("font-medium", r.after < 0 && r.kind !== "unallocated" ? "text-destructive" : "text-foreground")}>
+              {fmt(r.after, mainSymbol)}
+            </span>{" "}
+            <span className={cn(delta >= 0 ? "text-success" : "text-destructive")}>({deltaStr(delta, mainSymbol)})</span>
+            {r.kind === "month" && !r.income && r.allocated != null && r.allocated > 0 && (
+              <span className="text-muted-foreground"> {tr("add.impact.of", { x: fmtMoney(r.allocated, mainSymbol) })}</span>
+            )}
+          </span>
+        </li>
+      );
+    });
+  };
+
   return (
     <Card className="border-dashed">
       <CardContent className="px-3 py-2 text-xs">
@@ -2737,11 +2872,11 @@ function ImpactPreview({
           {accountRows.map((r) => {
             const delta = r.after - r.before;
             return (
-              <li key={r.id} className="flex items-baseline justify-between gap-3">
-                <span className="truncate text-muted-foreground">
+              <li key={r.id} className="flex flex-wrap items-baseline justify-between gap-x-3">
+                <span className="min-w-0 text-muted-foreground">
                   {tr("add.impact.account")} · {r.name}
                 </span>
-                <span className="tabular-nums">
+                <span className="ml-auto text-right tabular-nums">
                   {fmt(r.before, r.sym)} → <span className="font-medium text-foreground">{fmt(r.after, r.sym)}</span>{" "}
                   <span className={cn(delta >= 0 ? "text-success" : "text-destructive")}>({deltaStr(delta, r.sym)})</span>
                 </span>
@@ -2749,15 +2884,16 @@ function ImpactPreview({
             );
           })}
           {showNetWorth && !netDeltaUnknown && (
-            <li className="flex items-baseline justify-between gap-3">
-              <span className="truncate text-muted-foreground">{tr("add.impact.networth")}</span>
-              <span className="tabular-nums">
+            <li className="flex flex-wrap items-baseline justify-between gap-x-3">
+              <span className="min-w-0 text-muted-foreground">{tr("add.impact.networth")}</span>
+              <span className="ml-auto text-right tabular-nums">
                 {fmt(netBefore, mainSymbol)} → <span className="font-medium text-foreground">{fmt(netAfter, mainSymbol)}</span>{" "}
                 <span className={cn(netDelta >= 0 ? "text-success" : "text-destructive")}>({deltaStr(netDelta, mainSymbol)})</span>
               </span>
             </li>
           )}
-          {catRows.map((r) => {
+          {serverImpact && serverImpactRows(serverImpact)}
+          {!serverImpact && catRows.map((r) => {
             const hasBudget = r.allocated > 0;
             const remBefore = r.allocated - r.before;
             const remAfter = r.allocated - r.after;
@@ -2767,11 +2903,11 @@ function ImpactPreview({
             const scopeRemBefore = r.allocated + r.scopeSpentBefore;
             const scopeRemAfter = r.allocated + r.scopeSpentAfter;
             return (
-              <li key={"cat-" + r.id} className="flex items-baseline justify-between gap-3">
-                <span className="truncate text-muted-foreground">
+              <li key={"cat-" + r.id} className="flex flex-wrap items-baseline justify-between gap-x-3">
+                <span className="min-w-0 text-muted-foreground">
                   {tr("add.impact.category")} · {r.name}
                 </span>
-                <span className="tabular-nums">
+                <span className="ml-auto text-right tabular-nums">
                   {r.isScope && hasBudget ? (
                     <>
                       {tr("add.impact.remaining")}: {fmt(scopeRemBefore, mainSymbol)} →{" "}

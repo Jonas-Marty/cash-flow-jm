@@ -1823,6 +1823,19 @@ export type Database = {
         Returns: { amount: number; reallocation_id: string | null }[]
       }
       reopen_scope: { Args: { p_scope_id: string }; Returns: undefined }
+      preview_transaction_change: {
+        Args: { p_ops: Json }
+        Returns: {
+          after: number
+          allocated: number | null
+          before: number
+          error: string | null
+          income: boolean | null
+          kind: string
+          month: string | null
+          ref_id: string | null
+        }[]
+      }
       archive_savings_envelope: {
         Args: { p_id: string; p_move_remaining_to: string }
         Returns: undefined

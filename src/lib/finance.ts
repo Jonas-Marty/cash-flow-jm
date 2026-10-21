@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { locationFromRow, locationToColumns, type TxLocation } from "@/lib/location";
 
 export type AccountType = "asset" | "liability";
@@ -1225,6 +1226,43 @@ export async function fetchCategoryLedgerMonth(month: string): Promise<Map<strin
     out.set(category_id, list);
   }
   return out;
+}
+
+/** One operation of a change the form would save, for preview_transaction_change. */
+export type PreviewOp =
+  | { op: "insert"; row: Record<string, unknown> }
+  | { op: "update"; id: string; row: Record<string, unknown> }
+  | { op: "delete"; id: string };
+
+/** Something that saving the change would move, as the database computes it. */
+export interface PreviewImpactRow {
+  kind: "account" | "envelope" | "month" | "unallocated" | "error";
+  ref_id: string | null;
+  /** month rows: the first of the month. */
+  month: string | null;
+  before: number;
+  after: number;
+  /** month rows: the budget's allocation that month. */
+  allocated: number | null;
+  /** month rows: an income budget (the value is received, not left). */
+  income: boolean | null;
+  /** kind "error": why the database would refuse the change. */
+  error: string | null;
+}
+
+/**
+ * Apply the change in the database inside a step that is always undone and
+ * return what it moves: accounts, budgets, the month's budgets, unassigned money.
+ */
+export async function fetchPreviewImpact(ops: PreviewOp[]): Promise<PreviewImpactRow[]> {
+  const { data, error } = await supabase.rpc("preview_transaction_change", { p_ops: ops as unknown as Json });
+  if (error) throw error;
+  return ((data || []) as unknown as PreviewImpactRow[]).map((r) => ({
+    ...r,
+    before: Number(r.before),
+    after: Number(r.after),
+    allocated: r.allocated == null ? null : Number(r.allocated),
+  }));
 }
 
 export interface SavingsBalancePoint {
