@@ -11,6 +11,7 @@
     "permanent": {
       "github.com": "Link to the source repository, in the privacy notice's own prose.",
       "owncloud.org": "XML namespace URI in a WebDAV request body, never resolved.",
+      "nextcloud.org": "XML namespace URI in a WebDAV request body (nc:creation_time), never resolved.",
       "ai.example.ch": "Placeholder endpoint in a unit test fixture.",
       "ollama.local": "Placeholder endpoint in a unit test fixture.",
       "api.openai.com": "Example base URL shown in the AI connection form; the user supplies their own.",
