@@ -1804,6 +1804,17 @@ export type Database = {
         Args: { p_delete_pending?: boolean; p_id: string }
         Returns: undefined
       }
+      account_balance: { Args: { p_account_id: string }; Returns: number }
+      archive_account: {
+        Args: {
+          p_account_id: string
+          p_category_id?: string | null
+          p_counter_account_id?: string | null
+          p_description?: string | null
+          p_on?: string
+        }
+        Returns: string | null
+      }
       archive_savings_envelope: {
         Args: { p_id: string; p_move_remaining_to: string }
         Returns: undefined

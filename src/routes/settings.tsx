@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import {
   fetchAccounts, fetchCategories, fetchCategoryGroups, fetchCategoryMonthRows, fetchSettings,
   monthKey, setCategoryOpeningBalance,
-  type AccountType, type GroupKind,
+  type Account, type AccountType, type GroupKind,
 } from "@/lib/finance";
 import { BudgetEditPopover } from "@/components/BudgetEditPopover";
 import { MonthNavigator } from "@/components/MonthNavigator";
@@ -44,6 +44,7 @@ import { AISettingsCard } from "@/components/AISettingsCard";
 import { AIAuditLogCard } from "@/components/AIAuditLogCard";
 import { LinkedAccountsCard } from "@/components/LinkedAccountsCard";
 import { SignInProvidersCard } from "@/components/SignInProvidersCard";
+import { ArchiveAccountDialog } from "@/components/ArchiveAccountDialog";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -131,8 +132,25 @@ function SettingsPage() {
     toast.success(tr("toast.saved"));
     qc.invalidateQueries();
   };
+  // Archiving needs an empty account (the database refuses otherwise): an empty
+  // one is archived at once, one that still holds money asks where it goes.
+  const [archiving, setArchiving] = React.useState<{ account: Account; balance: number } | null>(null);
   const toggleArchiveAccount = async (id: string, archived: boolean) => {
-    const { error } = await supabase.from("accounts").update({ archived: !archived }).eq("id", id);
+    if (archived) {
+      const { error } = await supabase.from("accounts").update({ archived: false }).eq("id", id);
+      if (error) return toast.error(error.message);
+      qc.invalidateQueries();
+      return;
+    }
+    const { data: balance, error: balErr } = await supabase.rpc("account_balance", { p_account_id: id });
+    if (balErr) return toast.error(balErr.message);
+    const b = Math.round(Number(balance ?? 0) * 100) / 100;
+    if (Math.abs(b) >= 0.005) {
+      const account = (accountsQ.data ?? []).find((a) => a.id === id);
+      if (account) setArchiving({ account, balance: b });
+      return;
+    }
+    const { error } = await supabase.rpc("archive_account", { p_account_id: id });
     if (error) return toast.error(error.message);
     qc.invalidateQueries();
   };
@@ -881,6 +899,11 @@ function SettingsPage() {
             <p className="text-xs text-muted-foreground">{tr("settings.accounts.asset_hint")}</p>
             <p className="text-xs text-muted-foreground">{tr("settings.accounts.opening_balance_hint")}</p>
 
+            <ArchiveAccountDialog
+              account={archiving?.account ?? null}
+              balance={archiving?.balance ?? 0}
+              onOpenChange={(v) => { if (!v) setArchiving(null); }}
+            />
             <ul className="divide-y">
               {(accountsQ.data ?? []).map((a) => (
                 <li key={a.id} className="flex items-center justify-between gap-2 py-2">
