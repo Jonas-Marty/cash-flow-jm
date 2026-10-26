@@ -105,5 +105,6 @@ export function unallocatedSettlingAmount(
 ): number {
   const used = Object.values(selected).reduce((s, v) => s + (Number(v) || 0), 0);
   const left = (isFinite(settlingAmount) ? settlingAmount : 0) - used;
-  return left > 0 ? left : 0;
+  // To the cent: 427.35 - 417.40 is 9.950000000000045 in floating point.
+  return left > 0 ? Math.round(left * 100) / 100 : 0;
 }

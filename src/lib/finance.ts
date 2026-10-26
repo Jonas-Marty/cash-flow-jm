@@ -1504,6 +1504,30 @@ export async function linkReimbursement(
   if (error) throw error;
 }
 
+/**
+ * Replace every reimbursable an income covers with `links`, in one step. The
+ * database refuses more than the income in total and leaves written-off or
+ * cancelled ones as they are; reimbursables no longer covered become open.
+ */
+export async function setReimbursementLinks(
+  settlingId: string,
+  links: { original_id: string; amount: number }[],
+): Promise<void> {
+  const { error } = await supabase.rpc("set_reimbursement_links", {
+    p_settling_id: settlingId,
+    p_links: links as unknown as Json,
+  });
+  if (error) throw error;
+}
+
+/** Transactions by id, for the other side of reimbursement links. */
+export async function fetchTransactionsByIds(ids: string[]): Promise<Transaction[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase.from("transactions").select("*").in("id", ids);
+  if (error) throw error;
+  return (data ?? []) as Transaction[];
+}
+
 export async function unlinkReimbursement(linkId: string): Promise<void> {
   const { error } = await supabase
     .from("transaction_reimbursements")

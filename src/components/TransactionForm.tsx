@@ -30,7 +30,8 @@ import {
 } from "@/lib/finance";
 import { fetchSavingsBalances, type CategorySavingsBalance } from "@/lib/finance";
 import { markPendingConfirmed } from "@/lib/finance";
-import { fetchPreviewImpact, type PreviewImpactRow, type PreviewOp } from "@/lib/finance";
+import { fetchPreviewImpact, fetchTransactionsByIds, setReimbursementLinks, type PreviewImpactRow, type PreviewOp } from "@/lib/finance";
+import { ReimbursementPayments } from "@/components/ReimbursementPayments";
 import { EntityVisual } from "@/components/EntityVisual";
 import { AlertTriangle, Link as LinkIcon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
@@ -683,6 +684,11 @@ export function TransactionForm({
     const n = Number(received.replace(",", "."));
     return !Number.isFinite(n) || n <= amountNum;
   })();
+  // More assigned to reimbursables than this income brings: saving waits.
+  const linkOverAssigned =
+    type === "income" &&
+    amountNum != null &&
+    Object.values(linkSelections).reduce((sum, v) => sum + (Number(v) || 0), 0) > amountNum + 0.005;
   // Anything else the database would refuse. Shown, but saving is not blocked
   // on it: the trial run is a preview, and saving reports the real reason.
   const previewRefusal = receivedTooLow ? null : (serverImpact?.find((r) => r.kind === "error")?.error ?? null);
@@ -733,6 +739,36 @@ export function TransactionForm({
     return out;
   }, [openReimbQ.data, reimbLinksQ.data]);
 
+  // ───────── Editing the reimbursables an income covers ─────────
+  // The reimbursables this income covers today. They read "settled" (often
+  // because of this very income), so the open list does not have them.
+  const linkedOriginalIds = React.useMemo(
+    () => editAsSettlerLinks.map((l) => l.original_transaction_id).sort(),
+    [editAsSettlerLinks],
+  );
+  const linkedOriginalsQ = useQuery({
+    queryKey: ["transactions_by_ids", linkedOriginalIds],
+    queryFn: () => fetchTransactionsByIds(linkedOriginalIds),
+    enabled: linkedOriginalIds.length > 0,
+  });
+  // What each reimbursable can still take from this income: its amount minus
+  // what *other* incomes already pay towards it.
+  const availableByOrig = React.useMemo(() => {
+    const others = new Map<string, number>();
+    (reimbLinksQ.data ?? []).forEach((l: ReimbursementLink) => {
+      if (editId && l.settling_transaction_id === editId) return;
+      others.set(l.original_transaction_id, (others.get(l.original_transaction_id) ?? 0) + Number(l.amount));
+    });
+    const out = new Map<string, number>();
+    for (const t of [...(openReimbQ.data ?? []), ...(linkedOriginalsQ.data ?? [])]) {
+      out.set(t.id, Math.max(0, Number(t.amount) - (others.get(t.id) ?? 0)));
+    }
+    return out;
+  }, [reimbLinksQ.data, openReimbQ.data, linkedOriginalsQ.data, editId]);
+  // A write-off already moved this income; its link stays exactly as it is.
+  const isLockedOriginal = (t: Transaction) =>
+    t.reimbursable_status === "written_off" || t.reimbursable_status === "cancelled";
+
   // Auto-link candidates: open reimbursables for the current source account
   // (same currency) that this income could plausibly settle.
   // Candidates for the reimbursable-link card: open reimbursables on a
@@ -753,6 +789,15 @@ export function TransactionForm({
     list.sort((a, b) => (a.occurred_on < b.occurred_on ? 1 : a.occurred_on > b.occurred_on ? -1 : 0));
     return list;
   }, [type, sourceId, openReimbQ.data, accountById, remainingByOrig]);
+
+  // What the card lists: in edit mode the reimbursables covered now come first,
+  // then the open ones it could cover instead.
+  const cardCandidates = React.useMemo<Transaction[]>(() => {
+    if (!isEdit) return linkCandidates;
+    const linked = linkedOriginalsQ.data ?? [];
+    const ids = new Set(linked.map((t) => t.id));
+    return [...linked, ...linkCandidates.filter((t) => !ids.has(t.id))];
+  }, [isEdit, linkCandidates, linkedOriginalsQ.data]);
 
   // Subset-sum suggestion: best subset of candidates whose remaining amounts
   // sum to the income amount within a generous tolerance. Only computed when
@@ -775,6 +820,13 @@ export function TransactionForm({
   // the items because an amount match may be coincidental. The user must
   // confirm explicitly by ticking the checkbox or clicking "Link suggested".
   const linkSelectionsTouchedRef = React.useRef(false);
+  // Editing an income: start from the reimbursables it covers today.
+  React.useEffect(() => {
+    if (!isEdit || linkSelectionsTouchedRef.current) return;
+    const next: Record<string, number> = {};
+    for (const l of editAsSettlerLinks) next[l.original_transaction_id] = Number(l.amount);
+    setLinkSelections(next);
+  }, [isEdit, editAsSettlerLinks]);
 
   // When deep-linked from "Add refund", preselect the original reimbursable.
   const reimbForAppliedRef = React.useRef(false);
@@ -1182,9 +1234,23 @@ export function TransactionForm({
     if (isEdit && editId) {
       const { error } = await supabase.from("transactions").update(payload).eq("id", editId);
       if (error) { setSaving(false); toast.error(error.message); return; }
-      // Mirror amount changes into reimbursement link rows where this tx
-      // is the settler, so the original's settled/open status stays correct.
-      if (editAsSettlerLinks.length === 1) {
+      // Reimbursables covered by this income: the card's list replaces the
+      // current links in one step when it was changed. Otherwise a single
+      // link follows the amount, so the original's status stays correct.
+      if (type === "income" && linkSelectionsTouchedRef.current) {
+        try {
+          await setReimbursementLinks(
+            editId,
+            Object.entries(linkSelections)
+              .map(([original_id, a]) => ({ original_id, amount: Math.round(Number(a) * 100) / 100 }))
+              .filter((x) => x.amount > 0),
+          );
+        } catch (e) {
+          setSaving(false);
+          toast.error((e as Error).message);
+          return;
+        }
+      } else if (editAsSettlerLinks.length === 1) {
         const link = editAsSettlerLinks[0];
         if (Math.abs(Number(link.amount) - amt) > 0.005) {
           const { error: lErr } = await supabase
@@ -2132,23 +2198,31 @@ export function TransactionForm({
           </Card>
         )}
 
+        {/* A reimbursable being edited: the incomes that repay it. */}
+        {isEdit && editQ.data && editQ.data.tx.is_reimbursable && !splitMode && type !== "transfer" && (
+          <ReimbursementPayments original={editQ.data.tx} links={editAsOriginalLinks} symbol={symbol} />
+        )}
+
         {/* Reimbursable-link card: subset-sum suggestion when we have a match,
             otherwise collapsed manual-link list. */}
-        {!isEdit && type === "income" && linkCandidates.length > 0 && (() => {
-          const matchedIds = new Set(suggestedMatch?.ids ?? []);
+        {type === "income" && cardCandidates.length > 0 && (() => {
+          // Suggestions help assign a new income; when editing they would only
+          // compete with the assignment that is there.
+          const matchedIds = new Set(isEdit ? [] : (suggestedMatch?.ids ?? []));
           const selectedTotal = Object.values(linkSelections).reduce((s, v) => s + (Number(v) || 0), 0);
           const hasSelection = Object.keys(linkSelections).length > 0;
           const incomeAmt = amountNum ?? 0;
           const diff = selectedTotal - incomeAmt;
           const absDiff = Math.abs(diff);
+          const overAssigned = linkOverAssigned;
           const summaryKey = absDiff < 0.005
             ? "add.reimb.link.selected_summary.exact"
             : diff < 0
               ? "add.reimb.link.selected_summary.under"
               : "add.reimb.link.selected_summary.over";
           return (
-            <Collapsible defaultOpen={!!suggestedMatch}>
-              <Card className={suggestedMatch ? "border-warning/60 bg-warning/5" : ""}>
+            <Collapsible defaultOpen={!!suggestedMatch || (isEdit && editAsSettlerLinks.length > 0)}>
+              <Card className={suggestedMatch && !isEdit ? "border-warning/60 bg-warning/5" : ""}>
                 <CardContent className="space-y-2 py-3">
                   <CollapsibleTrigger asChild>
                     <button
@@ -2157,7 +2231,16 @@ export function TransactionForm({
                     >
                       <div className="flex items-center gap-2 text-sm font-medium">
                         <LinkIcon className="h-4 w-4" />
-                        {suggestedMatch
+                        {isEdit
+                          ? (
+                            <>
+                              <span>{tr("add.reimb.link.edit_title")}</span>
+                              <span className="text-xs font-normal text-muted-foreground">
+                                {tr("add.reimb.link.assigned_count", { n: String(Object.keys(linkSelections).length) })}
+                              </span>
+                            </>
+                          )
+                          : suggestedMatch
                           ? tr("add.reimb.link.suggested_title", {
                               n: String(suggestedMatch.ids.length),
                               amount: fmtMoney(suggestedMatch.total, symbol),
@@ -2175,13 +2258,17 @@ export function TransactionForm({
                     </button>
                   </CollapsibleTrigger>
                   <CollapsibleContent className="space-y-2">
-                    {!suggestedMatch && (
+                    {isEdit ? (
+                      <p className="text-xs text-muted-foreground">{tr("add.reimb.link.edit_hint")}</p>
+                    ) : !suggestedMatch && (
                       <p className="text-xs text-muted-foreground">{tr("add.reimb.link.no_match_hint")}</p>
                     )}
                     <ul className="space-y-1">
-                      {linkCandidates.map((t) => {
-                        const rem = remainingByOrig.get(t.id) ?? 0;
+                      {cardCandidates.map((t) => {
+                        const rem = availableByOrig.get(t.id) ?? remainingByOrig.get(t.id) ?? 0;
                         const checked = linkSelections[t.id] != null;
+                        const locked = isLockedOriginal(t);
+                        const coveredNow = isEdit && editAsSettlerLinks.some((l) => l.original_transaction_id === t.id);
                         const acc = accountById.get(t.source_account_id);
                         const sym = acc?.currency_symbol ?? symbol;
                         const isMatched = matchedIds.has(t.id);
@@ -2197,6 +2284,7 @@ export function TransactionForm({
                           >
                             <Checkbox
                               checked={checked}
+                              disabled={locked}
                               onCheckedChange={(v) => {
                                 linkSelectionsTouchedRef.current = true;
                                 setLinkSelections((cur) => {
@@ -2219,23 +2307,51 @@ export function TransactionForm({
                               </div>
                               <div className="text-muted-foreground">
                                 {format(new Date(t.occurred_on + "T00:00:00"), "dd.MM.yyyy", { locale })} · {fmtMoney(rem, sym)}
+                                {coveredNow && !locked && (
+                                  <span className="ml-1.5 rounded bg-success/15 px-1 py-px text-[10px] font-medium text-success">
+                                    {tr("add.reimb.link.covered_now")}
+                                  </span>
+                                )}
                               </div>
+                              {locked && (
+                                <div className="text-muted-foreground">
+                                  {tr(t.reimbursable_status === "written_off" ? "add.reimb.link.locked_written_off" : "add.reimb.link.locked_cancelled")}
+                                </div>
+                              )}
                             </div>
+                            {checked && (
+                              <Input
+                                type="number"
+                                inputMode="decimal"
+                                step="0.01"
+                                min="0"
+                                aria-label={tr("add.reimb.link.amount_for", { name: t.description || tr("add.expense") })}
+                                disabled={locked}
+                                value={String(linkSelections[t.id])}
+                                onChange={(e) => {
+                                  linkSelectionsTouchedRef.current = true;
+                                  const v = Number(e.target.value);
+                                  setLinkSelections((cur) => ({ ...cur, [t.id]: Number.isFinite(v) && v > 0 ? Math.min(v, rem) : 0 }));
+                                }}
+                                className="h-7 w-24 shrink-0 text-right text-xs tabular-nums"
+                              />
+                            )}
                           </li>
                         );
                       })}
                     </ul>
                     {hasSelection && incomeAmt > 0 && (
-                      <p className="text-xs text-muted-foreground">
+                      <p className={cn("text-xs", overAssigned ? "font-medium text-destructive" : "text-muted-foreground")} role={overAssigned ? "alert" : undefined}>
                         {tr(summaryKey, {
                           sel: fmtMoney(selectedTotal, symbol),
                           inc: fmtMoney(incomeAmt, symbol),
                           diff: fmtMoney(absDiff, symbol),
                         })}
+                        {overAssigned && <> {tr("add.reimb.link.over_block")}</>}
                       </p>
                     )}
                     <div className="flex flex-wrap gap-2 pt-1">
-                      {suggestedMatch && (
+                      {suggestedMatch && !isEdit && (
                         <Button
                           type="button"
                           variant="outline"
@@ -2261,7 +2377,9 @@ export function TransactionForm({
                           linkSelectionsTouchedRef.current = true;
                           const next: Record<string, number> = {};
                           clampLinkAmounts(
-                            linkCandidates.map((t) => ({ id: t.id, amount: remainingByOrig.get(t.id) ?? 0 })),
+                            cardCandidates
+                              .filter((t) => !isLockedOriginal(t))
+                              .map((t) => ({ id: t.id, amount: availableByOrig.get(t.id) ?? 0 })),
                             incomeAmt,
                           ).forEach((x) => { next[x.id] = x.amount; });
                           setLinkSelections(next);
@@ -2276,7 +2394,12 @@ export function TransactionForm({
                           size="sm"
                           onClick={() => {
                             linkSelectionsTouchedRef.current = true;
-                            setLinkSelections({});
+                            // Written-off ones keep their link; everything else goes.
+                            setLinkSelections((cur) => {
+                              const keep: Record<string, number> = {};
+                              for (const t of cardCandidates) if (isLockedOriginal(t) && cur[t.id] != null) keep[t.id] = cur[t.id];
+                              return keep;
+                            });
                           }}
                         >
                           {tr("add.reimb.link.clear")}
@@ -2415,12 +2538,12 @@ export function TransactionForm({
           {isEdit ? (
             <>
               <Button variant="outline" className="flex-1" disabled={saving} onClick={() => goBack()}>{tr("common.cancel")}</Button>
-              <Button className="flex-1" disabled={saving || receivedTooLow} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("edit.save_changes")}</Button>
+              <Button className="flex-1" disabled={saving || receivedTooLow || linkOverAssigned} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("edit.save_changes")}</Button>
             </>
           ) : (
             <>
-              <Button variant="outline" className="flex-1" disabled={saving || receivedTooLow} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("common.save")}</Button>
-              <Button className="flex-1" disabled={saving || receivedTooLow} onClick={() => save(true)}>{tr("add.save_new")}</Button>
+              <Button variant="outline" className="flex-1" disabled={saving || receivedTooLow || linkOverAssigned} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("common.save")}</Button>
+              <Button className="flex-1" disabled={saving || receivedTooLow || linkOverAssigned} onClick={() => save(true)}>{tr("add.save_new")}</Button>
             </>
           )}
         </div>
