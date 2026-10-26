@@ -2461,6 +2461,16 @@ export function TransactionForm({
             reimb: s.isReimbursable ? { from: s.reimbCounterparty.trim() } : null,
           })) : null}
           reimb={type !== "transfer" && isReimbursable ? { from: reimbCounterparty.trim() } : null}
+          settles={
+            type === "income"
+              ? Object.entries(linkSelections)
+                  .filter(([, a]) => Number(a) > 0)
+                  .map(([id, a]) => {
+                    const o = cardCandidates.find((c) => c.id === id);
+                    return `${o?.description || tr("add.expense")} (${fmtMoney(Number(a), symbol).replace(/^\S+\s/, "")})`;
+                  })
+              : []
+          }
           labels={{
             transfer: tr("tx.transfer_label"),
             income: tr("add.income"),
@@ -2468,6 +2478,7 @@ export function TransactionForm({
             preview: tr("add.preview.title"),
             split: tr("add.split.title"),
             reimb: (from) => (from ? tr("add.preview.reimb_from", { name: from }) : tr("add.preview.reimb")),
+            settles: (list) => tr("add.preview.settles", { list }),
           }}
         />
 
@@ -2585,6 +2596,7 @@ function TransactionPreview({
   splitMode,
   slices,
   reimb,
+  settles,
   labels,
 }: {
   type: TxType;
@@ -2593,6 +2605,8 @@ function TransactionPreview({
   isCrossCurrency: boolean;
   /** Money you get back: who pays it ("" when not named). null when it is not. */
   reimb: { from: string } | null;
+  /** An income: the reimbursables it repays, as "Name (60.00)" each. */
+  settles: string[];
   source: PreviewEntity;
   destination: PreviewEntity;
   category: PreviewEntity;
@@ -2611,6 +2625,7 @@ function TransactionPreview({
     preview: string;
     split: string;
     reimb: (from: string) => string;
+    settles: (list: string) => string;
   };
 }) {
   if (amountNum == null || !source) return null;
@@ -2679,6 +2694,13 @@ function TransactionPreview({
               <span>·</span>
               <span>{format(date, "dd.MM.yyyy", { locale })}</span>
             </div>
+            {type === "income" && settles.length > 0 && (
+              <div className="mt-1.5">
+                <span className="inline-flex items-center rounded bg-success/15 px-1.5 py-0.5 text-[10px] font-medium text-success">
+                  {labels.settles(settles.join(", "))}
+                </span>
+              </div>
+            )}
             {!splitMode && reimb && (
               <div className="mt-1.5">
                 <span className="inline-flex items-center rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-medium text-warning">

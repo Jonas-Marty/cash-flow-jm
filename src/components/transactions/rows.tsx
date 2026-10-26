@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { EntityVisual } from "@/components/EntityVisual";
 import { TransactionLinkPicker } from "@/components/TransactionLinkPicker";
 import { KIND_ICON } from "@/components/TransactionLinkSheet";
@@ -47,11 +48,21 @@ export interface StatementRef {
   hasDoc: boolean;
 }
 
+/** Reimbursement links seen from either side, with the transactions behind them. */
+export interface ReimbBook {
+  /** income id -> the reimbursables it covers */
+  bySettler: Map<string, { id: string; amount: number }[]>;
+  /** reimbursable id -> the incomes that repay it */
+  byOriginal: Map<string, { id: string; amount: number }[]>;
+  txById: Map<string, Transaction>;
+}
+
 export interface RowContext {
   accountById: Map<string, Account>;
   categoryById: Map<string, Category>;
   tagsByTx: Map<string, string[]>;
   reimbursementIds: Set<string>;
+  reimb: ReimbBook;
   stmtRefs: Record<string, StatementRef>;
   linkByTx: Map<string, LinkSummary>;
   ruleById: Map<string, { name: string }>;
@@ -310,22 +321,49 @@ export const CardRow = React.memo(function CardRow({
     );
   }
   if (t.type === "income" && ctx.reimbursementIds.has(t.id)) {
-    chips.push(<span key="reimb" className={cn(CHIP, "bg-success/15 text-success")}>{tr("tx.reimbursement")}</span>);
+    const covered = ctx.reimb.bySettler.get(t.id) ?? [];
+    chips.push(
+      <ReimbChip
+        key="reimb"
+        ctx={ctx}
+        className="bg-success/15 text-success"
+        label={
+          covered.length > 1
+            ? tr("tx.reimb.chip.covers", { n: covered.length })
+            : tr("tx.reimbursement")
+        }
+        heading={tr("tx.reimb.chip.covers_heading")}
+        items={covered}
+        sym={txSym}
+      />,
+    );
   }
   if (t.is_reimbursable && t.reimbursable_status) {
+    const payments = ctx.reimb.byOriginal.get(t.id) ?? [];
+    const paid = payments.reduce((sum, x) => sum + x.amount, 0);
+    const partly = t.reimbursable_status === "open" && paid > 0.005;
     chips.push(
-      <span
+      <ReimbChip
         key="reimb-status"
+        ctx={ctx}
         className={cn(
-          CHIP,
           t.reimbursable_status === "open" && "bg-warning/15 text-warning",
           t.reimbursable_status === "settled" && "bg-success/15 text-success",
           (t.reimbursable_status === "written_off" || t.reimbursable_status === "cancelled") && "bg-muted text-muted-foreground",
         )}
         title={t.reimbursable_counterparty ?? ""}
-      >
-        {tr(`tx.reimb.status.${t.reimbursable_status}`)}
-      </span>,
+        label={
+          partly
+            ? tr("tx.reimb.chip.partly", {
+                paid: fmtMoney(paid, "").trim(),
+                total: fmtMoney(Number(t.amount), "").trim(),
+              })
+            : tr(`tx.reimb.status.${t.reimbursable_status}`)
+        }
+        heading={tr("tx.reimb.chip.paid_heading")}
+        items={payments}
+        sym={txSym}
+      />,
     );
   }
   if (t.recurring_rule_id) {
@@ -574,3 +612,67 @@ export const SplitGroupRow = React.memo(function SplitGroupRow({
     </div>
   );
 });
+
+/**
+ * A reimbursement chip that opens the other side: the reimbursables an income
+ * covers, or the incomes that repay a reimbursable. Without links it is the
+ * plain chip it always was.
+ */
+function ReimbChip({
+  ctx,
+  className,
+  label,
+  title,
+  heading,
+  items,
+  sym,
+}: {
+  ctx: RowContext;
+  className: string | undefined;
+  label: string;
+  title?: string;
+  heading: string;
+  items: { id: string; amount: number }[];
+  sym: string;
+}) {
+  if (items.length === 0) {
+    return (
+      <span className={cn(CHIP, className)} title={title}>
+        {label}
+      </span>
+    );
+  }
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button type="button" className={cn(CHIP, className, "cursor-pointer hover:brightness-110")} title={title}>
+          {label} ▾
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-72 p-3 text-sm">
+        <div className="mb-2 text-xs text-muted-foreground">{heading}</div>
+        <ul className="space-y-1.5">
+          {items.map((it) => {
+            const other = ctx.reimb.txById.get(it.id);
+            return (
+              <li key={it.id} className="flex items-baseline justify-between gap-3">
+                <Link
+                  to="/edit/$id"
+                  params={{ id: it.id }}
+                  search={{ back: ctx.backSearch }}
+                  className="min-w-0 truncate text-primary underline underline-offset-2"
+                >
+                  {other?.description || ctx.tr(other?.type === "income" ? "add.income" : "add.expense")}
+                  {other && (
+                    <span className="text-muted-foreground"> · {format(new Date(other.occurred_on), "dd.MM.", { locale: ctx.locale })}</span>
+                  )}
+                </Link>
+                <span className="shrink-0 tabular-nums">{fmtMoney(it.amount, sym)}</span>
+              </li>
+            );
+          })}
+        </ul>
+      </PopoverContent>
+    </Popover>
+  );
+}

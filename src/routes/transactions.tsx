@@ -37,7 +37,7 @@ import { DatePicker } from "@/components/DatePicker";
 import { EntityVisual } from "@/components/EntityVisual";
 import { TransactionTable } from "@/components/transactions/TransactionTable";
 import {
-  CardRow, SplitGroupRow, type LinkSummary, type RowContext, type StatementRef,
+  CardRow, SplitGroupRow, type LinkSummary, type ReimbBook, type RowContext, type StatementRef,
 } from "@/components/transactions/rows";
 import { useIsDesktop, useMediaQuery } from "@/hooks/use-media-query";
 import { useProgressiveCount } from "@/hooks/use-progressive-count";
@@ -480,6 +480,22 @@ function TransactionsPage() {
     () => new Set((reimbLinksQ.data ?? []).map((l) => l.settling_transaction_id)),
     [reimbLinksQ.data],
   );
+  // Both sides of every reimbursement link, for the chips that open them.
+  const reimbBook = React.useMemo<ReimbBook>(() => {
+    const bySettler = new Map<string, { id: string; amount: number }[]>();
+    const byOriginal = new Map<string, { id: string; amount: number }[]>();
+    for (const l of reimbLinksQ.data ?? []) {
+      const a = Number(l.amount);
+      const s1 = bySettler.get(l.settling_transaction_id) ?? [];
+      s1.push({ id: l.original_transaction_id, amount: a });
+      bySettler.set(l.settling_transaction_id, s1);
+      const o1 = byOriginal.get(l.original_transaction_id) ?? [];
+      o1.push({ id: l.settling_transaction_id, amount: a });
+      byOriginal.set(l.original_transaction_id, o1);
+    }
+    const txById = new Map((txQ.data ?? []).map((t) => [t.id, t]));
+    return { bySettler, byOriginal, txById };
+  }, [reimbLinksQ.data, txQ.data]);
 
 
 
@@ -594,6 +610,7 @@ function TransactionsPage() {
     categoryById,
     tagsByTx,
     reimbursementIds,
+    reimb: reimbBook,
     stmtRefs: stmtRefsQ.data ?? NO_STATEMENT_REFS,
     linkByTx: linkSummaryByTx,
     ruleById,
@@ -614,7 +631,7 @@ function TransactionsPage() {
     onOpenLink: setOpenLinkId,
     onPeekLocation: setPeekLoc,
     onToggleGroup: toggleGroup,
-  }), [accountById, categoryById, tagsByTx, reimbursementIds, stmtRefsQ.data, linkSummaryByTx, ruleById, tokens,
+  }), [accountById, categoryById, tagsByTx, reimbursementIds, reimbBook, stmtRefsQ.data, linkSummaryByTx, ruleById, tokens,
       amountMatchedFor, symbol, sort, dateFmt, locale, tr, backSearch, isSm, toggleSelect, toggleSelectMany, del,
       delGroup, toggleGroup]);
 
