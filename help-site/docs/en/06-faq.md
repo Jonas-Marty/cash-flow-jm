@@ -11,7 +11,7 @@ This was a known bug and is now fixed: the UI only confirms success if the datab
 
 ## Why is the last line on Reconcile not zero? [#why-is-my-reconciliation-drift-not-zero]
 
-The Reconcile screen breaks your account total down into the envelopes holding it. The last line is whatever none of them explain, and it should read zero. When it does not, there is usually money in your accounts that no envelope owns yet: opening balances you have not assigned in Settings, or transactions with no category. Check those two first.
+The Reconcile screen breaks your account total down into the envelopes holding it. The last line is whatever none of them explain, and it should read zero. When it does not, there is usually money in your accounts that no envelope owns yet: opening balances you have not distributed yet (Settings → Budgets → "Distribute…", or straight from "Unallocated" on the Budgets page), or transactions with no category. Check those two first.
 
 ## Where do skipped recurring occurrences go? [#where-do-skipped-recurring-occurrences-go]
 

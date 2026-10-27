@@ -11,7 +11,7 @@ War ein bekannter Bug und ist behoben: die UI meldet jetzt nur Erfolg, wenn das 
 
 ## Warum ist die letzte Zeile im Abgleich nicht null? [#why-is-my-reconciliation-drift-not-zero]
 
-Die Abgleich-Seite zerlegt deine Kontosumme in die Umschläge, die sie halten. Die letzte Zeile ist der Rest, den keiner davon erklärt, und sie sollte null sein. Ist sie es nicht, steht meist Geld auf den Konten, das noch keinem Umschlag gehört: Anfangsbestände, die du in den Einstellungen noch nicht zugewiesen hast, oder Buchungen ohne Kategorie. Prüfe zuerst diese beiden.
+Die Abgleich-Seite zerlegt deine Kontosumme in die Umschläge, die sie halten. Die letzte Zeile ist der Rest, den keiner davon erklärt, und sie sollte null sein. Ist sie es nicht, steht meist Geld auf den Konten, das noch keinem Umschlag gehört: Anfangsbestände, die du noch nicht verteilt hast (Einstellungen → Budgets → „Verteilen…“, oder direkt unter „Nicht zugeordnet“ auf der Budgets-Seite), oder Buchungen ohne Kategorie. Prüfe zuerst diese beiden.
 
 ## Wo landen übersprungene wiederkehrende Vorkommen? [#where-do-skipped-recurring-occurrences-go]
 

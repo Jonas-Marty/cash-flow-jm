@@ -1356,12 +1356,18 @@ export async function setCategorySweepTarget(categoryId: string, targetId: strin
   if (error) throw error;
 }
 
-export async function setCategoryOpeningBalance(categoryId: string, amount: number): Promise<void> {
-  const { error } = await supabase
-    .from("categories")
-    .update({ opening_balance: amount })
-    .eq("id", categoryId);
+/**
+ * Saves the opening balances of several budgets at once; the database checks
+ * the total against the accounts. Returns the archived budgets it reopened.
+ */
+export async function setOpeningBalances(
+  balances: { category_id: string; amount: number }[],
+): Promise<string[]> {
+  const { data, error } = await supabase.rpc("set_opening_balances" as never, {
+    p_balances: balances,
+  } as never);
   if (error) throw error;
+  return ((data ?? []) as { reopened_id: string }[]).map((r) => r.reopened_id);
 }
 
 export async function setGroupSweepTarget(groupId: string, targetId: string | null): Promise<void> {

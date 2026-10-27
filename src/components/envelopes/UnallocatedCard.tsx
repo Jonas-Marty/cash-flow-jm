@@ -11,6 +11,10 @@ import { fmtMoney, type EnvelopeReconciliation } from "@/lib/finance";
 
 const NO_CATEGORY = "__none__";
 
+type PartLink =
+  | { to: "/settings" | "/transactions"; label: string }
+  | { action: () => void; label: string };
+
 /**
  * Money in transit and money no budget holds, with the check that every franc
  * in an account sits somewhere. "Nicht zugeordnet" opens into what it is made
@@ -20,11 +24,14 @@ export function UnallocatedCard({
   rec,
   symbol,
   onAssign,
+  onDistributeOpenings,
 }: {
   rec: EnvelopeReconciliation;
   symbol: string;
   /** Opens Umschichten from "Nicht zugeordnet", with this amount when positive. */
   onAssign: (amount: number | null) => void;
+  /** Opens the opening-balance popup from "Anfangsbestand der Konten". */
+  onDistributeOpenings: () => void;
 }) {
   const { t } = useI18n();
   const [open, setOpen] = React.useState(false);
@@ -40,7 +47,7 @@ export function UnallocatedCard({
       [
         "openings",
         Number(rec.unallocated_openings),
-        { to: "/settings" as const, label: t("env.recon.part.openings_link") },
+        { action: onDistributeOpenings, label: t("env.recon.part.openings_action") },
       ],
       [
         "uncategorized",
@@ -55,7 +62,7 @@ export function UnallocatedCard({
         { to: "/settings" as const, label: t("env.recon.part.unswept_link") },
       ],
       ["assigned", Number(rec.unallocated_assigned), null],
-    ] as Array<[string, number, { to: "/settings" | "/transactions"; label: string } | null]>
+    ] as Array<[string, number, PartLink | null]>
   ).filter(([, v]) => Math.abs(v) > 0.005);
 
   return (
@@ -91,7 +98,16 @@ export function UnallocatedCard({
                     <React.Fragment key={k}>
                       <span className="min-w-0">
                         <span className="block">{t(`env.recon.part.${k}`)}</span>
-                        {link && (
+                        {link && "action" in link && (
+                          <button
+                            type="button"
+                            onClick={link.action}
+                            className="text-left text-primary underline underline-offset-2 hover:decoration-2"
+                          >
+                            {link.label}
+                          </button>
+                        )}
+                        {link && "to" in link && (
                           <Link
                             to={link.to}
                             search={

@@ -43,6 +43,7 @@ import { ReallocationEditDialog } from "@/components/envelopes/ReallocationEditD
 import { AllocationsView } from "@/components/envelopes/AllocationsView";
 import { buildMonthMoves, monthNet, UNASSIGNED_ENVELOPE } from "@/lib/allocations";
 import { UnallocatedCard } from "@/components/envelopes/UnallocatedCard";
+import { OpeningBalancesDialog } from "@/components/envelopes/OpeningBalancesDialog";
 import { DatePicker } from "@/components/DatePicker";
 import { MonthNavigator } from "@/components/MonthNavigator";
 import { BudgetEditPopover } from "@/components/BudgetEditPopover";
@@ -331,6 +332,7 @@ function EnvelopesPage() {
     return m;
   }, [groupsQ.data]);
 
+  const [openingOpen, setOpeningOpen] = React.useState(false);
   const [reallocOpen, setReallocOpen] = React.useState(false);
   const [reallocFrom, setReallocFrom] = React.useState<string | null>(null);
   const [reallocAmount, setReallocAmount] = React.useState<number | null>(null);
@@ -601,6 +603,7 @@ function EnvelopesPage() {
               setReallocAmount(amount != null ? Math.round(amount * 100) / 100 : null);
               setReallocOpen(true);
             }}
+            onDistributeOpenings={() => setOpeningOpen(true)}
           />
         )}
 
@@ -1010,6 +1013,7 @@ function EnvelopesPage() {
 
         {view === "cards" && <SavingsHistoryCard symbol={symbol} />}
       </div>
+      <OpeningBalancesDialog open={openingOpen} onOpenChange={setOpeningOpen} />
       <ReallocateDialog
         open={reallocOpen}
         defaultFromId={reallocFrom}

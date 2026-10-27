@@ -19,7 +19,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import {
   fetchAccounts, fetchCategories, fetchCategoryGroups, fetchCategoryMonthRows, fetchSettings,
-  monthKey, setCategoryOpeningBalance,
+  monthKey,
   type Account, type AccountType, type GroupKind,
 } from "@/lib/finance";
 import { BudgetEditPopover } from "@/components/BudgetEditPopover";
@@ -45,6 +45,8 @@ import { AIAuditLogCard } from "@/components/AIAuditLogCard";
 import { LinkedAccountsCard } from "@/components/LinkedAccountsCard";
 import { SignInProvidersCard } from "@/components/SignInProvidersCard";
 import { ArchiveAccountDialog } from "@/components/ArchiveAccountDialog";
+import { OpeningBalancesDialog } from "@/components/envelopes/OpeningBalancesDialog";
+import { accountOpeningsTotal, holdsOpening } from "@/lib/openingBalances";
 
 export const Route = createFileRoute("/settings")({
   component: SettingsPage,
@@ -163,6 +165,7 @@ function SettingsPage() {
   };
 
   // Edit account
+  const [openingOpen, setOpeningOpen] = React.useState(false);
   const [editAccount, setEditAccount] = React.useState<null | { id: string; name: string; opening_balance: number }>(null);
   const [editName, setEditName] = React.useState("");
   const [editOpening, setEditOpening] = React.useState("0");
@@ -228,14 +231,6 @@ function SettingsPage() {
     const { error } = await supabase.from("categories").update({ archived: !archived }).eq("id", id);
     if (error) return toast.error(error.message);
     qc.invalidateQueries();
-  };
-  const updateOpeningBalance = async (id: string, raw: string) => {
-    const v = Number(String(raw).replace(",", "."));
-    if (!Number.isFinite(v)) return toast.error(tr("settings.opening_balance.invalid"));
-    try {
-      await setCategoryOpeningBalance(id, v);
-      qc.invalidateQueries();
-    } catch (e) { toast.error((e as Error).message); }
   };
   const toggleCategoryRollsOver = async (id: string, rollsOver: boolean) => {
     const next = !rollsOver;
@@ -666,11 +661,9 @@ function SettingsPage() {
               const grps = groupsQ.data ?? [];
               // The books only close once every franc the accounts started with
               // belongs to an envelope, so show the assignment running down.
-              const accountOpenings = (accountsQ.data ?? [])
-                .filter((a) => !a.archived)
-                .reduce((sum, a) => sum + Number(a.opening_balance ?? 0), 0);
+              const accountOpenings = accountOpeningsTotal(accountsQ.data ?? []);
               const assignedOpenings = (categoriesQ.data ?? [])
-                .filter((c) => c.rolls_over && !c.is_scope)
+                .filter(holdsOpening)
                 .reduce((sum, c) => sum + Number(c.opening_balance ?? 0), 0);
               const openingsLeft = accountOpenings - assignedOpenings;
               const curSymbol = settingsQ.data?.currency_symbol ?? "CHF";
@@ -730,20 +723,6 @@ function SettingsPage() {
                         {fmtMoney(budgetFor(c), settingsQ.data?.currency_symbol ?? "CHF")}
                       </Button>
                     </BudgetEditPopover>
-                    {/* Only rolling envelopes carry money across months, so an
-                        opening balance is meaningless anywhere else. */}
-                    {c.rolls_over ? (
-                      <Input
-                        key={`${c.id}-opening-${c.opening_balance ?? 0}`}
-                        defaultValue={Number(c.opening_balance ?? 0).toString()}
-                        inputMode="decimal"
-                        className="w-24 shrink-0 text-right tabular-nums @2xl/env:w-28"
-                        onBlur={(e) => updateOpeningBalance(c.id, e.target.value)}
-                        title={tr("settings.opening_balance")}
-                      />
-                    ) : (
-                      <div className="w-24 shrink-0 @2xl/env:w-28" />
-                    )}
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button variant="ghost" size="icon" aria-label={tr("settings.visual.edit")}><Palette className="h-4 w-4" /></Button>
@@ -813,17 +792,29 @@ function SettingsPage() {
               }
               return (
                 <div className="space-y-2">
-                  {accountOpenings !== 0 && (
-                    <p className={cn(
-                      "rounded-md border px-2 py-1.5 text-xs tabular-nums",
+                  {(accountOpenings !== 0 || assignedOpenings !== 0) && (
+                    <div className={cn(
+                      "flex flex-wrap items-center justify-between gap-2 rounded-md border px-2 py-1.5 text-xs tabular-nums",
                       Math.abs(openingsLeft) < 0.005 ? "text-muted-foreground" : "border-warning/50 bg-warning/10",
                     )}>
-                      {tr("settings.opening_balance.assigned", {
-                        assigned: fmtMoney(assignedOpenings, curSymbol),
-                        total: fmtMoney(accountOpenings, curSymbol),
-                        left: fmtMoney(openingsLeft, curSymbol),
-                      })}
-                    </p>
+                      <span className="min-w-0">
+                        {Math.abs(openingsLeft) < 0.005
+                          ? tr("opening.all_distributed", { total: fmtMoney(accountOpenings, curSymbol) })
+                          : tr(openingsLeft > 0 ? "opening.settings_left" : "opening.settings_over", {
+                              assigned: fmtMoney(assignedOpenings, curSymbol),
+                              total: fmtMoney(accountOpenings, curSymbol),
+                              left: fmtMoney(Math.abs(openingsLeft), curSymbol),
+                            })}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant={Math.abs(openingsLeft) < 0.005 ? "ghost" : "outline"}
+                        className="h-7 shrink-0 text-xs"
+                        onClick={() => setOpeningOpen(true)}
+                      >
+                        {Math.abs(openingsLeft) < 0.005 ? tr("opening.edit_button") : tr("opening.distribute_button")}
+                      </Button>
+                    </div>
                   )}
                   {/* Column headings. Only once the row lays out horizontally — below
                       that the row stacks and the labels would not line up with
@@ -836,7 +827,6 @@ function SettingsPage() {
                         {tr("settings.col.rolls_over")}
                       </div>
                       <div className="w-28 shrink-0 truncate text-right">{tr("settings.monthly_budget")}</div>
-                      <div className="w-28 shrink-0 truncate text-right">{tr("settings.opening_balance")}</div>
                       <div className="w-[168px] shrink-0" aria-hidden />
                     </div>
                   </div>
@@ -899,6 +889,7 @@ function SettingsPage() {
             <p className="text-xs text-muted-foreground">{tr("settings.accounts.asset_hint")}</p>
             <p className="text-xs text-muted-foreground">{tr("settings.accounts.opening_balance_hint")}</p>
 
+            <OpeningBalancesDialog open={openingOpen} onOpenChange={setOpeningOpen} />
             <ArchiveAccountDialog
               account={archiving?.account ?? null}
               balance={archiving?.balance ?? 0}
