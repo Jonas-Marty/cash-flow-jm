@@ -201,7 +201,9 @@ export function DayHeatmapCalendar({
         onMonthChange={setMonth}
         numberOfMonths={monthCount}
         locale={locale}
-        showOutsideDays
+        // Side by side, a neighbour's days would show twice (as last month's
+        // tail and in its own grid); alone they still mark the week's edge.
+        showOutsideDays={monthCount === 1}
         weekStartsOn={1}
         className="pointer-events-auto w-full"
         classNames={{
