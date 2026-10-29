@@ -1,13 +1,14 @@
 import * as React from "react";
 import { DayPicker, type DayButtonProps } from "react-day-picker";
 import type { Locale } from "date-fns";
-import { addMonths, format, startOfMonth } from "date-fns";
+import { addMonths, endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from "date-fns";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { DayPreview } from "@/components/DayPreview";
-import type { Transaction, Account, Category } from "@/lib/finance";
+import { fetchTransactionsRange, type Transaction, type Account, type Category } from "@/lib/finance";
 
 const dayKey = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -47,7 +48,6 @@ function initialVisibleMonth(selectedMonth: Date, monthCount: number): Date {
 interface Props {
   selected: Date;
   onSelect: (d: Date) => void;
-  transactions: Transaction[];
   accounts: Account[];
   categories: Category[];
   threshold: number;
@@ -58,7 +58,7 @@ interface Props {
 }
 
 export function DayHeatmapCalendar({
-  selected, onSelect, transactions, accounts, categories,
+  selected, onSelect, accounts, categories,
   threshold, symbol, locale, labels, className,
 }: Props) {
   const rootRef = React.useRef<HTMLDivElement>(null);
@@ -97,9 +97,20 @@ export function DayHeatmapCalendar({
     });
   }, [selectedMonth, monthCount]);
 
+  // Load the months on screen, whole weeks included, so an older date (editing
+  // a past booking, paging back) shows its days like the current ones do.
+  const from = dayKey(startOfWeek(startOfMonth(month), { weekStartsOn: 1 }));
+  const to = dayKey(endOfWeek(endOfMonth(addMonths(month, monthCount - 1)), { weekStartsOn: 1 }));
+  const txQ = useQuery({
+    queryKey: ["transactions", "range", from, to],
+    queryFn: () => fetchTransactionsRange(from, to),
+    placeholderData: keepPreviousData,
+  });
+  const transactions = txQ.data;
+
   const byDay = React.useMemo(() => {
     const m = new Map<string, { net: number; count: number; txs: Transaction[] }>();
-    for (const t of transactions) {
+    for (const t of transactions ?? []) {
       const k = t.occurred_on; // YYYY-MM-DD already
       const entry = m.get(k) ?? { net: 0, count: 0, txs: [] };
       entry.txs.push(t);

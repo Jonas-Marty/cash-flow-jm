@@ -2136,7 +2136,6 @@ export function TransactionForm({
           <DayHeatmapCalendar
             selected={date}
             onSelect={setDate}
-            transactions={recentQ.data ?? []}
             accounts={accounts}
             categories={categories}
             threshold={Number(settingsQ.data?.day_heatmap_threshold ?? 100)}
