@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link } from "@tanstack/react-router";
 import { format } from "date-fns";
-import { Layers, Repeat, Undo2 } from "lucide-react";
+import { ArrowLeftRight, ArrowRight, Layers, Repeat, Undo2 } from "lucide-react";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -33,14 +33,58 @@ function Markers({ t, ctx }: { t: Transaction; ctx: RowContext }) {
   );
 }
 
-function AmountCell({ t, ctx }: { t: Transaction; ctx: RowContext }) {
+function AmountCell({ t, ctx, stack = false }: { t: Transaction; ctx: RowContext; stack?: boolean }) {
   const sym = ctx.accountById.get(t.source_account_id)?.currency_symbol ?? ctx.symbol;
   const tone = t.type === "expense" ? "text-destructive" : t.type === "income" ? "text-success" : "text-muted-foreground";
   const sign = t.type === "expense" ? "-" : t.type === "income" ? "+" : "";
+  const dst = t.type === "transfer" && t.destination_account_id ? ctx.accountById.get(t.destination_account_id) : undefined;
+  // Another currency, or a gift card bought at a discount: more (or less) arrives.
+  const arrives =
+    dst && t.destination_amount != null && Number(t.destination_amount) !== Number(t.amount)
+      ? fmtMoney(Number(t.destination_amount), dst.currency_symbol ?? sym).replace("-", "")
+      : null;
   return (
-    <span className={cn("font-medium tabular-nums whitespace-nowrap", tone)}>
-      {sign}
-      {fmtMoney(Number(t.amount), sym).replace("-", "")}
+    <span
+      className={cn(
+        "inline-flex gap-x-1 font-medium tabular-nums whitespace-nowrap",
+        stack ? "flex-col items-end" : "items-center",
+        tone,
+      )}
+    >
+      <span className="inline-flex items-center gap-1">
+        {t.type === "transfer" && <ArrowLeftRight className="h-3 w-3 shrink-0" aria-hidden />}
+        {sign}
+        {fmtMoney(Number(t.amount), sym).replace("-", "")}
+      </span>
+      {arrives && <span className="text-xs font-normal">→ {arrives}</span>}
+    </span>
+  );
+}
+
+/** A transfer has no budget; say what it is where the budget would be. */
+function TransferLabel({ ctx }: { ctx: RowContext }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      <ArrowLeftRight className="h-3 w-3 shrink-0" aria-hidden />
+      {ctx.tr("tx.transfer_label")}
+    </span>
+  );
+}
+
+function AccountCell({ t, ctx, visuals }: { t: Transaction; ctx: RowContext; visuals: boolean }) {
+  const src = ctx.accountById.get(t.source_account_id) ?? null;
+  const dst = t.type === "transfer" && t.destination_account_id ? ctx.accountById.get(t.destination_account_id) ?? null : null;
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1">
+      {visuals && src && <EntityVisual entity={src} size="xs" />}
+      <span className="truncate">{src?.name ?? "?"}</span>
+      {dst && (
+        <>
+          <ArrowRight className="h-3 w-3 shrink-0" aria-label="→" />
+          {visuals && <EntityVisual entity={dst} size="xs" />}
+          <span className="truncate">{dst.name}</span>
+        </>
+      )}
     </span>
   );
 }
@@ -67,7 +111,6 @@ function TitleLink({ t, ctx, className }: { t: Transaction; ctx: RowContext; cla
 
 const TableRow = React.memo(function TableRow({ t, selected, ctx }: { t: Transaction; selected: boolean; ctx: RowContext }) {
   const cat = t.category_id ? ctx.categoryById.get(t.category_id) ?? null : null;
-  const src = ctx.accountById.get(t.source_account_id) ?? null;
   const tags = ctx.tagsByTx.get(t.id) ?? [];
   return (
     <tr className={cn("border-b hover:bg-muted/40", selected && "bg-primary/5")}>
@@ -86,15 +129,14 @@ const TableRow = React.memo(function TableRow({ t, selected, ctx }: { t: Transac
             <EntityVisual entity={cat} size="xs" />
             <span className="truncate">{cat.name}</span>
           </span>
+        ) : t.type === "transfer" ? (
+          <TransferLabel ctx={ctx} />
         ) : (
           "—"
         )}
       </td>
       <td className="px-2 py-1.5 align-middle text-xs text-muted-foreground">
-        <span className="inline-flex items-center gap-1">
-          {src && <EntityVisual entity={src} size="xs" />}
-          <span className="truncate">{src?.name ?? "?"}</span>
-        </span>
+        <AccountCell t={t} ctx={ctx} visuals />
       </td>
       <td className="px-2 py-1.5 align-middle">
         <div className="flex flex-wrap gap-1">
@@ -119,7 +161,6 @@ const TableRow = React.memo(function TableRow({ t, selected, ctx }: { t: Transac
 
 const ListRow = React.memo(function ListRow({ t, selected, ctx }: { t: Transaction; selected: boolean; ctx: RowContext }) {
   const cat = t.category_id ? ctx.categoryById.get(t.category_id) ?? null : null;
-  const src = ctx.accountById.get(t.source_account_id) ?? null;
   const tags = ctx.tagsByTx.get(t.id) ?? [];
   return (
     <li className={cn("flex items-start gap-2 px-3 py-2", selected && "bg-primary/5")}>
@@ -132,12 +173,12 @@ const ListRow = React.memo(function ListRow({ t, selected, ctx }: { t: Transacti
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-2">
           <TitleLink t={t} ctx={ctx} className="flex min-w-0 items-center gap-1.5 text-sm" />
-          <AmountCell t={t} ctx={ctx} />
+          <AmountCell t={t} ctx={ctx} stack />
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] text-muted-foreground">
           <span className="tabular-nums">{format(new Date(t.occurred_on), ctx.dateFmt, { locale: ctx.locale })}</span>
           <span>·</span>
-          <span className="truncate">{src?.name ?? "?"}</span>
+          <AccountCell t={t} ctx={ctx} visuals={false} />
           {cat && (
             <>
               <span>·</span>
