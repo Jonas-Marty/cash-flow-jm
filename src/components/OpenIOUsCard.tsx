@@ -175,7 +175,6 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
             {format(parseISO(tx.occurred_on), "dd.MM.yyyy", { locale })}
             {" · "}
             {sampleAcc?.name ?? "?"}
-            {tx.reimbursable_counterparty && ` · ${tx.reimbursable_counterparty}`}
             {tx.reimbursable_reason && ` · ${tx.reimbursable_reason}`}
           </div>
           {partial && (
@@ -237,22 +236,53 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
     );
   };
 
+  const symOf = (rows: Transaction[]) =>
+    accountById.get(rows[0].source_account_id)?.currency_symbol ?? symbol;
+
+  // One group per person, so it is clear at a glance who owes what in total.
+  // The biggest amount comes first; entries without a name go last.
+  const byCounterparty = (rows: Transaction[]) => {
+    const groups = new Map<string, { name: string | null; rows: Transaction[]; total: number }>();
+    for (const tx of rows) {
+      const name = tx.reimbursable_counterparty?.trim() || null;
+      const key = name?.toLocaleLowerCase() ?? "";
+      const g = groups.get(key) ?? { name, rows: [], total: 0 };
+      g.rows.push(tx);
+      g.total += remaining(tx);
+      groups.set(key, g);
+    }
+    return [...groups.values()].sort((a, b) =>
+      a.name === null ? 1 : b.name === null ? -1 : b.total - a.total || a.name.localeCompare(b.name),
+    );
+  };
+
   const renderSection = (title: string, rows: Transaction[]) => {
     if (rows.length === 0) return null;
     const total = rows.reduce((s, x) => s + remaining(x), 0);
-    const sampleAcc = accountById.get(rows[0].source_account_id);
-    const groupSym = sampleAcc?.currency_symbol ?? symbol;
     return (
       <div className="space-y-2">
         <div className="flex items-baseline justify-between gap-2">
           <div className="text-sm font-medium">{title}</div>
           <PrivacyValue className="tabular-nums text-sm font-semibold text-warning">
-            {fmtMoney(total, groupSym)}
+            {fmtMoney(total, symOf(rows))}
           </PrivacyValue>
         </div>
-        <ul className="divide-y rounded-md border border-border/60">
-          {rows.map(renderRow)}
-        </ul>
+        {byCounterparty(rows).map((g) => (
+          <div key={g.name ?? ""} className="overflow-hidden rounded-md border border-border/60">
+            <div className="flex items-baseline justify-between gap-2 bg-muted/40 px-3 py-1.5">
+              <div className="min-w-0 truncate text-sm font-medium">
+                {g.name ?? <span className="text-muted-foreground">{tr("iou.no_counterparty")}</span>}
+                <span className="ml-2 text-xs font-normal text-muted-foreground">
+                  {tr("iou.group.count", { n: String(g.rows.length) })}
+                </span>
+              </div>
+              <PrivacyValue className="tabular-nums text-sm font-semibold">
+                {fmtMoney(g.total, symOf(g.rows))}
+              </PrivacyValue>
+            </div>
+            <ul className="divide-y border-t border-border/60">{g.rows.map(renderRow)}</ul>
+          </div>
+        ))}
       </div>
     );
   };
