@@ -832,11 +832,16 @@ export function TransactionForm({
   const reimbForAppliedRef = React.useRef(false);
   React.useEffect(() => {
     if (reimbForAppliedRef.current || !reimburseForId) return;
-    const tx = (openReimbQ.data ?? []).find((t) => t.id === reimburseForId);
-    if (!tx) return;
+    // One id, or several when repaying everything a person owes at once.
+    const ids = new Set(reimburseForId.split(",").filter(Boolean));
+    const txs = (openReimbQ.data ?? []).filter((t) => ids.has(t.id));
+    if (txs.length === 0) return;
     reimbForAppliedRef.current = true;
-    const rem = remainingByOrig.get(tx.id) ?? Number(tx.amount);
-    setLinkSelections((cur) => ({ ...cur, [tx.id]: rem }));
+    setLinkSelections((cur) => {
+      const next = { ...cur };
+      for (const tx of txs) next[tx.id] = remainingByOrig.get(tx.id) ?? Number(tx.amount);
+      return next;
+    });
   }, [reimburseForId, openReimbQ.data, remainingByOrig]);
 
   const { suggestions } = useSuggestions({

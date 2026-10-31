@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -155,6 +154,27 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
     return `/add?${params.toString()}`;
   };
 
+  // One repayment for everything a person still owes (or is owed): linked to
+  // every entry with its open rest. The budget is carried over when they share
+  // one, as the single repayment does.
+  const groupRepaymentLink = (name: string, rows: Transaction[]) => {
+    const dir = directionOf(rows[0]);
+    const total = rows.reduce((s, x) => s + remaining(x), 0);
+    const lines = rows.map((x) => `- ${(x.description || tr("add.expense")).trim()}`);
+    const params = new URLSearchParams({
+      reimburse_for: rows.map((x) => x.id).join(","),
+      type: dir === "owed_to_me" ? "income" : "expense",
+      amount: total.toFixed(2),
+      description: tr(dir === "owed_to_me" ? "iou.repayment.group_from" : "iou.repayment.group_to", { name }),
+      note: `${tr("iou.repayment.group_note")}\n${lines.join("\n")}`,
+      counterparty: name,
+    });
+    const cats = new Set(rows.map((x) => x.category_id));
+    const [only] = [...cats];
+    if (cats.size === 1 && only) params.set("category", only);
+    return `/add?${params.toString()}`;
+  };
+
   const renderRow = (tx: Transaction) => {
     const linked = linkedSumByOrig.get(tx.id) ?? 0;
     const partial = linked > 0 && linked < Number(tx.amount);
@@ -167,9 +187,6 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
             <span className="truncate text-sm font-medium">
               {tx.description || tr("add.expense")}
             </span>
-            <Badge variant="outline" className="border-warning/50 bg-warning/10 text-warning">
-              {tr("tx.reimb.status.open")}
-            </Badge>
           </div>
           <div className="mt-0.5 truncate text-xs text-muted-foreground">
             {format(parseISO(tx.occurred_on), "dd.MM.yyyy", { locale })}
@@ -276,9 +293,25 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
                   {tr("iou.group.count", { n: String(g.rows.length) })}
                 </span>
               </div>
-              <PrivacyValue className="tabular-nums text-sm font-semibold">
-                {fmtMoney(g.total, symOf(g.rows))}
-              </PrivacyValue>
+              <div className="flex shrink-0 items-center gap-2">
+                <PrivacyValue className="tabular-nums text-sm font-semibold">
+                  {fmtMoney(g.total, symOf(g.rows))}
+                </PrivacyValue>
+                {g.name && g.rows.length > 1 && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button asChild size="sm" variant="outline" className="h-7 px-2 text-xs">
+                        <a href={groupRepaymentLink(g.name, g.rows)}>
+                          <Plus className="mr-1 h-3 w-3" /> {tr("iou.add_repayment_all")}
+                        </a>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-xs">
+                      <p>{tr("iou.help.add_repayment_all", { name: g.name })}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                )}
+              </div>
             </div>
             <ul className="divide-y border-t border-border/60">{g.rows.map(renderRow)}</ul>
           </div>

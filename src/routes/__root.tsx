@@ -10,6 +10,8 @@ import { AuthProvider, useAuth } from "@/lib/auth";
 import { AuthPage } from "@/components/AuthPage";
 import { ThemeApplier, type ThemeMode } from "@/lib/theme";
 import { LinkIdentityPrompt } from "@/components/LinkIdentityPrompt";
+import { DevEnvBanner } from "@/components/DevEnvBanner";
+import { IS_DEV_ENV } from "@/lib/env";
 
 import appCss from "../styles.css?url";
 
@@ -57,6 +59,7 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
+      <DevEnvBanner />
       <AuthProvider>
         <AuthGate>
           <I18nGate>
@@ -130,7 +133,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Cashflow — Personal Finance" },
+      { title: IS_DEV_ENV ? "DEV · Cashflow" : "Cashflow — Personal Finance" },
       { name: "description", content: "Track daily cash flow, envelope budgets, and credit-card liabilities." },
       { property: "og:title", content: "Cashflow — Personal Finance" },
       { name: "twitter:title", content: "Cashflow — Personal Finance" },
