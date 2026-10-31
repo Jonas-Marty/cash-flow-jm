@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Ban, Check, History, Loader2, MapPin, Sparkles, Split, X } from "lucide-react";
+import { Ban, Check, History, Loader2, MapPin, Pencil, Sparkles, X } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui/button";
@@ -67,7 +67,8 @@ function seed(p: PendingTransaction): Draft {
   return {
     description: p.description ?? "",
     category_id: p.category_id ?? "",
-    amount: String(p.amount),
+    // Cash amounts, so always with the cents: 10.00, not 10.
+    amount: Number(p.amount).toFixed(2),
     occurred_on: p.occurred_on,
     source_account_id: p.source_account_id,
     note: p.note ?? "",
@@ -77,9 +78,9 @@ function seed(p: PendingTransaction): Draft {
   };
 }
 
-/** Tick · date · description · remarks · category · account · place · split · amount. */
+/** Tick · amount · date · description · remarks · category · account · place · edit · confirm. */
 const COLUMNS =
-  "lg:grid lg:grid-cols-[28px_110px_minmax(0,1.4fr)_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_36px_36px_120px] lg:gap-2";
+  "lg:grid lg:grid-cols-[28px_120px_110px_minmax(0,1.4fr)_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_36px_36px_36px] lg:gap-2";
 
 /**
  * Settles a typed amount to two decimals on blur. Anything that does not parse
@@ -91,8 +92,8 @@ function settleAmount(raw: string): string {
   return raw.trim() && Number.isFinite(n) ? n.toFixed(2) : raw;
 }
 
-/** The /add deep link that opens this row for splitting. */
-function splitSearch(p: PendingTransaction, d: Draft): Record<string, string> {
+/** The /add deep link that opens this row in the booking form, prefilled. */
+function editSearch(p: PendingTransaction, d: Draft): Record<string, string> {
   const search: Record<string, string> = {
     pending_id: p.id,
     type: p.type,
@@ -208,9 +209,9 @@ export function PendingLineTable({
 
   /** Rows are confirmed one at a time so one bad row cannot take the batch down. */
   const confirmMut = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (rows: PendingTransaction[]) => {
       const results: { id: string; ok: boolean; error?: string }[] = [];
-      for (const p of selected) {
+      for (const p of rows) {
         const d = drafts[p.id];
         const amount = Number(String(d.amount).replace(",", "."));
         try {
@@ -276,6 +277,12 @@ export function PendingLineTable({
   });
 
   const busy = confirmMut.isPending || rejectMut.isPending;
+  // The row a single-row confirm is working on, so only its button spins.
+  const [confirmingOne, setConfirmingOne] = React.useState<string | null>(null);
+  const confirmOne = (p: PendingTransaction) => {
+    setConfirmingOne(p.id);
+    confirmMut.mutate([p], { onSettled: () => setConfirmingOne(null) });
+  };
 
   /**
    * Same shop first, then nearest to the fix the row already carries — which is
@@ -326,9 +333,9 @@ export function PendingLineTable({
           <Button
             size="sm"
             disabled={selected.length === 0 || busy}
-            onClick={() => confirmMut.mutate()}
+            onClick={() => confirmMut.mutate(selected)}
           >
-            {confirmMut.isPending ? (
+            {confirmMut.isPending && confirmingOne === null ? (
               <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
             ) : (
               <Check className="mr-1 h-3.5 w-3.5" />
@@ -347,6 +354,7 @@ export function PendingLineTable({
           className={`sticky top-0 z-10 hidden bg-background px-3 pb-1.5 text-[11px] uppercase tracking-wide text-muted-foreground ${COLUMNS}`}
         >
           <span />
+          <span className="text-right">{t("statements.table.col.amount")}</span>
           <span>{t("statements.table.col.date")}</span>
           <span>{t("statements.table.col.description")}</span>
           <span>{t("pending.table.col.note")}</span>
@@ -354,7 +362,7 @@ export function PendingLineTable({
           <span>{t("add.account")}</span>
           <span />
           <span />
-          <span className="text-right">{t("statements.table.col.amount")}</span>
+          <span />
         </div>
 
         <ul className="space-y-2">
@@ -370,9 +378,9 @@ export function PendingLineTable({
             return (
               <li
                 key={p.id}
-                className={`rounded-md border bg-card p-2 ${COLUMNS} lg:items-center lg:p-2`}
+                className={`rounded-md border bg-card p-2 ${COLUMNS} lg:items-start lg:p-2`}
               >
-                <div className="mb-2 flex items-center gap-2 lg:mb-0">
+                <div className="mb-2 flex items-center gap-2 lg:mb-0 lg:h-8">
                   <Checkbox
                     checked={d.checked}
                     onCheckedChange={(v) => patch(p.id, { checked: !!v })}
@@ -383,6 +391,18 @@ export function PendingLineTable({
                     {d.occurred_on} · {fmtMoney(Number(p.amount), sym)}
                     {p.external_source ? ` · ${p.external_source}` : ""}
                   </span>
+                </div>
+                <div className="mb-1 flex items-center gap-1 lg:mb-0">
+                  <span className="text-xs text-muted-foreground">{sym}</span>
+                  <Input
+                    className="h-8 flex-1 text-right tabular-nums"
+                    inputMode="decimal"
+                    value={d.amount}
+                    onChange={(e) =>
+                      patch(p.id, { amount: e.target.value.replace(/[^0-9.,]/g, "") })
+                    }
+                    onBlur={() => patch(p.id, { amount: settleAmount(d.amount) })}
+                  />
                 </div>
                 <div className="mb-1 lg:mb-0">
                   <Input
@@ -535,26 +555,32 @@ export function PendingLineTable({
                     size="sm"
                     variant="outline"
                     className="h-8 w-full justify-start lg:w-9 lg:justify-center"
-                    title={t("pending.table.split")}
-                    aria-label={t("pending.table.split")}
+                    title={t("pending.table.edit_hint")}
+                    aria-label={t("pending.table.edit")}
                   >
-                    <Link to="/add" search={splitSearch(p, d) as never}>
-                      <Split className="mr-1 h-3.5 w-3.5 shrink-0 lg:mr-0" />
-                      <span className="truncate lg:hidden">{t("pending.table.split")}</span>
+                    <Link to="/add" search={editSearch(p, d) as never}>
+                      <Pencil className="mr-1 h-3.5 w-3.5 shrink-0 lg:mr-0" />
+                      <span className="truncate lg:hidden">{t("pending.table.edit")}</span>
                     </Link>
                   </Button>
                 </div>
-                <div className="mb-1 flex items-center gap-1 lg:mb-0">
-                  <span className="text-xs text-muted-foreground">{sym}</span>
-                  <Input
-                    className="h-8 flex-1 text-right tabular-nums"
-                    inputMode="decimal"
-                    value={d.amount}
-                    onChange={(e) =>
-                      patch(p.id, { amount: e.target.value.replace(/[^0-9.,]/g, "") })
-                    }
-                    onBlur={() => patch(p.id, { amount: settleAmount(d.amount) })}
-                  />
+                <div className="mb-1 lg:mb-0">
+                  <Button
+                    type="button"
+                    size="sm"
+                    className="h-8 w-full justify-start lg:w-9 lg:justify-center"
+                    title={t("pending.table.approve_one")}
+                    aria-label={t("pending.table.approve_one")}
+                    disabled={busy}
+                    onClick={() => confirmOne(p)}
+                  >
+                    {confirmingOne === p.id ? (
+                      <Loader2 className="mr-1 h-3.5 w-3.5 shrink-0 animate-spin lg:mr-0" />
+                    ) : (
+                      <Check className="mr-1 h-3.5 w-3.5 shrink-0 lg:mr-0" />
+                    )}
+                    <span className="truncate lg:hidden">{t("pending.action.confirm")}</span>
+                  </Button>
                 </div>
                 {d.error ? (
                   <p className="text-xs text-destructive lg:col-span-full">{d.error}</p>

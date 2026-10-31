@@ -11,9 +11,9 @@ import {
   History,
   LayoutList,
   Loader2,
+  Pencil,
   RotateCcw,
   Sparkles,
-  Split,
   Table2,
 } from "lucide-react";
 
@@ -248,12 +248,12 @@ function PendingRow({
 
   // Editable fields, seeded from the pending row
   const [type, setType] = React.useState<TxType>(pending.type);
-  const [amount, setAmount] = React.useState<string>(String(pending.amount));
+  const [amount, setAmount] = React.useState<string>(Number(pending.amount).toFixed(2));
   const [occurredOn, setOccurredOn] = React.useState<string>(pending.occurred_on);
   const [sourceId, setSourceId] = React.useState<string>(pending.source_account_id);
   const [destId, setDestId] = React.useState<string>(pending.destination_account_id ?? "");
   const [destAmount, setDestAmount] = React.useState<string>(
-    pending.destination_amount != null ? String(pending.destination_amount) : "",
+    pending.destination_amount != null ? Number(pending.destination_amount).toFixed(2) : "",
   );
   const [categoryId, setCategoryId] = React.useState<string>(pending.category_id ?? "");
   const [description, setDescription] = React.useState<string>(pending.description ?? "");
@@ -296,7 +296,7 @@ function PendingRow({
   };
 
   /** The /add deep link that opens this row for splitting. */
-  const splitSearch = (): Record<string, string> => {
+  const editSearch = (): Record<string, string> => {
     const search: Record<string, string> = {
       pending_id: pending.id,
       type,
@@ -586,8 +586,8 @@ function PendingRow({
                   <Ban className="mr-1 h-3.5 w-3.5" /> {t("pending.action.reject")}
                 </Button>
                 <Button asChild variant="outline" size="sm" disabled={busy}>
-                  <Link to="/add" search={splitSearch() as never}>
-                    <Split className="mr-1 h-3.5 w-3.5" /> {t("pending.table.split")}
+                  <Link to="/add" search={editSearch() as never}>
+                    <Pencil className="mr-1 h-3.5 w-3.5" /> {t("pending.table.edit")}
                   </Link>
                 </Button>
                 <Button size="sm" onClick={onConfirm} disabled={busy}>
