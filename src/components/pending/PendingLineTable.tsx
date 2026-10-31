@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Ban, Check, History, Loader2, MapPin, Sparkles, Split } from "lucide-react";
+import { Ban, Check, History, Loader2, MapPin, Sparkles, Split, X } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui/button";
@@ -496,7 +496,7 @@ export function PendingLineTable({
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="mb-1 lg:mb-0">
+                <div className="relative mb-1 lg:mb-0">
                   <Button
                     type="button"
                     size="sm"
@@ -509,6 +509,18 @@ export function PendingLineTable({
                     <MapPin className="mr-1 h-3.5 w-3.5 shrink-0 lg:mr-0" />
                     <span className="truncate lg:hidden">{placeLabel}</span>
                   </Button>
+                  {/* Remove the place without opening the picker. */}
+                  {d.location ? (
+                    <button
+                      type="button"
+                      className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full border bg-background text-muted-foreground shadow-sm hover:text-foreground"
+                      onClick={() => patch(p.id, { location: null })}
+                      aria-label={t("loc.clear")}
+                      title={t("loc.clear")}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  ) : null}
                   {suggestsPlace(p, d) ? (
                     <SuggestionChip
                       p={p}

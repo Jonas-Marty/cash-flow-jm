@@ -204,7 +204,8 @@ export function LocationSection({
       // instead of letting the label truncate.
       className={cn("w-full min-w-0 rounded-lg border", className)}
     >
-      <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm">
+      <div className="flex items-center">
+      <CollapsibleTrigger className="flex min-w-0 flex-1 items-center justify-between gap-2 px-3 py-2 text-left text-sm">
         <span className="flex min-w-0 items-center gap-2 font-medium">
           <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
           <span className="shrink-0">{tr("loc.title")}</span>
@@ -218,6 +219,21 @@ export function LocationSection({
         </span>
         <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", open && "rotate-180")} />
       </CollapsibleTrigger>
+      {/* Remove a place without unfolding the map. */}
+      {value && (
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          className="mr-1 h-7 w-7 shrink-0 text-muted-foreground"
+          onClick={() => onChange(null)}
+          aria-label={tr("loc.clear")}
+          title={tr("loc.clear")}
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      )}
+      </div>
       <CollapsibleContent className="space-y-3 border-t px-3 py-3">
         <div className="flex items-center justify-end">
           <Button
