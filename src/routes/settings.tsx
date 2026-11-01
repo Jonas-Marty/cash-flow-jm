@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import {
   fetchAccounts, fetchCategories, fetchCategoryGroups, fetchCategoryMonthRows, fetchSettings,
   monthKey,
-  type Account, type AccountType, type GroupKind,
+  type Account, type AccountType, type Category, type GroupKind,
 } from "@/lib/finance";
 import { BudgetEditPopover } from "@/components/BudgetEditPopover";
 import { MonthNavigator } from "@/components/MonthNavigator";
@@ -45,6 +45,7 @@ import { AIAuditLogCard } from "@/components/AIAuditLogCard";
 import { LinkedAccountsCard } from "@/components/LinkedAccountsCard";
 import { SignInProvidersCard } from "@/components/SignInProvidersCard";
 import { ArchiveAccountDialog } from "@/components/ArchiveAccountDialog";
+import { ArchiveBudgetDialog, archiveImpact, type ArchiveImpact } from "@/components/ArchiveBudgetDialog";
 import { OpeningBalancesDialog } from "@/components/envelopes/OpeningBalancesDialog";
 import { accountOpeningsTotal, holdsOpening } from "@/lib/openingBalances";
 
@@ -227,10 +228,22 @@ function SettingsPage() {
     if (error) return toast.error(error.message);
     qc.invalidateQueries();
   };
-  const toggleArchiveCategory = async (id: string, archived: boolean) => {
-    const { error } = await supabase.from("categories").update({ archived: !archived }).eq("id", id);
+  const setCategoryArchived = async (id: string, archived: boolean) => {
+    const { error } = await supabase.from("categories").update({ archived }).eq("id", id);
     if (error) return toast.error(error.message);
     qc.invalidateQueries();
+  };
+  // A budget still in use this month is archived only after saying what stays.
+  const [archiveAsk, setArchiveAsk] = React.useState<ArchiveImpact | null>(null);
+  const toggleArchiveCategory = async (c: Category) => {
+    if (c.archived) return setCategoryArchived(c.id, false);
+    try {
+      const impact = await archiveImpact(c);
+      if (impact) setArchiveAsk(impact);
+      else await setCategoryArchived(c.id, true);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    }
   };
   const toggleCategoryRollsOver = async (id: string, rollsOver: boolean) => {
     const next = !rollsOver;
@@ -611,6 +624,15 @@ function SettingsPage() {
           <CardHeader><CardTitle className="text-base">{tr("settings.envelopes")}</CardTitle></CardHeader>
           <CardContent className="@container/env space-y-4">
             <MonthNavigator month={budgetMonth} onChange={setBudgetMonth} locale={locale} />
+            <ArchiveBudgetDialog
+              impact={archiveAsk}
+              symbol={settingsQ.data?.currency_symbol ?? "CHF"}
+              onOpenChange={(v) => { if (!v) setArchiveAsk(null); }}
+              onConfirm={() => {
+                if (archiveAsk) void setCategoryArchived(archiveAsk.category.id, true);
+                setArchiveAsk(null);
+              }}
+            />
             <BudgetBalanceCard
               categories={categoriesQ.data ?? []}
               groups={groupsQ.data ?? []}
@@ -739,7 +761,7 @@ function SettingsPage() {
                     <Button variant="ghost" size="icon" onClick={() => togglePin("categories", c.id, !!c.pinned)} aria-label={c.pinned ? tr("settings.unpin") : tr("settings.pin")}>
                       {c.pinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => toggleArchiveCategory(c.id, c.archived)} aria-label={c.archived ? tr("common.unarchive") : tr("common.archive")}>
+                    <Button variant="ghost" size="icon" onClick={() => toggleArchiveCategory(c)} aria-label={c.archived ? tr("common.unarchive") : tr("common.archive")}>
                       {c.archived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
                     </Button>
                     <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => delCategory(c.id)} aria-label={tr("common.delete")}>
