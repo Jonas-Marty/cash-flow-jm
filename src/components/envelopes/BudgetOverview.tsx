@@ -199,7 +199,7 @@ export function BudgetOverview({
             />
           );
           headerRight = tr("env.ov.received_of", { a: num(t.received), b: num(t.target) });
-        } else if (g.rows.every((r) => r.type === "savings")) {
+        } else if (g.rows.every((r) => r.type === "savings" || r.archived)) {
           const t = savingsTotals(g.rows);
           gridHeader = true;
           headerRight = money(t.balance);
@@ -329,14 +329,16 @@ export function BudgetOverview({
                           />
                           {renderEntries(r)}
                           <div className="flex flex-wrap gap-2">
-                            <Button
-                              size="sm"
-                              className="h-8 gap-1.5"
-                              onClick={() => onEditBudget(r.id)}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                              {tr("env.ov.change_budget")}
-                            </Button>
+                            {!(r.type !== "savings" && r.archived) && (
+                              <Button
+                                size="sm"
+                                className="h-8 gap-1.5"
+                                onClick={() => onEditBudget(r.id)}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                                {tr("env.ov.change_budget")}
+                              </Button>
+                            )}
                             {(r.type === "savings" || (r.type === "spend" && r.rolling)) && (
                               <>
                                 <Button
@@ -492,7 +494,13 @@ function RowLine({
   let amount: React.ReactNode;
   let sub: React.ReactNode;
 
-  if (row.type === "spend") {
+  const archived = row.type !== "savings" && !!row.archived;
+  if (archived) {
+    status = "idle";
+    middle = null;
+    amount = num(row.type === "income" ? row.received : row.spent);
+    sub = tr(row.type === "income" ? "env.ov.archived_received" : "env.ov.archived_spent");
+  } else if (row.type === "spend") {
     status = row.status;
     ringValue = row.available > 0 ? (row.spent + row.pending) / row.available : 0;
     middle = (
@@ -570,6 +578,7 @@ function RowLine({
         "grid w-full grid-cols-[22px_minmax(0,1fr)_auto] items-center gap-x-3 px-3 py-2 text-left hover:bg-muted/40",
         "sm:grid-cols-[10px_minmax(0,1fr)_minmax(4rem,1.2fr)_9.5rem]",
         open && "bg-muted/40 shadow-[inset_3px_0_0_var(--primary)]",
+        archived && "opacity-60",
       )}
     >
       {status === "savings" ? (
@@ -588,6 +597,11 @@ function RowLine({
       )}
       <span className="flex min-w-0 items-center gap-1.5 text-sm">
         <span className="truncate">{row.name}</span>
+        {archived && (
+          <span className="shrink-0 rounded border border-dashed px-1 text-[10px] leading-4">
+            {tr("env.ov.archived")}
+          </span>
+        )}
         {row.type === "spend" && row.rolling && (
           <span
             title={tr("env.ov.rolls")}
@@ -609,7 +623,13 @@ function RowLine({
 function RowFigures({ row, money }: { row: OverviewRow; money: (n: number) => string }) {
   const { t: tr } = useI18n();
   const boxes: Array<{ label: string; value: string; tone?: "bad" | "good" }> = [];
-  if (row.type === "spend") {
+  if (row.type !== "savings" && row.archived) {
+    boxes.push(
+      row.type === "income"
+        ? { label: tr("env.ov.k_received"), value: money(row.received) }
+        : { label: tr("env.ov.k_spent"), value: money(row.spent) },
+    );
+  } else if (row.type === "spend") {
     boxes.push({ label: tr("env.ov.k_planned"), value: money(row.allocated) });
     if (row.rolling && Math.abs(row.carry) >= EPS)
       boxes.push({

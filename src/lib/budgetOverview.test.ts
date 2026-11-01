@@ -209,3 +209,56 @@ describe("buildOverview", () => {
     expect(t.allDone).toBe(false);
   });
 });
+
+describe("archived budgets", () => {
+  const groups = buildOverview({
+    rows: [
+      row({
+        category_id: "rent",
+        kind: "expense",
+        group_id: "g-exp",
+        group_name: "Wohnen",
+        allocated: 100,
+        spent_or_received: 40,
+      }),
+    ],
+    archivedRows: [
+      row({
+        category_id: "old",
+        kind: "expense",
+        group_id: "g-exp",
+        group_name: "Wohnen",
+        spent_or_received: 24,
+      }),
+      row({
+        category_id: "bonus",
+        kind: "income",
+        group_id: "g-inc",
+        group_name: "Einnahmen",
+        spent_or_received: 50,
+      }),
+    ],
+    groupKindById: groupKinds,
+    pendingMap: new Map(),
+    balanceById: new Map(),
+    month: "2026-10-01",
+  });
+
+  it("shows them after the group's budgets, never as over", () => {
+    const wohnen = groups.find((g) => g.name === "Wohnen")!;
+    expect(wohnen.rows.map((r) => r.id)).toEqual(["rent", "old"]);
+    const old = wohnen.rows[1] as SpendRow;
+    expect(old.archived).toBe(true);
+    expect(old.spent).toBe(24);
+    expect(old.status).toBe("idle");
+  });
+
+  it("keeps them out of every total", () => {
+    const wohnen = groups.find((g) => g.name === "Wohnen")!;
+    expect(spendTotals(wohnen.rows).spent).toBe(40);
+    const s = overviewSummary(groups);
+    expect(s.monthly.spent).toBe(40);
+    expect(s.overCount).toBe(0);
+    expect(s.income).toEqual({ target: 0, received: 0 });
+  });
+});

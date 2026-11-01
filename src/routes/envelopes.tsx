@@ -364,17 +364,54 @@ function EnvelopesPage() {
     () => new Map((savingsBalanceQ.data ?? []).map((b) => [b.category_id, Number(b.cumulative_balance)])),
     [savingsBalanceQ.data],
   );
+  // Archived budgets drop out of the month's figures, but their bookings in the
+  // month are still real: list them, without a plan, wherever they still have one.
+  const archivedRows = React.useMemo(() => {
+    const groupById = new Map((groupsQ.data ?? []).map((g) => [g.id, g]));
+    const out: CategoryMonthRow[] = [];
+    for (const c of categoriesQ.data ?? []) {
+      if (!c.archived || c.is_scope) continue;
+      const own = txs.filter((t) => t.category_id === c.id);
+      if (own.length === 0) continue;
+      const group = c.group_id ? groupById.get(c.group_id) : undefined;
+      const kind = group?.kind === "income" ? "income" : "expense";
+      let booked = 0;
+      for (const t of own) {
+        const code = accountById.get(t.source_account_id)?.currency_code ?? mainCode;
+        const raw = Number(t.amount);
+        const amount = code === mainCode ? raw : (convert(raw, code, mainCode, fxQ.data) ?? raw);
+        if (kind === "income") booked += t.type === "income" ? amount : 0;
+        else booked += t.type === "expense" ? amount : t.type === "income" ? -amount : 0;
+      }
+      out.push({
+        category_id: c.id,
+        name: c.name,
+        group_id: c.group_id,
+        group_name: group?.name ?? null,
+        kind,
+        rolls_over: false,
+        is_scope: false,
+        sort_order: c.sort_order,
+        group_sort_order: group?.sort_order ?? 0,
+        allocated: 0,
+        spent_or_received: booked,
+        variance: 0,
+      });
+    }
+    return out;
+  }, [categoriesQ.data, groupsQ.data, txs, accountById, mainCode, fxQ.data]);
   const overviewGroups = React.useMemo(
     () =>
       buildOverview({
         rows: effectiveRows,
+        archivedRows,
         groupKindById,
         pendingMap,
         ledgerByCategory: monthLedgerQ.data,
         balanceById,
         month: m,
       }),
-    [effectiveRows, groupKindById, pendingMap, monthLedgerQ.data, balanceById, m],
+    [effectiveRows, archivedRows, groupKindById, pendingMap, monthLedgerQ.data, balanceById, m],
   );
   const overviewSum = React.useMemo(() => overviewSummary(overviewGroups), [overviewGroups]);
   const plannedNet = React.useMemo(

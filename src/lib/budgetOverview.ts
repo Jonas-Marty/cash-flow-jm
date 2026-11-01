@@ -36,6 +36,8 @@ export interface SpendRow {
   /** available − spent − pending; negative when overspent */
   remaining: number;
   status: RowStatus;
+  /** Archived, shown only for the bookings it still has in the month. */
+  archived?: boolean;
 }
 
 export interface IncomeRow {
@@ -46,6 +48,7 @@ export interface IncomeRow {
   received: number;
   pending: number;
   status: RowStatus;
+  archived?: boolean;
 }
 
 export interface SavingsRow {
@@ -124,15 +127,17 @@ export interface OverviewInput {
   balanceById: Map<string, number>;
   /** The month as `YYYY-MM-01`. */
   month: string;
+  /**
+   * Archived budgets with bookings in the month. They have no plan any more, so
+   * they show only what was booked and stay out of every total.
+   */
+  archivedRows?: CategoryMonthRow[];
 }
 
 export function buildOverview(input: OverviewInput): OverviewGroup[] {
   const { rows, groupKindById, pendingMap, ledgerByCategory, balanceById, month } = input;
   const groups = new Map<string, OverviewGroup>();
-
-  for (const r of rows) {
-    // Scopes are managed on /scopes and sit outside the month.
-    if (r.is_scope) continue;
+  const groupFor = (r: CategoryMonthRow) => {
     const groupKind: GroupKind = (r.group_id ? groupKindById.get(r.group_id) : undefined) ?? r.kind;
     const key = r.group_id ?? `__${groupKind}__`;
     let g = groups.get(key);
@@ -140,6 +145,14 @@ export function buildOverview(input: OverviewInput): OverviewGroup[] {
       g = { key, name: r.group_id ? (r.group_name ?? "") : null, kind: groupKind, rows: [] };
       groups.set(key, g);
     }
+    return g;
+  };
+
+  for (const r of rows) {
+    // Scopes are managed on /scopes and sit outside the month.
+    if (r.is_scope) continue;
+    const g = groupFor(r);
+    const groupKind: GroupKind = (r.group_id ? groupKindById.get(r.group_id) : undefined) ?? r.kind;
 
     const allocated = Number(r.allocated) || 0;
     const pending = pendingMap.get(r.category_id);
@@ -207,6 +220,39 @@ export function buildOverview(input: OverviewInput): OverviewGroup[] {
     });
   }
 
+  for (const r of input.archivedRows ?? []) {
+    if (r.is_scope) continue;
+    const g = groupFor(r);
+    const booked = Number(r.spent_or_received) || 0;
+    if (r.kind === "income") {
+      g.rows.push({
+        type: "income",
+        id: r.category_id,
+        name: r.name,
+        target: 0,
+        received: booked,
+        pending: 0,
+        status: "idle",
+        archived: true,
+      });
+    } else {
+      g.rows.push({
+        type: "spend",
+        id: r.category_id,
+        name: r.name,
+        rolling: false,
+        allocated: 0,
+        spent: booked,
+        pending: 0,
+        carry: 0,
+        available: 0,
+        remaining: -booked,
+        status: "idle",
+        archived: true,
+      });
+    }
+  }
+
   // Income first, then the order of Settings.
   const list = Array.from(groups.values()).filter((g) => g.rows.length > 0);
   return [...list.filter((g) => g.kind === "income"), ...list.filter((g) => g.kind !== "income")];
@@ -223,7 +269,7 @@ export interface SpendTotals {
 }
 
 export function spendTotals(rows: OverviewRow[]): SpendTotals {
-  const spend = rows.filter((r): r is SpendRow => r.type === "spend");
+  const spend = rows.filter((r): r is SpendRow => r.type === "spend" && !r.archived);
   const t = {
     available: 0,
     spent: 0,
@@ -244,7 +290,7 @@ export function spendTotals(rows: OverviewRow[]): SpendTotals {
 }
 
 export function incomeTotals(rows: OverviewRow[]) {
-  const income = rows.filter((r): r is IncomeRow => r.type === "income");
+  const income = rows.filter((r): r is IncomeRow => r.type === "income" && !r.archived);
   return {
     target: income.reduce((s, r) => s + r.target, 0),
     received: income.reduce((s, r) => s + r.received, 0),
@@ -275,7 +321,7 @@ export interface OverviewSummary {
  * every month until the bill arrives.
  */
 export function overviewSummary(groups: OverviewGroup[]): OverviewSummary {
-  const all = groups.flatMap((g) => g.rows);
+  const all = groups.flatMap((g) => g.rows).filter((r) => r.type === "savings" || !r.archived);
   const monthly = all.filter((r): r is SpendRow => r.type === "spend" && !r.rolling);
   const inc = incomeTotals(all);
   return {

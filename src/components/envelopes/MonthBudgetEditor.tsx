@@ -106,7 +106,16 @@ export function MonthBudgetEditor({
   });
 
   const sections = React.useMemo(
-    () => groups.map((g) => ({ key: g.key, name: g.name, kind: g.kind, rows: g.rows })),
+    () =>
+      groups
+        .map((g) => ({
+          key: g.key,
+          name: g.name,
+          kind: g.kind,
+          // Archived budgets have no plan left to change.
+          rows: g.rows.filter((r) => r.type === "savings" || !r.archived),
+        }))
+        .filter((g) => g.rows.length > 0),
     [groups],
   );
   const rows = React.useMemo(() => sections.flatMap((s) => s.rows), [sections]);
