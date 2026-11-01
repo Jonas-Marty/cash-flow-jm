@@ -43,7 +43,7 @@ export function BudgetOverview({
   historyLoading,
   onNeedHistory,
   renderEntries,
-  renderBudgetEdit,
+  onEditBudget,
   onReallocate,
   onOpenDetail,
   onAllTransactions,
@@ -61,8 +61,8 @@ export function BudgetOverview({
   /** Called once a row is opened, so the months before load only when needed. */
   onNeedHistory: () => void;
   renderEntries: (row: OverviewRow) => React.ReactNode;
-  /** Wraps `trigger` in whatever edits the row's budget for the month. */
-  renderBudgetEdit: (row: OverviewRow, trigger: React.ReactElement) => React.ReactNode;
+  /** Opens the month's budgets for editing, on this budget's field (null: the first). */
+  onEditBudget: (categoryId: string | null) => void;
   onReallocate: (categoryId: string) => void;
   onOpenDetail: (categoryId: string) => void;
   onAllTransactions: (categoryId: string) => void;
@@ -154,15 +154,25 @@ export function BudgetOverview({
               {tr("env.ov.legend_left", { x: money(m.remaining) })}
             </span>
           </PrivacyValue>
-          {Math.abs(plannedNet) >= EPS && (
-            <p className="border-t border-dashed pt-1.5 text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-t border-dashed pt-1.5 text-xs text-muted-foreground">
+            {Math.abs(plannedNet) >= EPS ? (
               <PrivacyValue>
                 {plannedNet > 0
                   ? tr("env.ov.plan_gap_under", { x: money(plannedNet) })
                   : tr("env.ov.plan_gap_over", { x: money(-plannedNet) })}
               </PrivacyValue>
-            </p>
-          )}
+            ) : (
+              <span />
+            )}
+            <button
+              type="button"
+              onClick={() => onEditBudget(null)}
+              className="inline-flex items-center gap-1 font-medium text-foreground underline-offset-4 hover:underline"
+            >
+              <Pencil className="h-3 w-3" />
+              {tr("env.ov.edit_month", { month: format(month, "MMMM", { locale }) })}
+            </button>
+          </div>
         </div>
       </Card>
 
@@ -319,13 +329,14 @@ export function BudgetOverview({
                           />
                           {renderEntries(r)}
                           <div className="flex flex-wrap gap-2">
-                            {renderBudgetEdit(
-                              r,
-                              <Button size="sm" className="h-8 gap-1.5">
-                                <Pencil className="h-3.5 w-3.5" />
-                                {tr("env.ov.change_budget")}
-                              </Button>,
-                            )}
+                            <Button
+                              size="sm"
+                              className="h-8 gap-1.5"
+                              onClick={() => onEditBudget(r.id)}
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                              {tr("env.ov.change_budget")}
+                            </Button>
                             {(r.type === "savings" || (r.type === "spend" && r.rolling)) && (
                               <>
                                 <Button

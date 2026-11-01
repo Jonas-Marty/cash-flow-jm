@@ -680,6 +680,24 @@ export async function setCategoryBudgetsBulk(edits: BudgetEdit[]): Promise<void>
   if (error) throw error;
 }
 
+/**
+ * Several budgets of one month in one transaction, each saved like
+ * `setCategoryBudget` with the same scope.
+ */
+export async function setMonthBudgets(
+  month: string,
+  scope: BudgetScope,
+  amounts: { categoryId: string; amount: number }[],
+): Promise<void> {
+  if (!amounts.length) return;
+  const { error } = await supabase.rpc("set_month_budgets", {
+    p_month: month,
+    p_scope: scope,
+    p_amounts: amounts.map((a) => ({ category_id: a.categoryId, amount: a.amount })),
+  });
+  if (error) throw error;
+}
+
 export async function fetchPendingImpactsForMonth(month: string): Promise<PendingCategoryImpact[]> {
   // month is 'YYYY-MM-01'
   const start = month;

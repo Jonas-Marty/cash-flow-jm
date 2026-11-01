@@ -9,6 +9,7 @@ import type { QueryClient } from "@tanstack/react-query";
  * - `category_ledger`, `category_ledger_month` — the same allocations, one row each.
  * - `reconciliation` — the plan gap is computed from every budget row up to the date.
  * - `categories` — the `and later` scope also rewrites `allocated_budget`.
+ * - `savings_balance_series` — month-end balances, for the history in an opened budget.
  */
 const AFFECTED = new Set([
   "category_month_rows",
@@ -18,6 +19,7 @@ const AFFECTED = new Set([
   "category_ledger_month",
   "reconciliation",
   "categories",
+  "savings_balance_series",
 ]);
 
 /**

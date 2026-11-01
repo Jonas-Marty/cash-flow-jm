@@ -2054,6 +2054,10 @@ export type Database = {
         Args: { p_edits: Json }
         Returns: number
       }
+      set_month_budgets: {
+        Args: { p_amounts: Json; p_month: string; p_scope: string }
+        Returns: undefined
+      }
       set_category_budget: {
         Args: {
           p_amount: number

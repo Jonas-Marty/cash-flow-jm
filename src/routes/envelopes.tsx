@@ -49,7 +49,7 @@ import { UnallocatedCard } from "@/components/envelopes/UnallocatedCard";
 import { OpeningBalancesDialog } from "@/components/envelopes/OpeningBalancesDialog";
 import { DatePicker } from "@/components/DatePicker";
 import { MonthNavigator } from "@/components/MonthNavigator";
-import { BudgetEditPopover } from "@/components/BudgetEditPopover";
+import { MonthBudgetEditor } from "@/components/envelopes/MonthBudgetEditor";
 import { defaultAsOfForMonth, monthParam, monthStatus, parseMonthParam } from "@/lib/month";
 import { BudgetGrid } from "@/components/envelopes/BudgetGrid";
 import { cellId, monthWindow, resolveCells } from "@/lib/budgetGrid";
@@ -413,6 +413,8 @@ function EnvelopesPage() {
   // The months before this one, for the chart in an opened row. Loaded only once a
   // row is opened: most visits only read the month.
   const [historyWanted, setHistoryWanted] = React.useState(false);
+  const [editorOpen, setEditorOpen] = React.useState(false);
+  const [editorFocus, setEditorFocus] = React.useState<string | null>(null);
   const historyMonths = React.useMemo(() => monthsBefore(m, 5), [m]);
   const historyBudgetsQ = useQuery({
     queryKey: ["category_budget_range", historyMonths[historyMonths.length - 1]],
@@ -635,17 +637,11 @@ function EnvelopesPage() {
                     onOpenDetail={() => setDetailCat({ id: r.id })}
                   />
                 )}
-                renderBudgetEdit={(r, trigger) => (
-                  <BudgetEditPopover
-                    categoryId={r.id}
-                    categoryName={r.name}
-                    month={month}
-                    amount={r.type === "income" ? r.target : r.allocated}
-                    locale={locale}
-                  >
-                    {trigger}
-                  </BudgetEditPopover>
-                )}
+                onEditBudget={(id) => {
+                  setEditorFocus(id);
+                  setEditorOpen(true);
+                  setHistoryWanted(true);
+                }}
                 onReallocate={(id) => { setReallocFrom(id); setReallocAmount(null); setReallocOpen(true); }}
                 onOpenDetail={(id) => setDetailCat({ id })}
                 onAllTransactions={(id) =>
@@ -667,6 +663,22 @@ function EnvelopesPage() {
         {view === "cards" && <SavingsHistoryCard symbol={symbol} />}
       </div>
       <OpeningBalancesDialog open={openingOpen} onOpenChange={setOpeningOpen} />
+      {view === "cards" && (
+        <MonthBudgetEditor
+          open={editorOpen}
+          onOpenChange={setEditorOpen}
+          month={month}
+          focusId={editorFocus}
+          groups={overviewGroups}
+          history={history}
+          symbol={symbol}
+          locale={locale}
+          onOpenGrid={() => {
+            setEditorOpen(false);
+            setView("grid");
+          }}
+        />
+      )}
       <ReallocateDialog
         open={reallocOpen}
         defaultFromId={reallocFrom}
