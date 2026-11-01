@@ -181,7 +181,7 @@ assigning it moves money between terms and never changes the residual.
 
 Budgets live in `category_budgets(category_id, month, amount)`. Each row = the budget that applied for that envelope in that calendar month.
 
-- **Any month is editable**, past included. `set_category_budget(category_id, month, amount, scope)` is the only writer; `scope` is `month` (that month alone — a correction) or `forward` (that month and every later row, plus `categories.allocated_budget`). `forward` updates existing later rows rather than deleting them for copy-forward to regenerate: deletion made the result depend on which months the user had happened to browse, since viewing a month materialises it.
+- **Any month is editable**, past included. `set_category_budget(category_id, month, amount, scope)` is the only writer (`set_month_budgets` and the bulk RPC go through the same rules); `scope` is `month` (that month alone — a correction) or `forward` (that month and every later row, plus `categories.allocated_budget`). `forward` updates existing later rows rather than deleting them for copy-forward to regenerate: deletion made the result depend on which months the user had happened to browse, since viewing a month materialises it.
 - Past months are therefore **not** frozen. Editing one is not cosmetic — per §3.3.1 sweeps are computed at read time, so changing an elapsed month's budget changes that month's sweep and every savings balance since. There is nothing to repair, which is what makes it cheap; the RPC writes an `audit_logs` entry when the edited month has fully elapsed so the change leaves a trace.
 - Scopes are rejected by the RPC, matching `ensure_month_budgets`: they are funded from their funding envelope at close and take no part in the monthly plan.
 - `ensure_month_budgets(month)` **fills every gap up to the current month**, idempotently. Each missing month inherits from *its own* nearest prior row — so an interior gap gets what applied at the time, not today's figure — falling back to `categories.allocated_budget` where the envelope has no history at all. The range is bounded by each envelope's own first budgeted month, so a category created last week does not acquire a year of rows. Every envelope except scopes gets one, rolling ones included, since that allocation is the money they live on.
@@ -462,6 +462,7 @@ date of an unposted occurrence — see §3.6.
 | `account_balances` | view | Per-account computed balance. |
 | `category_month_spending(p_month DATE)` | function | Per-envelope row for the given month: `allocated`, `spent_or_received`, `variance`, plus group metadata (`group_id`, `group_name`, `kind`, `rolls_over`, sort orders). |
 | `category_savings_balance(p_as_of DATE)` | function | Balance of every `rolls_over = true` envelope as of a date, with its provenance: `from_allocations`, `from_transactions`, `from_reallocations`, `from_sweeps`. |
+| `set_month_budgets(p_month DATE, p_scope TEXT, p_amounts JSONB)` | function | Saves several envelopes' budgets for one month in one transaction, each through `set_category_budget` with the same scope. Used by the month editor on `/envelopes`. |
 | `ensure_month_budgets(p_month DATE)` | function | Idempotently copies the most recent prior budget into the given month for every active non-scope category. Called by the UI before reading month rows. |
 | `envelope_reconciliation(p_as_of DATE)` | function | Every term of the balance-sheet identity (§3.3.1) plus `residual`, which must be 0.00. |
 | `sync_transaction_tags()` | trigger function | Re-derives `transaction_tags` from the note on insert/update. |
@@ -482,7 +483,7 @@ RLS: every public table has a permissive `open_all` policy (single-user mode). W
 | `/` | `src/routes/index.tsx` | Dashboard: net worth, accounts, envelopes grouped by `category_groups`, recent transactions. |
 | `/add` | `src/routes/add.tsx` | Numpad-style transaction entry. |
 | `/transactions` | `src/routes/transactions.tsx` | Filterable list (account, category, type, tag, date, payee). |
-| `/envelopes` | `src/routes/envelopes.tsx` | Per-month envelope detail with month picker, grouped sections, per-envelope transaction list. |
+| `/envelopes` | `src/routes/envelopes.tsx` | Month overview: one line per envelope in its group, opening into figures, a five-month chart and the month's entries; the month editor panel (`MonthBudgetEditor`); `?view=grid` for the twelve-month table, `?view=allocations` for the month's moves. |
 | `/settings` | `src/routes/settings.tsx` | Currency, accounts, groups, envelopes (with group + savings toggle), monthly budget edits. |
 
 Shared shell: `src/components/AppShell.tsx`. Data helpers: `src/lib/finance.ts`. Supabase client: `src/integrations/supabase/client.ts` (auto-generated, do not edit).
@@ -508,6 +509,36 @@ including the SQL/app inventory, performance estimate and phased plan, lives in
 > a change-log entry that describes today's code is no longer a record of
 > anything. Sections 1–6 are the maintained description; if the two disagree,
 > the sections above win. The same goes for the design records under `docs/`.
+
+### 2026-11-01 — Budgets at a glance, and the month edited in one panel
+
+- The card per envelope gave way to one line per envelope (`BudgetOverview`, model in
+  `budgetOverview.ts`). Rows start closed on every visit and remember nothing: the page
+  is for checking the month. A row opens into its figures, a five-month chart
+  (`budgetHistory.ts`, each month against the plan that applied then, loaded only once a
+  row opens) and the month's entries.
+- **Rolling envelopes stay out of the summary's spent and left.** Money saved up for a
+  yearly bill would read as "left over" every month until the bill lands. A rolling
+  envelope in a spending group still gets a bar, against plan + carry-over
+  (`rollingMonth`, from `category_ledger_month`); one in a savings group shows its balance.
+- "offen" means pending `recurring_occurrences` only, counted as spent so an overrun
+  shows before it happens. Pending inbox rows (FinReader, API) are deliberately not
+  counted.
+- The plan gap (income targets − every plan) is stated under the summary, not folded into
+  "left": it is what lands in, or is missing from, *Nicht zugeordnet*.
+- `MonthBudgetEditor` replaces `BudgetEditPopover` on this page (Settings keeps the
+  popover). Changing one budget usually means taking from another, so the panel shows the
+  whole month and how it balances. Migration `20261101100000_set_month_budgets.sql` saves
+  the batch in one transaction through `set_category_budget`, so `forward` and the audit
+  entry for elapsed months keep their meaning.
+- **Archived envelopes with bookings in the month are listed, faded.**
+  `category_month_spending` filters archived rows; rather than change its shape for every
+  caller (AI context, totals), the page builds those rows from the categories and the
+  month's transactions it already loads. They carry no plan and stay out of every total.
+- Settings asks before archiving an envelope with bookings or a stored plan in the
+  current month. The stored plan of that month is still swept at month end
+  (`category_ledger` does not look at `archived`), while the overview no longer shows it,
+  so its plan gap moves by that amount. Known and left open.
 
 ### 2026-09-22 — Places in pending suggestions
 

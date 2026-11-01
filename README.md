@@ -401,6 +401,11 @@ production is a copy of the data, and only ever by reading it.
 Log in on dev with your production credentials: password hashes survive the
 clone, sessions do not.
 
+Every page on dev, sign-in included, carries a yellow strip and `DEV` in the
+tab title (`DevEnvBanner`). It shows whenever the build's `VITE_SUPABASE_URL`
+host contains `dev` — the dev deployment, or the local app pointed at the dev
+stack — so a dev tab is never mistaken for production.
+
 ### Day to day
 
 ```bash

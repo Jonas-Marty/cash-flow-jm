@@ -12,6 +12,8 @@ Every franc has to land somewhere, so there are exactly three ways to close an I
 
 Use when **real money actually moved**. Opens the Add form pre-filled with the open amount and counterparty; the new transaction is linked to the original. Once the linked amount covers the original, the IOU auto-settles.
 
+When one person owes you several entries, **All paid back** next to their name records a single repayment: prefilled with the open total and linked to each entry for its open rest. If less came back, change the amount and spread it over the entries.
+
 ## Write off [#write-off]
 
 Use when you **no longer expect the money** — or when you got back **more than you laid out**. The expense and every recorded repayment are assigned to a category, so the budget is charged what it actually cost you (expense minus repayments). **No** transaction is created and no real money moves.

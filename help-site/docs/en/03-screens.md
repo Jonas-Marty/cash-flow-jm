@@ -7,11 +7,13 @@ sidebar:
 
 ## Dashboard (/) [#dashboard]
 
-Your home screen. Shows account balances grouped into Assets and Liabilities, monthly budget summary, open IOUs, pending confirmations, upcoming recurring posts, top transactions of the month, a daily spend heatmap, and a trend strip. Each card is a quick jump-off to the related screen.
+Your home screen. Shows account balances grouped into Assets and Liabilities, monthly budget summary, open IOUs (grouped by person), pending confirmations, upcoming recurring posts, top transactions of the month, a daily spend heatmap, and a trend strip. Each card is a quick jump-off to the related screen.
 
 ## Transactions (/transactions) [#transactions-transactions]
 
 The full transaction list. Filter by date, account, category, type, scope or tag. The amount filter supports operators like `>100`, `<=50`, `10-30` or `=42`. Tap a row to edit or delete.
+
+Transfers between your accounts are marked in the table: *Transfer* stands where the budget would be, the account column shows source → destination, and when a different amount arrived on the destination account (in another currency, say) it is shown next to the amount.
 
 ## Add (/add) [#add-add]
 
@@ -19,9 +21,30 @@ The form to record a new transaction. Pick type (expense / income / transfer), a
 
 ## Envelopes (/envelopes) [#envelopes-envelopes]
 
-Your monthly budget view. Each envelope shows planned vs spent vs remaining. Use *Reallocate* to move budget between envelopes, and configure rollover and sweep targets in **Settings → Savings & sweeps**.
+Your monthly budget view, compact enough to see at a glance where you stand against the plan. The arrows step through months, and the month name opens a picker. Configure rollover and sweep targets in **Settings → Savings & sweeps**.
 
-The arrows step through months, and the month name opens a picker. **Tap the planned amount to change that month's budget** — in any month, including one that has already ended.
+**At the top** are four figures:
+- **Spent, monthly budgets** — spent (including recurring bookings still due) out of planned, for envelopes without rollover only.
+- **Left** — what is still left on those envelopes. Rolling envelopes (↻) are left out on purpose: money saved up over months for one bill would otherwise show as "left" every month.
+- **Status** — how many envelopes are **over**, or *all on plan*.
+- **Income** — received out of expected.
+
+Below them, one bar shows the whole month. When the plan does not balance — the budgets hand out less or more than the income target — the difference is stated underneath: it ends up in, or is missing from, *Unallocated*.
+
+**Each envelope is one line** in its group (income first, then the order from Settings): the status on the left, the bar in the middle, on the right what is left or how far it is over. A group turns red as soon as one envelope in it is over, and green when all are used up. On a phone, a ring replaces the bar.
+- A rolling envelope reads *of plan ± carry-over ↻*: what earlier months left (or overspent) counts too.
+- Savings envelopes show no bar, but their balance and this month's change.
+- A **pending** badge marks recurring bookings still due this month. They already count as spent, so you see an overrun before it happens. Entries in the *Pending* inbox (from FinReader, say) do not count.
+- An **archived** envelope shows faded, marked *archived*, only in months where it has bookings. It shows what was booked and counts in no total.
+
+**Tap a line** to open it — several can be open at once. You see the envelope's figures, a chart of the last five months (each with the budget that applied then as a dashed line, refunds netted) and every entry of the month. Below are **Change budget**, **Reallocate** (only on rolling and savings envelopes), **History** and **All bookings**.
+
+**Change budget** — or *Edit ‹month› budget* under the month's bar — opens a side panel (from the bottom on a phone) with **every budget of the month**, the cursor in the envelope you came from. It works in any month, including one that has already ended.
+- At the top you choose once for all changes: **This month and later** or **Only ‹month›**. When "This month and later" would overwrite later months already planned differently, the field says so (*overwrites Dec 26 (320.00)*).
+- The balance above it updates as you type: Income (target) − spending − savings = *Not planned* or *Overplanned*.
+- Under each field: spent or received so far, the carry-over, the average of the last five months and the old value. A new budget below what is already spent is shown in red.
+- **Enter** moves to the next field, **⌘/Ctrl + Enter** saves. All changes are saved together. Closing with unsaved changes asks first.
+- For several months in one pass, the **Open year view** link leads to the table view (see below).
 
 On a wide screen you can switch to the **table view** from the top right: envelopes down, twelve months across. It shows what an envelope has done over the year and lets you plan several months in one pass.
 
@@ -51,9 +74,11 @@ Use the period picker at the top to switch month / quarter / year / custom.
 
 Four tabs:
 - **Pending** — imported entries waiting for you to confirm or reject. Not yet booked.
-- **Open IOUs** — booked transactions you flagged as reimbursable that aren't settled yet.
+- **Open IOUs** — booked transactions you flagged as reimbursable that aren't settled yet, grouped by person, largest open amount first. When someone owes you several entries, **All paid back** records one repayment for all of them.
 - **Rejected** — entries you rejected, kept for audit, restorable.
 - **Confirmed** — entries you already confirmed, shown for traceability. The real transaction lives in Transactions.
+
+In the table under *Pending* you tick rows and confirm or reject them in one go; the **check mark** on a row (*Confirm* on a phone) confirms just that one, and **Edit** opens it in the booking form, to split it for example. A place you set can be removed with the small **×** on the place icon.
 
 Description and remarks suggest what you have used before as you type, like the Add form: earlier descriptions, and after `#` your tags.
 
@@ -69,7 +94,7 @@ Create, edit and switch your scopes (trips, projects, shared households). The ac
 
 All configuration:
 - **Accounts** — your real-world accounts.
-- **Categories & envelopes** — what you spend on and your monthly plan. It has its own month stepper: the amounts belong to the month you pick, and you edit them with the same field as on the Envelopes screen.
+- **Categories & envelopes** — what you spend on and your monthly plan. It has its own month stepper: the amounts belong to the month you pick. When an envelope has bookings or a budget in the current month, **archiving** it asks first: it leaves the budget overview and the month editor, its bookings stay, and this month's budget is still settled at month end as before.
 - **Savings & sweeps** — where leftover budget goes at month-end.
 - **Recurring rules** — auto-posting transactions.
 - **API tokens** — for the public REST API.

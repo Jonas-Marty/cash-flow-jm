@@ -11,6 +11,8 @@ Jeder Franken muss irgendwo landen, deshalb gibt es genau drei Wege, eine IOU zu
 
 Wenn **tatsächlich Geld geflossen ist**. Öffnet das Add-Formular vorbelegt mit offenem Betrag und Gegenpartei; die neue Buchung wird mit der ursprünglichen verknüpft. Sobald die Verknüpfungssumme den Originalbetrag deckt, schließt die IOU automatisch.
 
+Schuldet dir eine Person mehrere Posten, erfasst **Alles zurückgezahlt** bei ihrem Namen eine einzige Rückzahlung: vorausgefüllt mit dem offenen Total und mit jedem Posten über seinen offenen Rest verknüpft. Kam weniger zurück, passe den Betrag an und verteile ihn auf die Posten.
+
 ## Abschreiben [#write-off]
 
 Wenn du das Geld **nicht mehr erwartest** — oder wenn du **mehr zurückbekommen hast** als ausgelegt. Die Auslage und alle erfassten Rückzahlungen werden einer Kategorie zugewiesen, sodass das Budget mit dem tatsächlichen Rest belastet wird (Auslage minus Rückzahlungen). Es entsteht **keine** Buchung und es bewegt sich kein echtes Geld.
