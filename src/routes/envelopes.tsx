@@ -5,10 +5,10 @@ import { format, startOfMonth, endOfMonth, isValid, parseISO } from "date-fns";
 import type { Locale as DateFnsLocale } from "date-fns";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
 import * as z from "zod";
-import { ArrowDownToLine, ArrowLeftRight, ChevronDown, History, LayoutGrid, ListTree, Plus, Rows3 } from "lucide-react";
+import { ArrowLeftRight, LayoutGrid, ListTree, Rows3 } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -30,10 +30,13 @@ import {
   fetchCategories,
   fetchReallocations,
   fetchCategoryLedgerMonth,
+  fetchPendingOccurrencesForMonth,
+  fetchCategoryTxRange,
+  fetchSavingsBalanceSeries,
+  type PendingOccurrence,
   type Transaction,
   type CategoryMonthRow,
 } from "@/lib/finance";
-import { StackedBudgetBar } from "@/components/StackedBudgetBar";
 import { useFxRates, convert } from "@/lib/fx";
 import { MonthBudgetSummary } from "@/components/MonthBudgetSummary";
 import { ReallocateDialog } from "@/components/ReallocateDialog";
@@ -49,7 +52,12 @@ import { MonthNavigator } from "@/components/MonthNavigator";
 import { BudgetEditPopover } from "@/components/BudgetEditPopover";
 import { defaultAsOfForMonth, monthParam, monthStatus, parseMonthParam } from "@/lib/month";
 import { BudgetGrid } from "@/components/envelopes/BudgetGrid";
-import { monthWindow } from "@/lib/budgetGrid";
+import { cellId, monthWindow, resolveCells } from "@/lib/budgetGrid";
+import { BudgetOverview } from "@/components/envelopes/BudgetOverview";
+import { MonthEntries, type ReallocEntry } from "@/components/envelopes/MonthEntries";
+import { buildOverview, overviewSummary } from "@/lib/budgetOverview";
+import { buildHistory, monthsBefore, prevMonthKey } from "@/lib/budgetHistory";
+import { computeMonthTotals } from "@/lib/budgetSummary";
 import { fetchCategoryBudgetRange } from "@/lib/finance";
 import { PrivacyValue } from "@/components/DashboardPrivacy";
 
@@ -73,78 +81,6 @@ export const Route = createFileRoute("/envelopes")({
   component: EnvelopesPage,
 });
 
-type ReallocEntry = {
-  id: string;
-  reallocationId: string;
-  /** Made by a transfer (its difference): opens the transfer, not the edit sheet. */
-  transactionId: string | null;
-  occurred_on: string;
-  amount: number;
-  inflow: boolean;
-  counterpart: string | null;
-  note: string | null;
-};
-
-/**
- * An allocation or leftover in a budget's month list, styled like the reallocation
- * rows next to it. Leftovers swept in open the Verlauf, which breaks them down.
- */
-function LedgerExtraRow({
-  kind,
-  label,
-  sub,
-  amount,
-  symbol,
-  onClick,
-}: {
-  kind: "allocation" | "sweep";
-  label: string;
-  sub: string;
-  amount: number;
-  symbol: string;
-  onClick?: () => void;
-}) {
-  const Icon = kind === "allocation" ? Plus : ArrowDownToLine;
-  return (
-    <li
-      role={onClick ? "button" : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onClick={onClick}
-      onKeyDown={
-        onClick
-          ? (ev) => {
-              if (ev.key === "Enter" || ev.key === " ") {
-                ev.preventDefault();
-                onClick();
-              }
-            }
-          : undefined
-      }
-      className={cn(
-        "flex items-center justify-between gap-3 rounded-sm bg-muted/40 px-2 py-2 text-sm",
-        onClick && "cursor-pointer hover:bg-muted",
-      )}
-    >
-      <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <Icon
-            className={cn(
-              "h-3.5 w-3.5 shrink-0",
-              kind === "allocation" ? "text-success" : "text-sky-600 dark:text-sky-400",
-            )}
-          />
-          <span className="truncate">{label}</span>
-        </div>
-        <div className="truncate text-xs text-muted-foreground">{sub}</div>
-      </div>
-      <div className={cn("font-medium tabular-nums", amount >= 0 ? "text-success" : "text-destructive")}>
-        {amount >= 0 ? "+" : "-"}
-        {fmtMoney(Math.abs(amount), symbol)}
-      </div>
-    </li>
-  );
-}
-
 async function fetchMonthCategoryTx(monthStart: Date): Promise<Transaction[]> {
   const from = format(startOfMonth(monthStart), "yyyy-MM-dd");
   const to = format(endOfMonth(monthStart), "yyyy-MM-dd");
@@ -157,50 +93,6 @@ async function fetchMonthCategoryTx(monthStart: Date): Promise<Transaction[]> {
     .order("occurred_on", { ascending: false });
   if (error) throw error;
   return (data || []) as Transaction[];
-}
-
-/**
- * The month's allocation, rendered as its own edit target.
- *
- * Tapping the figure you are already reading is the entire affordance: no edit mode,
- * no separate screen, and the month is whichever one the page is showing. Scope rows
- * never reach here — they are filtered out before grouping, and the RPC refuses them
- * anyway.
- */
-function EditableAllocation({
-  row,
-  month,
-  locale,
-  symbol,
-  className,
-}: {
-  row: CategoryMonthRow;
-  month: Date;
-  locale?: DateFnsLocale;
-  symbol: string;
-  className?: string;
-}) {
-  const allocated = Number(row.allocated);
-  return (
-    <BudgetEditPopover
-      categoryId={row.category_id}
-      categoryName={row.name}
-      month={month}
-      amount={allocated}
-      locale={locale}
-    >
-      <button
-        type="button"
-        className={cn(
-          "-mx-1 rounded px-1 underline decoration-dotted decoration-muted-foreground/60 underline-offset-4",
-          "hover:bg-accent hover:text-accent-foreground",
-          className,
-        )}
-      >
-        {fmtMoney(allocated, symbol)}
-      </button>
-    </BudgetEditPopover>
-  );
 }
 
 function EnvelopesPage() {
@@ -351,15 +243,6 @@ function EnvelopesPage() {
       navigate({ to: "/edit/$id", params: { id }, search: { back: search, backTo: "envelopes" } }),
     [navigate, search],
   );
-  const [expandedCats, setExpandedCats] = React.useState<Set<string>>(() => new Set());
-  const toggleExpanded = React.useCallback((id: string) => {
-    setExpandedCats((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }, []);
   const incomeIds = React.useMemo(
     () => new Set(rows.filter((r) => r.kind === "income").map((r) => r.category_id)),
     [rows],
@@ -473,30 +356,102 @@ function EnvelopesPage() {
     return map;
   }, [reallocQ.data, month, categoriesById, tr]);
 
-  // Group rows by group_id preserving sort. The RPC already returns the
-  // effective per-row kind (driven by categories.rolls_over, falling back to
-  // category_groups.kind), so we trust it directly. Rows without a group fall
-  // into a synthetic bucket per effective kind.
-  const groups = React.useMemo(() => {
-    const map = new Map<string, { name: string; kind: CategoryMonthRow["kind"]; rows: CategoryMonthRow[] }>();
-    for (const r of effectiveRows) {
-      // Scopes are managed on /scopes and sit outside the month, which is also
-      // how MonthBudgetSummary above counts them.
-      if (r.is_scope) continue;
-      const key = r.group_id ?? `__${r.kind}__`;
-      if (!map.has(key)) {
-        map.set(key, {
-          name: r.group_id
-            ? (r.group_name ?? "")
-            : (r.kind === "income" ? "Income" : r.kind === "savings" ? "Savings" : "Uncategorized"),
-          kind: r.kind,
-          rows: [],
-        });
-      }
-      map.get(key)!.rows.push(r);
+  const groupKindById = React.useMemo(
+    () => new Map((groupsQ.data ?? []).map((g) => [g.id, g.kind])),
+    [groupsQ.data],
+  );
+  const balanceById = React.useMemo(
+    () => new Map((savingsBalanceQ.data ?? []).map((b) => [b.category_id, Number(b.cumulative_balance)])),
+    [savingsBalanceQ.data],
+  );
+  const overviewGroups = React.useMemo(
+    () =>
+      buildOverview({
+        rows: effectiveRows,
+        groupKindById,
+        pendingMap,
+        ledgerByCategory: monthLedgerQ.data,
+        balanceById,
+        month: m,
+      }),
+    [effectiveRows, groupKindById, pendingMap, monthLedgerQ.data, balanceById, m],
+  );
+  const overviewSum = React.useMemo(() => overviewSummary(overviewGroups), [overviewGroups]);
+  const plannedNet = React.useMemo(
+    () => computeMonthTotals(effectiveRows, pendingMap).plannedNet,
+    [effectiveRows, pendingMap],
+  );
+
+  // A monthly budget's leftover goes to its own target when one is set on it or its
+  // group; that is worth saying, the default target is not.
+  const sweepTargetName = React.useCallback(
+    (id: string) => {
+      const cat = categoriesById.get(id);
+      const groupOverride = cat?.group_id ? groupSweepById.get(cat.group_id) ?? null : null;
+      const override = cat?.sweep_target_category_id ?? groupOverride;
+      return override ? (categoriesById.get(override)?.name ?? null) : null;
+    },
+    [categoriesById, groupSweepById],
+  );
+
+  const pendingOccQ = useQuery({
+    queryKey: ["pending_occurrences_month", m],
+    queryFn: () => fetchPendingOccurrencesForMonth(m),
+    enabled: view === "cards",
+    placeholderData: keepPreviousData,
+  });
+  const pendingOccByCategory = React.useMemo(() => {
+    const map = new Map<string, PendingOccurrence[]>();
+    for (const o of pendingOccQ.data ?? []) {
+      const list = map.get(o.category_id) ?? [];
+      list.push(o);
+      map.set(o.category_id, list);
     }
-    return Array.from(map.values());
-  }, [effectiveRows]);
+    return map;
+  }, [pendingOccQ.data]);
+
+  // The months before this one, for the chart in an opened row. Loaded only once a
+  // row is opened: most visits only read the month.
+  const [historyWanted, setHistoryWanted] = React.useState(false);
+  const historyMonths = React.useMemo(() => monthsBefore(m, 5), [m]);
+  const historyBudgetsQ = useQuery({
+    queryKey: ["category_budget_range", historyMonths[historyMonths.length - 1]],
+    queryFn: () => fetchCategoryBudgetRange("1970-01-01", historyMonths[historyMonths.length - 1]),
+    enabled: historyWanted,
+  });
+  const historyTxQ = useQuery({
+    queryKey: ["budget_history_tx", m],
+    queryFn: () => fetchCategoryTxRange(historyMonths[0], m),
+    enabled: historyWanted,
+  });
+  const historySavingsQ = useQuery({
+    queryKey: ["savings_balance_series", prevMonthKey(historyMonths[0]), m],
+    queryFn: () =>
+      fetchSavingsBalanceSeries(
+        format(endOfMonth(parseISO(prevMonthKey(historyMonths[0]))), "yyyy-MM-dd"),
+        format(endOfMonth(parseISO(historyMonths[historyMonths.length - 1])), "yyyy-MM-dd"),
+      ),
+    enabled: historyWanted,
+  });
+  const history = React.useMemo(() => {
+    if (!historyBudgetsQ.data || !historyTxQ.data || !historySavingsQ.data || !categoriesQ.data) return undefined;
+    const plans = resolveCells(categoriesQ.data, historyBudgetsQ.data, historyMonths.map((k) => parseISO(k)));
+    const savings = new Map<string, number>();
+    for (const p of historySavingsQ.data) savings.set(`${p.category_id}:${p.as_of.slice(0, 7)}`, Number(p.cumulative_balance));
+    return buildHistory({
+      months: historyMonths,
+      categories: overviewGroups.flatMap((g) =>
+        g.rows.map((r) => ({ id: r.id, kind: r.type === "spend" ? ("spend" as const) : r.type })),
+      ),
+      planOf: (id, month) => plans.get(cellId(id, month))?.amount,
+      txs: historyTxQ.data.map((t) => {
+        const code = accountById.get(t.source_account_id)?.currency_code ?? mainCode;
+        const amount = code === mainCode ? t.amount : (convert(t.amount, code, mainCode, fxQ.data) ?? t.amount);
+        return { category_id: t.category_id, type: t.type, amount, occurred_on: t.occurred_on };
+      }),
+      savingsBalance: (id, ym) => savings.get(`${id}:${ym}`),
+    });
+  }, [historyBudgetsQ.data, historyTxQ.data, historySavingsQ.data, categoriesQ.data, historyMonths, overviewGroups, accountById, mainCode, fxQ.data]);
 
   return (
     <AppShell wide={gridView}>
@@ -615,12 +570,12 @@ function EnvelopesPage() {
           </CardContent></Card>
         ) : (
           <>
-            <MonthBudgetSummary
+            {view !== "cards" && <MonthBudgetSummary
               rows={effectiveRows}
               pendingMap={pendingMap}
               symbol={symbol}
               monthLabel={format(month, "MMMM yyyy", { locale })}
-            />
+            />}
             {gridView && (
               <>
                 <p className="text-xs leading-snug text-muted-foreground">{tr("budget.grid.hint")}</p>
@@ -653,361 +608,59 @@ function EnvelopesPage() {
                 />
               )
             )}
-            {view === "cards" && groups.map((g) => {
-              const totalAlloc = g.rows.reduce((s, r) => s + Number(r.allocated), 0);
-              const totalActual = g.rows.reduce((s, r) => s + Number(r.spent_or_received), 0);
-              const totalPending = g.rows.reduce((s, r) => {
-                const p = pendingMap.get(r.category_id);
-                const d = pendingDeltaForRow(p, g.kind);
-                return s + (g.kind === "income" ? d : Math.max(0, d));
-              }, 0);
-              // Tolerance, not a bare `>`: spending exactly the budget is the plan working,
-              // and float noise on a sum of decimals would otherwise paint it as overspent.
-              const overProjected = g.kind === "expense" && totalAlloc > 0 && totalActual + totalPending > totalAlloc + 0.005;
-              const remaining = totalAlloc - totalActual - totalPending;
-              // Savings groups show the sum of cumulative envelope balances,
-              // not the (usually zero) monthly allocation.
-              const totalSaved = g.rows.reduce((s, r) => {
-                const v2 = savingsBalanceMap.get(r.category_id);
-                return s + Number(v2?.cumulative_balance ?? 0);
-              }, 0);
-              return (
-          <Card key={g.name + g.kind}>
-            <CardHeader className="pb-2 space-y-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold uppercase tracking-wide text-foreground">
-                  {g.name}
-                  <span className="ml-2 rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal text-muted-foreground">
-                    {g.kind === "income" ? tr("settings.kind_income") : g.kind === "savings" ? tr("settings.kind_savings") : tr("settings.kind_expense")}
-                  </span>
-                </CardTitle>
-                <div className={cn("text-lg font-bold tabular-nums", overProjected && "text-destructive")}>
-                  {g.kind === "savings"
-                    ? fmtMoney(totalSaved, symbol)
-                    : `${fmtMoney(totalActual + totalPending, symbol)} / ${fmtMoney(totalAlloc, symbol)}`}
-                </div>
-              </div>
-              {g.kind !== "savings" && (
-                <>
-                  <div className="text-xs tabular-nums text-muted-foreground flex flex-wrap gap-x-3">
-                    {g.kind === "income" ? (
-                      <>
-                        <span>{tr("dashboard.group.received", { x: fmtMoney(totalActual, symbol) })}</span>
-                        {totalPending > 0 && <span className="text-warning">{tr("dashboard.group.expected", { x: fmtMoney(totalPending, symbol) })}</span>}
-                        <span className="ml-auto">{tr("dashboard.group.of_target", { x: fmtMoney(totalAlloc, symbol) })}</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>{tr("dashboard.group.spent", { x: fmtMoney(totalActual, symbol) })}</span>
-                        {totalPending > 0 && <span className="text-warning">{tr("dashboard.group.pending", { x: fmtMoney(totalPending, symbol) })}</span>}
-                        <span className="ml-auto">
-                          {overProjected
-                            ? <span className="text-destructive">{tr("dashboard.group.over_by", { x: fmtMoney(-remaining, symbol) })}</span>
-                            : tr("dashboard.group.left", { x: fmtMoney(remaining, symbol) })}
-                        </span>
-                      </>
-                    )}
-                  </div>
-                  {g.kind === "expense" && (
-                    <StackedBudgetBar className="h-3" allocated={totalAlloc} committed={totalActual} pending={totalPending} />
-                  )}
-                </>
-              )}
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {g.rows.map((r) => {
-                const items = byCategory.get(r.category_id) ?? [];
-                const allocated = Number(r.allocated);
-                const actual = Number(r.spent_or_received);
-                const pending = pendingMap.get(r.category_id);
-                // Use the row's own effective kind (from RPC), not the group's,
-                // so a savings envelope inside an expense group still computes
-                // correctly.
-                const rowKind = r.kind;
-                const pendingDelta = pendingDeltaForRow(pending, rowKind);
-                const pendingPos = Math.max(0, pendingDelta);
-
-                let header: React.ReactNode;
-                if (rowKind === "savings") {
-                  const v2 = savingsBalanceMap.get(r.category_id);
-                  const balance = Number(v2?.cumulative_balance ?? 0);
-                  // The month as the Verlauf counts it, leftovers swept in included;
-                  // month_activity leaves those out.
-                  const monthly = monthLedgerQ.data
-                    ? (monthNet(monthLedgerQ.data.get(r.category_id) ?? [], m) ?? 0)
-                    : v2 ? Number(v2.month_activity) : 0;
-                  header = (
-                    <>
-                      <div className="flex items-baseline justify-between gap-3">
-                        <div className="font-semibold flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-                          <span>{r.name}</span>
-                          <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-6 gap-1 px-2 text-xs text-primary"
-                            onClick={() => { setReallocFrom(r.category_id); setReallocAmount(null); setReallocOpen(true); }}
-                          >
-                            <ArrowLeftRight />
-                            {tr("envelopes.reallocate")}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="h-6 gap-1 px-2 text-xs text-primary"
-                            onClick={() => setDetailCat({ id: r.category_id, name: r.name })}
-                          >
-                            <History />
-                            {tr("env.detail.open")}
-                          </Button>
-                          </div>
-                        </div>
-                        <PrivacyValue className={cn("shrink-0 text-base font-bold tabular-nums", balance < 0 ? "text-destructive" : "text-foreground")}>
-                          {fmtMoney(balance, symbol)}
-                        </PrivacyValue>
-                      </div>
-                      {/* The headline is the running balance, so the month's allocation —
-                          the money this envelope lives on — needs its own edit target. */}
-                      <div className="mt-1 text-xs tabular-nums text-muted-foreground">
-                        {tr("envelopes.savings.allocation")}:{" "}
-                        <EditableAllocation row={r} month={month} locale={locale} symbol={symbol} />
-                      </div>
-                      {v2 && (
-                        <div className="mt-1 text-xs tabular-nums text-muted-foreground flex flex-wrap gap-x-3">
-                          <span>{tr("envelopes.savings.month_activity")}: <span className={cn(monthly > 0 ? "text-success" : monthly < 0 ? "text-destructive" : "")}>{monthly >= 0 ? "+" : ""}{fmtMoney(monthly, symbol)}</span></span>
-                          {Math.abs(Number(v2.from_allocations)) > 0.005 && (
-                            <span>{tr("envelopes.savings.from_allocations")}: {fmtMoney(Number(v2.from_allocations), symbol)}</span>
-                          )}
-                          {Math.abs(Number(v2.from_sweeps)) > 0.005 && (
-                            <span>{tr("envelopes.savings.from_sweeps")}: {fmtMoney(Number(v2.from_sweeps), symbol)}</span>
-                          )}
-                          {Math.abs(Number(v2.from_reallocations)) > 0.005 && (
-                            <span>{tr("envelopes.savings.from_reallocations")}: {fmtMoney(Number(v2.from_reallocations), symbol)}</span>
-                          )}
-                        </div>
-                      )}
-                      {pending && (pending.income > 0 || pending.expense > 0) && (
-                        <div className="mt-1 text-xs text-warning tabular-nums">
-                          {tr("env.savings_pending", { a: fmtMoney(pending.income, symbol), b: fmtMoney(pending.expense, symbol) })}
-                        </div>
-                      )}
-                    </>
-                  );
-                } else if (rowKind === "income") {
-                  const variance = actual - allocated;
-                  const tone = variance >= 0 ? "text-success" : "text-destructive";
-                  const projected = actual + pendingDelta;
-                  header = (
-                    <>
-                      <div className="flex items-baseline justify-between gap-3">
-                        <div className="font-semibold">{r.name}</div>
-                        <div className="text-base font-bold tabular-nums">
-                          <span className={tone}>{fmtMoney(projected, symbol)}</span>
-                          <span className="text-muted-foreground font-normal"> / <EditableAllocation row={r} month={month} locale={locale} symbol={symbol} /></span>
-                        </div>
-                      </div>
-                      <div className="mt-1 text-xs tabular-nums text-muted-foreground flex flex-wrap gap-x-2">
-                        <span>{fmtMoney(actual, symbol)} {tr("dashboard.summary.received_label")}</span>
-                        {pendingDelta > 0 && (
-                          <span className="text-warning">+{fmtMoney(pendingDelta, symbol)} {tr("dashboard.summary.expected_label")}</span>
-                        )}
-                        {allocated - actual > 0.005 && (
-                          <span>{tr("env.income.outstanding")}: {fmtMoney(allocated - actual, symbol)}</span>
-                        )}
-                        <span className={cn("ml-auto", tone)}>({variance >= 0 ? "+" : ""}{fmtMoney(variance, symbol)})</span>
-                      </div>
-                    </>
-                  );
-                } else {
-                  const projected = actual + pendingPos;
-                  const overProjected = allocated > 0 && projected > allocated + 0.005;
-                  const remainingProjected = allocated - projected;
-                  const cat = categoriesById.get(r.category_id);
-                  const groupOverride = r.group_id ? groupSweepById.get(r.group_id) ?? null : null;
-                  const resolvedSweepId = (cat as unknown as { sweep_target_category_id?: string | null } | undefined)?.sweep_target_category_id ?? groupOverride ?? defaultSweepId;
-                  const isOverride = ((cat as unknown as { sweep_target_category_id?: string | null } | undefined)?.sweep_target_category_id ?? null) !== null
-                    || (r.group_id != null && groupOverride !== null);
-                  const sweepTargetName = resolvedSweepId ? (categoriesById.get(resolvedSweepId)?.name ?? null) : null;
-                  header = (
-                    <>
-                      <div className="flex items-baseline justify-between gap-3">
-                        <div className="font-semibold">{r.name}</div>
-                        <div className="text-base font-bold tabular-nums">
-                          <span className={cn(overProjected ? "text-destructive" : "text-foreground")}>{fmtMoney(projected, symbol)}</span>
-                          <span className="text-muted-foreground font-normal"> / <EditableAllocation row={r} month={month} locale={locale} symbol={symbol} /></span>
-                        </div>
-                      </div>
-                      <StackedBudgetBar className="mt-2 h-1.5" allocated={allocated} committed={actual} pending={pendingPos} />
-                      <div className="mt-1 text-xs tabular-nums text-muted-foreground flex flex-wrap gap-x-2">
-                        <span>{fmtMoney(actual, symbol)} {tr("dashboard.summary.spent_label")}</span>
-                        {pendingPos > 0 && (
-                          <span className="text-warning">+{fmtMoney(pendingPos, symbol)} {tr("dashboard.summary.pending_label")}</span>
-                        )}
-                        <span className={cn("ml-auto", overProjected && "text-destructive font-medium")}>
-                          {overProjected
-                            ? tr("dashboard.over_by", { x: fmtMoney(-remainingProjected, symbol) })
-                            : tr("dashboard.remaining", { x: fmtMoney(remainingProjected, symbol) })}
-                        </span>
-                      </div>
-                      {isOverride && sweepTargetName && Math.abs(allocated - projected) > 0.005 && (
-                        <div className="mt-1 text-[11px] text-muted-foreground italic">
-                          {tr("envelopes.sweep.target")}: {sweepTargetName}
-                        </div>
-                      )}
-                    </>
-                  );
+            {view === "cards" && (
+              <BudgetOverview
+                groups={overviewGroups}
+                summary={overviewSum}
+                plannedNet={plannedNet}
+                month={month}
+                symbol={symbol}
+                locale={locale}
+                history={history}
+                historyLoading={historyWanted && !history}
+                onNeedHistory={() => setHistoryWanted(true)}
+                renderEntries={(r) => (
+                  <MonthEntries
+                    rowKind={r.type === "income" ? "income" : r.type === "savings" ? "savings" : "expense"}
+                    items={byCategory.get(r.id) ?? []}
+                    reallocs={reallocByCategory.get(r.id) ?? []}
+                    ledger={monthLedgerQ.data?.get(r.id) ?? []}
+                    pending={pendingOccByCategory.get(r.id) ?? []}
+                    categoriesById={categoriesById}
+                    accountById={accountById}
+                    symbol={symbol}
+                    locale={locale}
+                    onOpenTransaction={openTransaction}
+                    onEditReallocation={setEditReallocId}
+                    onOpenDetail={() => setDetailCat({ id: r.id })}
+                  />
+                )}
+                renderBudgetEdit={(r, trigger) => (
+                  <BudgetEditPopover
+                    categoryId={r.id}
+                    categoryName={r.name}
+                    month={month}
+                    amount={r.type === "income" ? r.target : r.allocated}
+                    locale={locale}
+                  >
+                    {trigger}
+                  </BudgetEditPopover>
+                )}
+                onReallocate={(id) => { setReallocFrom(id); setReallocAmount(null); setReallocOpen(true); }}
+                onOpenDetail={(id) => setDetailCat({ id })}
+                onAllTransactions={(id) =>
+                  navigate({
+                    to: "/transactions",
+                    search: {
+                      cats: [id],
+                      from: format(startOfMonth(month), "yyyy-MM-dd"),
+                      to: format(endOfMonth(month), "yyyy-MM-dd"),
+                    },
+                  })
                 }
-
-                const isExpanded = expandedCats.has(r.category_id);
-                const reallocs = reallocByCategory.get(r.category_id) ?? [];
-                const ledger = monthLedgerQ.data?.get(r.category_id) ?? [];
-                // Income budgets show the plan as their target already; an allocation
-                // row there would read as money received.
-                const allocRows = rowKind === "income" ? [] : ledger.filter((l) => l.kind === "allocation");
-                const sweepOut = ledger.filter((l) => l.kind === "sweep_out");
-                const sweepIn = ledger.filter((l) => l.kind === "sweep_in");
-                const extraCount = allocRows.length + sweepOut.length + (sweepIn.length > 0 ? 1 : 0);
-                const entryCount = items.length + reallocs.length + extraCount;
-                // Heatmap intensity per outflow tx, scaled to the largest outflow in this category
-                const maxOutflow = items.reduce((m, t) => {
-                  if (t.type !== "expense") return m;
-                  const a = Math.abs(Number(t.amount));
-                  return a > m ? a : m;
-                }, 0);
-                return (
-                  <div key={r.category_id} className="rounded-md border p-3">
-                    {header}
-                    {entryCount > 0 && (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => toggleExpanded(r.category_id)}
-                          className="mt-2 flex w-full items-center justify-between rounded px-1 py-1 text-xs text-muted-foreground hover:bg-muted/50 transition-colors"
-                          aria-expanded={isExpanded}
-                        >
-                          <span>
-                            {reallocs.length + extraCount > 0
-                              ? tr("env.entry_count", { n: String(entryCount) })
-                              : tr("env.tx_count", { n: String(items.length) })}
-                          </span>
-                          <ChevronDown className={cn("h-4 w-4 transition-transform", isExpanded && "rotate-180")} />
-                        </button>
-                        {isExpanded && (
-                          <ul className="mt-1 divide-y border-t pt-1">
-                            {sweepOut.map((l) => (
-                              <LedgerExtraRow
-                                key={l.entry_key}
-                                kind="sweep"
-                                label={tr(l.amount > 0 ? "env.ledger.sweep_out_cover" : "env.ledger.sweep_out", {
-                                  name: (l.counterpart_category_id && categoriesById.get(l.counterpart_category_id)?.name) || "",
-                                })}
-                                sub={l.occurred_on ? format(parseISO(l.occurred_on), "MMM d", { locale }) : ""}
-                                amount={l.amount}
-                                symbol={symbol}
-                              />
-                            ))}
-                            {reallocs.map((e) => (
-                              <li
-                                key={e.id}
-                                role="button"
-                                tabIndex={0}
-                                onClick={() => (e.transactionId ? openTransaction(e.transactionId) : setEditReallocId(e.reallocationId))}
-                                onKeyDown={(ev) => {
-                                  if (ev.key === "Enter" || ev.key === " ") {
-                                    ev.preventDefault();
-                                    if (e.transactionId) openTransaction(e.transactionId);
-                                    else setEditReallocId(e.reallocationId);
-                                  }
-                                }}
-                                className="flex cursor-pointer items-center justify-between gap-3 px-2 py-2 text-sm rounded-sm bg-muted/40 hover:bg-muted"
-                              >
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-1.5 min-w-0">
-                                    <ArrowLeftRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                    <span className="truncate">
-                                      {e.note || (e.inflow ? tr("env.realloc_in") : tr("env.realloc_out"))}
-                                    </span>
-                                  </div>
-                                  <div className="text-xs text-muted-foreground truncate">
-                                    {format(new Date(e.occurred_on), "MMM d", { locale })}
-                                    {e.counterpart ? ` · ${e.inflow ? "←" : "→"} ${e.counterpart}` : ""}
-                                  </div>
-                                </div>
-                                <div className={cn("tabular-nums font-medium", e.inflow ? "text-success" : "text-destructive")}>
-                                  {e.inflow ? "+" : "-"}{fmtMoney(e.amount, symbol).replace("-", "")}
-                                </div>
-                              </li>
-                            ))}
-                            {items.map((t) => {
-                              const isInflow = t.type === "income";
-                              const label = rowKind === "income"
-                                ? (isInflow ? tr("env.income_label") : tr("env.income_adjustment"))
-                                : rowKind === "savings"
-                                  ? (isInflow ? tr("env.savings_refund") : tr("env.savings_booking"))
-                                  : (isInflow ? tr("env.reimb_short") : tr("env.expense_label"));
-                              const acc = accountById.get(t.source_account_id);
-                              const txSym = acc?.currency_symbol ?? symbol;
-                              const amt = Math.abs(Number(t.amount));
-                              // Heatmap only for expenses in expense envelopes
-                              const intensity = rowKind === "expense" && !isInflow && maxOutflow > 0
-                                ? Math.min(1, amt / maxOutflow)
-                                : 0;
-                              const bgStyle = intensity > 0
-                                ? { backgroundColor: `color-mix(in oklab, var(--destructive) ${Math.round(intensity * 22)}%, transparent)` }
-                                : undefined;
-                              return (
-                                <li
-                                  key={t.id}
-                                  className="flex items-center justify-between gap-3 px-2 py-2 text-sm rounded-sm"
-                                  style={bgStyle}
-                                >
-                                  <div className="min-w-0 flex-1">
-                                    <div className="truncate">{t.description || label}</div>
-                                    <div className="text-xs text-muted-foreground">{format(new Date(t.occurred_on), "MMM d", { locale })}</div>
-                                  </div>
-                                  <div className={cn("tabular-nums font-medium", isInflow ? "text-success" : "text-destructive")}>
-                                    {isInflow ? "+" : "-"}{fmtMoney(amt, txSym).replace("-", "")}
-                                  </div>
-                                </li>
-                              );
-                            })}
-                            {allocRows.map((l) => (
-                              <LedgerExtraRow
-                                key={l.entry_key}
-                                kind="allocation"
-                                label={tr("env.ledger.allocation")}
-                                sub={`${l.occurred_on ? format(parseISO(l.occurred_on), "MMM d", { locale }) : ""} · ${tr("env.ledger.allocation_sub")}`}
-                                amount={l.amount}
-                                symbol={symbol}
-                              />
-                            ))}
-                            {sweepIn.length > 0 && (
-                              <LedgerExtraRow
-                                kind="sweep"
-                                label={tr("env.ledger.sweep_in", {
-                                  month: sweepIn[0].meta?.month ? format(parseISO(sweepIn[0].meta.month), "MMMM", { locale }) : "",
-                                })}
-                                sub={`${sweepIn[0].occurred_on ? format(parseISO(sweepIn[0].occurred_on), "MMM d", { locale }) : ""} · ${
-                                  sweepIn.length === 1
-                                    ? tr("env.ledger.sweep_in_sub_one")
-                                    : tr("env.ledger.sweep_in_sub", { n: String(sweepIn.length) })
-                                }`}
-                                amount={sweepIn.reduce((sum, l) => sum + l.amount, 0)}
-                                symbol={symbol}
-                                onClick={() => setDetailCat({ id: r.category_id })}
-                              />
-                            )}
-                          </ul>
-                        )}
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-              );
-            })}
+                sweepTargetName={sweepTargetName}
+              />
+            )}
           </>
         )}
 

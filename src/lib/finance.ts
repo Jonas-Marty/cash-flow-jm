@@ -712,6 +712,78 @@ export async function fetchPendingImpactsForMonth(month: string): Promise<Pendin
   return Array.from(map.values());
 }
 
+/** One not yet booked occurrence of a recurring rule, as the Budgets list shows it. */
+export interface PendingOccurrence {
+  id: string;
+  effective_on: string;
+  category_id: string;
+  type: "expense" | "income";
+  amount: number;
+  label: string;
+}
+
+/** The month's pending recurring occurrences one by one, for the "offen" rows in a budget. */
+export async function fetchPendingOccurrencesForMonth(month: string): Promise<PendingOccurrence[]> {
+  const d = new Date(month);
+  const next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+  const end = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-01`;
+  const { data, error } = await supabase
+    .from("recurring_occurrences")
+    .select("id, effective_on, rule:recurring_rules!inner(name, description, category_id, type, amount, estimated_amount, is_variable_amount)")
+    .eq("status", "pending")
+    .gte("effective_on", month)
+    .lt("effective_on", end)
+    .order("effective_on", { ascending: false });
+  if (error) throw error;
+  const out: PendingOccurrence[] = [];
+  for (const row of (data || []) as unknown as Array<{
+    id: string;
+    effective_on: string;
+    rule: { name: string; description: string | null; category_id: string | null; type: TxType; amount: number | null; estimated_amount: number | null; is_variable_amount: boolean };
+  }>) {
+    const r = row.rule;
+    if (!r?.category_id || r.type === "transfer") continue;
+    const v = Number((r.is_variable_amount ? r.estimated_amount : r.amount) ?? 0);
+    if (!Number.isFinite(v) || v <= 0) continue;
+    out.push({
+      id: row.id,
+      effective_on: row.effective_on,
+      category_id: r.category_id,
+      type: r.type,
+      amount: v,
+      // The rule's name, not its description: descriptions are templates
+      // (${date:MMMM}) that only resolve when the occurrence is posted.
+      label: r.name,
+    });
+  }
+  return out;
+}
+
+/**
+ * Every categorised booking between two dates, reduced to what the budget history
+ * needs. Amounts are in the booking account's currency.
+ */
+export async function fetchCategoryTxRange(
+  from: string,
+  to: string,
+): Promise<Array<{ category_id: string; type: TxType; amount: number; occurred_on: string; source_account_id: string }>> {
+  const { data, error } = await supabase
+    .from("transactions")
+    .select("category_id, type, amount, occurred_on, source_account_id")
+    .gte("occurred_on", from)
+    .lt("occurred_on", to)
+    .not("category_id", "is", null)
+    .limit(10000);
+  if (error) throw error;
+  return (data || []).map((r) => ({
+    category_id: r.category_id as string,
+    type: r.type as TxType,
+    amount: Number(r.amount),
+    occurred_on: String(r.occurred_on),
+    source_account_id: r.source_account_id as string,
+  }));
+}
+
 /** Aggregated pending impact for a single category, signed like `category_month_spending.spent_or_received`. */
 export interface PendingCategorySigned {
   expense: number; // positive sum of pending expenses
