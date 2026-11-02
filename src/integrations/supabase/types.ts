@@ -161,11 +161,16 @@ export type Database = {
       }
       ai_audit_logs: {
         Row: {
+          cached_tokens: number | null
+          cleared_at: string | null
           completion_tokens: number | null
           conversation_id: string | null
           duration_ms: number | null
+          endpoint_id: string | null
+          endpoint_name: string | null
           error_message: string | null
           id: string
+          intended_endpoint_id: string | null
           kind: string
           model: string | null
           occurred_at: string
@@ -178,11 +183,16 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          cached_tokens?: number | null
+          cleared_at?: string | null
           completion_tokens?: number | null
           conversation_id?: string | null
           duration_ms?: number | null
+          endpoint_id?: string | null
+          endpoint_name?: string | null
           error_message?: string | null
           id?: string
+          intended_endpoint_id?: string | null
           kind: string
           model?: string | null
           occurred_at?: string
@@ -195,11 +205,16 @@ export type Database = {
           user_id: string
         }
         Update: {
+          cached_tokens?: number | null
+          cleared_at?: string | null
           completion_tokens?: number | null
           conversation_id?: string | null
           duration_ms?: number | null
+          endpoint_id?: string | null
+          endpoint_name?: string | null
           error_message?: string | null
           id?: string
+          intended_endpoint_id?: string | null
           kind?: string
           model?: string | null
           occurred_at?: string
@@ -1786,6 +1801,29 @@ export type Database = {
       }
     }
     Functions: {
+      ai_usage: {
+        Args: { p_from: string; p_tz?: string; p_to: string }
+        Returns: {
+          cached_tokens: number
+          completion_tokens: number
+          connection: string
+          connection_exists: boolean
+          day: string
+          duration_ms: number
+          endpoint_id: string | null
+          failed: number
+          fallback: number
+          kind: string
+          model: string
+          model_configured: boolean
+          prompt_tokens: number
+          requests: number
+          timed: number
+          without_usage: number
+        }[]
+      }
+      ai_usage_chats: { Args: { p_from: string; p_to: string; p_tz?: string }; Returns: number }
+      clear_ai_audit_log: { Args: never; Returns: number }
       account_balances_as_of: {
         Args: { p_date: string }
         Returns: {

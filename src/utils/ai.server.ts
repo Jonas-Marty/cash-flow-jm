@@ -4,6 +4,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { redactSecrets } from "@/lib/redactSecrets";
+import { cachedTokens } from "@/lib/aiUsage";
 import { HELP_BASE } from "@/lib/helpUrl";
 import { getHelpSections, rankHelpSections } from "@/lib/helpSearch";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -67,11 +68,14 @@ export type AuditKind =
   | "document_extract"
   | "statement_classify"
   | "pending_enrich"
+  | "recurring_extract"
   | "transcribe";
 
 export async function writeAudit(row: {
   user_id: string;
   kind: AuditKind;
+  /** The credentials the request used: records which connection served it. */
+  creds?: FullAICreds | null;
   model?: string | null;
   provider_host?: string | null;
   tool_name?: string | null;
@@ -91,6 +95,10 @@ export async function writeAudit(row: {
     await supabaseAdmin.from("ai_audit_logs").insert({
       user_id: row.user_id,
       kind: row.kind,
+      endpoint_id: row.creds?.endpoint_id ?? null,
+      endpoint_name: row.creds?.endpoint_name ?? null,
+      intended_endpoint_id: row.creds?.intended_endpoint_id ?? null,
+      cached_tokens: cachedTokens(row.payload?.usage),
       model: row.model ?? null,
       provider_host: row.provider_host ?? null,
       tool_name: row.tool_name ?? null,
@@ -117,6 +125,11 @@ export interface FullAICreds {
   base_url: string;
   model: string;
   api_token: string;
+  /** The connection these came from, for the AI log. */
+  endpoint_id?: string;
+  endpoint_name?: string;
+  /** The connection the action was meant for; differs after a fallback. */
+  intended_endpoint_id?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -165,12 +178,19 @@ export async function loadEndpointRows(userId: string): Promise<EndpointRow[]> {
   }));
 }
 
-function toCreds(row: EndpointRow, model?: string | null): FullAICreds {
+function toCreds(
+  row: EndpointRow,
+  model?: string | null,
+  intendedId: string | null = row.id,
+): FullAICreds {
   return {
     enabled: true,
     base_url: row.base_url,
     model: model || row.model,
     api_token: row.api_token || "",
+    endpoint_id: row.id,
+    endpoint_name: row.name,
+    intended_endpoint_id: intendedId,
   };
 }
 
@@ -531,7 +551,7 @@ export async function resolveEndpoint(
     const health = await pingEndpoint(row.base_url, row.api_token, row.model, row.health_mode);
     if (health.ok)
       return {
-        creds: toCreds(row, overrideFor(row)),
+        creds: toCreds(row, overrideFor(row), preferred?.id ?? null),
         endpoint: row,
         fell_back: i > 0,
         model_override: overrideFor(row),
@@ -1204,6 +1224,7 @@ export async function runChat(
         user_id: userId,
         kind: "chat_request",
         model: creds.model,
+        creds,
         provider_host: host,
         conversation_id: conversationId,
         duration_ms: Date.now() - reqStarted,
@@ -1253,6 +1274,7 @@ export async function runChat(
       user_id: userId,
       kind: "chat_request",
       model: creds.model,
+      creds,
       provider_host: host,
       conversation_id: conversationId,
       duration_ms: Date.now() - reqStarted,
@@ -1332,6 +1354,7 @@ export async function runChat(
         user_id: userId,
         kind: "tool_call",
         model: creds.model,
+        creds,
         provider_host: host,
         tool_name: call.function.name,
         conversation_id: conversationId,
@@ -1476,6 +1499,7 @@ export async function runTranscription(
       user_id: userId,
       kind: "transcribe",
       model,
+      creds: resolved.creds,
       provider_host: host,
       duration_ms: Date.now() - started,
       ok: false,
@@ -1491,6 +1515,7 @@ export async function runTranscription(
       user_id: userId,
       kind: "transcribe",
       model,
+      creds: resolved.creds,
       provider_host: host,
       duration_ms: Date.now() - started,
       ok: false,
@@ -1518,6 +1543,7 @@ export async function runTranscription(
     user_id: userId,
     kind: "transcribe",
     model,
+    creds: resolved.creds,
     provider_host: host,
     duration_ms: Date.now() - started,
     ok: true,

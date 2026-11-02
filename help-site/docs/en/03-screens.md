@@ -100,6 +100,7 @@ All configuration:
 - **API tokens** — for the public REST API.
 - **Nextcloud** — connect cloud storage for attachments.
 - **AI assistant** — connections to a model of your own, and which task is bound to which.
+- **AI usage** — leads to the page with token usage by connection, model or feature ([more](/en/ai#usage)).
 - **AI activity log** — every request to your provider, with previews of what was sent.
 - **Webhooks** — notify an external address whenever a transaction is created.
 - **Integrations** — sign-in through an OIDC provider.

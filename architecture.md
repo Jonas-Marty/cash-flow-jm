@@ -473,6 +473,9 @@ date of an unposted occurrence — see §3.6.
 | `save_split_group(p_group_id, p_occurred_on, p_type, p_source_account_id, p_slices, p_location)` | function | Applies a whole edited split group in one transaction: updates the slices that keep their id, inserts new ones, deletes the ones the user removed. Returns the resulting ids in slice order. |
 | `validate_transaction_split_group()` | trigger function | Deferred constraint trigger: at commit, every row of a `split_group_id` must share `user_id`, `source_account_id`, `occurred_on` and `type`, and none may be a transfer. |
 | `reset_occurrence_on_tx_delete()` | trigger function | When a transaction backing an occurrence is deleted, flips the occurrence back to `pending`. |
+| `ai_usage(p_from DATE, p_to DATE, p_tz TEXT)` | function | The caller's AI requests per day (in `p_tz`), connection, model and feature: requests, prompt/completion/cached tokens, requests without a token count, failures, duration, and how many ran on a fallback connection. Tool calls stay out. `SECURITY DEFINER` because it names connections from `ai_endpoints`, which the client cannot read; filtered to `auth.uid()`. |
+| `ai_usage_chats(p_from DATE, p_to DATE, p_tz TEXT)` | function | Distinct chat conversations in the period. |
+| `clear_ai_audit_log()` | function | Blanks `payload` and `error_message` of the caller's AI log rows and stamps `cleared_at`; the figures stay for `ai_usage`. |
 
 RLS: every public table has a permissive `open_all` policy (single-user mode). When auth is added these become `auth.uid() = user_id`.
 
@@ -484,7 +487,8 @@ RLS: every public table has a permissive `open_all` policy (single-user mode). W
 | `/add` | `src/routes/add.tsx` | Numpad-style transaction entry. |
 | `/transactions` | `src/routes/transactions.tsx` | Filterable list (account, category, type, tag, date, payee). |
 | `/envelopes` | `src/routes/envelopes.tsx` | Month overview: one line per envelope in its group, opening into figures, a five-month chart and the month's entries; the month editor panel (`MonthBudgetEditor`); `?view=grid` for the twelve-month table, `?view=allocations` for the month's moves. |
-| `/settings` | `src/routes/settings.tsx` | Currency, accounts, groups, envelopes (with group + savings toggle), monthly budget edits. |
+| `/settings` | `src/routes/settings.tsx` | Currency, accounts, groups, envelopes (with group + savings toggle), monthly budget edits; `?aiConn=&aiModel=&aiKind=` filters the AI log. |
+| `/ai-usage` | `src/routes/ai-usage.tsx` | Token usage from the AI log for a period, grouped by connection (with its models), model or feature; figures in `src/lib/aiUsage.ts`. |
 
 Shared shell: `src/components/AppShell.tsx`. Data helpers: `src/lib/finance.ts`. Supabase client: `src/integrations/supabase/client.ts` (auto-generated, do not edit).
 
@@ -509,6 +513,22 @@ including the SQL/app inventory, performance estimate and phased plan, lives in
 > a change-log entry that describes today's code is no longer a record of
 > anything. Sections 1–6 are the maintained description; if the two disagree,
 > the sections above win. The same goes for the design records under `docs/`.
+
+### 2026-11-02 — AI usage, and an AI log that keeps its figures
+
+- `ai_audit_logs` gains `endpoint_id`, `endpoint_name` (the name at the time;
+  no foreign key, so the log outlives a deleted connection),
+  `intended_endpoint_id` (the connection the task is assigned to — differing
+  from `endpoint_id` means a fallback served it), `cached_tokens` and
+  `cleared_at`. Older rows were attributed by host and model where that left one
+  candidate.
+- Reading a recurring rule from an invoice is its own kind,
+  `recurring_extract`, instead of a `document_extract`.
+- "Clear log" no longer deletes rows: `clear_ai_audit_log()` blanks what was
+  sent and received and keeps the numbers, so `/ai-usage` survives it. The log
+  view shows only rows with `cleared_at IS NULL`.
+- Secret redaction in log payloads (`src/lib/redactSecrets.ts`) matches only
+  credential-like keys, so `prompt_tokens` and friends stay readable.
 
 ### 2026-11-01 — Budgets at a glance, and the month edited in one panel
 

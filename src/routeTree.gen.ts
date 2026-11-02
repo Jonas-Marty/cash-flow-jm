@@ -21,6 +21,7 @@ import { Route as InsightsRouteImport } from './routes/insights'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as EnvelopesRouteImport } from './routes/envelopes'
 import { Route as AssistantRouteImport } from './routes/assistant'
+import { Route as AiUsageRouteImport } from './routes/ai-usage'
 import { Route as AddRouteImport } from './routes/add'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EditIdRouteImport } from './routes/edit.$id'
@@ -98,6 +99,11 @@ const EnvelopesRoute = EnvelopesRouteImport.update({
 const AssistantRoute = AssistantRouteImport.update({
   id: '/assistant',
   path: '/assistant',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AiUsageRoute = AiUsageRouteImport.update({
+  id: '/ai-usage',
+  path: '/ai-usage',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AddRoute = AddRouteImport.update({
@@ -198,6 +204,7 @@ const ApiNextcloudCallbackRoute = ApiNextcloudCallbackRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/add': typeof AddRoute
+  '/ai-usage': typeof AiUsageRoute
   '/assistant': typeof AssistantRoute
   '/envelopes': typeof EnvelopesRoute
   '/help': typeof HelpRoute
@@ -230,6 +237,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/add': typeof AddRoute
+  '/ai-usage': typeof AiUsageRoute
   '/assistant': typeof AssistantRoute
   '/envelopes': typeof EnvelopesRoute
   '/help': typeof HelpRoute
@@ -263,6 +271,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/add': typeof AddRoute
+  '/ai-usage': typeof AiUsageRoute
   '/assistant': typeof AssistantRoute
   '/envelopes': typeof EnvelopesRoute
   '/help': typeof HelpRoute
@@ -297,6 +306,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/add'
+    | '/ai-usage'
     | '/assistant'
     | '/envelopes'
     | '/help'
@@ -329,6 +339,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/add'
+    | '/ai-usage'
     | '/assistant'
     | '/envelopes'
     | '/help'
@@ -361,6 +372,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/add'
+    | '/ai-usage'
     | '/assistant'
     | '/envelopes'
     | '/help'
@@ -394,6 +406,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AddRoute: typeof AddRoute
+  AiUsageRoute: typeof AiUsageRoute
   AssistantRoute: typeof AssistantRoute
   EnvelopesRoute: typeof EnvelopesRoute
   HelpRoute: typeof HelpRoute
@@ -508,6 +521,13 @@ declare module '@tanstack/react-router' {
       path: '/assistant'
       fullPath: '/assistant'
       preLoaderRoute: typeof AssistantRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ai-usage': {
+      id: '/ai-usage'
+      path: '/ai-usage'
+      fullPath: '/ai-usage'
+      preLoaderRoute: typeof AiUsageRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/add': {
@@ -642,6 +662,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AddRoute: AddRoute,
+  AiUsageRoute: AiUsageRoute,
   AssistantRoute: AssistantRoute,
   EnvelopesRoute: EnvelopesRoute,
   HelpRoute: HelpRoute,

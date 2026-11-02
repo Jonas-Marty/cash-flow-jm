@@ -1,5 +1,7 @@
 import * as React from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import * as z from "zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, Trash2, ArchiveRestore, Archive, Pin, PinOff, Palette, ChevronUp, ChevronDown, Pencil, AlertTriangle } from "lucide-react";
@@ -49,7 +51,15 @@ import { ArchiveBudgetDialog, archiveImpact, type ArchiveImpact } from "@/compon
 import { OpeningBalancesDialog } from "@/components/envelopes/OpeningBalancesDialog";
 import { accountOpeningsTotal, holdsOpening } from "@/lib/openingBalances";
 
+const settingsSearch = z.object({
+  // AI log filters, so the usage page can link to the entries behind a line.
+  aiConn: fallback(z.string(), "").default(""),
+  aiModel: fallback(z.string(), "").default(""),
+  aiKind: fallback(z.string(), "").default(""),
+});
+
 export const Route = createFileRoute("/settings")({
+  validateSearch: zodValidator(settingsSearch),
   component: SettingsPage,
 });
 
@@ -65,6 +75,8 @@ const CURRENCIES: { code: string; symbol: string }[] = [
 
 function SettingsPage() {
   const { t: tr, lang, setLang, locale } = useI18n();
+  const search = Route.useSearch();
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
@@ -393,6 +405,7 @@ function SettingsPage() {
             { id: "api-tokens", label: tr("settings.nav.api_tokens") },
             { id: "webhooks", label: tr("webhooks.title") },
             { id: "ai", label: tr("ai.settings.title") },
+            { id: "ai-usage", label: tr("ai.usage.title") },
             { id: "ai-audit", label: tr("ai.audit.title") },
             { id: "integrations", label: tr("settings.integrations") },
             { id: "linked", label: tr("linked.title") },
@@ -1002,7 +1015,31 @@ function SettingsPage() {
         <section id="api-tokens"><ApiTokensCard /></section>
         <section id="webhooks"><WebhooksCard /></section>
        <section id="ai"><AISettingsCard /></section>
-        <section id="ai-audit"><AIAuditLogCard /></section>
+        <section id="ai-usage">
+        <Card>
+          <CardHeader><CardTitle className="text-base">{tr("ai.usage.title")}</CardTitle></CardHeader>
+          <CardContent>
+            <p className="mb-3 text-sm text-muted-foreground">{tr("ai.usage.subtitle")}</p>
+            <Button asChild variant="outline" size="sm">
+              <Link to="/ai-usage">{tr("ai.usage.open")}</Link>
+            </Button>
+          </CardContent>
+        </Card>
+        </section>
+        <section id="ai-audit">
+          <AIAuditLogCard
+            filter={{ conn: search.aiConn, model: search.aiModel, kind: search.aiKind }}
+            onFilterChange={(f) =>
+              navigate({
+                to: "/settings",
+                search: (prev) => ({ ...prev, aiConn: f.conn, aiModel: f.model, aiKind: f.kind }),
+                hash: "ai-audit",
+                replace: true,
+                resetScroll: false,
+              })
+            }
+          />
+        </section>
         <section id="integrations"><SignInProvidersCard /></section>
         <section id="linked"><LinkedAccountsCard /></section>
         <section id="audit"><AuditLogCard /></section>

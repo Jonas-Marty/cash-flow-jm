@@ -100,6 +100,7 @@ Sämtliche Konfiguration:
 - **API-Tokens** — für die öffentliche REST-API.
 - **Nextcloud** — Cloud-Speicher für Anhänge.
 - **KI-Assistent** — Verbindungen zu deinem eigenen Modell und welche Aufgabe an welcher hängt.
+- **KI-Nutzung** — führt zur Seite mit dem Token-Verbrauch nach Verbindung, Modell oder Funktion ([mehr](/ai#usage)).
 - **KI-Protokoll** — jede Anfrage an deinen Provider, mit Auszügen aus dem Gesendeten.
 - **Webhooks** — eine externe Adresse bei jeder neuen Buchung benachrichtigen.
 - **Integrationen** — Anmeldung über einen OIDC-Provider.

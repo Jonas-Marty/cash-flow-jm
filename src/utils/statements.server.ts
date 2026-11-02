@@ -379,7 +379,7 @@ export interface ExtractAudit {
   source: "pdf" | "image" | "csv" | "rows";
   part?: string | null;
   /** Defaults to document_extract, which is what the PDF pipeline is. */
-  kind?: Extract<AuditKind, "document_extract" | "statement_classify" | "pending_enrich">;
+  kind?: Extract<AuditKind, "document_extract" | "statement_classify" | "pending_enrich" | "recurring_extract">;
 }
 
 export async function callJsonModel(
@@ -426,6 +426,7 @@ export async function callJsonModel(
           user_id: audit.userId,
           kind: audit.kind ?? "document_extract",
           model: creds.model,
+          creds,
           provider_host: providerHost(creds.base_url),
           duration_ms: Date.now() - started,
           ok: true,
@@ -456,6 +457,7 @@ export async function callJsonModel(
         user_id: audit.userId,
         kind: audit.kind ?? "document_extract",
         model: creds.model,
+        creds,
         provider_host: providerHost(creds.base_url),
         duration_ms: Date.now() - started,
         ok: false,
@@ -477,6 +479,7 @@ export async function callJsonModel(
       user_id: audit.userId,
       kind: audit.kind ?? "document_extract",
       model: creds.model,
+      creds,
       provider_host: providerHost(creds.base_url),
       duration_ms: 0,
       ok: false,

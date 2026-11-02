@@ -93,6 +93,7 @@ export async function analyseDocumentForRule(
     fileName: input.file_name,
     source: doc.kind === "image" ? "image" : "pdf",
     part: "recurring_rule",
+    kind: "recurring_extract",
   });
   const kindRaw = String(parsed?.document_kind ?? "").toLowerCase();
   const document_kind: RuleDocumentResult["document_kind"] =
