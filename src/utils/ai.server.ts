@@ -3,6 +3,7 @@
 // against the user-scoped Supabase client (RLS applies).
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { redactSecrets } from "@/lib/redactSecrets";
 import { HELP_BASE } from "@/lib/helpUrl";
 import { getHelpSections, rankHelpSections } from "@/lib/helpSearch";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -86,7 +87,7 @@ export async function writeAudit(row: {
   try {
     // Defensive: never let a token slip into the log.
     const safe = JSON.parse(JSON.stringify(row.payload || {}));
-    stripSecrets(safe);
+    redactSecrets(safe);
     await supabaseAdmin.from("ai_audit_logs").insert({
       user_id: row.user_id,
       kind: row.kind,
@@ -104,25 +105,6 @@ export async function writeAudit(row: {
     });
   } catch {
     // Swallow logging errors; they must never break a chat turn.
-  }
-}
-
-function stripSecrets(obj: unknown): void {
-  if (!obj || typeof obj !== "object") return;
-  for (const k of Object.keys(obj as Record<string, unknown>)) {
-    const lk = k.toLowerCase();
-    if (
-      lk.includes("token") ||
-      lk.includes("authorization") ||
-      lk.includes("api_key") ||
-      lk === "apikey" ||
-      lk.includes("secret") ||
-      lk.includes("password")
-    ) {
-      (obj as Record<string, unknown>)[k] = "[redacted]";
-    } else {
-      stripSecrets((obj as Record<string, unknown>)[k]);
-    }
   }
 }
 
