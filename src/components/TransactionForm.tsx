@@ -607,7 +607,8 @@ export function TransactionForm({
 
   // The change as the database would get it on save, for the exact preview:
   // inserts for a new booking, an update (plus fee changes) for an edit, and
-  // delete + insert for a split. null while it cannot be saved yet.
+  // for a split what save_split_group does: kept slices updated, new ones
+  // inserted, removed ones deleted. null while it cannot be saved yet.
   const previewOps = React.useMemo((): PreviewOp[] | null => {
     if (!sourceId || amountNum == null) return null;
     if (type === "transfer" && (!destId || destId === sourceId)) return null;
@@ -637,13 +638,22 @@ export function TransactionForm({
     const ops: PreviewOp[] = [];
     const og = editQ.data;
     if (splitMode && type !== "transfer") {
-      if (isEdit && og) for (const r of og.group && og.group.length > 0 ? og.group : [og.tx]) ops.push({ op: "delete", id: r.id });
+      const existingIds = new Set(
+        isEdit && og ? (og.group && og.group.length > 0 ? og.group : [og.tx]).map((r) => r.id) : [],
+      );
+      const keptIds = new Set<string>();
       for (const sl of slices) {
         const a = num(sl.amount);
         if (a == null) continue;
-        ops.push({ op: "insert", row: { ...base, amount: a, category_id: sl.categoryId || null } });
+        const row = { ...base, amount: a, category_id: sl.categoryId || null, is_reimbursable: sl.isReimbursable };
+        if (existingIds.has(sl.id)) {
+          keptIds.add(sl.id);
+          ops.push({ op: "update", id: sl.id, row });
+        } else ops.push({ op: "insert", row });
       }
-      return ops.length > 0 ? ops : null;
+      if (ops.length === 0) return null;
+      for (const id of existingIds) if (!keptIds.has(id)) ops.push({ op: "delete", id });
+      return ops;
     }
     if (isEdit && editId) {
       ops.push({ op: "update", id: editId, row: base });
