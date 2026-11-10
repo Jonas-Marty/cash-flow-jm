@@ -2120,7 +2120,7 @@ export function parseTagInput(raw: string): string[] {
   );
 }
 
-function noteHasTag(note: string, tag: string): boolean {
+export function noteHasTag(note: string, tag: string): boolean {
   const re = new RegExp(`(^|\\s)#${tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}_-])`, "iu");
   return re.test(note);
 }

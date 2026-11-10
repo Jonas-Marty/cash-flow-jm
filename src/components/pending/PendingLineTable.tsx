@@ -32,6 +32,7 @@ import { useRecentTransactions } from "@/hooks/useRecentTransactions";
 import { useI18n } from "@/i18n";
 import {
   addTagsToNote,
+  noteHasTag,
   confirmPendingTransaction,
   fmtMoney,
   rejectPendingTransaction,
@@ -46,6 +47,7 @@ import {
   suggestsCategory,
   suggestsDescription,
   suggestsNote,
+  suggestsTags,
   suggestsPlace,
   withSuggestedNote,
   withSuggestion as applySuggestion,
@@ -424,18 +426,8 @@ export function PendingLineTable({
                   {suggestsDescription(p, d) ? (
                     <SuggestionChip
                       p={p}
-                      label={[
-                        p.suggested_description,
-                        ...p.suggested_tags.map((x) => `#${x}`),
-                      ].join(" ")}
-                      onClick={() =>
-                        patch(p.id, {
-                          description: p.suggested_description ?? d.description,
-                          note: p.suggested_tags.length
-                            ? addTagsToNote(d.note, p.suggested_tags)
-                            : d.note,
-                        })
-                      }
+                      label={p.suggested_description!}
+                      onClick={() => patch(p.id, { description: p.suggested_description! })}
                     />
                   ) : p.external_source ? (
                     <Badge variant="outline" className="mt-1 hidden text-[10px] lg:inline-flex">
@@ -459,15 +451,24 @@ export function PendingLineTable({
                     }}
                     onChange={(v) => patch(p.id, { note: v })}
                   />
-                  {suggestsNote(p, d) ? (
-                    <SuggestionChip
-                      p={p}
-                      label={p.suggested_note!}
-                      onClick={() =>
-                        patch(p.id, { note: withSuggestedNote(d.note, p.suggested_note) })
-                      }
-                    />
-                  ) : null}
+                  <div className="flex flex-wrap gap-x-1">
+                    {suggestsNote(p, d) ? (
+                      <SuggestionChip
+                        p={p}
+                        label={p.suggested_note!}
+                        onClick={() =>
+                          patch(p.id, { note: withSuggestedNote(d.note, p.suggested_note) })
+                        }
+                      />
+                    ) : null}
+                    {suggestsTags(p, d) ? (
+                      <SuggestionChip
+                        p={p}
+                        label={p.suggested_tags.filter((x) => !noteHasTag(d.note, x)).map((x) => `#${x}`).join(" ")}
+                        onClick={() => patch(p.id, { note: addTagsToNote(d.note, p.suggested_tags) })}
+                      />
+                    ) : null}
+                  </div>
                 </div>
                 <div className="mb-1 lg:mb-0">
                   <Select

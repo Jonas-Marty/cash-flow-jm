@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
   hasSuggestion,
+  suggestsDescription,
   suggestsPlace,
+  suggestsTags,
   withSuggestion,
   type SuggestedRow,
   type SuggestionDraft,
@@ -122,5 +124,24 @@ describe("hasSuggestion", () => {
   it("is false once every field has been taken", () => {
     const p = row({ ...rawFix, suggested_description: "Coop" });
     expect(hasSuggestion(p, draft({ description: "Coop", location: curated }))).toBe(false);
+  });
+});
+
+describe("suggestsTags", () => {
+  it("offers tags the note does not carry yet", () => {
+    expect(suggestsTags(row({ suggested_tags: ["kala"] }), draft({ note: "#ferien" }))).toBe(true);
+  });
+
+  it("is taken once every suggested tag is in the note", () => {
+    expect(suggestsTags(row({ suggested_tags: ["kala", "ferien"] }), draft({ note: "x #Kala #ferien" }))).toBe(false);
+  });
+
+  it("is its own offer, not part of the description", () => {
+    // Taking the description must not count as taking the tags.
+    const p = row({ suggested_description: "Coop", suggested_tags: ["kala"], suggested_location: null });
+    const d = draft({ description: "Coop" });
+    expect(suggestsDescription(p, d)).toBe(false);
+    expect(suggestsTags(p, d)).toBe(true);
+    expect(hasSuggestion(p, d)).toBe(true);
   });
 });

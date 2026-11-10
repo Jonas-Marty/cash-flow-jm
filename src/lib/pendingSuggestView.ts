@@ -14,7 +14,7 @@
  */
 
 import { locationFromRow, sameLocation, type TxLocation } from "./location";
-import { addTagsToNote } from "./finance";
+import { addTagsToNote, noteHasTag } from "./finance";
 
 /** The fields of an edit-in-progress these predicates look at. */
 export interface SuggestionDraft {
@@ -51,6 +51,11 @@ export function suggestsNote(p: SuggestedRow, d: SuggestionDraft): boolean {
   return !!p.suggested_note && !noteContains(d.note, p.suggested_note);
 }
 
+/** Tags are their own offer: taking the description must not add them. */
+export function suggestsTags(p: SuggestedRow, d: SuggestionDraft): boolean {
+  return p.suggested_tags.some((tag) => !noteHasTag(d.note, tag));
+}
+
 /**
  * Whether to offer the proposed place.
  *
@@ -76,6 +81,7 @@ export function hasSuggestion(p: SuggestedRow, d: SuggestionDraft): boolean {
     suggestsCategory(p, d) ||
     suggestsDescription(p, d) ||
     suggestsNote(p, d) ||
+    suggestsTags(p, d) ||
     suggestsPlace(p, d)
   );
 }
