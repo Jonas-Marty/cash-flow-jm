@@ -1611,20 +1611,19 @@ export async function fetchReimbursementLinks(): Promise<ReimbursementLink[]> {
   return (data ?? []) as ReimbursementLink[];
 }
 
-export async function fetchReimbursementCounterparties(): Promise<string[]> {
+/** The latest 500 uses of a name on a reimbursable; rank with rankCounterparties(). */
+export async function fetchReimbursementCounterpartyUses(): Promise<
+  Array<{ reimbursable_counterparty: string | null; occurred_on: string }>
+> {
   const { data, error } = await supabase
     .from("transactions")
-    .select("reimbursable_counterparty")
+    .select("reimbursable_counterparty, occurred_on")
     .eq("is_reimbursable", true)
     .not("reimbursable_counterparty", "is", null)
+    .order("occurred_on", { ascending: false })
     .limit(500);
   if (error) throw error;
-  const set = new Set<string>();
-  (data ?? []).forEach((r) => {
-    const v = (r as { reimbursable_counterparty: string | null }).reimbursable_counterparty;
-    if (v && v.trim()) set.add(v.trim());
-  });
-  return Array.from(set).sort((a, b) => a.localeCompare(b));
+  return (data ?? []) as Array<{ reimbursable_counterparty: string | null; occurred_on: string }>;
 }
 
 export async function linkReimbursement(

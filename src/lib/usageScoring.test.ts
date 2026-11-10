@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { scoreAccounts, scoreCategories, scoreTags, sortByPinAndScore, monogram, colorFromName } from "./usageScoring";
+import { scoreAccounts, scoreCategories, scoreTags, rankCounterparties, sortByPinAndScore, monogram, colorFromName } from "./usageScoring";
 import type { Transaction } from "./finance";
 
 const NOW = new Date("2024-06-01T00:00:00Z").getTime();
@@ -145,5 +145,26 @@ describe("context-aware scoring", () => {
     const s = scoreTags(txs, { type: "expense" }, NOW);
     expect(s.get("salary")).toBeUndefined();
     expect(s.get("coop")).toBeGreaterThan(0);
+  });
+});
+describe("rankCounterparties", () => {
+  const now = new Date("2026-11-10").getTime();
+  const r = (name: string, on: string) => ({ reimbursable_counterparty: name, occurred_on: on });
+
+  it("puts the name used most often first", () => {
+    const out = rankCounterparties(
+      [r("Anna", "2026-11-01"), r("Fabienne Fässler", "2026-11-02"), r("Fabienne Fässler", "2026-11-03")],
+      now,
+    );
+    expect(out).toEqual(["Fabienne Fässler", "Anna"]);
+  });
+
+  it("lets recent use outweigh many old entries", () => {
+    const old = Array.from({ length: 5 }, () => r("KaLa", "2025-11-01"));
+    expect(rankCounterparties([...old, r("Jolanda", "2026-11-08")], now)).toEqual(["Jolanda", "KaLa"]);
+  });
+
+  it("merges spellings that differ only in case or spaces, keeping the latest", () => {
+    expect(rankCounterparties([r("anna ", "2026-01-01"), r("Anna", "2026-11-01")], now)).toEqual(["Anna"]);
   });
 });

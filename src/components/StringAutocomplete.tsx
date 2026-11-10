@@ -16,7 +16,8 @@ export interface StringAutocompleteProps {
 /**
  * Lightweight autocomplete for free-text fields backed by a list of known
  * string values (e.g. reimbursable counterparties). Matches by case-insensitive
- * substring and sorts exact > startsWith > contains, then alphabetically.
+ * substring and sorts exact > startsWith > contains, then in the order given
+ * (callers pass their options best first).
  */
 export function StringAutocomplete({
   id,
@@ -35,21 +36,21 @@ export function StringAutocomplete({
   const items = React.useMemo(() => {
     const q = value.trim().toLowerCase();
     const seen = new Set<string>();
-    const scored: { v: string; rank: number }[] = [];
+    const scored: { v: string; rank: number; i: number }[] = [];
     for (const opt of options) {
       if (!opt) continue;
       const key = opt.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
       if (!q) {
-        scored.push({ v: opt, rank: 3 });
+        scored.push({ v: opt, rank: 3, i: scored.length });
         continue;
       }
-      if (key === q) scored.push({ v: opt, rank: 0 });
-      else if (key.startsWith(q)) scored.push({ v: opt, rank: 1 });
-      else if (key.includes(q)) scored.push({ v: opt, rank: 2 });
+      if (key === q) scored.push({ v: opt, rank: 0, i: scored.length });
+      else if (key.startsWith(q)) scored.push({ v: opt, rank: 1, i: scored.length });
+      else if (key.includes(q)) scored.push({ v: opt, rank: 2, i: scored.length });
     }
-    scored.sort((a, b) => a.rank - b.rank || a.v.localeCompare(b.v));
+    scored.sort((a, b) => a.rank - b.rank || a.i - b.i);
     return scored.slice(0, maxItems).map((s) => s.v);
   }, [options, value, maxItems]);
 

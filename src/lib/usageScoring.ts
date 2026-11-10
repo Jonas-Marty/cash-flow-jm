@@ -148,3 +148,31 @@ export function monogram(name: string): string {
   const parts = name.trim().split(/\s+/).slice(0, 2);
   return parts.map((p) => p[0]?.toUpperCase() ?? "").join("") || "?";
 }
+
+/**
+ * Names on reimbursables ("from whom" / "to whom"), most used first. Each use
+ * counts less the older it is, as for the suggestion chips, so someone you
+ * shared costs with last week comes before a name from last year. Spellings
+ * that differ only in case or spaces are one person, shown as last written.
+ */
+export function rankCounterparties(
+  rows: Array<{ reimbursable_counterparty: string | null; occurred_on: string }>,
+  now = Date.now(),
+): string[] {
+  const byKey = new Map<string, { name: string; latest: string; score: number }>();
+  for (const r of rows) {
+    const name = r.reimbursable_counterparty?.trim();
+    if (!name) continue;
+    const key = name.toLowerCase();
+    const cur = byKey.get(key) ?? { name, latest: r.occurred_on, score: 0 };
+    cur.score += decay(r.occurred_on, now);
+    if (r.occurred_on >= cur.latest) {
+      cur.latest = r.occurred_on;
+      cur.name = name;
+    }
+    byKey.set(key, cur);
+  }
+  return [...byKey.values()]
+    .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+    .map((x) => x.name);
+}

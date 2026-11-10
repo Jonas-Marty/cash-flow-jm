@@ -19,7 +19,7 @@ import { notifyTransactionCreated } from "@/utils/webhooks.functions";
 import { resolveStatementLine } from "@/utils/statements.functions";
 import {
   fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings,
-  fetchOpenReimbursables, fetchReimbursementLinks, fetchReimbursementCounterparties,
+  fetchOpenReimbursables, fetchReimbursementLinks, fetchReimbursementCounterpartyUses,
   linkReimbursement,
   extractTags, fmtMoney,
   type TxType, type Transaction, type ReimbursementLink,
@@ -47,7 +47,7 @@ import { TagChips } from "@/components/TagChips";
 import { TagAutocompleteTextarea } from "@/components/TagAutocomplete";
 import { DateShortcuts } from "@/components/DateShortcuts";
 import { ChipPicker, type ChipPickerItem } from "@/components/ChipPicker";
-import { scoreAccounts, scoreCategories, sortByPinAndScore, type SuggestionContext } from "@/lib/usageScoring";
+import { rankCounterparties, scoreAccounts, scoreCategories, sortByPinAndScore, type SuggestionContext } from "@/lib/usageScoring";
 import { DayHeatmapCalendar } from "@/components/DayHeatmapCalendar";
 import { DateInput } from "@/components/DateInput";
 import { ShortcutsDialog } from "@/components/ShortcutsDialog";
@@ -193,7 +193,11 @@ export function TransactionForm({
   const recentQ = useRecentTransactions();
   const openReimbQ = useQuery({ queryKey: ["reimbursables", "open"], queryFn: fetchOpenReimbursables });
   const reimbLinksQ = useQuery({ queryKey: ["reimbursement_links"], queryFn: fetchReimbursementLinks });
-  const reimbCpQ = useQuery({ queryKey: ["reimbursement_counterparties"], queryFn: fetchReimbursementCounterparties });
+  // Names for "from whom" / "to whom": most used first, recent use counting more.
+  const reimbCpQ = useQuery({
+    queryKey: ["reimbursement_counterparties"],
+    queryFn: async () => rankCounterparties(await fetchReimbursementCounterpartyUses()),
+  });
   const ruleTxIdsQ = useQuery({
     queryKey: ["recurring_occurrences", "posted_tx_ids"],
     queryFn: async () => {
