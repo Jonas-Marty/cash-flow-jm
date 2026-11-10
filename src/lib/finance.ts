@@ -1324,33 +1324,50 @@ export type PreviewOp =
   | { op: "update"; id: string; row: Record<string, unknown> }
   | { op: "delete"; id: string };
 
-/** Something that saving the change would move, as the database computes it. */
+/** One figure the change moves, as the database computes it, in three states. */
 export interface PreviewImpactRow {
-  kind: "account" | "envelope" | "month" | "unallocated" | "error";
+  kind: "account" | "envelope" | "month" | "unallocated" | "person" | "error";
   ref_id: string | null;
   /** month rows: the first of the month. */
   month: string | null;
-  before: number;
+  /** person rows: the counterparty as written ("" when none). */
+  label: string | null;
+  /** As the books are now. */
+  now: number;
+  /** Without the entry being edited (equals now for a new entry). */
+  without: number;
+  /** With the change saved. */
   after: number;
   /** month rows: the budget's allocation that month. */
   allocated: number | null;
-  /** month rows: an income budget (the value is received, not left). */
+  /** month rows: an income budget (the value is received, not left). person rows: you owe them. */
   income: boolean | null;
+  /** month rows: the month is over. */
+  closed: boolean | null;
+  /** month rows: where a closed month's leftover is swept to. */
+  sweep_target: string | null;
   /** kind "error": why the database would refuse the change. */
   error: string | null;
 }
 
 /**
- * Apply the change in the database inside a step that is always undone and
- * return what it moves: accounts, budgets, the month's budgets, unassigned money.
+ * Apply the change in the database inside steps that are always undone and
+ * return every figure it moves, now / without the entry / after saving:
+ * accounts, budgets, the months' budgets, unassigned money, people owed.
+ * `entryIds` are the rows of the entry being edited (none for a new one).
  */
-export async function fetchPreviewImpact(ops: PreviewOp[]): Promise<PreviewImpactRow[]> {
-  const { data, error } = await supabase.rpc("preview_transaction_change", { p_ops: ops as unknown as Json });
+export async function fetchPreviewImpact(ops: PreviewOp[], entryIds: string[]): Promise<PreviewImpactRow[]> {
+  const { data, error } = await supabase.rpc("preview_transaction_impact", {
+    p_ops: ops as unknown as Json,
+    p_entry_ids: entryIds,
+  });
   if (error) throw error;
+  const num = (v: unknown) => Number(v ?? 0);
   return ((data || []) as unknown as PreviewImpactRow[]).map((r) => ({
     ...r,
-    before: Number(r.before),
-    after: Number(r.after),
+    now: num(r.now),
+    without: num(r.without),
+    after: num(r.after),
     allocated: r.allocated == null ? null : Number(r.allocated),
   }));
 }

@@ -630,6 +630,7 @@ export function TransactionForm({
       difference_category_id:
         type === "transfer" && !isCrossCurrency && receivedNum != null ? diffCategoryId || null : null,
       is_reimbursable: type !== "transfer" ? isReimbursable : false,
+      reimbursable_counterparty: type !== "transfer" && isReimbursable ? reimbCounterparty.trim() || null : null,
     };
     const fee = type === "transfer" && feeOpen ? num(feeAmount) : null;
     const feeRow = fee != null && feeCategoryId
@@ -645,7 +646,13 @@ export function TransactionForm({
       for (const sl of slices) {
         const a = num(sl.amount);
         if (a == null) continue;
-        const row = { ...base, amount: a, category_id: sl.categoryId || null, is_reimbursable: sl.isReimbursable };
+        const row = {
+          ...base,
+          amount: a,
+          category_id: sl.categoryId || null,
+          is_reimbursable: sl.isReimbursable,
+          reimbursable_counterparty: sl.isReimbursable ? sl.reimbCounterparty.trim() || null : null,
+        };
         if (existingIds.has(sl.id)) {
           keptIds.add(sl.id);
           ops.push({ op: "update", id: sl.id, row });
@@ -667,26 +674,37 @@ export function TransactionForm({
     return ops;
   }, [
     sourceId, amountNum, type, destId, date, isCrossCurrency, diffOpen, received, destAmount,
-    categoryId, diffCategoryId, isReimbursable, feeOpen, feeAmount, feeCategoryId, editQ.data,
+    categoryId, diffCategoryId, isReimbursable, reimbCounterparty, feeOpen, feeAmount, feeCategoryId, editQ.data,
     splitMode, slices, isEdit, editId, existingFeeTxId,
   ]);
+  // The rows that make up the entry being edited, so the preview can also show
+  // it as if booked new: its slices, or the booking and its transfer fee.
+  const previewEntryIds = React.useMemo((): string[] => {
+    const og = editQ.data;
+    if (!isEdit || !og) return [];
+    const ids = (og.group && og.group.length > 0 ? og.group : [og.tx]).map((r) => r.id);
+    if (existingFeeTxId) ids.push(existingFeeTxId);
+    return ids;
+  }, [isEdit, editQ.data, existingFeeTxId]);
+  const previewRequest = previewOps ? JSON.stringify({ ops: previewOps, entryIds: previewEntryIds }) : null;
   // Ask once typing pauses, not on every keystroke.
   const [previewKey, setPreviewKey] = React.useState<string | null>(null);
   React.useEffect(() => {
-    const key = previewOps ? JSON.stringify(previewOps) : null;
-    const timer = setTimeout(() => setPreviewKey(key), 400);
+    const timer = setTimeout(() => setPreviewKey(previewRequest), 400);
     return () => clearTimeout(timer);
-  }, [previewOps]);
+  }, [previewRequest]);
   const previewQ = useQuery({
-    queryKey: ["preview_transaction_change", previewKey],
-    queryFn: () => fetchPreviewImpact(JSON.parse(previewKey!) as PreviewOp[]),
+    queryKey: ["preview_transaction_impact", previewKey],
+    queryFn: () => {
+      const req = JSON.parse(previewKey!) as { ops: PreviewOp[]; entryIds: string[] };
+      return fetchPreviewImpact(req.ops, req.entryIds);
+    },
     enabled: !!previewKey,
     staleTime: 0,
     gcTime: 30_000,
   });
   // Only an answer for what is on screen now counts; an older one is dropped.
-  const serverImpact =
-    previewKey && previewOps && previewKey === JSON.stringify(previewOps) ? (previewQ.data ?? null) : null;
+  const serverImpact = previewKey && previewKey === previewRequest ? (previewQ.data ?? null) : null;
   // Received no more than was paid on a same-currency transfer: that is a fee,
   // and the database refuses it. Said at the field, and saving waits for a fix.
   const receivedTooLow = (() => {
@@ -699,9 +717,11 @@ export function TransactionForm({
     type === "income" &&
     amountNum != null &&
     Object.values(linkSelections).reduce((sum, v) => sum + (Number(v) || 0), 0) > amountNum + 0.005;
-  // Anything else the database would refuse. Shown, but saving is not blocked
-  // on it: the trial run is a preview, and saving reports the real reason.
-  const previewRefusal = receivedTooLow ? null : (serverImpact?.find((r) => r.kind === "error")?.error ?? null);
+  // A refusal the app recognises blocks saving: the database would refuse it
+  // too. Any other one is shown in the Auswirkung card but does not block, as
+  // the trial run itself may be what is wrong.
+  const previewRefusal = serverImpact?.find((r) => r.kind === "error")?.error ?? null;
+  const refusalBlocks = previewRefusal != null && knownRefusal(previewRefusal, tr) != null;
 
   // Month bucket for the chosen transaction date — used by the impact preview
   // to read the affected category's monthly envelope (spent vs allocated).
@@ -2556,19 +2576,16 @@ export function TransactionForm({
           <div className="pt-2 text-xs text-muted-foreground">{tr("statements.linking_hint")}</div>
         )}
 
-        {previewRefusal && (
-          <p role="status" className="text-xs text-warning">{tr("add.impact.refused", { x: previewRefusal })}</p>
-        )}
         <div className="flex gap-2 pt-2">
           {isEdit ? (
             <>
               <Button variant="outline" className="flex-1" disabled={saving} onClick={() => goBack()}>{tr("common.cancel")}</Button>
-              <Button className="flex-1" disabled={saving || receivedTooLow || linkOverAssigned} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("edit.save_changes")}</Button>
+              <Button className="flex-1" disabled={saving || receivedTooLow || linkOverAssigned || refusalBlocks} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("edit.save_changes")}</Button>
             </>
           ) : (
             <>
-              <Button variant="outline" className="flex-1" disabled={saving || receivedTooLow || linkOverAssigned} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("common.save")}</Button>
-              <Button className="flex-1" disabled={saving || receivedTooLow || linkOverAssigned} onClick={() => save(true)}>{tr("add.save_new")}</Button>
+              <Button variant="outline" className="flex-1" disabled={saving || receivedTooLow || linkOverAssigned || refusalBlocks} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("common.save")}</Button>
+              <Button className="flex-1" disabled={saving || receivedTooLow || linkOverAssigned || refusalBlocks} onClick={() => save(true)}>{tr("add.save_new")}</Button>
             </>
           )}
         </div>
@@ -2991,13 +3008,6 @@ function ImpactPreview({
     });
   }
 
-  // Date hint
-  const today = new Date(); today.setHours(0, 0, 0, 0);
-  const cmpDate = new Date(date); cmpDate.setHours(0, 0, 0, 0);
-  const hint = cmpDate < today ? tr("add.impact.hint_past")
-    : cmpDate > today ? tr("add.impact.hint_future")
-    : null;
-
   // Cross-currency hint
   const xCur = type === "transfer" && source && destination &&
     (source.currency_code ?? mainCode) !== (destination.currency_code ?? mainCode);
@@ -3009,60 +3019,7 @@ function ImpactPreview({
   };
 
   const showNetWorth = type !== "transfer" || xCur;
-
-  // Budget rows as the database computed them: budgets that roll over (Sparen,
-  // scopes), monthly budgets in the booking's month, and unassigned money.
-  // Accounts stay on the instant estimate above, which already matches.
-  const serverImpactRows = (rows: PreviewImpactRow[]) => {
-    const order = { envelope: 0, month: 1, unallocated: 2, account: 3, error: 4 } as const;
-    const shown = rows
-      .filter((r) => r.kind !== "account" && r.kind !== "error")
-      .sort((a, b) => order[a.kind] - order[b.kind]);
-    return shown.map((r, i) => {
-      if (r.kind === "error") {
-        return (
-          <li key={"err-" + i} className="text-warning">
-            {tr("add.impact.refused", { x: r.error ?? "" })}
-          </li>
-        );
-      }
-      const delta = r.after - r.before;
-      const name =
-        r.kind === "unallocated"
-          ? tr("env.moves.unassigned")
-          : (categoryById.get(r.ref_id ?? "")?.name ?? "?");
-      const label =
-        r.kind === "month" && r.month
-          ? `${tr("add.impact.category")} · ${name} (${format(new Date(r.month + "T00:00:00"), "MMM yyyy", { locale })})`
-          : r.kind === "unallocated"
-            ? name
-            : `${tr("add.impact.category")} · ${name}`;
-      const what =
-        r.kind === "month"
-          ? r.income
-            ? tr("add.impact.received")
-            : tr("add.impact.remaining")
-          : r.kind === "envelope"
-            ? tr("add.impact.saved")
-            : null;
-      return (
-        <li key={`${r.kind}-${r.ref_id ?? ""}-${r.month ?? ""}`} className="flex flex-wrap items-baseline justify-between gap-x-3">
-          <span className="min-w-0 text-muted-foreground">{label}</span>
-          <span className="ml-auto text-right tabular-nums">
-            {what && <>{what}: </>}
-            {fmt(r.before, mainSymbol)} →{" "}
-            <span className={cn("font-medium", r.after < 0 && r.kind !== "unallocated" ? "text-destructive" : "text-foreground")}>
-              {fmt(r.after, mainSymbol)}
-            </span>{" "}
-            <span className={cn(delta >= 0 ? "text-success" : "text-destructive")}>({deltaStr(delta, mainSymbol)})</span>
-            {r.kind === "month" && !r.income && r.allocated != null && r.allocated > 0 && (
-              <span className="text-muted-foreground"> {tr("add.impact.of", { x: fmtMoney(r.allocated, mainSymbol) })}</span>
-            )}
-          </span>
-        </li>
-      );
-    });
-  };
+  const refusal = serverImpact?.find((r) => r.kind === "error") ?? null;
 
   return (
     <Card className="border-dashed">
@@ -3070,7 +3027,28 @@ function ImpactPreview({
         <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
           {tr("add.impact.title")}
         </div>
-        <ul className="space-y-1">
+        {refusal ? (
+          <ImpactRefusal message={refusal.error ?? ""} tr={tr} />
+        ) : serverImpact ? (
+          <ImpactBlocks
+            rows={serverImpact}
+            isEdit={!!editOriginal}
+            noBudgetReason={
+              type === "transfer"
+                ? "transfer"
+                : (splitMode ? (slices ?? []).every((s) => !s.categoryId) : !category)
+                  ? "no_category"
+                  : null
+            }
+            balances={balances}
+            categoryById={categoryById}
+            mainCode={mainCode}
+            mainSymbol={mainSymbol}
+            locale={locale}
+            tr={tr}
+          />
+        ) : (
+        <ul className="space-y-1 opacity-60" aria-busy="true">
           {accountRows.map((r) => {
             const delta = r.after - r.before;
             return (
@@ -3094,8 +3072,7 @@ function ImpactPreview({
               </span>
             </li>
           )}
-          {serverImpact && serverImpactRows(serverImpact)}
-          {!serverImpact && catRows.map((r) => {
+          {catRows.map((r) => {
             const hasBudget = r.allocated > 0;
             const remBefore = r.allocated - r.before;
             const remAfter = r.allocated - r.after;
@@ -3144,14 +3121,259 @@ function ImpactPreview({
             );
           })}
         </ul>
-        {(hint || xCur) && (
-          <div className="mt-1 text-[11px] text-muted-foreground">
-            {hint}
-            {hint && xCur ? " · " : ""}
-            {xCur ? tr("add.impact.hint_fx") : ""}
-          </div>
         )}
+        {xCur && !refusal && <div className="mt-1 text-[11px] text-muted-foreground">{tr("add.impact.hint_fx")}</div>}
       </CardContent>
     </Card>
+  );
+}
+
+// ───────── Impact as the database computed it ─────────
+// Two questions on an edit, one on a new entry. "This edit" compares the books
+// now with the books after saving; "this entry" compares them without the
+// entry with after saving, as if it were booked new. Only figures that move
+// are shown. Rows are plain differences between snapshots, so any mix of
+// changes (account, date, split, person, type) needs no rule of its own.
+type ImpactStage = "now" | "without";
+type ImpactLine = {
+  key: string;
+  label: string;
+  indent?: boolean;
+  what?: string;
+  from: number;
+  to: number;
+  sym: string;
+  /** The rise is bad news (you owe more). */
+  invert?: boolean;
+  of?: number | null;
+};
+
+function ImpactBlocks({
+  rows, isEdit, noBudgetReason, balances, categoryById, mainCode, mainSymbol, locale, tr,
+}: {
+  rows: PreviewImpactRow[];
+  isEdit: boolean;
+  noBudgetReason: "transfer" | "no_category" | null;
+  balances: AccountBalance[] | null;
+  categoryById: Map<string, { id: string; name: string }>;
+  mainCode: string;
+  mainSymbol: string;
+  locale: Locale;
+  tr: (k: string, p?: Record<string, string>) => string;
+}) {
+  // Rates into the main currency, as the dashboard's net worth uses them.
+  const fxRates = useFxRates(mainCode).data;
+  const balById = new Map((balances ?? []).map((b) => [b.id, b]));
+  const catName = (id: string | null) => categoryById.get(id ?? "")?.name ?? "?";
+  const toMain = (v: number, code: string | undefined): number | null =>
+    (code ?? mainCode) === mainCode ? v : convert(v, code ?? mainCode, mainCode, fxRates);
+
+  // Net worth now, from the balances already loaded; the other states add the
+  // database's account differences to it.
+  let netNow: number | null = 0;
+  for (const b of balances ?? []) {
+    if (b.archived) continue;
+    const v = toMain(Number(b.balance), b.currency_code);
+    netNow = v == null || netNow == null ? null : netNow + v;
+  }
+
+  const lines = (stage: ImpactStage): { money: ImpactLine[]; budgets: ImpactLine[] } => {
+    const from = (r: PreviewImpactRow) => r[stage];
+    const moved = rows.filter((r) => r.kind !== "error" && Math.abs(r.after - from(r)) >= 0.005);
+    const money: ImpactLine[] = [];
+
+    const accounts = moved
+      .filter((r) => r.kind === "account")
+      .sort((a, b) => (balById.get(a.ref_id ?? "")?.name ?? "").localeCompare(balById.get(b.ref_id ?? "")?.name ?? ""));
+    for (const r of accounts) {
+      const b = balById.get(r.ref_id ?? "");
+      money.push({
+        key: "acc-" + r.ref_id,
+        label: `${tr("add.impact.account")} · ${b?.name ?? "?"}`,
+        from: from(r),
+        to: r.after,
+        sym: b?.currency_symbol ?? mainSymbol,
+      });
+    }
+
+    if (netNow != null) {
+      let netFrom: number | null = netNow;
+      let netTo: number | null = netNow;
+      for (const r of rows) {
+        if (r.kind !== "account") continue;
+        const code = balById.get(r.ref_id ?? "")?.currency_code;
+        const f = toMain(from(r) - r.now, code);
+        const t = toMain(r.after - r.now, code);
+        netFrom = f == null || netFrom == null ? null : netFrom + f;
+        netTo = t == null || netTo == null ? null : netTo + t;
+      }
+      if (netFrom != null && netTo != null && Math.abs(netTo - netFrom) >= 0.005) {
+        money.push({ key: "net", label: tr("add.impact.networth"), from: netFrom, to: netTo, sym: mainSymbol });
+      }
+    }
+
+    const people = moved
+      .filter((r) => r.kind === "person")
+      .sort((a, b) => Number(!!a.income) - Number(!!b.income) || (a.label ?? "").localeCompare(b.label ?? ""));
+    for (const r of people) {
+      const who = r.label?.trim() || tr("add.impact.no_one");
+      money.push({
+        key: `person-${r.income ? "owe" : "owed"}-${who}`,
+        label: tr(r.income ? "add.impact.you_owe" : "add.impact.owed_to_you", { x: who }),
+        from: from(r),
+        to: r.after,
+        sym: mainSymbol,
+        invert: !!r.income,
+      });
+    }
+
+    // Budgets: months by date, each sweep target right after the closed
+    // months that feed it, then other envelopes, then unassigned money.
+    const months = moved
+      .filter((r) => r.kind === "month")
+      .sort((a, b) => (a.month ?? "").localeCompare(b.month ?? "") || catName(a.ref_id).localeCompare(catName(b.ref_id)));
+    const envelopes = new Map(moved.filter((r) => r.kind === "envelope").map((r) => [r.ref_id ?? "", r]));
+    const feeders = new Map<string, PreviewImpactRow[]>();
+    for (const m of months) {
+      if (!m.sweep_target || !envelopes.has(m.sweep_target)) continue;
+      feeders.set(m.sweep_target, [...(feeders.get(m.sweep_target) ?? []), m]);
+    }
+    const budgets: ImpactLine[] = [];
+    months.forEach((m) => {
+      const monthName = format(new Date(m.month + "T00:00:00"), "MMM yyyy", { locale });
+      budgets.push({
+        key: `month-${m.ref_id}-${m.month}`,
+        label: `${catName(m.ref_id)} (${m.closed ? `${monthName}, ${tr("add.impact.closed")}` : monthName})`,
+        what: m.income ? tr("add.impact.received") : tr("add.impact.remaining"),
+        from: from(m),
+        to: m.after,
+        sym: mainSymbol,
+        of: m.allocated != null && m.allocated > 0 ? m.allocated : null,
+      });
+      for (const [target, feeding] of feeders) {
+        if (feeding[feeding.length - 1] !== m) continue;
+        const env = envelopes.get(target)!;
+        const parts =
+          feeding.length > 1
+            ? ` (${feeding
+                .map((f, j) => {
+                  const d = f.after - from(f);
+                  return `${j === 0 ? (d < 0 ? "−" : "+") : d < 0 ? " − " : " + "}${fmtMoney(Math.abs(d), "").trim()}`;
+                })
+                .join("")})`
+            : "";
+        budgets.push({
+          key: "sweep-" + target,
+          label: `↳ ${tr("add.impact.swept", { x: catName(target) })}${parts}`,
+          indent: true,
+          what: tr("add.impact.saved"),
+          from: from(env),
+          to: env.after,
+          sym: mainSymbol,
+        });
+      }
+    });
+    for (const [id, env] of envelopes) {
+      if (feeders.has(id)) continue;
+      budgets.push({
+        key: "env-" + id,
+        label: catName(id),
+        what: tr("add.impact.saved"),
+        from: from(env),
+        to: env.after,
+        sym: mainSymbol,
+      });
+    }
+    const unalloc = moved.find((r) => r.kind === "unallocated");
+    if (unalloc) {
+      budgets.push({ key: "unalloc", label: tr("env.moves.unassigned"), from: from(unalloc), to: unalloc.after, sym: mainSymbol });
+    }
+    return { money, budgets };
+  };
+
+  const renderLine = (l: ImpactLine) => {
+    const delta = l.to - l.from;
+    const good = l.invert ? delta <= 0 : delta >= 0;
+    return (
+      <li key={l.key} className="flex flex-wrap items-baseline justify-between gap-x-3">
+        <span className={cn("min-w-0 text-muted-foreground", l.indent && "pl-4")}>{l.label}</span>
+        <span className="ml-auto text-right tabular-nums">
+          {l.what && <>{l.what}: </>}
+          {fmtMoney(l.from, l.sym)} → <span className="font-medium text-foreground">{fmtMoney(l.to, l.sym)}</span>{" "}
+          <span className={good ? "text-success" : "text-destructive"}>
+            ({delta >= 0 ? "+" : "−"}{fmtMoney(Math.abs(delta), l.sym)})
+          </span>
+          {l.of != null && <span className="text-muted-foreground"> {tr("add.impact.of", { x: fmtMoney(l.of, mainSymbol) })}</span>}
+        </span>
+      </li>
+    );
+  };
+  const quiet = (key: string, label: string, value?: string) => (
+    <li key={key} className="flex flex-wrap items-baseline justify-between gap-x-3 text-muted-foreground">
+      <span className="min-w-0">{label}</span>
+      {value && <span className="ml-auto text-right">{value}</span>}
+    </li>
+  );
+
+  const entry = lines(isEdit ? "without" : "now");
+  const entryList = (
+    <ul className="space-y-1">
+      {entry.money.map(renderLine)}
+      {entry.budgets.map(renderLine)}
+      {entry.budgets.length === 0 && noBudgetReason &&
+        quiet("no-budget", tr("add.impact.budgets"), tr(`add.impact.budgets_none_${noBudgetReason}`))}
+    </ul>
+  );
+  if (!isEdit) return entryList;
+
+  const edit = lines("now");
+  const heading = (title: string, sub: string) => (
+    <div className="mb-1 flex flex-wrap items-baseline gap-x-2">
+      <span className="font-semibold text-foreground">{title}</span>
+      <span className="text-[11px] text-muted-foreground">{sub}</span>
+    </div>
+  );
+  return (
+    <div className="space-y-3">
+      <div>
+        {heading(tr("add.impact.edit"), tr("add.impact.edit_sub"))}
+        <ul className="space-y-1">
+          {edit.money.map(renderLine)}
+          {edit.budgets.map(renderLine)}
+          {edit.money.length === 0 && edit.budgets.length === 0 && quiet("none", tr("add.impact.no_changes"))}
+        </ul>
+      </div>
+      <div className="border-t pt-2">
+        {heading(tr("add.impact.entry"), tr("add.impact.entry_sub"))}
+        {entryList}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A refusal the app recognises, in plain words with what to do about it, or
+ * null. Anything else is most likely a bug in the app, not in the input.
+ */
+function knownRefusal(message: string, tr: (k: string, p?: Record<string, string>) => string): string | null {
+  if (message.includes("in the same currency, destination_amount must be more than the amount sent")) {
+    return tr("add.impact.refusal.received_too_low");
+  }
+  return null;
+}
+
+function ImpactRefusal({ message, tr }: { message: string; tr: (k: string, p?: Record<string, string>) => string }) {
+  const known = knownRefusal(message, tr);
+  return (
+    <div role="status" className="space-y-1">
+      <div className="text-warning">{tr(known ? "add.impact.refusal.known_title" : "add.impact.refusal.unknown_title")}</div>
+      <div className="text-foreground">{known ?? tr("add.impact.refusal.unknown_body")}</div>
+      {!known && (
+        <details className="text-[11px] text-muted-foreground">
+          <summary className="cursor-pointer">{tr("add.impact.refusal.details")}</summary>
+          <div className="mt-1 break-words font-mono">{message}</div>
+        </details>
+      )}
+    </div>
   );
 }

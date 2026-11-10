@@ -1878,6 +1878,23 @@ export type Database = {
           ref_id: string | null
         }[]
       }
+      preview_transaction_impact: {
+        Args: { p_ops: Json; p_entry_ids?: string[] }
+        Returns: {
+          after: number
+          allocated: number | null
+          closed: boolean | null
+          error: string | null
+          income: boolean | null
+          kind: string
+          label: string | null
+          month: string | null
+          now: number
+          ref_id: string | null
+          sweep_target: string | null
+          without: number
+        }[]
+      }
       archive_savings_envelope: {
         Args: { p_id: string; p_move_remaining_to: string }
         Returns: undefined
