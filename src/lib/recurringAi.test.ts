@@ -45,7 +45,7 @@ describe("suggestionToDraft", () => {
     expect(r.draft).toMatchObject({
       name: "BSZ Wohnheim",
       type: "expense",
-      amount: "1350",
+      amount: "1350.00",
       source_account_id: "acc-ubs",
       category_id: "cat-home",
       description: "BSZ Wohnheim, Ingenbohl Quartal ${periodTo:Q}",
@@ -90,7 +90,7 @@ describe("suggestionToDraft", () => {
       ctx,
     );
     expect(r.draft.is_variable_amount).toBe(true);
-    expect(r.draft.estimated_amount).toBe("132.4");
+    expect(r.draft.estimated_amount).toBe("132.40");
     expect(r.draft.auto_post).toBe(false);
   });
 

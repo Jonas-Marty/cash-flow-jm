@@ -1,3 +1,4 @@
+import { amountToInput, formatAmountInput } from "@/lib/amountInput";
 import * as React from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -52,7 +53,7 @@ export function ReallocateDialog({ open, defaultFromId, defaultToId, defaultAmou
     if (!open) return;
     setFromId(defaultFromId ?? "");
     setToId(defaultToId ?? "");
-    setAmount(defaultAmount != null ? String(defaultAmount) : "");
+    setAmount(amountToInput(defaultAmount));
     setDate(new Date());
     setNote("");
   }, [open, defaultFromId, defaultToId, defaultAmount]);
@@ -126,6 +127,7 @@ export function ReallocateDialog({ open, defaultFromId, defaultToId, defaultAmou
                 min="0"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
+                onBlur={() => setAmount((v) => formatAmountInput(v))}
                 autoFocus
               />
             </div>

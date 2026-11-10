@@ -1,3 +1,4 @@
+import { formatAmountInput } from "@/lib/amountInput";
 import * as React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -135,6 +136,7 @@ export function UpcomingCard({ symbol }: { symbol: string }) {
                   placeholder={o.rule.estimated_amount != null ? Number(o.rule.estimated_amount).toFixed(2) : t("dashboard.upcoming.enter_amount")}
                   value={inputVal}
                   onChange={(e) => setAmounts((m) => ({ ...m, [o.id]: e.target.value }))}
+                  onBlur={() => setAmounts((m) => (o.id in m ? { ...m, [o.id]: formatAmountInput(m[o.id]) } : m))}
                 />
               ) : (
                 <div className={cn("text-sm font-semibold tabular-nums", tone)}>

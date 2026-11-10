@@ -1,3 +1,4 @@
+import { amountToInput, formatAmountInput } from "@/lib/amountInput";
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -40,7 +41,7 @@ function seed(line: StatementLine): Draft {
     // read as plain words ("coop") next to "#migros #coop".
     tags: formatTags(line.suggested_tags ?? []),
     note: "",
-    amount: String(Math.abs(line.amount)),
+    amount: amountToInput(Math.abs(line.amount)),
     location: null,
     checked: false,
   };
@@ -284,6 +285,7 @@ export function StatementLineTable({
                   inputMode="decimal"
                   value={d.amount}
                   onChange={(e) => patch(l.id, { amount: e.target.value })}
+                  onBlur={() => patch(l.id, { amount: formatAmountInput(d.amount) })}
                 />
               </div>
               <div className="flex items-center justify-end gap-1">{renderRowActions?.(l)}</div>

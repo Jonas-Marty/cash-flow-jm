@@ -1,3 +1,4 @@
+import { formatAmountInput } from "@/lib/amountInput";
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient, useQueries } from "@tanstack/react-query";
@@ -440,6 +441,7 @@ function AddStatementDialog({
               inputMode="decimal"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
+              onBlur={() => setAmount((v) => formatAmountInput(v))}
               placeholder="0.00"
             />
           </div>

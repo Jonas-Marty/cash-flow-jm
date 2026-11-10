@@ -1,3 +1,4 @@
+import { formatAmountInput } from "@/lib/amountInput";
 import * as React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronDown, TriangleAlert } from "lucide-react";
@@ -179,6 +180,7 @@ export function OpeningBalancesDialog({
             )}
             value={c.id in draft ? draft[c.id] : saved(c).toFixed(2)}
             onChange={(e) => setDraft((d) => ({ ...d, [c.id]: e.target.value }))}
+            onBlur={() => setDraft((d) => (c.id in d ? { ...d, [c.id]: formatAmountInput(d[c.id]) } : d))}
             onFocus={(e) => e.target.select()}
           />
         </div>

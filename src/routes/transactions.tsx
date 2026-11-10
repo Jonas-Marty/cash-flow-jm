@@ -1,3 +1,4 @@
+import { formatAmountInput } from "@/lib/amountInput";
 import * as React from "react";
 import { createFileRoute, Link, useNavigate, stripSearchParams } from "@tanstack/react-router";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
@@ -853,6 +854,7 @@ function TransactionsPage() {
                   value={amountVal}
                   disabled={amountOp === "any"}
                   onChange={(e) => setAmountVal(e.target.value)}
+                  onBlur={() => amountVal.trim() && setAmountVal(formatAmountInput(amountVal))}
                   className="flex-1"
                 />
               </div>

@@ -1,3 +1,4 @@
+import { amountToInput, formatAmountInput } from "@/lib/amountInput";
 import * as React from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { zodValidator, fallback } from "@tanstack/zod-adapter";
@@ -134,7 +135,7 @@ function SettingsPage() {
     });
     if (error) { toast.error(error.message); return; }
     toast.success(tr("toast.account_added"));
-    setAName(""); setAOpening("0");
+    setAName(""); setAOpening("0.00");
     qc.invalidateQueries();
   };
   const updateAccountCurrency = async (id: string, code: string) => {
@@ -186,7 +187,7 @@ function SettingsPage() {
     const ob = Number(a.opening_balance) || 0;
     setEditAccount({ id: a.id, name: a.name, opening_balance: ob });
     setEditName(a.name);
-    setEditOpening(String(ob));
+    setEditOpening(amountToInput(ob));
   };
   const saveEditAccount = async () => {
     if (!editAccount) return;
@@ -224,7 +225,7 @@ function SettingsPage() {
     });
     if (error) { toast.error(error.message); return; }
     toast.success(tr("toast.envelope_added"));
-    setCName(""); setCBudget("0"); setCGroupId(""); setCRollsOver(false);
+    setCName(""); setCBudget("0.00"); setCGroupId(""); setCRollsOver(false);
     qc.invalidateQueries();
   };
   const updateCategoryGroup = async (id: string, groupId: string) => {
@@ -349,7 +350,7 @@ function SettingsPage() {
 
   const [thresholdDraft, setThresholdDraft] = React.useState<string>("");
   React.useEffect(() => {
-    if (settingsQ.data) setThresholdDraft(String(settingsQ.data.day_heatmap_threshold ?? 100));
+    if (settingsQ.data) setThresholdDraft(amountToInput(settingsQ.data.day_heatmap_threshold ?? 100));
   }, [settingsQ.data?.day_heatmap_threshold]);
   const saveThreshold = async () => {
     if (!settingsQ.data) return;
@@ -509,7 +510,7 @@ function SettingsPage() {
                     className="w-40"
                     value={thresholdDraft}
                     onChange={(e) => setThresholdDraft(e.target.value.replace(/[^0-9.,]/g, ""))}
-                    onBlur={saveThreshold}
+                    onBlur={() => { setThresholdDraft((v) => formatAmountInput(v)); void saveThreshold(); }}
                     onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
                   />
                   <span className="text-sm text-muted-foreground">{settingsQ.data?.currency_symbol ?? "CHF"}</span>
@@ -678,7 +679,7 @@ function SettingsPage() {
               </div>
               <div>
                 <Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.monthly_budget")}</Label>
-                <Input inputMode="decimal" value={cBudget} onChange={(e) => setCBudget(e.target.value)} placeholder={cRollsOver ? tr("settings.savings_target_hint") : undefined} />
+                <Input inputMode="decimal" value={cBudget} onChange={(e) => setCBudget(e.target.value)} onBlur={() => setCBudget((v) => formatAmountInput(v))} placeholder={cRollsOver ? tr("settings.savings_target_hint") : undefined} />
               </div>
               <div className="flex items-end"><Button className="w-full" onClick={addCategory}><Plus className="h-4 w-4" /> {tr("common.add")}</Button></div>
             </div>
@@ -909,7 +910,7 @@ function SettingsPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.opening_balance")}</Label><Input inputMode="decimal" value={aOpening} onChange={(e) => setAOpening(e.target.value)} /></div>
+              <div><Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.opening_balance")}</Label><Input inputMode="decimal" value={aOpening} onChange={(e) => setAOpening(e.target.value)} onBlur={() => setAOpening((v) => formatAmountInput(v))} /></div>
               <div>
                 <Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.currency")}</Label>
                 <Select value={aCurrency || (settingsQ.data?.currency_code ?? "CHF")} onValueChange={setACurrency}>
@@ -995,7 +996,7 @@ function SettingsPage() {
               </div>
               <div>
                 <Label className="mb-1 block text-xs text-muted-foreground">{tr("settings.opening_balance")}</Label>
-                <Input inputMode="decimal" value={editOpening} onChange={(e) => setEditOpening(e.target.value)} />
+                <Input inputMode="decimal" value={editOpening} onChange={(e) => setEditOpening(e.target.value)} onBlur={() => setEditOpening((v) => formatAmountInput(v))} />
               </div>
               {openingChanged && (
                 <div className="flex gap-2 rounded-md border border-warning/60 bg-warning/10 p-3 text-sm">

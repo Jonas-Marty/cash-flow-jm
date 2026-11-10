@@ -1,3 +1,4 @@
+import { amountToInput, formatAmountInput } from "@/lib/amountInput";
 import * as React from "react";
 import { format, parseISO } from "date-fns";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -73,11 +74,11 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
     );
     if (occurrence.rule.is_variable_amount) {
       if (initialAmount && initialAmount.trim() !== "") {
-        setAmount(initialAmount);
+        setAmount(formatAmountInput(initialAmount));
       } else if (proposal) {
         setAmount(proposal.amount.toFixed(2));
       } else if (occurrence.rule.estimated_amount != null) {
-        setAmount(String(occurrence.rule.estimated_amount));
+        setAmount(amountToInput(occurrence.rule.estimated_amount));
       } else {
         setAmount("");
       }
@@ -257,6 +258,7 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
                 inputMode="decimal"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
+                onBlur={() => setAmount((v) => formatAmountInput(v))}
                 placeholder={r.estimated_amount != null ? Number(r.estimated_amount).toFixed(2) : ""}
               />
             </div>

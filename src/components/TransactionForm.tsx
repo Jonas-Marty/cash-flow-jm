@@ -1,3 +1,4 @@
+import { formatAmountInput } from "@/lib/amountInput";
 import * as React from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -1513,6 +1514,7 @@ export function TransactionForm({
                 placeholder="0.00"
                 value={amount}
                 onChange={(e) => { setAmount(e.target.value.replace(/[^0-9.,]/g, "")); mark("amount"); }}
+                onBlur={() => setAmount((v) => formatAmountInput(v))}
                 className={cn(
                   "mt-1 h-auto border-0 bg-transparent p-0 text-center text-5xl font-bold tabular-nums shadow-none focus-visible:ring-0",
                   type === "expense" && "text-destructive",
@@ -1607,6 +1609,7 @@ export function TransactionForm({
                       inputMode="decimal"
                       placeholder="0.00"
                       value={destAmount}
+                      onBlur={() => setDestAmount((v) => formatAmountInput(v))}
                       onChange={(e) => {
                         setDestAmount(e.target.value.replace(/[^0-9.,]/g, ""));
                         setDestAmountTouched(true);
@@ -1683,6 +1686,7 @@ export function TransactionForm({
                         placeholder="0.00"
                         value={received}
                         onChange={(e) => setReceived(e.target.value.replace(/[^0-9.,]/g, ""))}
+                        onBlur={() => setReceived((v) => formatAmountInput(v))}
                         aria-invalid={receivedTooLow || undefined}
                         aria-describedby={receivedTooLow ? "received-error" : undefined}
                         className={cn("tabular-nums", receivedTooLow && "border-destructive focus-visible:ring-destructive")}
@@ -1771,6 +1775,7 @@ export function TransactionForm({
                         inputMode="decimal"
                         placeholder="0.00"
                         value={feeAmount}
+                        onBlur={() => setFeeAmount((v) => formatAmountInput(v))}
                         onChange={(e) =>
                           setFeeAmount(e.target.value.replace(/[^0-9.,]/g, ""))
                         }
@@ -1938,6 +1943,9 @@ export function TransactionForm({
                             const v = e.target.value.replace(/[^0-9.,]/g, "");
                             setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, amount: v } : x)));
                           }}
+                          onBlur={() =>
+                            setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, amount: formatAmountInput(x.amount) } : x)))
+                          }
                           className="tabular-nums"
                         />
                       </div>

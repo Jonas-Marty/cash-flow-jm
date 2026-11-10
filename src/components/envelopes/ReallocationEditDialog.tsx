@@ -1,3 +1,4 @@
+import { formatAmountInput } from "@/lib/amountInput";
 import * as React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { parseISO } from "date-fns";
@@ -229,6 +230,7 @@ export function ReallocationEditDialog({
                   min="0"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
+                  onBlur={() => setAmount((v) => formatAmountInput(v))}
                 />
               </div>
               <div className="grid gap-1.5">

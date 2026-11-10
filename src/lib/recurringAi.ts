@@ -1,4 +1,5 @@
 import * as z from "zod";
+import { amountToInput } from "./amountInput";
 import { enUS } from "date-fns/locale";
 import type { DayRule, RecurringRule, TxType, WeekendAdjust } from "@/lib/finance";
 import { DROPPED_TOKENS, TOKENS, interpolate } from "@/lib/placeholders";
@@ -209,10 +210,10 @@ export function suggestionToDraft(raw: unknown, ctx: SuggestionContext): Suggest
   d.is_variable_amount = variable;
   if (variable) {
     const est = estimate ?? amount;
-    if (est !== undefined && est > 0) d.estimated_amount = String(Math.abs(est));
+    if (est !== undefined && est > 0) d.estimated_amount = amountToInput(Math.abs(est));
     d.amount = "0";
   } else if (amount !== undefined && amount !== 0) {
-    d.amount = String(Math.abs(amount));
+    d.amount = amountToInput(Math.abs(amount));
   } else {
     warnings.push("amount_missing");
   }

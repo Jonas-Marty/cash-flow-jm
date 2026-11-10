@@ -1,3 +1,4 @@
+import { amountToInput, formatAmountInput } from "@/lib/amountInput";
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -115,7 +116,7 @@ function ScopesRoute() {
               </div>
               <div>
                 <Label className="mb-1 block text-xs text-muted-foreground">{t("scopes.planned")}</Label>
-                <Input inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="0" />
+                <Input inputMode="decimal" value={budget} onChange={(e) => setBudget(e.target.value)} onBlur={() => setBudget((v) => formatAmountInput(v))} placeholder="0.00" />
               </div>
               <div className="flex items-end">
                 <Button onClick={() => create.mutate()} disabled={create.isPending || !name.trim()}>
@@ -198,7 +199,7 @@ function ScopeRow({
   const [editing, setEditing] = React.useState(false);
   const [editName, setEditName] = React.useState(scope.name);
   const [editFunding, setEditFunding] = React.useState<string>(scope.funding_category_id ?? NONE);
-  const [editBudget, setEditBudget] = React.useState(String(scope.allocated_budget ?? 0));
+  const [editBudget, setEditBudget] = React.useState(amountToInput(scope.allocated_budget ?? 0));
 
   const funding = fundingCandidates.find((c) => c.id === scope.funding_category_id);
   const closed = !!scope.closed_at;
@@ -284,7 +285,7 @@ function ScopeRow({
                   ))}
                 </SelectContent>
               </Select>
-              <Input inputMode="decimal" value={editBudget} onChange={(e) => setEditBudget(e.target.value)} />
+              <Input inputMode="decimal" value={editBudget} onChange={(e) => setEditBudget(e.target.value)} onBlur={() => setEditBudget((v) => formatAmountInput(v))} />
             </div>
             <div className="flex gap-2">
               <Button size="sm" onClick={() => update.mutate()} disabled={update.isPending || !editName.trim()}>

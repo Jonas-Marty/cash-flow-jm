@@ -1,3 +1,4 @@
+import { formatAmountInput } from "@/lib/amountInput";
 import * as React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -89,17 +90,13 @@ const COLUMNS =
  * is left exactly as typed, so the confirm-time error still explains it rather
  * than the field quietly rewriting what someone meant.
  */
-function settleAmount(raw: string): string {
-  const n = Number(raw.replace(",", "."));
-  return raw.trim() && Number.isFinite(n) ? n.toFixed(2) : raw;
-}
 
 /** The /add deep link that opens this row in the booking form, prefilled. */
 function editSearch(p: PendingTransaction, d: Draft): Record<string, string> {
   const search: Record<string, string> = {
     pending_id: p.id,
     type: p.type,
-    amount: settleAmount(d.amount),
+    amount: formatAmountInput(d.amount),
     occurred_on: d.occurred_on,
   };
   if (d.source_account_id) search.source = d.source_account_id;
@@ -403,7 +400,7 @@ export function PendingLineTable({
                     onChange={(e) =>
                       patch(p.id, { amount: e.target.value.replace(/[^0-9.,]/g, "") })
                     }
-                    onBlur={() => patch(p.id, { amount: settleAmount(d.amount) })}
+                    onBlur={() => patch(p.id, { amount: formatAmountInput(d.amount) })}
                   />
                 </div>
                 <div className="mb-1 lg:mb-0">

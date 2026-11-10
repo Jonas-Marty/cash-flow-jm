@@ -1,3 +1,4 @@
+import { formatAmountInput } from "@/lib/amountInput";
 import * as React from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouterState } from "@tanstack/react-router";
@@ -667,6 +668,9 @@ export function RecurringRulesCard() {
                   onChange={(e) => setDraft(draft.is_variable_amount
                     ? { ...draft, estimated_amount: e.target.value }
                     : { ...draft, amount: e.target.value })}
+                  onBlur={() => setDraft(draft.is_variable_amount
+                    ? { ...draft, estimated_amount: formatAmountInput(draft.estimated_amount) }
+                    : { ...draft, amount: formatAmountInput(draft.amount) })}
                 />
               </div>
             </div>
@@ -976,6 +980,13 @@ export function RecurringRulesCard() {
                             next[idx] = draft.is_variable_amount
                               ? { ...s, amount_ratio: e.target.value }
                               : { ...s, amount: e.target.value };
+                            setDraft({ ...draft, slices: next });
+                          }}
+                          onBlur={() => {
+                            // A ratio ("0.5") is not an amount: only amounts get cents.
+                            if (draft.is_variable_amount) return;
+                            const next = [...draft.slices];
+                            next[idx] = { ...s, amount: formatAmountInput(s.amount) };
                             setDraft({ ...draft, slices: next });
                           }}
                         />

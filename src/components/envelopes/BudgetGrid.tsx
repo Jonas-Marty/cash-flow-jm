@@ -1,3 +1,4 @@
+import { amountToInput } from "@/lib/amountInput";
 import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format, isSameMonth } from "date-fns";
@@ -545,7 +546,7 @@ function GridCell({
 }) {
   const amount = cell?.amount ?? 0;
   const inherited = cell?.inherited ?? true;
-  const [draft, setDraft] = React.useState(() => String(amount));
+  const [draft, setDraft] = React.useState(() => amountToInput(amount));
   const [focused, setFocused] = React.useState(false);
   /**
    * A fill already wrote this cell, so the blur that follows must not write it again.
@@ -557,7 +558,7 @@ function GridCell({
   const filledRef = React.useRef(false);
 
   React.useEffect(() => {
-    if (!focused) setDraft(String(amount));
+    if (!focused) setDraft(amountToInput(amount));
   }, [amount, focused]);
 
   const clearing = previewValue === "clear";
@@ -586,7 +587,7 @@ function GridCell({
           setFocused(false);
           onPreviewFill(null);
           if (filledRef.current) { filledRef.current = false; return; }
-          if (!onCommit(draft)) setDraft(String(amount));
+          if (!onCommit(draft)) setDraft(amountToInput(amount));
         }}
         onKeyDown={(e) => {
           // Enter commits this cell; Cmd/Ctrl+Enter carries it to the right edge —
@@ -598,7 +599,7 @@ function GridCell({
             return;
           }
           if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); return; }
-          if (e.key === "Escape") { e.preventDefault(); setDraft(String(amount)); e.currentTarget.blur(); return; }
+          if (e.key === "Escape") { e.preventDefault(); setDraft(amountToInput(amount)); e.currentTarget.blur(); return; }
           if (e.key === "ArrowUp") { e.preventDefault(); onMove(row - 1, col); return; }
           if (e.key === "ArrowDown") { e.preventDefault(); onMove(row + 1, col); return; }
         }}

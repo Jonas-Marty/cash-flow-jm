@@ -1,3 +1,4 @@
+import { amountToInput } from "./amountInput";
 import type { DayRule, RecurringRule, TxType, WeekendAdjust } from "@/lib/finance";
 
 /**
@@ -66,7 +67,7 @@ export const todayStr = () => new Date().toISOString().slice(0, 10);
 
 export function emptyDraft(): Draft {
   return {
-    name: "", type: "expense", amount: "0",
+    name: "", type: "expense", amount: "0.00",
     is_variable_amount: false, estimated_amount: "",
     source_account_id: "", destination_account_id: "", category_id: "",
     description: "", note: "",
@@ -87,9 +88,9 @@ export function emptyDraft(): Draft {
 export function ruleToDraft(r: RecurringRule): Draft {
   return {
     id: r.id, name: r.name, type: r.type,
-    amount: r.amount != null ? String(r.amount) : "0",
+    amount: r.amount != null ? amountToInput(r.amount) : "0.00",
     is_variable_amount: !!r.is_variable_amount,
-    estimated_amount: r.estimated_amount != null ? String(r.estimated_amount) : "",
+    estimated_amount: amountToInput(r.estimated_amount),
     source_account_id: r.source_account_id,
     destination_account_id: r.destination_account_id ?? "",
     category_id: r.category_id ?? "",
@@ -109,7 +110,7 @@ export function ruleToDraft(r: RecurringRule): Draft {
     slices: r.slices && r.slices.length >= 2
       ? r.slices.map((s) => ({
           id: s.id,
-          amount: s.amount != null ? String(s.amount) : "",
+          amount: amountToInput(s.amount),
           amount_ratio: s.amount_ratio != null ? String(s.amount_ratio) : "",
           category_id: s.category_id ?? "",
           description: s.description ?? "",

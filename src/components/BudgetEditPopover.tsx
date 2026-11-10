@@ -1,3 +1,4 @@
+import { amountToInput, formatAmountInput } from "@/lib/amountInput";
 import * as React from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -40,7 +41,7 @@ export function BudgetEditPopover({
   const { t } = useI18n();
   const qc = useQueryClient();
   const [open, setOpen] = React.useState(false);
-  const [value, setValue] = React.useState(() => String(amount));
+  const [value, setValue] = React.useState(() => amountToInput(amount));
   const [scope, setScope] = React.useState<BudgetScope>("forward");
   const [saving, setSaving] = React.useState(false);
 
@@ -53,7 +54,7 @@ export function BudgetEditPopover({
   // normally a one-off; a change to this month or a future one is the new plan.
   React.useEffect(() => {
     if (!open) return;
-    setValue(String(amount));
+    setValue(amountToInput(amount));
     setScope(elapsed ? "month" : "forward");
   }, [open, amount, elapsed]);
 
@@ -94,6 +95,7 @@ export function BudgetEditPopover({
             autoFocus
             value={value}
             onChange={(e) => setValue(e.target.value)}
+            onBlur={() => setValue((v) => formatAmountInput(v))}
             onFocus={(e) => e.currentTarget.select()}
             onKeyDown={(e) => {
               if (e.key === "Enter") { e.preventDefault(); void save(); }

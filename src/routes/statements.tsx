@@ -1,3 +1,4 @@
+import { amountToInput } from "@/lib/amountInput";
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -204,7 +205,7 @@ function StatementsPage() {
   function addLink(line: StatementLine) {
     const tags = (line.suggested_tags ?? []).map((x) => `#${x}`).join(" ");
     const search: Record<string, string> = {
-      amount: String(Math.abs(line.amount)),
+      amount: amountToInput(Math.abs(line.amount)),
       type: line.amount < 0 ? "expense" : "income",
       description: line.suggested_description || line.description,
       source: detail?.import.account_id ?? "",

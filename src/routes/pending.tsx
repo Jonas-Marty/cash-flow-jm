@@ -1,3 +1,4 @@
+import { formatAmountInput } from "@/lib/amountInput";
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -490,7 +491,7 @@ function PendingRow({
               </div>
               <div className="space-y-1">
                 <Label>{t("add.split.amount")}</Label>
-                <Input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" />
+                <Input value={amount} onChange={(e) => setAmount(e.target.value)} onBlur={() => setAmount((v) => formatAmountInput(v))} inputMode="decimal" />
               </div>
               <div className="space-y-1">
                 <Label>{t("add.date")}</Label>
@@ -522,7 +523,7 @@ function PendingRow({
                   </div>
                   <div className="space-y-1">
                     <Label>{t("add.dest_amount.label", { sym: acc?.currency_symbol ?? "" })} {t("common.optional")}</Label>
-                    <Input value={destAmount} onChange={(e) => setDestAmount(e.target.value)} inputMode="decimal" />
+                    <Input value={destAmount} onChange={(e) => setDestAmount(e.target.value)} onBlur={() => setDestAmount((v) => formatAmountInput(v))} inputMode="decimal" />
                   </div>
                 </>
               )}
