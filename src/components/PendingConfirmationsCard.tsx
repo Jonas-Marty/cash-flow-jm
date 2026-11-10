@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { useDateFormat } from "@/lib/dateFormat";
 import { useQuery } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +15,7 @@ import { Inbox } from "lucide-react";
 
 export function PendingConfirmationsCard({ symbol }: { symbol: string }) {
   const { t, locale } = useI18n();
+  const dateFmt = useDateFormat();
   const pendingQ = useQuery({
     queryKey: ["pending_transactions", "pending"],
     queryFn: () => fetchPendingTransactions("pending"),
@@ -58,7 +60,7 @@ export function PendingConfirmationsCard({ symbol }: { symbol: string }) {
                     )}
                   </div>
                   <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                    {format(parseISO(p.occurred_on), "dd.MM.yyyy", { locale })}
+                    {format(parseISO(p.occurred_on), dateFmt, { locale })}
                     {" · "}
                     {acc?.name ?? "?"}
                     {p.external_info && ` · ${p.external_info}`}

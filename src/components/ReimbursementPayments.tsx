@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useDateFormat } from "@/lib/dateFormat";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
@@ -33,6 +34,7 @@ export function ReimbursementPayments({
   symbol: string;
 }) {
   const { t, locale } = useI18n();
+  const dateFmt = useDateFormat();
   const qc = useQueryClient();
   const settlerIds = React.useMemo(
     () => links.map((l) => l.settling_transaction_id).sort(),
@@ -123,7 +125,7 @@ export function ReimbursementPayments({
                     <div className="min-w-0 flex-1">
                       <div className="truncate">{s?.description || t("add.income")}</div>
                       <div className="text-xs text-muted-foreground">
-                        {s ? format(parseISO(s.occurred_on), "dd.MM.yyyy", { locale }) : "…"} ·{" "}
+                        {s ? format(parseISO(s.occurred_on), dateFmt, { locale }) : "…"} ·{" "}
                         <Link
                           to="/edit/$id"
                           params={{ id: l.settling_transaction_id }}

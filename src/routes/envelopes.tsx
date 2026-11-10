@@ -555,7 +555,6 @@ function EnvelopesPage() {
             <DatePicker
               value={asOfDate}
               onChange={(d) => setAsOf(d)}
-              lang={settingsQ.data?.language ?? "de"}
               locale={locale}
               className="h-9 w-[170px]"
             />

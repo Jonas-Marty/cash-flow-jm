@@ -1,4 +1,5 @@
 import { formatAmountInput } from "@/lib/amountInput";
+import { useDateFormat } from "@/lib/dateFormat";
 import * as React from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -119,6 +120,7 @@ export function TransactionForm({
   backTo?: "transactions" | "envelopes";
 }) {
   const { t: tr, locale, lang } = useI18n();
+  const dateFmt = useDateFormat();
   const navigate = useNavigate();
   // A closed scope reopens in the database when a save changes its money. Say
   // so: the scopes this booking touched that were closed before and are not now.
@@ -2175,8 +2177,6 @@ export function TransactionForm({
             id="date-input"
             value={date}
             onChange={setDate}
-            formatStr={settingsQ.data?.date_format}
-            lang={lang}
             locale={locale}
             className="mb-2 hidden w-full md:block"
           />
@@ -2196,7 +2196,7 @@ export function TransactionForm({
           />
           <p className="mt-1 text-xs text-muted-foreground md:hidden">{tr("add.day_preview.long_press_hint")}</p>
           <p className="mt-1 hidden text-xs text-muted-foreground md:block">
-            {tr("add.date_input_hint", { fmt: settingsQ.data?.date_format ?? "dd.MM.yyyy" })}
+            {tr("add.date_input_hint", { fmt: dateFmt })}
           </p>
         </div>
 
@@ -2352,7 +2352,7 @@ export function TransactionForm({
                                 )}
                               </div>
                               <div className="text-muted-foreground">
-                                {format(new Date(t.occurred_on + "T00:00:00"), "dd.MM.yyyy", { locale })} · {fmtMoney(rem, sym)}
+                                {format(new Date(t.occurred_on + "T00:00:00"), dateFmt, { locale })} · {fmtMoney(rem, sym)}
                                 {coveredNow && !locked && (
                                   <span className="ml-1.5 rounded bg-success/15 px-1 py-px text-[10px] font-medium text-success">
                                     {tr("add.reimb.link.covered_now")}
@@ -2577,7 +2577,7 @@ export function TransactionForm({
                   count: String(duplicates.length),
                   account: sourceAccount?.name ?? "",
                   amount: amountNum != null ? fmtMoney(amountNum, symbol) : "",
-                  date: format(date, "dd.MM.yyyy"),
+                  date: format(date, dateFmt),
                 })}
               </div>
             </div>
@@ -2671,6 +2671,7 @@ function TransactionPreview({
     settles: (list: string) => string;
   };
 }) {
+  const dateFmt = useDateFormat();
   if (amountNum == null || !source) return null;
 
   const Icon = type === "expense" ? ArrowDown : type === "income" ? ArrowUp : ArrowLeftRight;
@@ -2735,7 +2736,7 @@ function TransactionPreview({
                 </>
               )}
               <span>·</span>
-              <span>{format(date, "dd.MM.yyyy", { locale })}</span>
+              <span>{format(date, dateFmt, { locale })}</span>
             </div>
             {type === "income" && settles.length > 0 && (
               <div className="mt-1.5">

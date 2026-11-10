@@ -867,8 +867,6 @@ export function RecurringRulesCard() {
                 <DateInput
                   value={parseISO(draft.starts_on)}
                   onChange={(d) => setDraft({ ...draft, starts_on: format(d, "yyyy-MM-dd") })}
-                  formatStr={settingsQ.data?.date_format}
-                  lang={lang}
                   locale={locale}
                 />
               </div>
@@ -879,8 +877,6 @@ export function RecurringRulesCard() {
                     <DateInput
                       value={parseISO(draft.ends_on)}
                       onChange={(d) => setDraft({ ...draft, ends_on: format(d, "yyyy-MM-dd") })}
-                      formatStr={settingsQ.data?.date_format}
-                      lang={lang}
                       locale={locale}
                       className="flex-1"
                     />

@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useDateFormat } from "@/lib/dateFormat";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -41,7 +42,7 @@ function LinksPage() {
     return m;
   }, [membersQ.data]);
 
-  const dateFmt = settingsQ.data?.date_format || "yyyy-MM-dd";
+  const dateFmt = useDateFormat();
 
   const create = async () => {
     const title = newTitle.trim();

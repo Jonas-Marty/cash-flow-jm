@@ -1,4 +1,5 @@
 import * as React from "react";
+import { useDateFormat } from "@/lib/dateFormat";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -44,6 +45,7 @@ function directionOf(tx: Transaction): Direction {
 
 export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; headless?: boolean }) {
   const { t: tr, locale } = useI18n();
+  const dateFmt = useDateFormat();
   const qc = useQueryClient();
   const openQ = useQuery({ queryKey: ["reimbursables", "open"], queryFn: fetchOpenReimbursables });
   const surplusQ = useQuery({
@@ -189,7 +191,7 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
             </span>
           </div>
           <div className="mt-0.5 truncate text-xs text-muted-foreground">
-            {format(parseISO(tx.occurred_on), "dd.MM.yyyy", { locale })}
+            {format(parseISO(tx.occurred_on), dateFmt, { locale })}
             {" · "}
             {sampleAcc?.name ?? "?"}
             {tx.reimbursable_reason && ` · ${tx.reimbursable_reason}`}
@@ -343,7 +345,7 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
                   {tx.description || tr("add.expense")}
                 </div>
                 <div className="mt-0.5 truncate text-xs text-muted-foreground">
-                  {format(parseISO(tx.occurred_on), "dd.MM.yyyy", { locale })}
+                  {format(parseISO(tx.occurred_on), dateFmt, { locale })}
                   {" · "}
                   {tr("iou.surplus.amount", { amount: fmtMoney(surplus, symbol) })}
                 </div>

@@ -247,8 +247,6 @@ export function PostOccurrenceDialog({ occurrence, runNumber, prevDate, nextDate
             <DateInput
               value={parseISO(date || occurrence.effective_on)}
               onChange={(d) => setDate(format(d, "yyyy-MM-dd"))}
-              formatStr={settingsQ.data?.date_format}
-              lang={lang}
             />
           </div>
           {r.is_variable_amount && (

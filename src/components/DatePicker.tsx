@@ -3,6 +3,8 @@ import { format } from "date-fns";
 import type { Locale } from "date-fns";
 import { CalendarIcon, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useDateFormat } from "@/lib/dateFormat";
+import { useI18n } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -11,9 +13,8 @@ import { DateInput } from "@/components/DateInput";
 interface DatePickerProps {
   value: Date | null;
   onChange: (d: Date | null) => void;
-  /** Explicit date-fns format string. If omitted, falls back to a sensible default per `lang`. */
+  /** Explicit date-fns format string. If omitted, the format from settings. */
   formatStr?: string;
-  lang?: "de" | "en" | string;
   locale?: Locale;
   placeholder?: string;
   id?: string;
@@ -21,16 +22,11 @@ interface DatePickerProps {
   clearLabel?: string;
 }
 
-function fmtFor(lang: string): string {
-  return lang === "en" ? "MM/dd/yyyy" : "dd.MM.yyyy";
-}
-
 /** Date input with an attached calendar popover. Keeps full keyboard editing. */
 export function DatePicker({
   value,
   onChange,
   formatStr,
-  lang = "de",
   locale,
   placeholder,
   id,
@@ -38,7 +34,9 @@ export function DatePicker({
   clearLabel = "Clear",
 }: DatePickerProps) {
   const [open, setOpen] = React.useState(false);
-  const fmt = formatStr || fmtFor(lang);
+  const settingFmt = useDateFormat();
+  const { locale: uiLocale } = useI18n();
+  const fmt = formatStr || settingFmt;
 
   const handleSelect = (d: Date | undefined) => {
     if (!d) return;
@@ -56,7 +54,6 @@ export function DatePicker({
               value={value}
               onChange={onChange}
               formatStr={formatStr}
-              lang={lang}
               locale={locale}
               className="flex-1"
             />
@@ -91,7 +88,7 @@ export function DatePicker({
               className="h-9 w-full justify-start font-normal text-muted-foreground"
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
-              {placeholder ?? format(new Date(), fmt)}
+              {placeholder ?? format(new Date(), fmt, { locale: locale ?? uiLocale })}
             </Button>
           </PopoverTrigger>
         )}

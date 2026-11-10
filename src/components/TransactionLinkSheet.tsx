@@ -1,9 +1,11 @@
 import * as React from "react";
+import { useDateFormat } from "@/lib/dateFormat";
 import { Link as RouterLink } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { Trash2, X, Search, ShoppingBag, CalendarDays, Plane, Package, Pencil, ArrowRight } from "lucide-react";
+import { DatePicker } from "@/components/DatePicker";
 
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
@@ -235,7 +237,7 @@ export function TransactionLinkSheet({ linkId, open, onOpenChange }: Props) {
   };
 
   const Kicon = link ? KIND_ICON[link.kind] : ShoppingBag;
-  const dateFmt = settingsQ.data?.date_format || "yyyy-MM-dd";
+  const dateFmt = useDateFormat();
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -281,11 +283,7 @@ export function TransactionLinkSheet({ linkId, open, onOpenChange }: Props) {
                     </div>
                     <div>
                       <Label className="text-xs">{t("links.planned_on")}</Label>
-                      <Input
-                        type="date"
-                        value={plannedOn ? format(plannedOn, "yyyy-MM-dd") : ""}
-                        onChange={(e) => setPlannedOn(e.target.value ? new Date(e.target.value) : null)}
-                      />
+                      <DatePicker value={plannedOn} onChange={setPlannedOn} clearLabel={t("common.clear")} />
                     </div>
                   </div>
                   <div>

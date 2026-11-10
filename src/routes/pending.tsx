@@ -1,4 +1,6 @@
 import { formatAmountInput } from "@/lib/amountInput";
+import { useDateFormat } from "@/lib/dateFormat";
+import { IsoDateInput } from "@/components/DateInput";
 import * as React from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -239,6 +241,7 @@ function PendingRow({
   categories: Category[];
 }) {
   const { t, locale } = useI18n();
+  const dateFmt = useDateFormat();
   const qc = useQueryClient();
   const isPending = pending.status === "pending";
   const isRejected = pending.status === "rejected";
@@ -410,7 +413,7 @@ function PendingRow({
             {/* Account names and the raw type can be long: let the line wrap
                 and break rather than push the amount off a phone screen. */}
             <div className="mt-0.5 break-words text-xs text-muted-foreground">
-              {format(parseISO(pending.occurred_on), "dd.MM.yyyy", { locale })}
+              {format(parseISO(pending.occurred_on), dateFmt, { locale })}
               {" · "}{acc?.name ?? "?"}
               {" · "}{t(`add.${pending.type}`)}
             </div>
@@ -495,7 +498,7 @@ function PendingRow({
               </div>
               <div className="space-y-1">
                 <Label>{t("add.date")}</Label>
-                <Input type="date" value={occurredOn} onChange={(e) => setOccurredOn(e.target.value)} />
+                <IsoDateInput value={occurredOn} onChange={setOccurredOn} />
               </div>
               <div className="space-y-1">
                 <Label>{t("add.account")}</Label>

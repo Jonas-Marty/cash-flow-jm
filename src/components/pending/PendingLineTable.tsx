@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Ban, Check, History, Loader2, MapPin, Pencil, Sparkles, X } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { IsoDateInput } from "@/components/DateInput";
 
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -404,11 +405,10 @@ export function PendingLineTable({
                   />
                 </div>
                 <div className="mb-1 lg:mb-0">
-                  <Input
-                    type="date"
+                  <IsoDateInput
                     className="h-8"
                     value={d.occurred_on}
-                    onChange={(e) => patch(p.id, { occurred_on: e.target.value })}
+                    onChange={(iso) => patch(p.id, { occurred_on: iso })}
                   />
                 </div>
                 <div className="mb-1 lg:mb-0">

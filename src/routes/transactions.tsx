@@ -770,8 +770,6 @@ function TransactionsPage() {
               <DatePicker
                 value={from}
                 onChange={setFrom}
-                formatStr={dateFmt}
-                lang={lang}
                 locale={locale}
                 placeholder={tr("common.set")}
                 clearLabel={tr("common.clear")}
@@ -782,8 +780,6 @@ function TransactionsPage() {
               <DatePicker
                 value={to}
                 onChange={setTo}
-                formatStr={dateFmt}
-                lang={lang}
                 locale={locale}
                 placeholder={tr("common.set")}
                 clearLabel={tr("common.clear")}

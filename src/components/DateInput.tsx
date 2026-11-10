@@ -1,34 +1,34 @@
 import * as React from "react";
-import { format, parse, isValid, addDays, addMonths } from "date-fns";
+import { format, parse, parseISO, isValid, addDays, addMonths } from "date-fns";
 import type { Locale } from "date-fns";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { useDateFormat } from "@/lib/dateFormat";
+import { useI18n } from "@/i18n";
 
 interface Props {
   value: Date;
   onChange: (d: Date) => void;
-  /** Explicit date-fns format string. If omitted, falls back to a sensible default per `lang`. */
+  /** Explicit date-fns format string. If omitted, the format from settings. */
   formatStr?: string;
-  lang?: "de" | "en" | string;
   locale?: Locale;
   className?: string;
   id?: string;
 }
 
-function fmtFor(lang: string): string {
-  return lang === "en" ? "MM/dd/yyyy" : "dd.MM.yyyy";
-}
-
 /** Locale-aware date input. Parses on blur/Enter; supports keyboard stepping:
  *  +/-, ArrowUp/ArrowDown, j/k → ±1 day · PageUp/PageDown → ±1 month. */
-export function DateInput({ value, onChange, formatStr, lang = "de", locale, className, id }: Props) {
-  const fmtStr = formatStr || fmtFor(lang);
-  const [text, setText] = React.useState<string>(() => format(value, fmtStr));
+export function DateInput({ value, onChange, formatStr, locale: localeProp, className, id }: Props) {
+  const settingFmt = useDateFormat();
+  const { locale: uiLocale } = useI18n();
+  const locale = localeProp ?? uiLocale;
+  const fmtStr = formatStr || settingFmt;
+  const [text, setText] = React.useState<string>(() => format(value, fmtStr, { locale }));
   const [invalid, setInvalid] = React.useState(false);
 
   // Sync external changes (calendar clicks, shortcuts) into the input
   React.useEffect(() => {
-    setText(format(value, fmtStr));
+    setText(format(value, fmtStr, { locale }));
     setInvalid(false);
   }, [value, fmtStr]);
 
@@ -36,7 +36,7 @@ export function DateInput({ value, onChange, formatStr, lang = "de", locale, cla
     const parsed = parse(text, fmtStr, new Date(), { locale });
     if (isValid(parsed)) {
       setInvalid(false);
-      setText(format(parsed, fmtStr));
+      setText(format(parsed, fmtStr, { locale }));
       if (parsed.getTime() !== value.getTime()) onChange(parsed);
     } else {
       setInvalid(true);
@@ -78,4 +78,12 @@ export function DateInput({ value, onChange, formatStr, lang = "de", locale, cla
       aria-invalid={invalid || undefined}
     />
   );
+}
+/** DateInput for a "yyyy-MM-dd" string, as dates are stored. */
+export function IsoDateInput({ value, onChange, ...rest }: Omit<Props, "value" | "onChange"> & { value: string; onChange: (iso: string) => void }) {
+  const date = React.useMemo(() => {
+    const d = value ? parseISO(value) : new Date();
+    return isValid(d) ? d : new Date();
+  }, [value]);
+  return <DateInput {...rest} value={date} onChange={(d) => onChange(format(d, "yyyy-MM-dd"))} />;
 }

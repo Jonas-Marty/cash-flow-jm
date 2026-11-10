@@ -3,6 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { ArrowLeft, ChevronRight } from "lucide-react";
+import { IsoDateInput } from "@/components/DateInput";
 
 import { AppShell } from "@/components/AppShell";
 import { Card } from "@/components/ui/card";
@@ -138,22 +139,20 @@ function AIUsagePage() {
             <label htmlFor="usage-from" className="text-muted-foreground">
               {t("ai.usage.from")}
             </label>
-            <Input
+            <IsoDateInput
               id="usage-from"
-              type="date"
-              className="h-9 w-auto"
+              className="h-9 w-32"
               value={custom.from}
-              onChange={(e) => e.target.value && setCustom((c) => ({ ...c, from: e.target.value }))}
+              onChange={(iso) => setCustom((c) => ({ ...c, from: iso }))}
             />
             <label htmlFor="usage-to" className="text-muted-foreground">
               {t("ai.usage.to")}
             </label>
-            <Input
+            <IsoDateInput
               id="usage-to"
-              type="date"
-              className="h-9 w-auto"
+              className="h-9 w-32"
               value={custom.to}
-              onChange={(e) => e.target.value && setCustom((c) => ({ ...c, to: e.target.value }))}
+              onChange={(iso) => setCustom((c) => ({ ...c, to: iso }))}
             />
           </div>
         )}
