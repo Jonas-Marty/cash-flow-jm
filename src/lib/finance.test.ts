@@ -9,6 +9,7 @@ import {
   monthKey,
   endOfMonthISO,
   endOfYearISO,
+  reimbursableSurplus,
   type PendingCategoryImpact,
 } from "./finance";
 
@@ -151,5 +152,49 @@ describe("date helpers", () => {
   it("endOfYearISO is always Dec 31 of the reference year", () => {
     expect(endOfYearISO(new Date(2024, 5, 15))).toBe("2024-12-31");
     expect(endOfYearISO(new Date(2030, 11, 31))).toBe("2030-12-31");
+  });
+});
+describe("reimbursableSurplus", () => {
+  const orig = (id: string, amount: number) => ({ id, amount });
+  const link = (original: string, settling: string, amount: number) => ({
+    original_transaction_id: original, settling_transaction_id: settling, amount,
+  });
+
+  it("counts a repayment larger than what it covers", () => {
+    // Lent 19.50, got 20.00 back, linked 19.50.
+    const s = reimbursableSurplus(
+      [orig("o", 19.5)],
+      [link("o", "s", 19.5)],
+      new Map([["s", { amount: 20, category_id: null }]]),
+    );
+    expect(s.get("o")).toBe(0.5);
+  });
+
+  it("counts repayments linked beyond an amount lowered afterwards", () => {
+    // Booked 150 by mistake, 20 repaid and linked, then corrected to 15.
+    const s = reimbursableSurplus(
+      [orig("o", 15)],
+      [link("o", "s", 20)],
+      new Map([["s", { amount: 20, category_id: null }]]),
+    );
+    expect(s.get("o")).toBe(5);
+  });
+
+  it("ignores repayments already booked to a category", () => {
+    const s = reimbursableSurplus(
+      [orig("o", 15)],
+      [link("o", "s", 20)],
+      new Map([["s", { amount: 25, category_id: "c" }]]),
+    );
+    expect(s.has("o")).toBe(false);
+  });
+
+  it("finds nothing when repayments match the amount", () => {
+    const s = reimbursableSurplus(
+      [orig("o", 20)],
+      [link("o", "s1", 12), link("o", "s2", 8)],
+      new Map([["s1", { amount: 12, category_id: null }], ["s2", { amount: 8, category_id: null }]]),
+    );
+    expect(s.has("o")).toBe(false);
   });
 });

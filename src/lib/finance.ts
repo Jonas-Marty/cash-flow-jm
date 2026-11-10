@@ -1563,21 +1563,42 @@ export async function fetchOverfulfilledReimbursables(): Promise<
       .map((t) => [t.id, t]),
   );
 
+  const surplus = reimbursableSurplus(originals, rows, settling);
+  return originals
+    .filter((o) => surplus.has(o.id))
+    .map((o) => ({ original: o, surplus: surplus.get(o.id)! }));
+}
+
+/**
+ * How much more came back than each reimbursable laid out, counting only
+ * repayments not booked to a category (a categorised one is in an envelope
+ * already). Two ways it happens: a repayment hands back more than all its
+ * links claim (lent 19.50, got 20.00), or the links exceed the amount because
+ * the amount was lowered afterwards (booked 150 by mistake, 20 repaid, then
+ * corrected to 15). Only originals with a surplus are in the result.
+ */
+export function reimbursableSurplus(
+  originals: Array<{ id: string; amount: number | string }>,
+  links: Array<{ original_transaction_id: string; settling_transaction_id: string; amount: number | string }>,
+  settling: Map<string, { amount: number | string; category_id: string | null }>,
+): Map<string, number> {
   // How much of each repayment is spoken for by *any* reimbursable.
   const claimed = new Map<string, number>();
-  for (const r of rows) {
+  for (const r of links) {
     claimed.set(r.settling_transaction_id, (claimed.get(r.settling_transaction_id) ?? 0) + Number(r.amount));
   }
-
-  const out: Array<{ original: Transaction; surplus: number }> = [];
+  const out = new Map<string, number>();
   for (const o of originals) {
-    let surplus = 0;
-    for (const r of rows.filter((x) => x.original_transaction_id === o.id)) {
+    let unclaimed = 0;
+    let linked = 0;
+    for (const r of links.filter((x) => x.original_transaction_id === o.id)) {
       const t = settling.get(r.settling_transaction_id);
       if (!t || t.category_id) continue; // already attributed to an envelope
-      surplus += Number(t.amount) - (claimed.get(t.id) ?? 0);
+      unclaimed += Number(t.amount) - (claimed.get(r.settling_transaction_id) ?? 0);
+      linked += Number(r.amount);
     }
-    if (surplus > 0.005) out.push({ original: o, surplus: Math.round(surplus * 100) / 100 });
+    const surplus = unclaimed + Math.max(0, linked - Number(o.amount));
+    if (surplus > 0.005) out.set(o.id, Math.round(surplus * 100) / 100);
   }
   return out;
 }
