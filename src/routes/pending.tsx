@@ -23,6 +23,14 @@ import {
 import { AppShell } from "@/components/AppShell";
 import { LocationSection, type RecentLocation } from "@/components/LocationSection";
 import { PendingLineTable } from "@/components/pending/PendingLineTable";
+import { PendingOriginalPopover } from "@/components/pending/PendingOriginalPopover";
+import {
+  flushPendingSaves,
+  pendingEditSearch,
+  savePendingValues,
+  usePendingSaveError,
+  type PendingValues,
+} from "@/lib/pendingEdits";
 import { useRecentLocations } from "@/hooks/useRecentLocations";
 import { useRecentTransactions } from "@/hooks/useRecentTransactions";
 import { DescriptionAutocomplete } from "@/components/DescriptionAutocomplete";
@@ -291,27 +299,43 @@ function PendingRow({
   // views held separate copies until they disagreed about what counts as taken.
   const draft: SuggestionDraft = { category_id: categoryId, description, note, location };
   const suggestionOpen = isPending && hasSuggestion(pending, draft);
-  const useSuggestion = () => {
-    const next = withSuggestion(pending, draft);
-    if (next.category_id !== categoryId) setCategoryId(next.category_id);
-    if (next.description !== description) setDescription(next.description);
-    if (next.note !== note) setNote(next.note);
-    if (next.location !== location) setLocation(next.location);
+  const current: PendingValues = {
+    amount,
+    occurred_on: occurredOn,
+    description,
+    note,
+    category_id: categoryId,
+    source_account_id: sourceId,
+    location,
   };
 
-  /** The /add deep link that opens this row for splitting. */
-  const editSearch = (): Record<string, string> => {
-    const search: Record<string, string> = {
-      pending_id: pending.id,
-      type,
-      amount,
-      occurred_on: occurredOn,
-    };
-    if (sourceId) search.source = sourceId;
-    if (categoryId) search.category = categoryId;
-    if (description.trim()) search.description = description.trim();
-    if (note.trim()) search.note = note.trim();
-    return search;
+  /**
+   * Change fields and save them onto the pending row, the same store the
+   * table view reads: after a pause while typing (`debounce`), at once for
+   * anything picked. Type and transfer target stay this card's own.
+   */
+  const edit = (v: Partial<PendingValues>, opts: { debounce?: boolean } = {}) => {
+    if (v.amount !== undefined) setAmount(v.amount);
+    if (v.occurred_on !== undefined) setOccurredOn(v.occurred_on);
+    if (v.description !== undefined) setDescription(v.description);
+    if (v.note !== undefined) setNote(v.note);
+    if (v.category_id !== undefined) setCategoryId(v.category_id);
+    if (v.source_account_id !== undefined) setSourceId(v.source_account_id);
+    if (v.location !== undefined) setLocation(v.location);
+    if (isPending) savePendingValues(qc, pending.id, v, { immediate: !opts.debounce });
+  };
+  const saveError = usePendingSaveError(pending.id);
+  // Closing the card list (switching view, leaving the page) writes what waits.
+  React.useEffect(() => () => void flushPendingSaves(pending.id), [pending.id]);
+
+  const useSuggestion = () => {
+    const next = withSuggestion(pending, draft);
+    const v: Partial<PendingValues> = {};
+    if (next.category_id !== categoryId) v.category_id = next.category_id;
+    if (next.description !== description) v.description = next.description;
+    if (next.note !== note) v.note = next.note;
+    if (next.location !== location) v.location = next.location;
+    edit(v);
   };
 
   const onConfirm = async () => {
@@ -379,9 +403,10 @@ function PendingRow({
   return (
     <Card>
       <CardHeader className="pb-2">
+        <div className="flex items-start gap-1">
         <button
           type="button"
-          className="flex w-full items-start justify-between gap-3 text-left"
+          className="flex min-w-0 flex-1 items-start justify-between gap-3 text-left"
           onClick={() => setOpen((o) => !o)}
         >
           <div className="min-w-0 flex-1">
@@ -422,9 +447,21 @@ function PendingRow({
             {fmtMoney(Number(pending.amount), sym)}
           </span>
         </button>
+        {isPending && (
+          <PendingOriginalPopover
+            p={pending}
+            current={current}
+            accounts={accounts}
+            categories={categories}
+            symbol={sym}
+            onRestore={(orig) => edit(orig)}
+            className="mt-0.5"
+          />
+        )}
+        </div>
       </CardHeader>
       {open && (
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-3" onBlur={() => void flushPendingSaves(pending.id)}>
           {(pending.external_info || pending.external_ref || pending.external_source) && (
             <div className="break-words rounded-md border bg-muted/30 p-3 text-xs">
               <div className="mb-1 font-medium">{t("pending.external.title")}</div>
@@ -472,6 +509,8 @@ function PendingRow({
             </div>
           )}
 
+          {saveError && <p className="text-xs text-destructive">{saveError}</p>}
+
           {pending.status === "rejected" && pending.reject_reason && (
             <div className="rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs">
               <span className="font-medium">{t("pending.reject.reason_label")}: </span>
@@ -494,15 +533,15 @@ function PendingRow({
               </div>
               <div className="space-y-1">
                 <Label>{t("add.split.amount")}</Label>
-                <Input value={amount} onChange={(e) => setAmount(e.target.value)} onBlur={() => setAmount((v) => formatAmountInput(v))} inputMode="decimal" />
+                <Input value={amount} onChange={(e) => edit({ amount: e.target.value }, { debounce: true })} onBlur={() => edit({ amount: formatAmountInput(amount) })} inputMode="decimal" />
               </div>
               <div className="space-y-1">
                 <Label>{t("add.date")}</Label>
-                <IsoDateInput value={occurredOn} onChange={setOccurredOn} />
+                <IsoDateInput value={occurredOn} onChange={(iso) => edit({ occurred_on: iso })} />
               </div>
               <div className="space-y-1">
                 <Label>{t("add.account")}</Label>
-                <Select value={sourceId} onValueChange={setSourceId}>
+                <Select value={sourceId} onValueChange={(v) => edit({ source_account_id: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {accounts.filter((a) => !a.archived).map((a) => (
@@ -533,7 +572,7 @@ function PendingRow({
               {type !== "transfer" && (
                 <div className="space-y-1 sm:col-span-2">
                   <Label>{t("add.category")}</Label>
-                  <Select value={categoryId || "__none__"} onValueChange={(v) => setCategoryId(v === "__none__" ? "" : v)}>
+                  <Select value={categoryId || "__none__"} onValueChange={(v) => edit({ category_id: v === "__none__" ? "" : v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">{t("common.none")}</SelectItem>
@@ -549,7 +588,7 @@ function PendingRow({
                 <DescriptionAutocomplete
                   id={`pending-card-desc-${pending.id}`}
                   value={description}
-                  onChange={setDescription}
+                  onChange={(v) => edit({ description: v }, { debounce: true })}
                   transactions={history}
                 />
               </div>
@@ -559,7 +598,7 @@ function PendingRow({
                   id={`pending-card-note-${pending.id}`}
                   rows={2}
                   value={note}
-                  onChange={setNote}
+                  onChange={(v) => edit({ note: v }, { debounce: true })}
                   transactions={history}
                   ctx={tagCtx}
                 />
@@ -568,14 +607,14 @@ function PendingRow({
                   transactions={history}
                   currentNote={note}
                   ctx={tagCtx}
-                  onAppend={(tag) => setNote(addTagsToNote(note, [tag]))}
-                  onRemove={(tag) => setNote(removeTagsFromNote(note, [tag]))}
+                  onAppend={(tag) => edit({ note: addTagsToNote(note, [tag]) })}
+                  onRemove={(tag) => edit({ note: removeTagsFromNote(note, [tag]) })}
                 />
               </div>
               <div className="sm:col-span-2">
                 <LocationSection
                   value={location}
-                  onChange={setLocation}
+                  onChange={(loc) => edit({ location: loc })}
                   dateIsToday={isToday(parseISO(occurredOn))}
                   recent={candidates}
                 />
@@ -590,7 +629,11 @@ function PendingRow({
                   <Ban className="mr-1 h-3.5 w-3.5" /> {t("pending.action.reject")}
                 </Button>
                 <Button asChild variant="outline" size="sm" disabled={busy}>
-                  <Link to="/add" search={editSearch() as never}>
+                  <Link
+                    to="/add"
+                    search={{ ...pendingEditSearch(pending, current), type } as never}
+                    onClick={() => void flushPendingSaves(pending.id)}
+                  >
                     <Pencil className="mr-1 h-3.5 w-3.5" /> {t("pending.table.edit")}
                   </Link>
                 </Button>

@@ -6,7 +6,7 @@ import {
   pendingTransactionInputSchema,
   normalizePendingTransactionInput,
 } from "@/lib/pendingTransactionSchema";
-import { isBetterFix, locationFromRow, locationToColumns } from "@/lib/location";
+import { isBetterFix, locationFromRow, locationToColumns, sameLocation } from "@/lib/location";
 import {
   suggestLocationLabel,
   suggestPlaceFromProximity,
@@ -126,12 +126,20 @@ async function refineLocation(
     location_accuracy_m: number | string | null;
     location_label: string | null;
     location_source: string | null;
+    original: unknown;
   },
   payload: ReturnType<typeof normalizePendingTransactionInput>,
 ) {
   if (existing.status !== "pending") return null;
   const incoming = locationFromRow(payload);
   if (!incoming || !isBetterFix(locationFromRow(existing), incoming)) return null;
+  // A place the user has set on /pending is their answer, not a reading to
+  // improve on: the phone only refines a place nobody has changed.
+  const original =
+    existing.original && typeof existing.original === "object"
+      ? (existing.original as Record<string, unknown>)
+      : null;
+  if (original && !sameLocation(locationFromRow(original), locationFromRow(existing))) return null;
 
   // The stored label, if the server borrowed one, was derived from the fix this
   // one replaces — so it is re-derived rather than carried over. A name the
@@ -152,6 +160,11 @@ async function refineLocation(
     .from("pending_transactions")
     .update({
       ...locationToColumns({ ...incoming, label }),
+      // Still what arrived, only better: the snapshot moves with it, so the
+      // row does not read as changed by the user.
+      ...(original
+        ? { original: { ...original, ...locationToColumns({ ...incoming, label }) } as never }
+        : {}),
       // The suggestion pass stamps this when it has looked at a row, and the
       // automatic triggers skip anything stamped. Clearing it is what lets the
       // new coordinates actually reach the place matcher.
@@ -170,7 +183,7 @@ async function refineLocation(
 }
 
 const SELECT_COLS =
-  "id, status, source_account_id, amount, type, occurred_on, destination_account_id, destination_amount, category_id, description, note, external_source, external_ref, external_info, latitude, longitude, location_accuracy_m, location_label, location_source, suggested_description, suggested_category_id, suggested_tags, suggestion_source, suggestion_confidence, suggested_at, confirmed_transaction_id, confirmed_at, rejected_at, reject_reason, created_at, updated_at";
+  "id, status, source_account_id, amount, type, occurred_on, destination_account_id, destination_amount, category_id, description, note, external_source, external_ref, external_info, latitude, longitude, location_accuracy_m, location_label, location_source, suggested_description, suggested_category_id, suggested_tags, suggestion_source, suggestion_confidence, suggested_at, original, confirmed_transaction_id, confirmed_at, rejected_at, reject_reason, created_at, updated_at";
 
 export const Route = createFileRoute("/api/public/pending-transactions")({
   server: {

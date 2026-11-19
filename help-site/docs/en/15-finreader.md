@@ -37,6 +37,6 @@ Android likes to deliver notifications more than once, and the connection on the
 
 The amount, date, target account — and the **original notification text**, so that you can see what it was about when you check it. If your phone sends coordinates along with it, those come too; see [Recording locations](/location).
 
-That notification text is the point at which you should stop and think for a moment: **if you have set up the AI assistant for suggestions on pending transactions, it goes to your AI provider.** That is the only AI call in the app that you do not trigger yourself — it runs automatically as soon as an uncategorised line comes in. Exactly what is transmitted is described under [AI assistant](/ai) and in the [privacy notice](https://cash-flow.wi-wo.ch/privacy), section 6a.
+That notification text is the point at which you should stop and think for a moment: **if you have set up the AI assistant for suggestions on pending transactions, it goes to your AI provider.** That is the only AI call in the app that you do not trigger yourself — it runs automatically, once for every line that comes in. Exactly what is transmitted is described under [AI assistant](/ai) and in the [privacy notice](https://cash-flow.wi-wo.ch/privacy), section 6a.
 
 Without an AI connection set up, the text does not leave the server.

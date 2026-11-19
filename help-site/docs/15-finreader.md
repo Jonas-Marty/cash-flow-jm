@@ -36,6 +36,6 @@ Android stellt Benachrichtigungen gern mehrfach zu, und die Verbindung im Zug is
 
 Betrag, Datum, Zielkonto — und der **ursprüngliche Benachrichtigungstext**, damit du beim Prüfen siehst, worum es ging. Schickt das Handy Koordinaten mit, kommen auch die mit; siehe [Orte erfassen](/location).
 
-Dieser Benachrichtigungstext ist der Punkt, an dem du kurz nachdenken solltest: **hast du den KI-Assistenten für Vorschläge zu offenen Buchungen eingerichtet, geht er an deinen KI-Provider.** Das ist der einzige KI-Aufruf in der App, den du nicht selbst auslöst — er läuft automatisch, sobald eine unkategorisierte Zeile ankommt. Was dabei genau übertragen wird, steht unter [KI-Assistent](/ai) und im [Datenschutzhinweis](https://cash-flow.wi-wo.ch/privacy), Abschnitt 6a.
+Dieser Benachrichtigungstext ist der Punkt, an dem du kurz nachdenken solltest: **hast du den KI-Assistenten für Vorschläge zu offenen Buchungen eingerichtet, geht er an deinen KI-Provider.** Das ist der einzige KI-Aufruf in der App, den du nicht selbst auslöst — er läuft automatisch, einmal für jede neu ankommende Zeile. Was dabei genau übertragen wird, steht unter [KI-Assistent](/ai) und im [Datenschutzhinweis](https://cash-flow.wi-wo.ch/privacy), Abschnitt 6a.
 
 Ohne eingerichtete KI-Verbindung verlässt der Text den Server nicht.

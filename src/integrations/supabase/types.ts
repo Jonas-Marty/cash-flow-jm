@@ -800,6 +800,7 @@ export type Database = {
           longitude: number | null
           note: string | null
           occurred_on: string
+          original: Json | null
           reject_reason: string | null
           rejected_at: string | null
           source_account_id: string
@@ -836,6 +837,7 @@ export type Database = {
           longitude?: number | null
           note?: string | null
           occurred_on?: string
+          original?: Json | null
           reject_reason?: string | null
           rejected_at?: string | null
           source_account_id: string
@@ -872,6 +874,7 @@ export type Database = {
           longitude?: number | null
           note?: string | null
           occurred_on?: string
+          original?: Json | null
           reject_reason?: string | null
           rejected_at?: string | null
           source_account_id?: string

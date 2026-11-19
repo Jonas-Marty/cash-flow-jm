@@ -42,7 +42,17 @@ import {
   type Category,
   type PendingTransaction,
 } from "@/lib/finance";
-import { formatAccuracy, locationFromRow, type TxLocation } from "@/lib/location";
+import { formatAccuracy } from "@/lib/location";
+import {
+  PENDING_FIELDS,
+  flushPendingSaves,
+  pendingEditSearch,
+  savePendingValues,
+  usePendingSaveError,
+  valuesFromRow,
+  type PendingValues,
+} from "@/lib/pendingEdits";
+import { PendingOriginalPopover } from "@/components/pending/PendingOriginalPopover";
 import { rankLocationCandidates } from "@/lib/locationSuggest";
 import {
   hasSuggestion,
@@ -55,57 +65,45 @@ import {
   withSuggestion as applySuggestion,
 } from "@/lib/pendingSuggestView";
 
-type Draft = {
-  description: string;
-  category_id: string;
-  amount: string;
-  occurred_on: string;
-  source_account_id: string;
-  note: string;
-  location: TxLocation | null;
+/**
+ * The row's fields as the inputs hold them, plus what is only this page's:
+ * the tick and the error from the last confirm. The fields are saved onto the
+ * pending row as they change (see @/lib/pendingEdits); the tick never is.
+ */
+type Draft = PendingValues & {
   checked: boolean;
   error?: string | null;
 };
 
+const VALUE_KEYS = new Set<string>(PENDING_FIELDS);
+
 function seed(p: PendingTransaction): Draft {
-  return {
-    description: p.description ?? "",
-    category_id: p.category_id ?? "",
-    // Cash amounts, so always with the cents: 10.00, not 10.
-    amount: Number(p.amount).toFixed(2),
-    occurred_on: p.occurred_on,
-    source_account_id: p.source_account_id,
-    note: p.note ?? "",
-    // Whatever the phone captured, already gated and possibly named by the API.
-    location: locationFromRow(p),
-    checked: false,
-  };
+  // Whatever the phone captured, already gated and possibly named by the API,
+  // plus whatever was saved here before.
+  return { ...valuesFromRow(p), checked: false };
 }
 
-/** Tick · amount · date · description · remarks · category · account · place · edit · confirm. */
+function pickValues(d: Partial<Draft>): Partial<PendingValues> {
+  return Object.fromEntries(
+    Object.entries(d).filter(([k]) => VALUE_KEYS.has(k)),
+  ) as Partial<PendingValues>;
+}
+
+/** The last failed save of a row, under it where confirm errors show. */
+function RowSaveError({ id }: { id: string }) {
+  const err = usePendingSaveError(id);
+  return err ? <p className="text-xs text-destructive lg:col-span-full">{err}</p> : null;
+}
+
+/** Tick (and the changed mark) · amount · date · description · remarks · category · account · place · edit · confirm. */
 const COLUMNS =
-  "lg:grid lg:grid-cols-[28px_120px_110px_minmax(0,1.4fr)_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_36px_36px_36px] lg:gap-2";
+  "lg:grid lg:grid-cols-[44px_120px_110px_minmax(0,1.4fr)_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_36px_36px_36px] lg:gap-2";
 
 /**
  * Settles a typed amount to two decimals on blur. Anything that does not parse
  * is left exactly as typed, so the confirm-time error still explains it rather
  * than the field quietly rewriting what someone meant.
  */
-
-/** The /add deep link that opens this row in the booking form, prefilled. */
-function editSearch(p: PendingTransaction, d: Draft): Record<string, string> {
-  const search: Record<string, string> = {
-    pending_id: p.id,
-    type: p.type,
-    amount: formatAmountInput(d.amount),
-    occurred_on: d.occurred_on,
-  };
-  if (d.source_account_id) search.source = d.source_account_id;
-  if (d.category_id) search.category = d.category_id;
-  if (d.description.trim()) search.description = d.description.trim();
-  if (d.note.trim()) search.note = d.note.trim();
-  return search;
-}
 
 /**
  * The predicates and the promotion live in `lib/pendingSuggestView.ts`: the
@@ -190,8 +188,20 @@ export function PendingLineTable({
     });
   }, [items]);
 
-  const patch = (id: string, p: Partial<Draft>) =>
+  /**
+   * Change a row. Field values are saved onto the pending row too: after a
+   * pause while typing (`debounce`), straight away for anything picked.
+   */
+  const patch = (id: string, p: Partial<Draft>, opts: { debounce?: boolean } = {}) => {
     setDrafts((prev) => ({ ...prev, [id]: { ...(prev[id] ?? {}), ...p } as Draft }));
+    const values = pickValues(p);
+    if (Object.keys(values).length > 0) {
+      savePendingValues(qc, id, values, { immediate: !opts.debounce });
+    }
+  };
+
+  // Leaving the page writes what is still waiting rather than dropping it.
+  React.useEffect(() => () => void flushPendingSaves(), []);
 
   const selected = items.filter((p) => drafts[p.id]?.checked);
   const allChecked = items.length > 0 && selected.length === items.length;
@@ -200,12 +210,12 @@ export function PendingLineTable({
     const d = drafts[p.id];
     return !!d && hasSuggestion(p, d);
   });
-  const applyAllSuggestions = () =>
-    setDrafts((prev) => {
-      const next = { ...prev };
-      for (const p of suggested) next[p.id] = withSuggestion(p, next[p.id] ?? seed(p));
-      return next;
-    });
+  const applyAllSuggestions = () => {
+    for (const p of suggested) {
+      const next = withSuggestion(p, drafts[p.id] ?? seed(p));
+      patch(p.id, pickValues(next));
+    }
+  };
 
   /** Rows are confirmed one at a time so one bad row cannot take the batch down. */
   const confirmMut = useMutation({
@@ -379,11 +389,21 @@ export function PendingLineTable({
               <li
                 key={p.id}
                 className={`rounded-md border bg-card p-2 ${COLUMNS} lg:items-start lg:p-2`}
+                // Focus leaving any field of the row writes what was typed.
+                onBlur={() => void flushPendingSaves(p.id)}
               >
                 <div className="mb-2 flex items-center gap-2 lg:mb-0 lg:h-8">
                   <Checkbox
                     checked={d.checked}
                     onCheckedChange={(v) => patch(p.id, { checked: !!v })}
+                  />
+                  <PendingOriginalPopover
+                    p={p}
+                    current={d}
+                    accounts={accounts}
+                    categories={categories}
+                    symbol={symbol}
+                    onRestore={(orig) => patch(p.id, orig)}
                   />
                   {/* The source name arrives from the outside and can be one
                       long token, so this summary has to be free to break. */}
@@ -399,7 +419,11 @@ export function PendingLineTable({
                     inputMode="decimal"
                     value={d.amount}
                     onChange={(e) =>
-                      patch(p.id, { amount: e.target.value.replace(/[^0-9.,]/g, "") })
+                      patch(
+                        p.id,
+                        { amount: e.target.value.replace(/[^0-9.,]/g, "") },
+                        { debounce: true },
+                      )
                     }
                     onBlur={() => patch(p.id, { amount: formatAmountInput(d.amount) })}
                   />
@@ -418,7 +442,7 @@ export function PendingLineTable({
                     value={d.description}
                     placeholder={t("pending.row.untitled")}
                     transactions={history}
-                    onChange={(v) => patch(p.id, { description: v })}
+                    onChange={(v) => patch(p.id, { description: v }, { debounce: true })}
                   />
                   {suggestsDescription(p, d) ? (
                     <SuggestionChip
@@ -446,7 +470,7 @@ export function PendingLineTable({
                       categoryId: d.category_id || undefined,
                       description: d.description || undefined,
                     }}
-                    onChange={(v) => patch(p.id, { note: v })}
+                    onChange={(v) => patch(p.id, { note: v }, { debounce: true })}
                   />
                   <div className="flex flex-wrap gap-x-1">
                     {suggestsNote(p, d) ? (
@@ -556,7 +580,11 @@ export function PendingLineTable({
                     title={t("pending.table.edit_hint")}
                     aria-label={t("pending.table.edit")}
                   >
-                    <Link to="/add" search={editSearch(p, d) as never}>
+                    <Link
+                      to="/add"
+                      search={pendingEditSearch(p, d) as never}
+                      onClick={() => void flushPendingSaves(p.id)}
+                    >
                       <Pencil className="mr-1 h-3.5 w-3.5 shrink-0 lg:mr-0" />
                       <span className="truncate lg:hidden">{t("pending.table.edit")}</span>
                     </Link>
@@ -583,6 +611,7 @@ export function PendingLineTable({
                 {d.error ? (
                   <p className="text-xs text-destructive lg:col-span-full">{d.error}</p>
                 ) : null}
+                <RowSaveError id={p.id} />
               </li>
             );
           })}

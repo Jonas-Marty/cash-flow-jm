@@ -78,7 +78,7 @@ questions:
   - id: unattended-ai
     question: Is there any AI request this app makes that I did not personally trigger?
     expected:
-      - Yes, the suggestions for pending transactions run automatically when an uncategorised row arrives
+      - Yes, the suggestions for pending transactions run automatically, once for every row that arrives
       - The raw notification text from the capturing device is part of what is sent
     routes:
       - /ai

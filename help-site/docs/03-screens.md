@@ -80,6 +80,8 @@ Vier Tabs:
 
 In der Tabelle unter *Offen* kreuzt du Zeilen an und bestätigst oder lehnst sie gesammelt ab; das **Häkchen** in einer Zeile (auf dem Handy *Bestätigen*) bestätigt nur diese eine, **Bearbeiten** öffnet sie im Buchungsformular, etwa zum Aufteilen. Ein gesetzter Ort lässt sich über das kleine **×** am Orts-Symbol wieder entfernen.
 
+Was du in einer Zeile änderst, wird laufend gespeichert — du kannst eine Zeile im Buchungsformular öffnen, die Ansicht wechseln oder die Seite schliessen, ohne dass die Änderungen verloren gehen. Eine geänderte Zeile trägt ein kleines Stift-Symbol: Es zeigt, wie die Zeile ursprünglich angekommen ist, und **Original wiederherstellen** setzt die ganze Zeile darauf zurück.
+
 Beschreibung und Bemerkung schlagen beim Tippen vor, was du schon verwendet hast, wie im Formular *Hinzufügen*: frühere Beschreibungen, und nach `#` deine Tags.
 
 ## Abgleich (/reconcile) [#reconcile-reconcile]

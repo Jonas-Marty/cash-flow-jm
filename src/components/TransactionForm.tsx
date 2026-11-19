@@ -105,6 +105,8 @@ export interface AddPrefill {
    * split. Retired against the saved transaction afterwards.
    */
   pending_id?: string;
+  /** Place the entry happened at, e.g. the one a pending row carries. */
+  location?: TxLocation;
 }
 
 export function TransactionForm({
@@ -545,26 +547,31 @@ export function TransactionForm({
 
   // Apply non-edit prefill once (deep link from dashboard "Add refund").
   const prefillAppliedRef = React.useRef(false);
+  // Set when the link named the account. The default below runs in the same
+  // commit as the prefill and still sees the empty account from before it, so
+  // without this it would pick the most-used account over the one asked for.
+  const accountFromPrefillRef = React.useRef(false);
   React.useEffect(() => {
     if (isEdit || prefillAppliedRef.current || !prefill) return;
     const anyField =
       prefill.type || prefill.amount || prefill.source || prefill.counterparty || prefill.reimburse_for ||
       prefill.account_name || prefill.category || prefill.category_name || prefill.description ||
-      prefill.note || prefill.occurred_on || prefill.iou_with || prefill.iou_amount;
+      prefill.note || prefill.occurred_on || prefill.iou_with || prefill.iou_amount ||
+      prefill.location;
     if (!anyField) return;
     // Wait until accounts/categories are loaded so name-based prefill can resolve.
     if ((prefill.account_name || prefill.category_name) && (accounts.length === 0 || categories.length === 0)) return;
     prefillAppliedRef.current = true;
     if (prefill.type) setType(prefill.type);
     if (prefill.amount) { setAmount(prefill.amount); mark("amount"); }
-    if (prefill.source) { setSourceId(prefill.source); mark("sourceId"); }
+    if (prefill.source) { accountFromPrefillRef.current = true; setSourceId(prefill.source); mark("sourceId"); }
     if (prefill.counterparty) setReimbCounterparty(prefill.counterparty);
     if (!prefill.source && prefill.account_name) {
       const needle = prefill.account_name.toLowerCase();
       const match =
         accounts.find((a) => a.name.toLowerCase() === needle) ||
         accounts.find((a) => a.name.toLowerCase().includes(needle));
-      if (match) { setSourceId(match.id); mark("sourceId"); }
+      if (match) { accountFromPrefillRef.current = true; setSourceId(match.id); mark("sourceId"); }
     }
     if (prefill.category) { setCategoryId(prefill.category); }
     else if (prefill.category_name) {
@@ -576,6 +583,7 @@ export function TransactionForm({
     }
     if (prefill.description) setDescription(prefill.description);
     if (prefill.note) setNote(prefill.note);
+    if (prefill.location) setLocationManual(prefill.location);
     if (prefill.occurred_on) {
       const d = new Date(prefill.occurred_on);
       if (!Number.isNaN(d.getTime())) setDate(d);
@@ -590,11 +598,11 @@ export function TransactionForm({
     }
     // The actual link selection happens when openReimbQ has loaded — see
     // the auto-link effect below.
-  }, [isEdit, prefill, accounts, categories]);
+  }, [isEdit, prefill, accounts, categories, setLocationManual]);
 
   // Default source = most-used account in recent transactions (skip in edit mode)
   React.useEffect(() => {
-    if (isEdit) return;
+    if (isEdit || accountFromPrefillRef.current) return;
     if (sourceId || accounts.length === 0) return;
     const counts = new Map<string, number>();
     (recentQ.data ?? []).forEach((t) => counts.set(t.source_account_id, (counts.get(t.source_account_id) ?? 0) + 1));

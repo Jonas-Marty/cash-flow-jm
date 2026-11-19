@@ -1,6 +1,7 @@
 import * as React from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { TransactionForm, type AddPrefill } from "@/components/TransactionForm";
+import { locationFromRow } from "@/lib/location";
 
 export const Route = createFileRoute("/add")({
   component: AddTransactionRoute,
@@ -32,10 +33,28 @@ function AddTransactionRoute() {
       statement_import: sp.get("statement_import") ?? undefined,
       pending_id: sp.get("pending_id") ?? undefined,
       ignore_scope: sp.get("ignore_scope") === "1",
+      location:
+        locationFromRow({
+          latitude: numberParam(sp.get("lat")),
+          longitude: numberParam(sp.get("lng")),
+          location_accuracy_m: numberParam(sp.get("acc")),
+          location_label: sp.get("place"),
+          location_source: sp.get("loc_source"),
+        }) ?? undefined,
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return <TransactionForm editId={null} prefill={prefill} />;
+}
+
+/**
+ * A number passed in the URL. The router writes number-like strings quoted
+ * (lat="47.37"), so the quotes are dropped before reading it.
+ */
+function numberParam(v: string | null): number | null {
+  if (v == null) return null;
+  const n = Number(v.trim().replace(/^["'`]+|["'`]+$/g, ""));
+  return v.trim() !== "" && Number.isFinite(n) ? n : null;
 }
 
 /** Strip quotes/currency noise from an amount passed via URL (e.g. AI prefill). */

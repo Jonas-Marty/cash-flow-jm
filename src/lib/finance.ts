@@ -227,6 +227,11 @@ export interface PendingTransaction {
   suggestion_source: "history" | "ai" | null;
   suggestion_confidence: number | null;
   suggested_at: string | null;
+  /**
+   * The row as it arrived, written once by the database on insert. Edits on
+   * /pending are saved onto the row itself; see @/lib/pendingEdits.
+   */
+  original: import("@/lib/pendingEdits").PendingOriginal | null;
   confirmed_transaction_id: string | null;
   confirmed_at: string | null;
   rejected_at: string | null;

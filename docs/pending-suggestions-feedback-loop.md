@@ -5,7 +5,8 @@ re-invented from scratch later.
 
 ## What exists
 
-A pending transaction that arrives without a category gets one proposed
+A pending transaction gets a category, description, note, tags and place proposed
+(once, automatically, whether or not it already has a category)
 (`suggested_category_id`, `suggested_description`, `suggested_tags`,
 `suggestion_source`, `suggestion_confidence`, `suggested_at`). The proposal
 comes from the user's own history first (`suggestFromHistory` in

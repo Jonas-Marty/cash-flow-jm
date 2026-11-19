@@ -1,5 +1,5 @@
-// Server-only: proposes category / description / tags for pending rows that
-// arrived without a category. The user's own history goes first; whatever it
+// Server-only: proposes category / description / note / tags / place for
+// pending rows nobody has looked at yet, categorised or not. The user's own history goes first; whatever it
 // cannot place goes to the AI connection bound to `pending_enrich`.
 //
 // Best effort throughout. A row nobody could place keeps `suggested_at` NULL,
@@ -126,8 +126,11 @@ async function enrich(userId: string, force: boolean): Promise<EnrichSummary> {
     .limit(ROW_LIMIT);
   // Asked for explicitly (the Suggest button): look at every pending row again,
   // including ones already categorised or already stamped. The automatic
-  // triggers stay cheap and only pick up rows nobody has looked at yet.
-  if (!force) q = q.is("category_id", null).is("suggested_at", null);
+  // triggers stay cheap and only pick up rows nobody has looked at yet. A
+  // category the user already picked does not end the look: the pass proposes
+  // description, note, tags and place too. A saved edit never clears the
+  // stamp, so editing a row does not buy another model call.
+  if (!force) q = q.is("suggested_at", null);
   const { data: rowsData, error: rowsErr } = await q;
   if (rowsErr) throw new Error(rowsErr.message);
   const rows: PendingRow[] = ((rowsData || []) as PendingRow[]).map((r) => ({
