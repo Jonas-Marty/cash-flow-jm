@@ -32,6 +32,8 @@ function AddTransactionRoute() {
       statement_line: sp.get("statement_line") ?? undefined,
       statement_import: sp.get("statement_import") ?? undefined,
       pending_id: sp.get("pending_id") ?? undefined,
+      destination: sp.get("dest") ?? undefined,
+      destination_amount: cleanAmountParam(sp.get("dest_amount")),
       ignore_scope: sp.get("ignore_scope") === "1",
       location:
         locationFromRow({

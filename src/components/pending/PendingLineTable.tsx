@@ -46,6 +46,7 @@ import { formatAccuracy } from "@/lib/location";
 import {
   PENDING_FIELDS,
   flushPendingSaves,
+  parseAmount,
   pendingEditSearch,
   savePendingValues,
   usePendingSaveError,
@@ -228,17 +229,17 @@ export function PendingLineTable({
           if (!Number.isFinite(amount) || amount <= 0)
             throw new Error(t("pending.table.err.amount"));
           if (!d.source_account_id) throw new Error(t("toast.account_required"));
-          if (p.type === "transfer" && !p.destination_account_id) {
+          if (d.type === "transfer" && !d.destination_account_id) {
             throw new Error(t("pending.table.err.transfer"));
           }
           await confirmPendingTransaction(p.id, {
             source_account_id: d.source_account_id,
             amount: Math.round(amount * 100) / 100,
-            type: p.type,
+            type: d.type,
             occurred_on: d.occurred_on,
-            destination_account_id: p.destination_account_id,
-            destination_amount: p.destination_amount,
-            category_id: p.type === "transfer" ? null : d.category_id || null,
+            destination_account_id: d.destination_account_id || null,
+            destination_amount: parseAmount(d.destination_amount),
+            category_id: d.type === "transfer" ? null : d.category_id || null,
             description: d.description.trim() || null,
             note: d.note.trim() || null,
             location: d.location,
@@ -465,7 +466,7 @@ export function PendingLineTable({
                     placeholder={t("pending.table.col.note")}
                     transactions={history}
                     ctx={{
-                      type: p.type,
+                      type: d.type,
                       sourceAccountId: d.source_account_id || undefined,
                       categoryId: d.category_id || undefined,
                       description: d.description || undefined,
@@ -495,7 +496,7 @@ export function PendingLineTable({
                   <Select
                     value={d.category_id || "__none__"}
                     onValueChange={(v) => patch(p.id, { category_id: v === "__none__" ? "" : v })}
-                    disabled={p.type === "transfer"}
+                    disabled={d.type === "transfer"}
                   >
                     <SelectTrigger className="h-8 w-full">
                       <SelectValue placeholder={t("statements.table.col.category")} />

@@ -300,21 +300,27 @@ function PendingRow({
   const draft: SuggestionDraft = { category_id: categoryId, description, note, location };
   const suggestionOpen = isPending && hasSuggestion(pending, draft);
   const current: PendingValues = {
+    type,
     amount,
     occurred_on: occurredOn,
     description,
     note,
     category_id: categoryId,
     source_account_id: sourceId,
+    destination_account_id: destId,
+    destination_amount: destAmount,
     location,
   };
 
   /**
    * Change fields and save them onto the pending row, the same store the
    * table view reads: after a pause while typing (`debounce`), at once for
-   * anything picked. Type and transfer target stay this card's own.
+   * anything picked.
    */
   const edit = (v: Partial<PendingValues>, opts: { debounce?: boolean } = {}) => {
+    if (v.type !== undefined) setType(v.type);
+    if (v.destination_account_id !== undefined) setDestId(v.destination_account_id);
+    if (v.destination_amount !== undefined) setDestAmount(v.destination_amount);
     if (v.amount !== undefined) setAmount(v.amount);
     if (v.occurred_on !== undefined) setOccurredOn(v.occurred_on);
     if (v.description !== undefined) setDescription(v.description);
@@ -522,7 +528,7 @@ function PendingRow({
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="space-y-1">
                 <Label>{t("common.type")}</Label>
-                <Select value={type} onValueChange={(v) => setType(v as TxType)}>
+                <Select value={type} onValueChange={(v) => edit({ type: v as TxType })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="expense">{t("add.expense")}</SelectItem>
@@ -554,7 +560,7 @@ function PendingRow({
                 <>
                   <div className="space-y-1">
                     <Label>{t("add.account")}</Label>
-                    <Select value={destId} onValueChange={setDestId}>
+                    <Select value={destId} onValueChange={(v) => edit({ destination_account_id: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {accounts.filter((a) => !a.archived && a.id !== sourceId).map((a) => (
@@ -565,7 +571,7 @@ function PendingRow({
                   </div>
                   <div className="space-y-1">
                     <Label>{t("add.dest_amount.label", { sym: acc?.currency_symbol ?? "" })} {t("common.optional")}</Label>
-                    <Input value={destAmount} onChange={(e) => setDestAmount(e.target.value)} onBlur={() => setDestAmount((v) => formatAmountInput(v))} inputMode="decimal" />
+                    <Input value={destAmount} onChange={(e) => edit({ destination_amount: e.target.value }, { debounce: true })} onBlur={() => edit({ destination_amount: formatAmountInput(destAmount) })} inputMode="decimal" />
                   </div>
                 </>
               )}
@@ -631,7 +637,7 @@ function PendingRow({
                 <Button asChild variant="outline" size="sm" disabled={busy}>
                   <Link
                     to="/add"
-                    search={{ ...pendingEditSearch(pending, current), type } as never}
+                    search={pendingEditSearch(pending, current) as never}
                     onClick={() => void flushPendingSaves(pending.id)}
                   >
                     <Pencil className="mr-1 h-3.5 w-3.5" /> {t("pending.table.edit")}

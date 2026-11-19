@@ -26,7 +26,12 @@ const row = (over: Partial<PendingTransaction> = {}): PendingTransaction =>
     location_accuracy_m: 20,
     location_label: "Migros Bahnhof",
     location_source: "device",
+    destination_account_id: null,
+    destination_amount: null,
     original: {
+      type: "expense",
+      destination_account_id: null,
+      destination_amount: null,
       amount: 12.5,
       occurred_on: "2026-11-18",
       description: "Migros",
@@ -58,6 +63,22 @@ describe("changedFields", () => {
     const p = row();
     const v = { ...valuesFromRow(p), source_account_id: "acc-2", amount: "13", location: null };
     expect(changedFields(p, v)).toEqual(["amount", "source_account_id", "location"]);
+  });
+
+  it("counts a type change, and the transfer target only for transfers", () => {
+    const p = row();
+    const v = { ...valuesFromRow(p), type: "transfer" as const, destination_account_id: "acc-9" };
+    expect(changedFields(p, v)).toEqual(["type", "destination_account_id"]);
+    // Back to an expense: a target left over from the detour is not a change.
+    expect(changedFields(p, { ...v, type: "expense" })).toEqual([]);
+  });
+
+  it("does not call the type changed on a snapshot from before it was kept", () => {
+    const p = row({ type: "income" });
+    const orig = { ...(p.original as object) } as Record<string, unknown>;
+    delete orig.type;
+    const q = { ...p, original: orig } as PendingTransaction;
+    expect(changedFields(q, valuesFromRow(q))).toEqual([]);
   });
 
   it("is empty for a row without a snapshot", () => {
@@ -97,7 +118,30 @@ describe("valuesToColumns", () => {
   });
 });
 
+describe("valuesToColumns, transfers", () => {
+  it("writes type, target and a cleared or parsed received amount", () => {
+    expect(
+      valuesToColumns({ type: "transfer", destination_account_id: "", destination_amount: "" }),
+    ).toEqual({ type: "transfer", destination_account_id: null, destination_amount: null });
+    expect(valuesToColumns({ destination_amount: "9,5" })).toEqual({ destination_amount: 9.5 });
+    expect(valuesToColumns({ destination_amount: "1.2.3" })).toEqual({});
+  });
+});
+
 describe("pendingEditSearch", () => {
+  it("carries the current type and transfer target instead of a category", () => {
+    const p = row({ category_id: "cat-1" });
+    const v = {
+      ...valuesFromRow(p),
+      type: "transfer" as const,
+      destination_account_id: "acc-2",
+      destination_amount: "11",
+    };
+    const s = pendingEditSearch(p, v);
+    expect(s).toMatchObject({ type: "transfer", dest: "acc-2", dest_amount: "11.00" });
+    expect(s.category).toBeUndefined();
+  });
+
   it("carries account and place to /add", () => {
     const p = row();
     const s = pendingEditSearch(p, valuesFromRow(p));

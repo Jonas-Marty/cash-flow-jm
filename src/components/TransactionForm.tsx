@@ -107,6 +107,9 @@ export interface AddPrefill {
   pending_id?: string;
   /** Place the entry happened at, e.g. the one a pending row carries. */
   location?: TxLocation;
+  /** Transfer target account, and what it received when that differs. */
+  destination?: string;
+  destination_amount?: string;
 }
 
 export function TransactionForm({
@@ -557,7 +560,7 @@ export function TransactionForm({
       prefill.type || prefill.amount || prefill.source || prefill.counterparty || prefill.reimburse_for ||
       prefill.account_name || prefill.category || prefill.category_name || prefill.description ||
       prefill.note || prefill.occurred_on || prefill.iou_with || prefill.iou_amount ||
-      prefill.location;
+      prefill.location || prefill.destination;
     if (!anyField) return;
     // Wait until accounts/categories are loaded so name-based prefill can resolve.
     if ((prefill.account_name || prefill.category_name) && (accounts.length === 0 || categories.length === 0)) return;
@@ -584,6 +587,11 @@ export function TransactionForm({
     if (prefill.description) setDescription(prefill.description);
     if (prefill.note) setNote(prefill.note);
     if (prefill.location) setLocationManual(prefill.location);
+    if (prefill.destination) setDestId(prefill.destination);
+    if (prefill.destination_amount) {
+      setDestAmount(prefill.destination_amount);
+      setDestAmountTouched(true);
+    }
     if (prefill.occurred_on) {
       const d = new Date(prefill.occurred_on);
       if (!Number.isNaN(d.getTime())) setDate(d);

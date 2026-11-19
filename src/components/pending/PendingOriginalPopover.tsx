@@ -16,12 +16,15 @@ import {
 } from "@/lib/pendingEdits";
 
 const LABEL_KEY: Record<PendingField, string> = {
+  type: "common.type",
   amount: "statements.table.col.amount",
   occurred_on: "statements.table.col.date",
   description: "statements.table.col.description",
   note: "pending.table.col.note",
   category_id: "statements.table.col.category",
   source_account_id: "add.account",
+  destination_account_id: "add.to_account",
+  destination_amount: "pending.original.dest_amount",
   location: "loc.title",
 };
 
@@ -56,6 +59,17 @@ export function PendingOriginalPopover({
   const empty = <span className="italic text-muted-foreground">{t("pending.original.empty")}</span>;
   const show = (f: PendingField): React.ReactNode => {
     switch (f) {
+      case "type":
+        return t(`add.${orig.type}`);
+      case "destination_account_id":
+        return orig.destination_account_id
+          ? (accounts.find((a) => a.id === orig.destination_account_id)?.name ?? "?")
+          : empty;
+      case "destination_amount": {
+        if (!orig.destination_amount) return empty;
+        const dest = accounts.find((a) => a.id === orig.destination_account_id);
+        return fmtMoney(Number(orig.destination_amount), dest?.currency_symbol ?? symbol);
+      }
       case "amount": {
         const acc = accounts.find((a) => a.id === orig.source_account_id);
         return fmtMoney(Number(orig.amount), acc?.currency_symbol ?? symbol);

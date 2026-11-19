@@ -16,11 +16,12 @@ import * as React from "react";
 
 import { supabase } from "@/integrations/supabase/client";
 import { formatAmountInput } from "@/lib/amountInput";
-import type { PendingTransaction } from "@/lib/finance";
+import type { PendingTransaction, TxType } from "@/lib/finance";
 import { locationFromRow, locationToColumns, sameLocation, type TxLocation } from "@/lib/location";
 
 /** The fields a /pending row lets you edit, as the inputs hold them. */
 export type PendingValues = {
+  type: TxType;
   /** As typed: "12.50", or something that does not parse yet. */
   amount: string;
   occurred_on: string;
@@ -29,6 +30,10 @@ export type PendingValues = {
   /** "" for none. */
   category_id: string;
   source_account_id: string;
+  /** Transfers only; "" for none. */
+  destination_account_id: string;
+  /** Transfers only, as typed; "" for none (same as the amount sent). */
+  destination_amount: string;
   location: TxLocation | null;
 };
 
@@ -36,12 +41,16 @@ export type PendingField = keyof PendingValues;
 
 /** The row as it arrived, written by the database on insert. */
 export type PendingOriginal = {
+  /** Missing on a snapshot taken before the type was kept. */
+  type?: TxType | null;
   amount: number | string | null;
   occurred_on: string | null;
   description: string | null;
   note: string | null;
   category_id: string | null;
   source_account_id: string | null;
+  destination_account_id?: string | null;
+  destination_amount?: number | string | null;
   latitude: number | string | null;
   longitude: number | string | null;
   location_accuracy_m: number | string | null;
@@ -51,17 +60,29 @@ export type PendingOriginal = {
 
 /** Order the fields are listed in, wherever they are listed. */
 export const PENDING_FIELDS: PendingField[] = [
+  "type",
   "amount",
   "occurred_on",
   "description",
   "note",
   "category_id",
   "source_account_id",
+  "destination_account_id",
+  "destination_amount",
   "location",
 ];
 
+const TRANSFER_ONLY: PendingField[] = ["destination_account_id", "destination_amount"];
+
+function amountInput(n: number | string | null | undefined): string {
+  if (n == null || n === "") return "";
+  const v = Number(n);
+  return Number.isFinite(v) ? v.toFixed(2) : "";
+}
+
 export function valuesFromRow(p: PendingTransaction): PendingValues {
   return {
+    type: p.type,
     // Cash amounts, so always with the cents: 10.00, not 10.
     amount: Number(p.amount).toFixed(2),
     occurred_on: p.occurred_on,
@@ -69,6 +90,8 @@ export function valuesFromRow(p: PendingTransaction): PendingValues {
     note: p.note ?? "",
     category_id: p.category_id ?? "",
     source_account_id: p.source_account_id,
+    destination_account_id: p.destination_account_id ?? "",
+    destination_amount: amountInput(p.destination_amount),
     location: locationFromRow(p),
   };
 }
@@ -78,13 +101,21 @@ export function originalValues(p: PendingTransaction): PendingValues | null {
   const o = p.original;
   if (!o) return null;
   const amount = Number(o.amount);
+  // A snapshot taken before these were kept says nothing about them; the row
+  // stands in, so they never read as changed.
+  const hasType = o.type != null;
   return {
+    type: hasType ? o.type! : p.type,
     amount: Number.isFinite(amount) ? amount.toFixed(2) : "",
     occurred_on: o.occurred_on ?? "",
     description: o.description ?? "",
     note: o.note ?? "",
     category_id: o.category_id ?? "",
     source_account_id: o.source_account_id ?? "",
+    destination_account_id: hasType
+      ? (o.destination_account_id ?? "")
+      : (p.destination_account_id ?? ""),
+    destination_amount: amountInput(hasType ? o.destination_amount : p.destination_amount),
     location: locationFromRow(o),
   };
 }
@@ -102,6 +133,11 @@ function sameField(f: PendingField, a: PendingValues, b: PendingValues): boolean
       const y = parseAmount(b.amount);
       return x == null || y == null ? a.amount.trim() === b.amount.trim() : x === y;
     }
+    case "destination_amount": {
+      const x = parseAmount(a.destination_amount);
+      const y = parseAmount(b.destination_amount);
+      return x === y || (x == null && y == null);
+    }
     case "location":
       return sameLocation(a.location, b.location);
     default:
@@ -113,7 +149,11 @@ function sameField(f: PendingField, a: PendingValues, b: PendingValues): boolean
 export function changedFields(p: PendingTransaction, current: PendingValues): PendingField[] {
   const orig = originalValues(p);
   if (!orig) return [];
-  return PENDING_FIELDS.filter((f) => !sameField(f, orig, current));
+  // The transfer target only means something while either side is a transfer.
+  const transfer = orig.type === "transfer" || current.type === "transfer";
+  return PENDING_FIELDS.filter(
+    (f) => (transfer || !TRANSFER_ONLY.includes(f)) && !sameField(f, orig, current),
+  );
 }
 
 /**
@@ -123,6 +163,7 @@ export function changedFields(p: PendingTransaction, current: PendingValues): Pe
  */
 export function valuesToColumns(v: Partial<PendingValues>): Record<string, unknown> {
   const cols: Record<string, unknown> = {};
+  if (v.type !== undefined) cols.type = v.type;
   if (v.amount !== undefined) {
     const n = parseAmount(v.amount);
     if (n != null) cols.amount = n;
@@ -134,26 +175,45 @@ export function valuesToColumns(v: Partial<PendingValues>): Record<string, unkno
   if (v.source_account_id !== undefined && v.source_account_id) {
     cols.source_account_id = v.source_account_id;
   }
+  if (v.destination_account_id !== undefined) {
+    cols.destination_account_id = v.destination_account_id || null;
+  }
+  if (v.destination_amount !== undefined) {
+    // Cleared means "the same as sent"; a half-typed one waits like the amount.
+    if (!v.destination_amount.trim()) cols.destination_amount = null;
+    else {
+      const n = parseAmount(v.destination_amount);
+      if (n != null) cols.destination_amount = n;
+    }
+  }
   if (v.location !== undefined) Object.assign(cols, locationToColumns(v.location));
   return cols;
 }
 
 /**
  * The /add deep link that opens a row in the booking form with everything the
- * row shows: amount, date, description, note, category, account and place.
+ * row shows: type, amount, date, description, note, category, account,
+ * transfer target and place.
  */
 export function pendingEditSearch(
-  p: Pick<PendingTransaction, "id" | "type">,
+  p: Pick<PendingTransaction, "id">,
   v: PendingValues,
 ): Record<string, string> {
   const search: Record<string, string> = {
     pending_id: p.id,
-    type: p.type,
+    type: v.type,
     amount: formatAmountInput(v.amount),
     occurred_on: v.occurred_on,
   };
   if (v.source_account_id) search.source = v.source_account_id;
-  if (v.category_id && p.type !== "transfer") search.category = v.category_id;
+  if (v.type === "transfer") {
+    if (v.destination_account_id) search.dest = v.destination_account_id;
+    if (parseAmount(v.destination_amount) != null) {
+      search.dest_amount = formatAmountInput(v.destination_amount);
+    }
+  } else if (v.category_id) {
+    search.category = v.category_id;
+  }
   if (v.description.trim()) search.description = v.description.trim();
   if (v.note.trim()) search.note = v.note.trim();
   if (v.location) {
