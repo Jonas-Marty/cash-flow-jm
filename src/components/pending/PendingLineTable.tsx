@@ -2,7 +2,17 @@ import { formatAmountInput } from "@/lib/amountInput";
 import * as React from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Ban, Check, History, Loader2, MapPin, Pencil, Sparkles, X } from "lucide-react";
+import {
+  ArrowRight,
+  Ban,
+  Check,
+  History,
+  Loader2,
+  MapPin,
+  Pencil,
+  Sparkles,
+  X,
+} from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { IsoDateInput } from "@/components/DateInput";
 
@@ -54,6 +64,8 @@ import {
   type PendingValues,
 } from "@/lib/pendingEdits";
 import { PendingOriginalPopover } from "@/components/pending/PendingOriginalPopover";
+import { PendingTypeMenu } from "@/components/pending/PendingTypeMenu";
+import { TYPE_TEXT } from "@/lib/txTypeStyle";
 import { rankLocationCandidates } from "@/lib/locationSuggest";
 import {
   hasSuggestion,
@@ -90,15 +102,79 @@ function pickValues(d: Partial<Draft>): Partial<PendingValues> {
   ) as Partial<PendingValues>;
 }
 
+/**
+ * A transfer has no category: its cell picks the account the money goes to,
+ * plus what that account received when its currency differs.
+ */
+function TransferTargetCell({
+  d,
+  accounts,
+  onChange,
+}: {
+  d: Draft;
+  accounts: Account[];
+  onChange: (v: Partial<PendingValues>, opts?: { debounce?: boolean }) => void;
+}) {
+  const { t } = useI18n();
+  const source = accounts.find((a) => a.id === d.source_account_id);
+  const target = accounts.find((a) => a.id === d.destination_account_id);
+  const crossCurrency = !!source && !!target && source.currency_code !== target.currency_code;
+  return (
+    <div className="mb-1 space-y-1 lg:mb-0">
+      <Select
+        value={d.destination_account_id || undefined}
+        onValueChange={(v) => onChange({ destination_account_id: v })}
+      >
+        <SelectTrigger
+          className={`h-8 w-full ${target ? "" : "border-amber-500/60 text-muted-foreground"}`}
+          aria-label={t("add.to_account")}
+        >
+          <ArrowRight className="mr-1 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          <span className="min-w-0 flex-1 truncate text-left">
+            <SelectValue placeholder={t("pending.table.target_pick")} />
+          </span>
+        </SelectTrigger>
+        <SelectContent>
+          {accounts
+            .filter((a) => !a.archived && a.id !== d.source_account_id)
+            .map((a) => (
+              <SelectItem key={a.id} value={a.id}>
+                {a.name}
+              </SelectItem>
+            ))}
+        </SelectContent>
+      </Select>
+      {crossCurrency ? (
+        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <span>{t("pending.table.received")}</span>
+          <Input
+            className="h-7 w-24 text-right tabular-nums"
+            inputMode="decimal"
+            value={d.destination_amount}
+            onChange={(e) =>
+              onChange(
+                { destination_amount: e.target.value.replace(/[^0-9.,]/g, "") },
+                { debounce: true },
+              )
+            }
+            onBlur={() => onChange({ destination_amount: formatAmountInput(d.destination_amount) })}
+          />
+          <span>{target!.currency_symbol}</span>
+        </label>
+      ) : null}
+    </div>
+  );
+}
+
 /** The last failed save of a row, under it where confirm errors show. */
 function RowSaveError({ id }: { id: string }) {
   const err = usePendingSaveError(id);
   return err ? <p className="text-xs text-destructive lg:col-span-full">{err}</p> : null;
 }
 
-/** Tick (and the changed mark) · amount · date · description · remarks · category · account · place · edit · confirm. */
+/** Tick (and the changed mark) · type and amount · date · description · remarks · category · account · place · edit · confirm. */
 const COLUMNS =
-  "lg:grid lg:grid-cols-[44px_120px_110px_minmax(0,1.4fr)_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_36px_36px_36px] lg:gap-2";
+  "lg:grid lg:grid-cols-[44px_160px_110px_minmax(0,1.4fr)_minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_36px_36px_36px] lg:gap-2";
 
 /**
  * Settles a typed amount to two decimals on blur. Anything that does not parse
@@ -369,7 +445,7 @@ export function PendingLineTable({
           <span>{t("statements.table.col.date")}</span>
           <span>{t("statements.table.col.description")}</span>
           <span>{t("pending.table.col.note")}</span>
-          <span>{t("statements.table.col.category")}</span>
+          <span>{t("pending.table.col.category_target")}</span>
           <span>{t("add.account")}</span>
           <span />
           <span />
@@ -414,9 +490,10 @@ export function PendingLineTable({
                   </span>
                 </div>
                 <div className="mb-1 flex items-center gap-1 lg:mb-0">
+                  <PendingTypeMenu value={d.type} onChange={(type) => patch(p.id, { type })} />
                   <span className="text-xs text-muted-foreground">{sym}</span>
                   <Input
-                    className="h-8 flex-1 text-right tabular-nums"
+                    className={`h-8 flex-1 text-right font-medium tabular-nums ${TYPE_TEXT[d.type]}`}
                     inputMode="decimal"
                     value={d.amount}
                     onChange={(e) =>
@@ -486,40 +563,54 @@ export function PendingLineTable({
                     {suggestsTags(p, d) ? (
                       <SuggestionChip
                         p={p}
-                        label={p.suggested_tags.filter((x) => !noteHasTag(d.note, x)).map((x) => `#${x}`).join(" ")}
-                        onClick={() => patch(p.id, { note: addTagsToNote(d.note, p.suggested_tags) })}
+                        label={p.suggested_tags
+                          .filter((x) => !noteHasTag(d.note, x))
+                          .map((x) => `#${x}`)
+                          .join(" ")}
+                        onClick={() =>
+                          patch(p.id, { note: addTagsToNote(d.note, p.suggested_tags) })
+                        }
                       />
                     ) : null}
                   </div>
                 </div>
-                <div className="mb-1 lg:mb-0">
-                  <Select
-                    value={d.category_id || "__none__"}
-                    onValueChange={(v) => patch(p.id, { category_id: v === "__none__" ? "" : v })}
-                    disabled={d.type === "transfer"}
-                  >
-                    <SelectTrigger className="h-8 w-full">
-                      <SelectValue placeholder={t("statements.table.col.category")} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">{t("common.none")}</SelectItem>
-                      {categories
-                        .filter((c) => !c.archived)
-                        .map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                  {suggestsCategory(p, d) ? (
-                    <SuggestionChip
-                      p={p}
-                      label={categories.find((c) => c.id === p.suggested_category_id)?.name ?? "?"}
-                      onClick={() => patch(p.id, { category_id: p.suggested_category_id! })}
-                    />
-                  ) : null}
-                </div>
+                {d.type === "transfer" ? (
+                  <TransferTargetCell
+                    d={d}
+                    accounts={accounts}
+                    onChange={(v, opts) => patch(p.id, v, opts)}
+                  />
+                ) : (
+                  <div className="mb-1 lg:mb-0">
+                    <Select
+                      value={d.category_id || "__none__"}
+                      onValueChange={(v) => patch(p.id, { category_id: v === "__none__" ? "" : v })}
+                    >
+                      <SelectTrigger className="h-8 w-full">
+                        <SelectValue placeholder={t("statements.table.col.category")} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__none__">{t("common.none")}</SelectItem>
+                        {categories
+                          .filter((c) => !c.archived)
+                          .map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    {suggestsCategory(p, d) ? (
+                      <SuggestionChip
+                        p={p}
+                        label={
+                          categories.find((c) => c.id === p.suggested_category_id)?.name ?? "?"
+                        }
+                        onClick={() => patch(p.id, { category_id: p.suggested_category_id! })}
+                      />
+                    ) : null}
+                  </div>
+                )}
                 <div className="mb-1 lg:mb-0">
                   <Select
                     value={d.source_account_id}

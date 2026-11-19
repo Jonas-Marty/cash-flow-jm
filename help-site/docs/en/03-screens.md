@@ -78,7 +78,7 @@ Four tabs:
 - **Rejected** — entries you rejected, kept for audit, restorable.
 - **Confirmed** — entries you already confirmed, shown for traceability. The real transaction lives in Transactions.
 
-In the table under *Pending* you tick rows and confirm or reject them in one go; the **check mark** on a row (*Confirm* on a phone) confirms just that one, and **Edit** opens it in the booking form, to split it for example. A place you set can be removed with the small **×** on the place icon.
+In the table under *Pending* you tick rows and confirm or reject them in one go; the **check mark** on a row (*Confirm* on a phone) confirms just that one, and **Edit** opens it in the booking form, to split it for example. The icon in front of the amount shows the type (expense, income, transfer) and changes it; for a transfer you pick the target account instead of a category, and the amount received when the currencies differ. A place you set can be removed with the small **×** on the place icon.
 
 What you change in a row is saved as you go, so you can open a row in the booking form, switch views or close the page without losing it. A changed row carries a small pen icon: it shows what the row looked like when it arrived, and **Restore original** puts the whole row back.
 
