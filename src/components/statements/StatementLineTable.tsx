@@ -8,7 +8,13 @@ import { Loader2, MapPin, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { StatementPlaceDialog } from "@/components/statements/StatementPlaceDialog";
 import { DescriptionAutocomplete } from "@/components/DescriptionAutocomplete";
 import { TagAutocompleteInput } from "@/components/TagAutocomplete";
@@ -139,13 +145,17 @@ export function StatementLineTable({
         const next = { ...prev };
         for (const r of res.results) {
           if (r.ok) delete next[r.line_id];
-          else if (next[r.line_id]) next[r.line_id] = { ...next[r.line_id], error: r.error ?? "error" };
+          else if (next[r.line_id])
+            next[r.line_id] = { ...next[r.line_id], error: r.error ?? "error" };
         }
         return next;
       });
       qc.invalidateQueries({ queryKey: ["statement_import", importId] });
       qc.invalidateQueries({ queryKey: ["transactions"] });
-      if (ok > 0) toast.success(t("statements.toast.committed", { ok: String(ok), total: String(res.results.length) }));
+      if (ok > 0)
+        toast.success(
+          t("statements.toast.committed", { ok: String(ok), total: String(res.results.length) }),
+        );
       const failed = res.results.length - ok;
       if (failed > 0) toast.error(t("statements.table.err.partial", { n: String(failed) }));
     },
@@ -155,7 +165,10 @@ export function StatementLineTable({
   if (lines.length === 0) return null;
 
   const catSelect = (l: StatementLine) => (
-    <Select value={drafts[l.id]?.category_id || ""} onValueChange={(v) => patch(l.id, { category_id: v })}>
+    <Select
+      value={drafts[l.id]?.category_id || ""}
+      onValueChange={(v) => patch(l.id, { category_id: v })}
+    >
       <SelectTrigger className="h-8 w-full">
         <SelectValue placeholder={t("statements.table.col.category")} />
       </SelectTrigger>
@@ -178,7 +191,9 @@ export function StatementLineTable({
       onClick={() => setPlaceFor(l.id)}
     >
       <MapPin className="mr-1 h-3.5 w-3.5 shrink-0" />
-      <span className="truncate">{drafts[l.id]?.location?.label ?? t("statements.table.place_pick")}</span>
+      <span className="truncate">
+        {drafts[l.id]?.location?.label ?? t("statements.table.place_pick")}
+      </span>
     </Button>
   );
 
@@ -235,7 +250,10 @@ export function StatementLineTable({
               className="rounded-md border bg-card p-2 lg:grid lg:grid-cols-[28px_88px_minmax(0,1.6fr)_minmax(0,1fr)_minmax(0,0.9fr)_minmax(0,1fr)_minmax(0,0.9fr)_110px_auto] lg:items-center lg:gap-2 lg:p-2"
             >
               <div className="mb-2 flex items-center gap-2 lg:mb-0">
-                <Checkbox checked={d.checked} onCheckedChange={(v) => patch(l.id, { checked: !!v })} />
+                <Checkbox
+                  checked={d.checked}
+                  onCheckedChange={(v) => patch(l.id, { checked: !!v })}
+                />
                 <span className="text-xs text-muted-foreground lg:hidden">
                   {l.booking_date ?? l.value_date ?? "—"} · {fmtMoney(l.amount, symbol)}
                 </span>
@@ -252,7 +270,9 @@ export function StatementLineTable({
                   transactions={history}
                   onChange={(v) => patch(l.id, { description: v })}
                 />
-                <div className="truncate text-[11px] text-muted-foreground lg:hidden">{l.description}</div>
+                <div className="truncate text-[11px] text-muted-foreground lg:hidden">
+                  {l.description}
+                </div>
               </div>
               <div className="mb-1 lg:mb-0">{catSelect(l)}</div>
               <div className="mb-1 lg:mb-0">

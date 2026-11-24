@@ -42,7 +42,10 @@ function addDays(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-function periodOf(imp: StatementImport, lines: { booking_date: string | null; value_date: string | null }[]) {
+function periodOf(
+  imp: StatementImport,
+  lines: { booking_date: string | null; value_date: string | null }[],
+) {
   const dates = lines.map((l) => l.booking_date || l.value_date).filter(Boolean) as string[];
   dates.sort();
   const from = imp.period_from || dates[0] || null;
@@ -51,7 +54,11 @@ function periodOf(imp: StatementImport, lines: { booking_date: string | null; va
 }
 
 async function loadImport(sb: SupabaseClient, id: string): Promise<StatementImport> {
-  const { data, error } = await sb.from("statement_imports").select(IMPORT_COLS).eq("id", id).single();
+  const { data, error } = await sb
+    .from("statement_imports")
+    .select(IMPORT_COLS)
+    .eq("id", id)
+    .single();
   if (error) throw new Error(error.message);
   return data as StatementImport;
 }
@@ -63,23 +70,33 @@ async function loadLines(sb: SupabaseClient, importId: string): Promise<Statemen
     .eq("import_id", importId)
     .order("line_no", { ascending: true });
   if (error) throw new Error(error.message);
-  return (data || []).map((r: any) => ({ ...r, amount: Number(r.amount) })) as StatementLine[];
+  return (data || []).map((r) => ({ ...r, amount: Number(r.amount) })) as StatementLine[];
 }
 
-export async function buildImportDetail(sb: SupabaseClient, id: string): Promise<StatementImportDetail> {
+export async function buildImportDetail(
+  sb: SupabaseClient,
+  id: string,
+): Promise<StatementImportDetail> {
   const imp = await loadImport(sb, id);
   const lines = await loadLines(sb, id);
   const { from, to } = periodOf(imp, lines);
   const w = imp.match_window_days ?? 3;
 
   let entries: Awaited<ReturnType<typeof loadAppEntries>> = [];
-  if (from && to) entries = await loadAppEntries(sb, imp.account_id, addDays(from, -w), addDays(to, w));
+  if (from && to)
+    entries = await loadAppEntries(sb, imp.account_id, addDays(from, -w), addDays(to, w));
 
-  const matchedIds = new Set(lines.map((l) => l.matched_transaction_id).filter(Boolean) as string[]);
+  const matchedIds = new Set(
+    lines.map((l) => l.matched_transaction_id).filter(Boolean) as string[],
+  );
   const matched: StatementImportDetail["matched"] = {};
   for (const e of entries) {
     if (matchedIds.has(e.transaction_id)) {
-      matched[e.transaction_id] = { occurred_on: e.occurred_on, amount: e.amount, description: e.description };
+      matched[e.transaction_id] = {
+        occurred_on: e.occurred_on,
+        amount: e.amount,
+        description: e.description,
+      };
     }
   }
   const unmatched_app: UnmatchedAppTransaction[] = entries
@@ -122,7 +139,8 @@ export async function runStatementExtraction(
   if (accErr) throw new Error(accErr.message);
 
   const mime = (input.file_type || "").toLowerCase();
-  const isImage = mime.startsWith("image/") || /\.(png|jpe?g|webp|gif|heic|heif)$/i.test(input.file_name);
+  const isImage =
+    mime.startsWith("image/") || /\.(png|jpe?g|webp|gif|heic|heif)$/i.test(input.file_name);
   const isCsv =
     mime.includes("csv") ||
     mime === "text/plain" ||
@@ -155,18 +173,19 @@ export async function runStatementExtraction(
   const extracted = csvParsed
     ? csvParsed
     : isImage
-    ? await extractStatementFromImagesWithAI(
-        resolved!.creds,
-        [{ mime: mime || "image/png", base64: input.file_base64 }],
-        hint,
-        { userId, fileName: input.file_name, source: "image" },
-      )
-    : await extractStatementWithAI(resolved!.creds, text, hint, {
-        userId,
-        fileName: input.file_name,
-        source: isCsv ? "csv" : "pdf",
-      });
-  if (extracted.lines.length === 0) throw new Error("The AI could not find any transaction rows in this file.");
+      ? await extractStatementFromImagesWithAI(
+          resolved!.creds,
+          [{ mime: mime || "image/png", base64: input.file_base64 }],
+          hint,
+          { userId, fileName: input.file_name, source: "image" },
+        )
+      : await extractStatementWithAI(resolved!.creds, text, hint, {
+          userId,
+          fileName: input.file_name,
+          source: isCsv ? "csv" : "pdf",
+        });
+  if (extracted.lines.length === 0)
+    throw new Error("The AI could not find any transaction rows in this file.");
 
   const sign = input.invert_amounts ? -1 : 1;
   const windowDays = input.window_days ?? 3;
@@ -242,7 +261,12 @@ export async function rematchImport(
   const lines = await loadLines(sb, importId);
   const { from, to } = periodOf(imp, lines);
   if (from && to) {
-    const entries = await loadAppEntries(sb, imp.account_id, addDays(from, -windowDays), addDays(to, windowDays));
+    const entries = await loadAppEntries(
+      sb,
+      imp.account_id,
+      addDays(from, -windowDays),
+      addDays(to, windowDays),
+    );
     // Lines the user already decided on stay untouched.
     const open = lines.filter((l) => l.match_status !== "ignored" && l.match_status !== "resolved");
     const taken = new Set(
@@ -281,7 +305,11 @@ export async function rematchImport(
 
 export async function applyLineDecision(
   sb: SupabaseClient,
-  input: { line_id: string; decision: "ignore" | "confirm" | "reset" | "link"; transaction_id?: string | null },
+  input: {
+    line_id: string;
+    decision: "ignore" | "confirm" | "reset" | "link";
+    transaction_id?: string | null;
+  },
 ): Promise<{ line: StatementLine }> {
   const patch: Record<string, unknown> = { decision: input.decision };
   if (input.decision === "ignore") {
@@ -305,7 +333,8 @@ export async function applyLineDecision(
     .select(LINE_COLS)
     .single();
   if (error) throw new Error(error.message);
-  return { line: { ...(data as any), amount: Number((data as any).amount) } as StatementLine };
+  const row = data as StatementLine;
+  return { line: { ...row, amount: Number(row.amount) } };
 }
 /** A short-lived URL for the statement document, or the external link. */
 export async function getStatementFileLink(
@@ -314,7 +343,9 @@ export async function getStatementFileLink(
 ): Promise<{ url: string | null; file_name: string; source: string }> {
   const imp = await loadImport(sb, importId);
   if (imp.file_source === "internal" && imp.storage_path) {
-    const { data, error } = await sb.storage.from(STATEMENT_BUCKET).createSignedUrl(imp.storage_path, 300);
+    const { data, error } = await sb.storage
+      .from(STATEMENT_BUCKET)
+      .createSignedUrl(imp.storage_path, 300);
     if (error) throw new Error(error.message);
     return { url: data.signedUrl, file_name: imp.file_name, source: imp.file_source };
   }
@@ -340,13 +371,16 @@ export async function statementRefsFor(
   if (transactionIds.length === 0) return [];
   const { data, error } = await sb
     .from("statement_import_lines")
-    .select("line_no, matched_transaction_id, statement_imports!inner(id, file_name, file_source, period_from, period_to)")
+    .select(
+      "line_no, matched_transaction_id, statement_imports!inner(id, file_name, file_source, period_from, period_to)",
+    )
     .in("matched_transaction_id", transactionIds);
   if (error) throw new Error(error.message);
   const out: StatementRef[] = [];
   const seen = new Set<string>();
-  for (const r of (data || []) as any[]) {
-    const imp = r.statement_imports;
+  for (const r of data || []) {
+    // A many-to-one embed is one object at runtime; the generated types say array.
+    const imp = Array.isArray(r.statement_imports) ? r.statement_imports[0] : r.statement_imports;
     if (!imp || !r.matched_transaction_id || seen.has(r.matched_transaction_id)) continue;
     seen.add(r.matched_transaction_id);
     out.push({
@@ -391,7 +425,8 @@ export async function commitStatementLines(
   detail: StatementImportDetail;
 }> {
   const imp = await loadImport(sb, input.import_id);
-  const results: Array<{ line_id: string; ok: boolean; transaction_id?: string; error?: string }> = [];
+  const results: Array<{ line_id: string; ok: boolean; transaction_id?: string; error?: string }> =
+    [];
 
   for (const row of input.rows) {
     try {
@@ -420,7 +455,11 @@ export async function commitStatementLines(
       await applyLineDecision(sb, { line_id: row.line_id, decision: "link", transaction_id: txId });
       results.push({ line_id: row.line_id, ok: true, transaction_id: txId });
     } catch (e) {
-      results.push({ line_id: row.line_id, ok: false, error: e instanceof Error ? e.message : String(e) });
+      results.push({
+        line_id: row.line_id,
+        ok: false,
+        error: e instanceof Error ? e.message : String(e),
+      });
     }
   }
 

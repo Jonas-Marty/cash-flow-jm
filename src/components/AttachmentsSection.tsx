@@ -29,7 +29,7 @@ export interface DraftAttachment {
 }
 
 /** The columns a picked Nextcloud file fills on transaction_attachments. */
-export function attachmentFromPick(f: PickedFile): DraftAttachment {
+function attachmentFromPick(f: PickedFile): DraftAttachment {
   return {
     source: "nextcloud",
     display_name: f.name,
@@ -40,9 +40,27 @@ export function attachmentFromPick(f: PickedFile): DraftAttachment {
 }
 
 type Props =
-  | { transactionId: string; statementId?: never; draft?: never; items?: never; onItemsChange?: never }
-  | { statementId: string; transactionId?: never; draft?: never; items?: never; onItemsChange?: never }
-  | { draft: true; items: DraftAttachment[]; onItemsChange: (items: DraftAttachment[]) => void; transactionId?: never; statementId?: never };
+  | {
+      transactionId: string;
+      statementId?: never;
+      draft?: never;
+      items?: never;
+      onItemsChange?: never;
+    }
+  | {
+      statementId: string;
+      transactionId?: never;
+      draft?: never;
+      items?: never;
+      onItemsChange?: never;
+    }
+  | {
+      draft: true;
+      items: DraftAttachment[];
+      onItemsChange: (items: DraftAttachment[]) => void;
+      transactionId?: never;
+      statementId?: never;
+    };
 
 export function AttachmentsSection(props: Props) {
   const isDraft = "draft" in props && props.draft === true;
@@ -83,7 +101,10 @@ export function AttachmentsSection(props: Props) {
       statement_id: statementId ?? null,
       ...attachmentFromPick(f),
     });
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success(t("attachments.added"));
     qc.invalidateQueries({ queryKey: ["attachments", parentCol, parentKey] });
   };
@@ -91,7 +112,10 @@ export function AttachmentsSection(props: Props) {
   const onDelete = async (id: string) => {
     if (!confirm(t("attachments.confirm_delete"))) return;
     const { error } = await supabase.from("transaction_attachments").delete().eq("id", id);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     qc.invalidateQueries({ queryKey: ["attachments", parentCol, parentKey] });
   };
 
@@ -120,7 +144,13 @@ export function AttachmentsSection(props: Props) {
           <Paperclip className="h-4 w-4" /> {t("attachments.title")}
           {items.length > 0 && <span className="text-muted-foreground">({items.length})</span>}
         </div>
-        <Button type="button" variant="outline" size="sm" disabled={!connected} onClick={() => setPickerOpen(true)}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={!connected}
+          onClick={() => setPickerOpen(true)}
+        >
           <Plus className="mr-1 h-3 w-3" /> {t("attachments.add")}
         </Button>
       </div>
@@ -148,8 +178,15 @@ export function AttachmentsSection(props: Props) {
               >
                 {a.display_name}
               </a>
-              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{a.source}</span>
-              <a href={a.link_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground">
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                {a.source}
+              </span>
+              <a
+                href={a.link_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-muted-foreground hover:text-foreground"
+              >
                 <ExternalLink className="h-3.5 w-3.5" />
               </a>
               <button
@@ -163,7 +200,12 @@ export function AttachmentsSection(props: Props) {
           ))}
         </ul>
       )}
-      <NextcloudFilePicker open={pickerOpen} onOpenChange={setPickerOpen} onPick={onPick} kind="receipt" />
+      <NextcloudFilePicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        onPick={onPick}
+        kind="receipt"
+      />
     </div>
   );
 }

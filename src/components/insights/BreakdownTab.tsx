@@ -59,17 +59,20 @@ export function BreakdownTab({
   onChartChange: (c: ChartKind) => void;
 }) {
   const { t } = useI18n();
-  const txQ = useQuery({ queryKey: ["insights", "tx_range", from, to], queryFn: () => fetchTransactionsRange(from, to) });
+  const txQ = useQuery({
+    queryKey: ["insights", "tx_range", from, to],
+    queryFn: () => fetchTransactionsRange(from, to),
+  });
   const tagsQ = useQuery({ queryKey: ["transaction_tags"], queryFn: fetchTransactionTags });
   const catsQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   const grpsQ = useQuery({ queryKey: ["category_groups"], queryFn: fetchCategoryGroups });
   const accQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts });
 
-  const tx = txQ.data ?? [];
-  const tags = tagsQ.data ?? [];
-  const cats = catsQ.data ?? [];
-  const grps = grpsQ.data ?? [];
-  const accs = accQ.data ?? [];
+  const tx = React.useMemo(() => txQ.data ?? [], [txQ.data]);
+  const tags = React.useMemo(() => tagsQ.data ?? [], [tagsQ.data]);
+  const cats = React.useMemo(() => catsQ.data ?? [], [catsQ.data]);
+  const grps = React.useMemo(() => grpsQ.data ?? [], [grpsQ.data]);
+  const accs = React.useMemo(() => accQ.data ?? [], [accQ.data]);
 
   const filtered = React.useMemo(() => {
     return tx.filter((r) => {
@@ -100,7 +103,13 @@ export function BreakdownTab({
       }
       const untagged = filtered.filter((r) => !seen.has(r.id));
       const sumU = untagged.reduce((a, r) => a + (Number(r.amount) || 0), 0);
-      if (sumU > 0) m.set("__none__", { key: "__none__", label: t("insights.untagged"), value: sumU, count: untagged.length });
+      if (sumU > 0)
+        m.set("__none__", {
+          key: "__none__",
+          label: t("insights.untagged"),
+          value: sumU,
+          count: untagged.length,
+        });
     } else {
       for (const r of filtered) {
         const amt = Number(r.amount) || 0;
@@ -179,25 +188,53 @@ export function BreakdownTab({
             ) : chart === "pie" ? (
               <ResponsiveContainer>
                 <PieChart>
-                  <Pie data={slices} dataKey="value" nameKey="label" innerRadius={50} outerRadius={100} paddingAngle={1}>
+                  <Pie
+                    data={slices}
+                    dataKey="value"
+                    nameKey="label"
+                    innerRadius={50}
+                    outerRadius={100}
+                    paddingAngle={1}
+                  >
                     {slices.map((s, i) => (
                       <Cell key={s.key} fill={s.color ?? colorForIndex(i)} />
                     ))}
                   </Pie>
                   <Tooltip
-                    contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 6 }}
-                    formatter={(v: number, _n, p) => [`${fmtMoney(v, symbol)} (${total > 0 ? ((v / total) * 100).toFixed(0) : 0}%)`, p?.payload?.label]}
+                    contentStyle={{
+                      background: "var(--popover)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 6,
+                    }}
+                    formatter={(v: number, _n, p) => [
+                      `${fmtMoney(v, symbol)} (${total > 0 ? ((v / total) * 100).toFixed(0) : 0}%)`,
+                      p?.payload?.label,
+                    ]}
                   />
                 </PieChart>
               </ResponsiveContainer>
             ) : chart === "bar" ? (
               <ResponsiveContainer>
-                <BarChart data={slices} layout="vertical" margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <BarChart
+                  data={slices}
+                  layout="vertical"
+                  margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+                >
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
                   <XAxis type="number" fontSize={11} tickLine={false} />
-                  <YAxis type="category" dataKey="label" fontSize={11} tickLine={false} width={120} />
+                  <YAxis
+                    type="category"
+                    dataKey="label"
+                    fontSize={11}
+                    tickLine={false}
+                    width={120}
+                  />
                   <Tooltip
-                    contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 6 }}
+                    contentStyle={{
+                      background: "var(--popover)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 6,
+                    }}
                     formatter={(v: number) => fmtMoney(v, symbol)}
                   />
                   <Bar dataKey="value">
@@ -209,9 +246,21 @@ export function BreakdownTab({
               </ResponsiveContainer>
             ) : (
               <ResponsiveContainer>
-                <Treemap data={slices.map((s, i) => ({ name: s.label, size: s.value, fill: s.color ?? colorForIndex(i) }))} dataKey="size" stroke="var(--background)">
+                <Treemap
+                  data={slices.map((s, i) => ({
+                    name: s.label,
+                    size: s.value,
+                    fill: s.color ?? colorForIndex(i),
+                  }))}
+                  dataKey="size"
+                  stroke="var(--background)"
+                >
                   <Tooltip
-                    contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 6 }}
+                    contentStyle={{
+                      background: "var(--popover)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 6,
+                    }}
                     formatter={(v: number) => fmtMoney(v, symbol)}
                   />
                 </Treemap>
@@ -226,10 +275,14 @@ export function BreakdownTab({
           <div className="space-y-1.5">
             {slices.map((s, i) => (
               <div key={s.key} className="flex items-center gap-2 text-sm">
-                <span className="inline-block h-3 w-3 rounded-sm" style={{ background: s.color ?? colorForIndex(i) }} />
+                <span
+                  className="inline-block h-3 w-3 rounded-sm"
+                  style={{ background: s.color ?? colorForIndex(i) }}
+                />
                 <span className="flex-1 truncate">{s.label}</span>
                 <span className="tabular-nums text-muted-foreground">
-                  {fmtMoney(s.value, symbol)} · {total > 0 ? ((s.value / total) * 100).toFixed(0) : 0}%
+                  {fmtMoney(s.value, symbol)} ·{" "}
+                  {total > 0 ? ((s.value / total) * 100).toFixed(0) : 0}%
                 </span>
               </div>
             ))}

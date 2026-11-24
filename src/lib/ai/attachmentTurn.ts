@@ -23,7 +23,11 @@ export function shortId(id: string): string {
  * (`read_attachment`, `import_statement`), and says when the text was cut so
  * the model knows to page on instead of answering from half a document.
  */
-export function formatAttachmentBlock(a: AttachmentForPrompt, maxChars: number, visionSent = false): string {
+export function formatAttachmentBlock(
+  a: AttachmentForPrompt,
+  maxChars: number,
+  visionSent = false,
+): string {
   const pages = a.page_count ? `, ${a.page_count} page${a.page_count === 1 ? "" : "s"}` : "";
   const head = `📎 Attachment id=${a.id} "${a.file_name}" (${a.mime}${pages})`;
   if (a.text == null) {
@@ -38,6 +42,8 @@ export function formatAttachmentBlock(a: AttachmentForPrompt, maxChars: number, 
 
 /** The user's words, or a marker the system prompt reacts to when there are none. */
 export function userTurnText(message: string, blocks: string[]): string {
-  const said = message.trim() ? message.trim() : "(The user attached this without saying what to do with it.)";
+  const said = message.trim()
+    ? message.trim()
+    : "(The user attached this without saying what to do with it.)";
   return blocks.length ? `${blocks.join("\n\n")}\n\n${said}` : said;
 }

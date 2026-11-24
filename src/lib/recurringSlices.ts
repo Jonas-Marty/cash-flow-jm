@@ -89,7 +89,9 @@ export function validateSliceTemplate(
   if (mode === "ratio") {
     const sum = slices.reduce((a, b) => a + Number(b.amount_ratio ?? 0), 0);
     if (Math.abs(sum - 1) > 0.0001) return "Ratios must sum to 1";
-    if (slices.some((s) => !Number.isFinite(Number(s.amount_ratio)) || Number(s.amount_ratio) <= 0)) {
+    if (
+      slices.some((s) => !Number.isFinite(Number(s.amount_ratio)) || Number(s.amount_ratio) <= 0)
+    ) {
       return "Every slice ratio must be greater than zero";
     }
     return null;
@@ -99,7 +101,8 @@ export function validateSliceTemplate(
   }
   if (ruleAmount != null) {
     const sum = round2(slices.reduce((a, b) => a + Number(b.amount ?? 0), 0));
-    if (sum !== round2(ruleAmount)) return `Slice amounts (${sum}) must sum to ${round2(ruleAmount)}`;
+    if (sum !== round2(ruleAmount))
+      return `Slice amounts (${sum}) must sum to ${round2(ruleAmount)}`;
   }
   return null;
 }

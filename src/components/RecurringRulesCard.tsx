@@ -9,7 +9,11 @@ import { useServerFn } from "@tanstack/react-start";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { RecurringAiDialog } from "@/components/RecurringAiDialog";
 import { listAIEndpoints } from "@/utils/ai.functions";
-import { subscribePendingRuleDraft, takePendingRuleDraft, type RuleHandoff } from "@/lib/ai/recurringHandoff";
+import {
+  subscribePendingRuleDraft,
+  takePendingRuleDraft,
+  type RuleHandoff,
+} from "@/lib/ai/recurringHandoff";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -17,24 +21,64 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  fetchAccounts, fetchCategories, fetchRecurringRules,
-  describeSchedule, previewRecurringRule, archiveRecurringRule, applyRecurringRuleBackfill, fetchSettings, fetchTransactions,
-  fetchOccurrencesForRule, createPendingOccurrence, deletePendingOccurrence, fetchPendingProposals, reattachProposals,
-  type RecurringRule, type RecurringOccurrence, type DayRule, type WeekendAdjust, type TxType,
+  fetchAccounts,
+  fetchCategories,
+  fetchRecurringRules,
+  describeSchedule,
+  previewRecurringRule,
+  archiveRecurringRule,
+  applyRecurringRuleBackfill,
+  fetchSettings,
+  fetchTransactions,
+  fetchOccurrencesForRule,
+  createPendingOccurrence,
+  deletePendingOccurrence,
+  fetchPendingProposals,
+  reattachProposals,
+  type RecurringRule,
+  type RecurringOccurrence,
+  type DayRule,
+  type WeekendAdjust,
+  type TxType,
 } from "@/lib/finance";
 import { PostOccurrenceDialog } from "@/components/PostOccurrenceDialog";
 import { Link } from "@tanstack/react-router";
-import { seriesStep, weekendShift, periodBoundsForDue, parseISODate, toISODate, type RuleShape } from "@/lib/recurrence";
+import {
+  seriesStep,
+  weekendShift,
+  periodBoundsForDue,
+  parseISODate,
+  toISODate,
+  type RuleShape,
+} from "@/lib/recurrence";
 import { useI18n } from "@/i18n";
 import { DateInput } from "@/components/DateInput";
 import { useQuery as useRQuery } from "@tanstack/react-query";
-import { interpolate, resolveFormatLocale, describeTokens, findDroppedTokens, type TokenInfo } from "@/lib/placeholders";
+import {
+  interpolate,
+  resolveFormatLocale,
+  describeTokens,
+  findDroppedTokens,
+  type TokenInfo,
+} from "@/lib/placeholders";
 import { TagAutocompleteTextarea } from "@/components/TagAutocomplete";
 import { validateSliceTemplate } from "@/lib/recurringSlices";
 import { computeSliceAmounts } from "@/lib/recurringSlices";
@@ -42,15 +86,26 @@ import { Markdown } from "@/components/Markdown";
 import { Trash2 as TrashIcon } from "lucide-react";
 
 import {
-  duplicateDraft, emptyDraft, emptySlice, ruleToDraft, todayStr,
-  type Draft, type SliceDraft,
+  duplicateDraft,
+  emptyDraft,
+  emptySlice,
+  ruleToDraft,
+  todayStr,
+  type Draft,
+  type SliceDraft,
 } from "@/lib/recurringDraft";
 
 function nextDueDate(r: RecurringRule, from = new Date()): Date | null {
   const start = parseISODate(r.starts_on);
   const end = r.ends_on ? parseISODate(r.ends_on) : null;
   for (let n = 0; n < 400; n++) {
-    const due = seriesStep(start, r.execution_day_rule, r.execution_day_of_month, r.recurrence_interval, n);
+    const due = seriesStep(
+      start,
+      r.execution_day_rule,
+      r.execution_day_of_month,
+      r.recurrence_interval,
+      n,
+    );
     if (end && due > end) return null;
     if (due < start) continue;
     const eff = weekendShift(due, r.execution_weekend_adjustment);
@@ -97,7 +152,7 @@ export function RecurringRulesCard() {
   // Per-row actions in the preview only make sense when the listed dates match
   // what the *saved* rule produces. While the draft schedule differs, hide them.
   const savedRule = React.useMemo(
-    () => (draft.id ? (rulesQ.data ?? []).find((r) => r.id === draft.id) ?? null : null),
+    () => (draft.id ? ((rulesQ.data ?? []).find((r) => r.id === draft.id) ?? null) : null),
     [rulesQ.data, draft.id],
   );
   const scheduleDirty = React.useMemo(() => {
@@ -111,7 +166,9 @@ export function RecurringRulesCard() {
       execution_weekend_adjustment: savedRule.execution_weekend_adjustment,
       period_day_rule: savedRule.period_day_rule,
       period_day_of_month: savedRule.period_day_of_month ?? null,
-      period_offset_months: savedRule.period_offset_months ?? (savedRule.period_offset ?? 0) * (savedRule.recurrence_interval ?? 1),
+      period_offset_months:
+        savedRule.period_offset_months ??
+        (savedRule.period_offset ?? 0) * (savedRule.recurrence_interval ?? 1),
     };
     return JSON.stringify(saved) !== JSON.stringify(draftRuleShape(draft));
   }, [savedRule, draft]);
@@ -136,8 +193,8 @@ export function RecurringRulesCard() {
   }) => {
     if (!draft.id) return;
     try {
-      const occ = row.occurrence
-        ?? (await createPendingOccurrence(draft.id, row.due_on, row.effective_on));
+      const occ =
+        row.occurrence ?? (await createPendingOccurrence(draft.id, row.due_on, row.effective_on));
       setPostTarget({
         occ,
         runNumber: row.runNumber,
@@ -154,7 +211,11 @@ export function RecurringRulesCard() {
     const target = postTarget;
     setPostTarget(null);
     if (target?.placeholder) {
-      try { await deletePendingOccurrence(target.occ.id); } catch { /* ignore */ }
+      try {
+        await deletePendingOccurrence(target.occ.id);
+      } catch {
+        /* ignore */
+      }
     }
     qc.invalidateQueries({ queryKey: ["recurring_occurrences_for_rule", draft.id] });
   };
@@ -171,8 +232,7 @@ export function RecurringRulesCard() {
   // - Fresh mode + backfill="post" → applyRecurringRuleBackfill creates posted txs.
   // - Edit with auto_post on + past pending occurrences that will remain (or be
   //   re-created): Pass 1 of process_recurring_rules will auto-post them.
-  const deterministicAuto =
-    draft.auto_post && !draft.is_variable_amount && !draft.is_variable_date;
+  const deterministicAuto = draft.auto_post && !draft.is_variable_amount && !draft.is_variable_date;
 
   // Reset backfill choice when the mode changes so a stale "post" choice from a
   // previous draft doesn't silently apply in gap mode (where it's hidden).
@@ -202,14 +262,26 @@ export function RecurringRulesCard() {
   // currently focused so the shared PlaceholderPalette inserts at the right caret.
   const sliceDescRefs = React.useRef<Array<HTMLInputElement | null>>([]);
   const sliceNoteRefs = React.useRef<Array<HTMLTextAreaElement | null>>([]);
-  const [activeSlice, setActiveSlice] = React.useState<{ idx: number; field: "description" | "note" } | null>(null);
+  const [activeSlice, setActiveSlice] = React.useState<{
+    idx: number;
+    field: "description" | "note";
+  } | null>(null);
 
-  const openAdd = () => { setDraft(emptyDraft()); setOpen(true); };
-  const openEdit = (r: RecurringRule) => { setDraft(ruleToDraft(r)); setOpen(true); };
+  const openAdd = () => {
+    setDraft(emptyDraft());
+    setOpen(true);
+  };
+  const openEdit = (r: RecurringRule) => {
+    setDraft(ruleToDraft(r));
+    setOpen(true);
+  };
   // A copy opens as a new rule (the dialog keys its title off `draft.id`), so
   // saving never touches the original. For a subscription that changed its
   // billing cycle: end the old rule, copy it, adjust the dates.
-  const openDuplicate = (r: RecurringRule) => { setDraft(duplicateDraft(r)); setOpen(true); };
+  const openDuplicate = (r: RecurringRule) => {
+    setDraft(duplicateDraft(r));
+    setOpen(true);
+  };
 
   // ✨ AI-prepared drafts: from the dialog below, or handed over by the chat.
   const aiListFn = useServerFn(listAIEndpoints);
@@ -219,7 +291,12 @@ export function RecurringRulesCard() {
   const [aiInfo, setAiInfo] = React.useState<Omit<RuleHandoff, "draft"> | null>(null);
   const openFromAi = React.useCallback((h: RuleHandoff) => {
     setDraft(h.draft);
-    setAiInfo({ warnings: h.warnings, notes: h.notes, similar_rule: h.similar_rule, source_file: h.source_file });
+    setAiInfo({
+      warnings: h.warnings,
+      notes: h.notes,
+      similar_rule: h.similar_rule,
+      source_file: h.source_file,
+    });
     setOpen(true);
     document.getElementById("recurring")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
@@ -261,47 +338,77 @@ export function RecurringRulesCard() {
     handledHash.current = id;
     document.getElementById("recurring")?.scrollIntoView({ behavior: "smooth", block: "start" });
     openEdit(rule);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hash, rulesQ.data]);
 
   const save = async (opts: { confirmedPastPost?: boolean } = {}) => {
-    if (!draft.name.trim()) { toast.error(t("toast.name_required")); return; }
-    if (!draft.source_account_id) { toast.error(t("toast.account_required")); return; }
-    if (draft.type === "transfer" && !draft.destination_account_id) { toast.error(t("toast.dest_required")); return; }
+    if (!draft.name.trim()) {
+      toast.error(t("toast.name_required"));
+      return;
+    }
+    if (!draft.source_account_id) {
+      toast.error(t("toast.account_required"));
+      return;
+    }
+    if (draft.type === "transfer" && !draft.destination_account_id) {
+      toast.error(t("toast.dest_required"));
+      return;
+    }
     if (!draft.is_variable_amount) {
       const amt = Number(draft.amount);
-      if (!Number.isFinite(amt) || amt <= 0) { toast.error(t("toast.amount_required")); return; }
+      if (!Number.isFinite(amt) || amt <= 0) {
+        toast.error(t("toast.amount_required"));
+        return;
+      }
     }
     const estParsed = draft.estimated_amount.trim() === "" ? null : Number(draft.estimated_amount);
-    if (draft.is_variable_amount && estParsed != null && (!Number.isFinite(estParsed) || estParsed < 0)) {
-      toast.error(t("toast.amount_required")); return;
+    if (
+      draft.is_variable_amount &&
+      estParsed != null &&
+      (!Number.isFinite(estParsed) || estParsed < 0)
+    ) {
+      toast.error(t("toast.amount_required"));
+      return;
     }
     // Split rules cannot be transfers and need slice validation.
     if (draft.is_split && draft.type === "transfer") {
-      toast.error(t("recurring.split.no_transfer")); return;
+      toast.error(t("recurring.split.no_transfer"));
+      return;
     }
     let slicePayload: Array<{
-      sort_order: number; amount: number | null; amount_ratio: number | null;
-      category_id: string | null; description: string | null; note: string | null;
-      is_reimbursable: boolean; reimbursable_counterparty: string | null; reimbursable_reason: string | null;
+      sort_order: number;
+      amount: number | null;
+      amount_ratio: number | null;
+      category_id: string | null;
+      description: string | null;
+      note: string | null;
+      is_reimbursable: boolean;
+      reimbursable_counterparty: string | null;
+      reimbursable_reason: string | null;
     }> = [];
     if (draft.is_split) {
       slicePayload = draft.slices.map((s, idx) => ({
         sort_order: idx,
-        amount: draft.is_variable_amount ? null : (Number(s.amount.replace(",", ".")) || 0),
-        amount_ratio: draft.is_variable_amount ? (Number(s.amount_ratio.replace(",", ".")) || 0) : null,
+        amount: draft.is_variable_amount ? null : Number(s.amount.replace(",", ".")) || 0,
+        amount_ratio: draft.is_variable_amount
+          ? Number(s.amount_ratio.replace(",", ".")) || 0
+          : null,
         category_id: s.category_id || null,
         description: s.description.trim() || null,
         note: s.note.trim() || null,
         is_reimbursable: s.is_reimbursable,
-        reimbursable_counterparty: s.is_reimbursable ? (s.reimbursable_counterparty.trim() || null) : null,
-        reimbursable_reason: s.is_reimbursable ? (s.reimbursable_reason.trim() || null) : null,
+        reimbursable_counterparty: s.is_reimbursable
+          ? s.reimbursable_counterparty.trim() || null
+          : null,
+        reimbursable_reason: s.is_reimbursable ? s.reimbursable_reason.trim() || null : null,
       }));
       const validationErr = validateSliceTemplate(
         slicePayload.map((p) => ({ amount: p.amount, amount_ratio: p.amount_ratio })),
-        draft.is_variable_amount ? null : (Number(draft.amount) || 0),
+        draft.is_variable_amount ? null : Number(draft.amount) || 0,
       );
-      if (validationErr) { toast.error(validationErr); return; }
+      if (validationErr) {
+        toast.error(validationErr);
+        return;
+      }
     }
     // Pre-save confirmation gate: if the save will silently create real past
     // transactions, open a confirm dialog before touching the DB.
@@ -310,12 +417,11 @@ export function RecurringRulesCard() {
       // ImpactSummary from the live preview). No rows → nothing to confirm.
       const n = (window as unknown as { __recImpactPastCount?: number }).__recImpactPastCount ?? 0;
       const willPostPast =
-        n > 0 && (
-          (freshPastMode && draft.backfill === "post") ||
+        n > 0 &&
+        ((freshPastMode && draft.backfill === "post") ||
           // Edit case: only when the user actually asked to fill the past.
           // "none" leaves history untouched, so no confirmation is needed.
-          (!isNew && draft.backfill !== "none")
-        );
+          (!isNew && draft.backfill !== "none"));
       if (willPostPast) {
         const totalAmt = draft.is_variable_amount
           ? Number(draft.estimated_amount) || 0
@@ -328,40 +434,56 @@ export function RecurringRulesCard() {
     const payload = {
       name: draft.name.trim(),
       type: draft.type,
-      amount: draft.is_variable_amount ? null : (Number(draft.amount) || 0),
+      amount: draft.is_variable_amount ? null : Number(draft.amount) || 0,
       is_variable_amount: draft.is_variable_amount,
       estimated_amount: draft.is_variable_amount ? estParsed : null,
       source_account_id: draft.source_account_id,
       destination_account_id: draft.type === "transfer" ? draft.destination_account_id : null,
-      category_id: draft.type !== "transfer" && !draft.is_split && draft.category_id ? draft.category_id : null,
-      description: draft.is_split ? null : (draft.description.trim() || null),
-      note: draft.is_split ? null : (draft.note.trim() || null),
+      category_id:
+        draft.type !== "transfer" && !draft.is_split && draft.category_id
+          ? draft.category_id
+          : null,
+      description: draft.is_split ? null : draft.description.trim() || null,
+      note: draft.is_split ? null : draft.note.trim() || null,
       recurrence_interval: draft.recurrence_interval,
       execution_day_rule: draft.execution_day_rule,
-      execution_day_of_month: draft.execution_day_rule === "FixedDay" ? Number(draft.execution_day_of_month) || 1 : null,
+      execution_day_of_month:
+        draft.execution_day_rule === "FixedDay" ? Number(draft.execution_day_of_month) || 1 : null,
       execution_weekend_adjustment: draft.execution_weekend_adjustment,
       period_day_rule: draft.period_day_rule,
-      period_day_of_month: draft.period_day_rule === "FixedDay" ? Number(draft.period_day_of_month) || 1 : null,
+      period_day_of_month:
+        draft.period_day_rule === "FixedDay" ? Number(draft.period_day_of_month) || 1 : null,
       period_offset_months: draft.period_offset_months,
       starts_on: draft.starts_on,
       ends_on: draft.ends_on || null,
-      auto_post: (draft.is_variable_amount || draft.is_variable_date) ? false : draft.auto_post,
+      auto_post: draft.is_variable_amount || draft.is_variable_date ? false : draft.auto_post,
       is_variable_date: draft.is_variable_date,
       is_split: draft.is_split,
     };
     let savedId: string | undefined = draft.id;
     let keptProposals: Awaited<ReturnType<typeof fetchPendingProposals>> = [];
     if (isNew) {
-      const { data, error } = await supabase.from("recurring_rules").insert(payload).select("id").single();
-      if (error) { toast.error(error.message); return; }
+      const { data, error } = await supabase
+        .from("recurring_rules")
+        .insert(payload)
+        .select("id")
+        .single();
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
       savedId = data?.id;
     } else {
       const { error } = await supabase.from("recurring_rules").update(payload).eq("id", draft.id!);
-      if (error) { toast.error(error.message); return; }
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
       try {
         keptProposals = await fetchPendingProposals(draft.id!);
       } catch (e) {
-        toast.error((e as Error).message); return;
+        toast.error((e as Error).message);
+        return;
       }
       // Schedule/amount/account/etc. may have changed — wipe pending occurrences
       // so they get regenerated from the new rule. Posted ones stay (they have
@@ -371,7 +493,10 @@ export function RecurringRulesCard() {
         .delete()
         .eq("rule_id", draft.id!)
         .eq("status", "pending");
-      if (delErr) { toast.error(delErr.message); return; }
+      if (delErr) {
+        toast.error(delErr.message);
+        return;
+      }
     }
     // Replace slices wholesale (simpler than diffing).
     if (savedId) {
@@ -379,7 +504,10 @@ export function RecurringRulesCard() {
       if (draft.is_split && slicePayload.length >= 2) {
         const rows = slicePayload.map((p) => ({ ...p, rule_id: savedId! }));
         const { error: insErr } = await supabase.from("recurring_rule_slices").insert(rows);
-        if (insErr) { toast.error(insErr.message); return; }
+        if (insErr) {
+          toast.error(insErr.message);
+          return;
+        }
       }
     }
     // Apply the explicit backfill choice when the user actually saw the block
@@ -400,11 +528,17 @@ export function RecurringRulesCard() {
     // Process to generate future pending occurrences immediately
     try {
       await supabase.rpc("process_recurring_rules", { p_today: todayStr() });
-    } catch { /* non-fatal */ }
+    } catch {
+      /* non-fatal */
+    }
     if (savedId && keptProposals.length > 0) {
       try {
         await reattachProposals(
-          { id: savedId, is_variable_amount: draft.is_variable_amount, recurrence_interval: draft.recurrence_interval },
+          {
+            id: savedId,
+            is_variable_amount: draft.is_variable_amount,
+            recurrence_interval: draft.recurrence_interval,
+          },
           keptProposals,
         );
       } catch (e) {
@@ -425,7 +559,10 @@ export function RecurringRulesCard() {
       .from("transactions")
       .select("id", { count: "exact", head: true })
       .eq("recurring_rule_id", id);
-    if (cntErr) { toast.error(cntErr.message); return; }
+    if (cntErr) {
+      toast.error(cntErr.message);
+      return;
+    }
     const linked = count ?? 0;
     const rule = rules.find((r) => r.id === id);
     if (linked === 0) {
@@ -434,7 +571,10 @@ export function RecurringRulesCard() {
       await supabase.from("recurring_occurrences").delete().eq("rule_id", id);
       await supabase.from("recurring_rule_slices").delete().eq("rule_id", id);
       const { error } = await supabase.from("recurring_rules").delete().eq("id", id);
-      if (error) { toast.error(error.message); return; }
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
       toast.success(t("toast.deleted"));
       qc.invalidateQueries();
       return;
@@ -453,17 +593,19 @@ export function RecurringRulesCard() {
     qc.invalidateQueries();
   };
 
-  const rules = rulesQ.data ?? [];
-  const today = new Date();
+  const rules = React.useMemo(() => rulesQ.data ?? [], [rulesQ.data]);
   const sections = React.useMemo(() => {
-    const active: RecurringRule[] = [], ended: RecurringRule[] = [], archived: RecurringRule[] = [];
+    const today = new Date();
+    const active: RecurringRule[] = [],
+      ended: RecurringRule[] = [],
+      archived: RecurringRule[] = [];
     for (const r of rules) {
       if (r.archived) archived.push(r);
       else if (r.ends_on && parseISO(r.ends_on) < today) ended.push(r);
       else active.push(r);
     }
     return { active, ended, archived };
-  }, [rules, today]);
+  }, [rules]);
 
   const accounts = accountsQ.data ?? [];
   const categories = categoriesQ.data ?? [];
@@ -472,7 +614,7 @@ export function RecurringRulesCard() {
   const [archivedOpen, setArchivedOpen] = React.useState(false);
 
   const renderRule = (r: RecurringRule) => {
-    const next = nextDueDate(r, today);
+    const next = nextDueDate(r, new Date());
     return (
       <li key={r.id} className="flex items-center justify-between gap-2 py-2">
         <div className="min-w-0 flex-1">
@@ -482,37 +624,60 @@ export function RecurringRulesCard() {
               {r.auto_post ? t("recurring.auto_badge") : t("recurring.manual_badge")}
             </Badge>
             {r.is_variable_amount && (
-              <Badge variant="outline" className="text-[10px]">{t("recurring.variable_badge")}</Badge>
+              <Badge variant="outline" className="text-[10px]">
+                {t("recurring.variable_badge")}
+              </Badge>
             )}
             {r.is_variable_date && (
-              <Badge variant="outline" className="text-[10px]">{t("recurring.variable_date_badge")}</Badge>
+              <Badge variant="outline" className="text-[10px]">
+                {t("recurring.variable_date_badge")}
+              </Badge>
             )}
             {r.is_split && (
-              <Badge variant="outline" className="text-[10px]">{t("recurring.split_badge")}</Badge>
+              <Badge variant="outline" className="text-[10px]">
+                {t("recurring.split_badge")}
+              </Badge>
             )}
           </div>
           <div className="text-xs text-muted-foreground">
             {r.is_variable_amount
-              ? (r.estimated_amount != null ? `~${Number(r.estimated_amount).toFixed(2)}` : t("recurring.variable_badge"))
-              : Number(r.amount ?? 0).toFixed(2)} · {describeSchedule(r, t)} · {accountName(r.source_account_id)}
+              ? r.estimated_amount != null
+                ? `~${Number(r.estimated_amount).toFixed(2)}`
+                : t("recurring.variable_badge")
+              : Number(r.amount ?? 0).toFixed(2)}{" "}
+            · {describeSchedule(r, t)} · {accountName(r.source_account_id)}
           </div>
           <div className="text-xs text-muted-foreground">
-            {next ? t("recurring.next_due", { x: format(next, "PP", { locale }) }) : t("recurring.no_more")}
+            {next
+              ? t("recurring.next_due", { x: format(next, "PP", { locale }) })
+              : t("recurring.no_more")}
           </div>
           {r.is_split && r.slices && r.slices.length > 0 && (
             <ul className="mt-1 space-y-0.5 border-l border-dashed border-border/60 pl-2 text-xs text-muted-foreground">
               {r.slices.map((s) => {
                 const cat = categories.find((c) => c.id === s.category_id);
-                const amt = s.amount_ratio != null
-                  ? `${Math.round(Number(s.amount_ratio) * 100)}%`
-                  : (s.amount != null ? Number(s.amount).toFixed(2) : "—");
+                const amt =
+                  s.amount_ratio != null
+                    ? `${Math.round(Number(s.amount_ratio) * 100)}%`
+                    : s.amount != null
+                      ? Number(s.amount).toFixed(2)
+                      : "—";
                 return (
                   <li key={s.id} className="flex items-center gap-1.5">
                     <span className="tabular-nums">{amt}</span>
                     <span>·</span>
                     <span className="truncate">{cat?.name ?? t("common.none")}</span>
-                    {s.description && <><span>·</span><span className="truncate">{s.description}</span></>}
-                    {s.is_reimbursable && <Badge variant="outline" className="ml-1 text-[10px]">🔁</Badge>}
+                    {s.description && (
+                      <>
+                        <span>·</span>
+                        <span className="truncate">{s.description}</span>
+                      </>
+                    )}
+                    {s.is_reimbursable && (
+                      <Badge variant="outline" className="ml-1 text-[10px]">
+                        🔁
+                      </Badge>
+                    )}
                   </li>
                 );
               })}
@@ -520,13 +685,29 @@ export function RecurringRulesCard() {
           )}
         </div>
         <div className="flex gap-1">
-          <Button variant="ghost" size="icon" onClick={() => openEdit(r)} aria-label={t("recurring.edit")}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => openEdit(r)}
+            aria-label={t("recurring.edit")}
+          >
             <Pencil className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" onClick={() => openDuplicate(r)} aria-label={t("recurring.duplicate")}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => openDuplicate(r)}
+            aria-label={t("recurring.duplicate")}
+          >
             <Copy className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive" onClick={() => del(r.id)} aria-label={t("common.delete")}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:text-destructive"
+            onClick={() => del(r.id)}
+            aria-label={t("common.delete")}
+          >
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
@@ -544,7 +725,12 @@ export function RecurringRulesCard() {
               <TooltipTrigger asChild>
                 {/* A span, because a disabled button fires no hover events. */}
                 <span tabIndex={aiEnabled ? -1 : 0}>
-                  <Button size="sm" variant="outline" disabled={!aiEnabled} onClick={() => setAiOpen(true)}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!aiEnabled}
+                    onClick={() => setAiOpen(true)}
+                  >
                     <Sparkles className="h-4 w-4" /> {t("recurring.ai.button")}
                   </Button>
                 </span>
@@ -554,7 +740,9 @@ export function RecurringRulesCard() {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <Button size="sm" onClick={openAdd}><Plus className="h-4 w-4" /> {t("recurring.add")}</Button>
+          <Button size="sm" onClick={openAdd}>
+            <Plus className="h-4 w-4" /> {t("recurring.add")}
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -564,13 +752,17 @@ export function RecurringRulesCard() {
           <>
             {sections.active.length > 0 && (
               <div>
-                <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">{t("recurring.section_active")}</div>
+                <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
+                  {t("recurring.section_active")}
+                </div>
                 <ul className="divide-y">{sections.active.map(renderRule)}</ul>
               </div>
             )}
             {sections.ended.length > 0 && (
               <div>
-                <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">{t("recurring.section_ended")}</div>
+                <div className="mb-1 text-xs font-semibold uppercase text-muted-foreground">
+                  {t("recurring.section_ended")}
+                </div>
                 <ul className="divide-y opacity-70">{sections.ended.map(renderRule)}</ul>
               </div>
             )}
@@ -582,7 +774,11 @@ export function RecurringRulesCard() {
                   className="mb-1 inline-flex items-center gap-1 text-xs font-semibold uppercase text-muted-foreground hover:text-foreground"
                   aria-expanded={archivedOpen}
                 >
-                  {archivedOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                  {archivedOpen ? (
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  ) : (
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  )}
                   {t("recurring.section_archived")} ({sections.archived.length})
                 </button>
                 {archivedOpen && (
@@ -619,37 +815,69 @@ export function RecurringRulesCard() {
               </div>
               {[...aiInfo.warnings.map(aiWarning), ...aiInfo.notes].length > 0 && (
                 <ul className="list-disc space-y-0.5 pl-4 text-muted-foreground">
-                  {aiInfo.warnings.map((w, i) => <li key={`w${i}`}>{aiWarning(w)}</li>)}
-                  {aiInfo.notes.map((n, i) => <li key={`n${i}`}>{n}</li>)}
+                  {aiInfo.warnings.map((w, i) => (
+                    <li key={`w${i}`}>{aiWarning(w)}</li>
+                  ))}
+                  {aiInfo.notes.map((n, i) => (
+                    <li key={`n${i}`}>{n}</li>
+                  ))}
                 </ul>
               )}
-              {aiInfo.similar_rule && (() => {
-                const similar = (rulesQ.data ?? []).find((r) => r.id === aiInfo.similar_rule!.id);
-                if (!similar) return null;
-                return (
-                  <div className="flex flex-wrap items-center gap-2 pt-1">
-                    <span>{t("recurring.ai.similar", { name: similar.name })}</span>
-                    <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setAiInfo(null); openEdit(similar); }}>
-                      <Pencil className="mr-1 h-3 w-3" /> {t("recurring.ai.similar_edit")}
-                    </Button>
-                    <Button type="button" size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setAiInfo(null); openDuplicate(similar); }}>
-                      <Copy className="mr-1 h-3 w-3" /> {t("recurring.ai.similar_duplicate")}
-                    </Button>
-                  </div>
-                );
-              })()}
+              {aiInfo.similar_rule &&
+                (() => {
+                  const similar = (rulesQ.data ?? []).find((r) => r.id === aiInfo.similar_rule!.id);
+                  if (!similar) return null;
+                  return (
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <span>{t("recurring.ai.similar", { name: similar.name })}</span>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={() => {
+                          setAiInfo(null);
+                          openEdit(similar);
+                        }}
+                      >
+                        <Pencil className="mr-1 h-3 w-3" /> {t("recurring.ai.similar_edit")}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        onClick={() => {
+                          setAiInfo(null);
+                          openDuplicate(similar);
+                        }}
+                      >
+                        <Copy className="mr-1 h-3 w-3" /> {t("recurring.ai.similar_duplicate")}
+                      </Button>
+                    </div>
+                  );
+                })()}
             </div>
           )}
           <div className="grid gap-3">
             <div>
               <Label className="text-xs">{t("recurring.field.name")}</Label>
-              <Input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="Miete" />
+              <Input
+                value={draft.name}
+                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+                placeholder="Miete"
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label className="text-xs">{t("common.type")}</Label>
-                <Select value={draft.type} onValueChange={(v) => setDraft({ ...draft, type: v as TxType })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Select
+                  value={draft.type}
+                  onValueChange={(v) => setDraft({ ...draft, type: v as TxType })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="expense">{t("add.expense")}</SelectItem>
                     <SelectItem value="income">{t("add.income")}</SelectItem>
@@ -659,48 +887,92 @@ export function RecurringRulesCard() {
               </div>
               <div>
                 <Label className="text-xs">
-                  {draft.is_variable_amount ? t("recurring.estimated_amount") : t("recurring.field.amount")}
+                  {draft.is_variable_amount
+                    ? t("recurring.estimated_amount")
+                    : t("recurring.field.amount")}
                 </Label>
                 <Input
                   inputMode="decimal"
                   placeholder={draft.is_variable_amount ? t("common.optional") : ""}
                   value={draft.is_variable_amount ? draft.estimated_amount : draft.amount}
-                  onChange={(e) => setDraft(draft.is_variable_amount
-                    ? { ...draft, estimated_amount: e.target.value }
-                    : { ...draft, amount: e.target.value })}
-                  onBlur={() => setDraft(draft.is_variable_amount
-                    ? { ...draft, estimated_amount: formatAmountInput(draft.estimated_amount) }
-                    : { ...draft, amount: formatAmountInput(draft.amount) })}
+                  onChange={(e) =>
+                    setDraft(
+                      draft.is_variable_amount
+                        ? { ...draft, estimated_amount: e.target.value }
+                        : { ...draft, amount: e.target.value },
+                    )
+                  }
+                  onBlur={() =>
+                    setDraft(
+                      draft.is_variable_amount
+                        ? { ...draft, estimated_amount: formatAmountInput(draft.estimated_amount) }
+                        : { ...draft, amount: formatAmountInput(draft.amount) },
+                    )
+                  }
                 />
               </div>
             </div>
             <div className="flex items-center justify-between rounded-md border p-3">
               <div className="min-w-0 pr-3">
-                <Label htmlFor="variable-amount" className="text-sm">{t("recurring.variable_amount")}</Label>
-                <div className="text-xs text-muted-foreground">{t("recurring.variable_amount.help")}</div>
+                <Label htmlFor="variable-amount" className="text-sm">
+                  {t("recurring.variable_amount")}
+                </Label>
+                <div className="text-xs text-muted-foreground">
+                  {t("recurring.variable_amount.help")}
+                </div>
               </div>
               <Switch
                 id="variable-amount"
                 checked={draft.is_variable_amount}
-                onCheckedChange={(v) => setDraft({ ...draft, is_variable_amount: v, auto_post: v ? false : draft.auto_post })}
+                onCheckedChange={(v) =>
+                  setDraft({
+                    ...draft,
+                    is_variable_amount: v,
+                    auto_post: v ? false : draft.auto_post,
+                  })
+                }
               />
             </div>
             <div>
-              <Label className="text-xs">{draft.type === "transfer" ? t("add.from_account") : t("add.account")}</Label>
-              <Select value={draft.source_account_id} onValueChange={(v) => setDraft({ ...draft, source_account_id: v })}>
-                <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+              <Label className="text-xs">
+                {draft.type === "transfer" ? t("add.from_account") : t("add.account")}
+              </Label>
+              <Select
+                value={draft.source_account_id}
+                onValueChange={(v) => setDraft({ ...draft, source_account_id: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="—" />
+                </SelectTrigger>
                 <SelectContent>
-                  {accounts.filter((a) => !a.archived).map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                  {accounts
+                    .filter((a) => !a.archived)
+                    .map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
             {draft.type === "transfer" && (
               <div>
                 <Label className="text-xs">{t("add.to_account")}</Label>
-                <Select value={draft.destination_account_id} onValueChange={(v) => setDraft({ ...draft, destination_account_id: v })}>
-                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                <Select
+                  value={draft.destination_account_id}
+                  onValueChange={(v) => setDraft({ ...draft, destination_account_id: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="—" />
+                  </SelectTrigger>
                   <SelectContent>
-                    {accounts.filter((a) => !a.archived && a.id !== draft.source_account_id).map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                    {accounts
+                      .filter((a) => !a.archived && a.id !== draft.source_account_id)
+                      .map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -708,131 +980,213 @@ export function RecurringRulesCard() {
             {draft.type !== "transfer" && !draft.is_split && (
               <div>
                 <Label className="text-xs">{t("add.category")}</Label>
-                <Select value={draft.category_id || "__none"} onValueChange={(v) => setDraft({ ...draft, category_id: v === "__none" ? "" : v })}>
-                  <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                <Select
+                  value={draft.category_id || "__none"}
+                  onValueChange={(v) =>
+                    setDraft({ ...draft, category_id: v === "__none" ? "" : v })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="—" />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none">{t("common.none")}</SelectItem>
-                    {categories.filter((c) => !c.archived).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                    {categories
+                      .filter((c) => !c.archived)
+                      .map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
             )}
             {!draft.is_split && (
-            <>
-            {(() => {
-              const dropped = Array.from(new Set([
-                ...findDroppedTokens(draft.description),
-                ...findDroppedTokens(draft.note),
-              ]));
-              if (dropped.length === 0) return null;
-              return (
-                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
-                  {t("recurring.dropped_tokens.warning", { list: dropped.map((n) => "${" + n + "}").join(", ") })}
+              <>
+                {(() => {
+                  const dropped = Array.from(
+                    new Set([
+                      ...findDroppedTokens(draft.description),
+                      ...findDroppedTokens(draft.note),
+                    ]),
+                  );
+                  if (dropped.length === 0) return null;
+                  return (
+                    <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-900 dark:text-amber-200">
+                      {t("recurring.dropped_tokens.warning", {
+                        list: dropped.map((n) => "${" + n + "}").join(", "),
+                      })}
+                    </div>
+                  );
+                })()}
+                <div>
+                  <Label className="text-xs" htmlFor="rec-description">
+                    {t("add.description")}
+                  </Label>
+                  <Input
+                    id="rec-description"
+                    ref={descRef}
+                    value={draft.description}
+                    onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+                    onFocus={() => setActiveField("description")}
+                  />
                 </div>
-              );
-            })()}
-            <div>
-              <Label className="text-xs" htmlFor="rec-description">{t("add.description")}</Label>
-              <Input
-                id="rec-description"
-                ref={descRef}
-                value={draft.description}
-                onChange={(e) => setDraft({ ...draft, description: e.target.value })}
-                onFocus={() => setActiveField("description")}
-              />
-            </div>
-            <PlaceholderPalette
-              formatLocaleCode={settingsQ.data?.format_locale}
-              ruleCtx={draftRuleShape(draft)}
-              onInsert={(snippet) => insertPlaceholder({
-                snippet,
-                target: activeField,
-                draft, setDraft,
-                descRef, noteRef,
-              })}
-            />
-            <div>
-              <Label className="text-xs" htmlFor="rec-note">{t("add.note")}</Label>
-              <TagAutocompleteTextarea
-                id="rec-note"
-                ref={noteRef as never}
-                value={draft.note}
-                onChange={(v) => setDraft({ ...draft, note: v })}
-                transactions={txQ.data ?? []}
-                onFocus={() => setActiveField("note")}
-                rows={3}
-              />
-            </div>
-            </>
+                <PlaceholderPalette
+                  formatLocaleCode={settingsQ.data?.format_locale}
+                  ruleCtx={draftRuleShape(draft)}
+                  onInsert={(snippet) =>
+                    insertPlaceholder({
+                      snippet,
+                      target: activeField,
+                      draft,
+                      setDraft,
+                      descRef,
+                      noteRef,
+                    })
+                  }
+                />
+                <div>
+                  <Label className="text-xs" htmlFor="rec-note">
+                    {t("add.note")}
+                  </Label>
+                  <TagAutocompleteTextarea
+                    id="rec-note"
+                    ref={noteRef as never}
+                    value={draft.note}
+                    onChange={(v) => setDraft({ ...draft, note: v })}
+                    transactions={txQ.data ?? []}
+                    onFocus={() => setActiveField("note")}
+                    rows={3}
+                  />
+                </div>
+              </>
             )}
             <div>
               <Label className="text-xs">{t("recurring.field.interval")}</Label>
-              <Select value={String(draft.recurrence_interval)} onValueChange={(v) => setDraft({ ...draft, recurrence_interval: Number(v) })}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+              <Select
+                value={String(draft.recurrence_interval)}
+                onValueChange={(v) => setDraft({ ...draft, recurrence_interval: Number(v) })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
                 <SelectContent>
-                  {[1,2,3,4,5,6,7,8,9,10,11,12].map((n) => (
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map((n) => (
                     <SelectItem key={n} value={String(n)}>
                       {t("recurring.interval.item", { n })}
-                      {n === 1 ? ` — ${t("recurring.freq.monthly")}` :
-                        n === 3 ? ` — ${t("recurring.freq.quarterly")}` :
-                        n === 6 ? ` — ${t("recurring.freq.semesterly")}` :
-                        n === 12 ? ` — ${t("recurring.freq.yearly")}` : ""}
+                      {n === 1
+                        ? ` — ${t("recurring.freq.monthly")}`
+                        : n === 3
+                          ? ` — ${t("recurring.freq.quarterly")}`
+                          : n === 6
+                            ? ` — ${t("recurring.freq.semesterly")}`
+                            : n === 12
+                              ? ` — ${t("recurring.freq.yearly")}`
+                              : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="rounded-md border p-3 space-y-3">
-              <div className="text-xs font-semibold uppercase text-muted-foreground">{t("recurring.section.execution")}</div>
+              <div className="text-xs font-semibold uppercase text-muted-foreground">
+                {t("recurring.section.execution")}
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs">{t("recurring.field.day_rule")}</Label>
-                  <Select value={draft.execution_day_rule} onValueChange={(v) => setDraft({ ...draft, execution_day_rule: v as DayRule })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                  <Select
+                    value={draft.execution_day_rule}
+                    onValueChange={(v) => setDraft({ ...draft, execution_day_rule: v as DayRule })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="FixedDay">{t("recurring.day_rule.fixed_day")}</SelectItem>
-                      <SelectItem value="LastDay">{t("recurring.day_rule.end_of_month")}</SelectItem>
-                      <SelectItem value="FirstDay">{t("recurring.day_rule.first_of_month")}</SelectItem>
+                      <SelectItem value="LastDay">
+                        {t("recurring.day_rule.end_of_month")}
+                      </SelectItem>
+                      <SelectItem value="FirstDay">
+                        {t("recurring.day_rule.first_of_month")}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 {draft.execution_day_rule === "FixedDay" && (
                   <div>
                     <Label className="text-xs">{t("recurring.field.day_of_month")}</Label>
-                    <Input inputMode="numeric" min={1} max={31} type="number" value={draft.execution_day_of_month} onChange={(e) => setDraft({ ...draft, execution_day_of_month: e.target.value })} />
+                    <Input
+                      inputMode="numeric"
+                      min={1}
+                      max={31}
+                      type="number"
+                      value={draft.execution_day_of_month}
+                      onChange={(e) =>
+                        setDraft({ ...draft, execution_day_of_month: e.target.value })
+                      }
+                    />
                   </div>
                 )}
               </div>
               <div>
                 <Label className="text-xs">{t("recurring.field.weekend")}</Label>
-                <Select value={draft.execution_weekend_adjustment} onValueChange={(v) => setDraft({ ...draft, execution_weekend_adjustment: v as WeekendAdjust })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                <Select
+                  value={draft.execution_weekend_adjustment}
+                  onValueChange={(v) =>
+                    setDraft({ ...draft, execution_weekend_adjustment: v as WeekendAdjust })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="None">{t("recurring.weekend.none")}</SelectItem>
-                    <SelectItem value="PreviousBusinessDay">{t("recurring.weekend.before")}</SelectItem>
+                    <SelectItem value="PreviousBusinessDay">
+                      {t("recurring.weekend.before")}
+                    </SelectItem>
                     <SelectItem value="NextBusinessDay">{t("recurring.weekend.after")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="rounded-md border p-3 space-y-3">
-              <div className="text-xs font-semibold uppercase text-muted-foreground">{t("recurring.section.period")}</div>
+              <div className="text-xs font-semibold uppercase text-muted-foreground">
+                {t("recurring.section.period")}
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-xs">{t("recurring.field.period_day_rule")}</Label>
-                  <Select value={draft.period_day_rule} onValueChange={(v) => setDraft({ ...draft, period_day_rule: v as DayRule })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                  <Select
+                    value={draft.period_day_rule}
+                    onValueChange={(v) => setDraft({ ...draft, period_day_rule: v as DayRule })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="FixedDay">{t("recurring.day_rule.fixed_day")}</SelectItem>
-                      <SelectItem value="LastDay">{t("recurring.day_rule.end_of_month")}</SelectItem>
-                      <SelectItem value="FirstDay">{t("recurring.day_rule.first_of_month")}</SelectItem>
+                      <SelectItem value="LastDay">
+                        {t("recurring.day_rule.end_of_month")}
+                      </SelectItem>
+                      <SelectItem value="FirstDay">
+                        {t("recurring.day_rule.first_of_month")}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 {draft.period_day_rule === "FixedDay" && (
                   <div>
                     <Label className="text-xs">{t("recurring.field.day_of_month")}</Label>
-                    <Input inputMode="numeric" min={1} max={31} type="number" value={draft.period_day_of_month} onChange={(e) => setDraft({ ...draft, period_day_of_month: e.target.value })} />
+                    <Input
+                      inputMode="numeric"
+                      min={1}
+                      max={31}
+                      type="number"
+                      value={draft.period_day_of_month}
+                      onChange={(e) => setDraft({ ...draft, period_day_of_month: e.target.value })}
+                    />
                   </div>
                 )}
               </div>
@@ -842,15 +1196,19 @@ export function RecurringRulesCard() {
                   value={String(draft.period_offset_months)}
                   onValueChange={(v) => setDraft({ ...draft, period_offset_months: Number(v) })}
                 >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent className="max-h-72">
                     {periodOffsetChoices(draft.period_offset_months).map((n) => (
                       <SelectItem key={n} value={String(n)}>
                         {firstPeriodLabel(draft, n, locale)}
                         <span className="ml-1 text-muted-foreground">
-                          {n === 0 ? t("recurring.first_period.same")
-                            : n < 0 ? t("recurring.first_period.before", { n: Math.abs(n) })
-                            : t("recurring.first_period.after", { n })}
+                          {n === 0
+                            ? t("recurring.first_period.same")
+                            : n < 0
+                              ? t("recurring.first_period.before", { n: Math.abs(n) })
+                              : t("recurring.first_period.after", { n })}
                         </span>
                       </SelectItem>
                     ))}
@@ -871,7 +1229,9 @@ export function RecurringRulesCard() {
                 />
               </div>
               <div>
-                <Label className="text-xs">{t("recurring.field.ends_on")} {t("common.optional")}</Label>
+                <Label className="text-xs">
+                  {t("recurring.field.ends_on")} {t("common.optional")}
+                </Label>
                 {draft.ends_on ? (
                   <div className="flex gap-2">
                     <DateInput
@@ -880,12 +1240,23 @@ export function RecurringRulesCard() {
                       locale={locale}
                       className="flex-1"
                     />
-                    <Button type="button" variant="ghost" size="sm" onClick={() => setDraft({ ...draft, ends_on: "" })}>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setDraft({ ...draft, ends_on: "" })}
+                    >
                       {t("common.clear")}
                     </Button>
                   </div>
                 ) : (
-                  <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => setDraft({ ...draft, ends_on: todayStr() })}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => setDraft({ ...draft, ends_on: todayStr() })}
+                  >
                     {t("common.set")}
                   </Button>
                 )}
@@ -893,9 +1264,13 @@ export function RecurringRulesCard() {
             </div>
             <div className="flex items-center justify-between rounded-md border p-3">
               <div className="min-w-0 pr-3">
-                <Label htmlFor="auto-post" className="text-sm">{t("recurring.auto_post")}</Label>
+                <Label htmlFor="auto-post" className="text-sm">
+                  {t("recurring.auto_post")}
+                </Label>
                 {(draft.is_variable_amount || draft.is_variable_date) && (
-                  <div className="text-xs text-muted-foreground">{t("recurring.variable_no_autopost")}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {t("recurring.variable_no_autopost")}
+                  </div>
                 )}
               </div>
               <Switch
@@ -907,19 +1282,31 @@ export function RecurringRulesCard() {
             </div>
             <div className="flex items-center justify-between rounded-md border p-3">
               <div className="min-w-0 pr-3">
-                <Label htmlFor="variable-date" className="text-sm">{t("recurring.variable_date")}</Label>
-                <div className="text-xs text-muted-foreground">{t("recurring.variable_date.help")}</div>
+                <Label htmlFor="variable-date" className="text-sm">
+                  {t("recurring.variable_date")}
+                </Label>
+                <div className="text-xs text-muted-foreground">
+                  {t("recurring.variable_date.help")}
+                </div>
               </div>
               <Switch
                 id="variable-date"
                 checked={draft.is_variable_date}
-                onCheckedChange={(v) => setDraft({ ...draft, is_variable_date: v, auto_post: v ? false : draft.auto_post })}
+                onCheckedChange={(v) =>
+                  setDraft({
+                    ...draft,
+                    is_variable_date: v,
+                    auto_post: v ? false : draft.auto_post,
+                  })
+                }
               />
             </div>
             {draft.type !== "transfer" && (
               <div className="flex items-center justify-between rounded-md border p-3">
                 <div className="min-w-0 pr-3">
-                  <Label htmlFor="split-rule" className="text-sm">{t("recurring.split.toggle")}</Label>
+                  <Label htmlFor="split-rule" className="text-sm">
+                    {t("recurring.split.toggle")}
+                  </Label>
                   <div className="text-xs text-muted-foreground">{t("recurring.split.help")}</div>
                 </div>
                 <Switch
@@ -933,20 +1320,28 @@ export function RecurringRulesCard() {
               <div className="rounded-md border p-3 space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="text-sm font-medium">{t("recurring.split.slices")}</div>
-                  <Button type="button" variant="outline" size="sm"
-                    onClick={() => setDraft({ ...draft, slices: [...draft.slices, emptySlice()] })}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDraft({ ...draft, slices: [...draft.slices, emptySlice()] })}
+                  >
                     <Plus className="mr-1 h-4 w-4" /> {t("recurring.split.add_slice")}
                   </Button>
                 </div>
                 <PlaceholderPalette
                   formatLocaleCode={settingsQ.data?.format_locale}
                   ruleCtx={draftRuleShape(draft)}
-                  onInsert={(snippet) => insertSlicePlaceholder({
-                    snippet,
-                    active: activeSlice,
-                    draft, setDraft,
-                    sliceDescRefs, sliceNoteRefs,
-                  })}
+                  onInsert={(snippet) =>
+                    insertSlicePlaceholder({
+                      snippet,
+                      active: activeSlice,
+                      draft,
+                      setDraft,
+                      sliceDescRefs,
+                      sliceNoteRefs,
+                    })
+                  }
                 />
                 {draft.slices.map((s, idx) => (
                   <div key={idx} className="rounded-md border bg-muted/30 p-2 space-y-2">
@@ -955,9 +1350,15 @@ export function RecurringRulesCard() {
                         {t("recurring.split.slice", { n: idx + 1 })}
                       </div>
                       {draft.slices.length > 2 && (
-                        <Button type="button" variant="ghost" size="icon"
-                          onClick={() => setDraft({ ...draft, slices: draft.slices.filter((_, i) => i !== idx) })}
-                          aria-label={t("recurring.split.remove_slice")}>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            setDraft({ ...draft, slices: draft.slices.filter((_, i) => i !== idx) })
+                          }
+                          aria-label={t("recurring.split.remove_slice")}
+                        >
                           <TrashIcon className="h-4 w-4" />
                         </Button>
                       )}
@@ -965,7 +1366,9 @@ export function RecurringRulesCard() {
                     <div className="grid grid-cols-2 gap-2">
                       <div>
                         <Label className="text-xs">
-                          {draft.is_variable_amount ? t("recurring.split.ratio") : t("recurring.split.amount")}
+                          {draft.is_variable_amount
+                            ? t("recurring.split.ratio")
+                            : t("recurring.split.amount")}
                         </Label>
                         <Input
                           inputMode="decimal"
@@ -989,15 +1392,26 @@ export function RecurringRulesCard() {
                       </div>
                       <div>
                         <Label className="text-xs">{t("add.category")}</Label>
-                        <Select value={s.category_id || "__none"} onValueChange={(v) => {
-                          const next = [...draft.slices];
-                          next[idx] = { ...s, category_id: v === "__none" ? "" : v };
-                          setDraft({ ...draft, slices: next });
-                        }}>
-                          <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+                        <Select
+                          value={s.category_id || "__none"}
+                          onValueChange={(v) => {
+                            const next = [...draft.slices];
+                            next[idx] = { ...s, category_id: v === "__none" ? "" : v };
+                            setDraft({ ...draft, slices: next });
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="—" />
+                          </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="__none">{t("common.none")}</SelectItem>
-                            {categories.filter((c) => !c.archived).map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                            {categories
+                              .filter((c) => !c.archived)
+                              .map((c) => (
+                                <SelectItem key={c.id} value={c.id}>
+                                  {c.name}
+                                </SelectItem>
+                              ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -1005,11 +1419,14 @@ export function RecurringRulesCard() {
                     <div>
                       <Label className="text-xs">{t("recurring.split.description")}</Label>
                       <Input
-                        ref={(el) => { sliceDescRefs.current[idx] = el; }}
+                        ref={(el) => {
+                          sliceDescRefs.current[idx] = el;
+                        }}
                         value={s.description}
                         onFocus={() => setActiveSlice({ idx, field: "description" })}
                         onChange={(e) => {
-                          const next = [...draft.slices]; next[idx] = { ...s, description: e.target.value };
+                          const next = [...draft.slices];
+                          next[idx] = { ...s, description: e.target.value };
                           setDraft({ ...draft, slices: next });
                         }}
                       />
@@ -1017,10 +1434,15 @@ export function RecurringRulesCard() {
                     <div>
                       <Label className="text-xs">{t("recurring.split.note")}</Label>
                       <TagAutocompleteTextarea
-                        ref={((el: HTMLTextAreaElement | null) => { sliceNoteRefs.current[idx] = el; }) as never}
+                        ref={
+                          ((el: HTMLTextAreaElement | null) => {
+                            sliceNoteRefs.current[idx] = el;
+                          }) as never
+                        }
                         value={s.note}
                         onChange={(v) => {
-                          const next = [...draft.slices]; next[idx] = { ...s, note: v };
+                          const next = [...draft.slices];
+                          next[idx] = { ...s, note: v };
                           setDraft({ ...draft, slices: next });
                         }}
                         onFocus={() => setActiveSlice({ idx, field: "note" })}
@@ -1036,7 +1458,8 @@ export function RecurringRulesCard() {
                         id={`slice-reimb-${idx}`}
                         checked={s.is_reimbursable}
                         onCheckedChange={(v) => {
-                          const next = [...draft.slices]; next[idx] = { ...s, is_reimbursable: v };
+                          const next = [...draft.slices];
+                          next[idx] = { ...s, is_reimbursable: v };
                           setDraft({ ...draft, slices: next });
                         }}
                       />
@@ -1045,17 +1468,25 @@ export function RecurringRulesCard() {
                       <div className="grid grid-cols-2 gap-2">
                         <div>
                           <Label className="text-xs">{t("recurring.split.counterparty")}</Label>
-                          <Input value={s.reimbursable_counterparty} onChange={(e) => {
-                            const next = [...draft.slices]; next[idx] = { ...s, reimbursable_counterparty: e.target.value };
-                            setDraft({ ...draft, slices: next });
-                          }} />
+                          <Input
+                            value={s.reimbursable_counterparty}
+                            onChange={(e) => {
+                              const next = [...draft.slices];
+                              next[idx] = { ...s, reimbursable_counterparty: e.target.value };
+                              setDraft({ ...draft, slices: next });
+                            }}
+                          />
                         </div>
                         <div>
                           <Label className="text-xs">{t("recurring.split.reason")}</Label>
-                          <Input value={s.reimbursable_reason} onChange={(e) => {
-                            const next = [...draft.slices]; next[idx] = { ...s, reimbursable_reason: e.target.value };
-                            setDraft({ ...draft, slices: next });
-                          }} />
+                          <Input
+                            value={s.reimbursable_reason}
+                            onChange={(e) => {
+                              const next = [...draft.slices];
+                              next[idx] = { ...s, reimbursable_reason: e.target.value };
+                              setDraft({ ...draft, slices: next });
+                            }}
+                          />
                         </div>
                       </div>
                     )}
@@ -1145,12 +1576,19 @@ export function RecurringRulesCard() {
             />
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setOpen(false)}>{t("common.cancel")}</Button>
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              {t("common.cancel")}
+            </Button>
             <Button onClick={() => save()}>{t("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <Dialog open={!!pendingConfirm} onOpenChange={(o) => { if (!o) setPendingConfirm(null); }}>
+      <Dialog
+        open={!!pendingConfirm}
+        onOpenChange={(o) => {
+          if (!o) setPendingConfirm(null);
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{t("recurring.confirm_post_past.title")}</DialogTitle>
@@ -1162,8 +1600,15 @@ export function RecurringRulesCard() {
             })}
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setPendingConfirm(null)}>{t("common.cancel")}</Button>
-            <Button onClick={() => { setPendingConfirm(null); save({ confirmedPastPost: true }); }}>
+            <Button variant="ghost" onClick={() => setPendingConfirm(null)}>
+              {t("common.cancel")}
+            </Button>
+            <Button
+              onClick={() => {
+                setPendingConfirm(null);
+                save({ confirmedPastPost: true });
+              }}
+            >
               {t("recurring.confirm_post_past.confirm")}
             </Button>
           </DialogFooter>
@@ -1176,8 +1621,13 @@ export function RecurringRulesCard() {
         nextDate={null}
         initialDescription={postTarget?.description ?? undefined}
         initialNote={postTarget?.note ?? undefined}
-        onClose={() => { void closePostDialog(); }}
-        onPosted={() => { setPostTarget(null); qc.invalidateQueries(); }}
+        onClose={() => {
+          void closePostDialog();
+        }}
+        onPosted={() => {
+          setPostTarget(null);
+          qc.invalidateQueries();
+        }}
       />
     </Card>
   );
@@ -1203,8 +1653,9 @@ function insertPlaceholder({
   noteRef: React.RefObject<HTMLTextAreaElement | null>;
 }): void {
   const isDesc = target === "description";
-  const el: HTMLInputElement | HTMLTextAreaElement | null =
-    isDesc ? descRef.current : noteRef.current;
+  const el: HTMLInputElement | HTMLTextAreaElement | null = isDesc
+    ? descRef.current
+    : noteRef.current;
   const current = isDesc ? draft.description : draft.note;
   const start = el && typeof el.selectionStart === "number" ? el.selectionStart : current.length;
   const end = el && typeof el.selectionEnd === "number" ? el.selectionEnd : current.length;
@@ -1216,7 +1667,11 @@ function insertPlaceholder({
   requestAnimationFrame(() => {
     if (!el) return;
     el.focus();
-    try { el.setSelectionRange(newCaret, newCaret); } catch { /* unsupported */ }
+    try {
+      el.setSelectionRange(newCaret, newCaret);
+    } catch {
+      /* unsupported */
+    }
   });
 }
 
@@ -1240,8 +1695,9 @@ function insertSlicePlaceholder({
   const slice = draft.slices[a.idx];
   if (!slice) return;
   const isDesc = a.field === "description";
-  const el: HTMLInputElement | HTMLTextAreaElement | null =
-    isDesc ? sliceDescRefs.current[a.idx] : sliceNoteRefs.current[a.idx];
+  const el: HTMLInputElement | HTMLTextAreaElement | null = isDesc
+    ? sliceDescRefs.current[a.idx]
+    : sliceNoteRefs.current[a.idx];
   const current = isDesc ? slice.description : slice.note;
   const start = el && typeof el.selectionStart === "number" ? el.selectionStart : current.length;
   const end = el && typeof el.selectionEnd === "number" ? el.selectionEnd : current.length;
@@ -1253,7 +1709,11 @@ function insertSlicePlaceholder({
   requestAnimationFrame(() => {
     if (!el) return;
     el.focus();
-    try { el.setSelectionRange(newCaret, newCaret); } catch { /* unsupported */ }
+    try {
+      el.setSelectionRange(newCaret, newCaret);
+    } catch {
+      /* unsupported */
+    }
   });
 }
 
@@ -1275,13 +1735,19 @@ function PlaceholderPalette({
     if (ruleCtx) {
       try {
         const { from, to } = periodBoundsForDue(ruleCtx, today);
-        periodFrom = from; periodTo = to;
-      } catch { /* ignore */ }
+        periodFrom = from;
+        periodTo = to;
+      } catch {
+        /* ignore */
+      }
     }
     return {
-      date: today, dueDate: today,
-      periodFrom, periodTo,
-      runNumber: 3, locale: fmtLocale,
+      date: today,
+      dueDate: today,
+      periodFrom,
+      periodTo,
+      runNumber: 3,
+      locale: fmtLocale,
     };
   }, [fmtLocale, ruleCtx]);
   const [showFormatHelp, setShowFormatHelp] = React.useState(false);
@@ -1301,7 +1767,8 @@ function PlaceholderPalette({
         className="mt-2 text-[11px] text-muted-foreground underline-offset-2 hover:underline"
         aria-expanded={showFormatHelp}
       >
-        {showFormatHelp ? "▾ " : "▸ "}{t("recurring.placeholders.format_help.title")}
+        {showFormatHelp ? "▾ " : "▸ "}
+        {t("recurring.placeholders.format_help.title")}
       </button>
       {showFormatHelp && (
         <div className="mt-1 whitespace-pre-line rounded border bg-muted/30 p-2 text-[11px] text-muted-foreground">
@@ -1358,10 +1825,18 @@ function PlaceholderChip({
 }
 
 function PreviewPanel({
-  draft, formatLocaleCode,
-  isNew, postedCount, pendingCount, lastPostedEffOn,
-  showBackfillBlock, deterministicAuto,
-  occurrences, actionsEnabled, showSaveFirstHint, onPostRow,
+  draft,
+  formatLocaleCode,
+  isNew,
+  postedCount,
+  pendingCount,
+  lastPostedEffOn,
+  showBackfillBlock,
+  deterministicAuto,
+  occurrences,
+  actionsEnabled,
+  showSaveFirstHint,
+  onPostRow,
 }: {
   draft: Draft;
   formatLocaleCode?: string;
@@ -1406,24 +1881,25 @@ function PreviewPanel({
   const enabled = !!draft.starts_on;
   const previewQ = useRQuery({
     queryKey: ["preview_recurring", JSON.stringify(shape), fromISO, toISO],
-    queryFn: () => previewRecurringRule({
-      recurrence_interval: shape.recurrence_interval,
-      execution_day_rule: shape.execution_day_rule,
-      execution_day_of_month: shape.execution_day_of_month,
-      execution_weekend_adjustment: shape.execution_weekend_adjustment,
-      period_day_rule: shape.period_day_rule,
-      period_day_of_month: shape.period_day_of_month,
-      period_offset_months: shape.period_offset_months,
-      starts_on: shape.starts_on,
-      ends_on: shape.ends_on,
-      from: fromISO,
-      to: toISO,
-    }),
+    queryFn: () =>
+      previewRecurringRule({
+        recurrence_interval: shape.recurrence_interval,
+        execution_day_rule: shape.execution_day_rule,
+        execution_day_of_month: shape.execution_day_of_month,
+        execution_weekend_adjustment: shape.execution_weekend_adjustment,
+        period_day_rule: shape.period_day_rule,
+        period_day_of_month: shape.period_day_of_month,
+        period_offset_months: shape.period_offset_months,
+        starts_on: shape.starts_on,
+        ends_on: shape.ends_on,
+        from: fromISO,
+        to: toISO,
+      }),
     enabled,
     staleTime: 30_000,
   });
 
-  const rows = previewQ.data ?? [];
+  const rows = React.useMemo(() => previewQ.data ?? [], [previewQ.data]);
   const fmtLocale = resolveFormatLocale(formatLocaleCode);
   // Map real occurrences by due date so each preview row knows its state.
   const occByDue = React.useMemo(() => {
@@ -1448,12 +1924,12 @@ function PreviewPanel({
     : Number(draft.amount) || 0;
   // Will the save trigger actual past auto-posting?
   const willAutoPostPast =
-    deterministicAuto && pastRows.length > 0 && (
-      (showBackfillBlock && draft.backfill === "post") ||
+    deterministicAuto &&
+    pastRows.length > 0 &&
+    ((showBackfillBlock && draft.backfill === "post") ||
       // Edit case: past dates not yet covered by posted rows will become
       // pending occurrences and get auto-posted by process_recurring_rules.
-      (!isNew && draft.backfill !== "none")
-    );
+      (!isNew && draft.backfill !== "none"));
   // Stash count on window so save() confirm dialog can pick it up.
   React.useEffect(() => {
     (window as unknown as { __recImpactPastCount?: number }).__recImpactPastCount = pastRows.length;
@@ -1467,16 +1943,22 @@ function PreviewPanel({
     try {
       sliceAmounts = computeSliceAmounts(
         draft.slices.map((s) => ({
-          amount: draft.is_variable_amount ? null : (Number(s.amount.replace(",", ".")) || 0),
-          amount_ratio: draft.is_variable_amount ? (Number(s.amount_ratio.replace(",", ".")) || 0) : null,
+          amount: draft.is_variable_amount ? null : Number(s.amount.replace(",", ".")) || 0,
+          amount_ratio: draft.is_variable_amount
+            ? Number(s.amount_ratio.replace(",", ".")) || 0
+            : null,
         })),
         splitTotal,
       );
-    } catch { sliceAmounts = null; }
+    } catch {
+      sliceAmounts = null;
+    }
   }
   return (
     <div className="rounded-md border p-3">
-      <div className="mb-2 text-xs font-semibold uppercase text-muted-foreground">{t("recurring.preview.title")}</div>
+      <div className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
+        {t("recurring.preview.title")}
+      </div>
       {!enabled || rows.length === 0 ? (
         <div className="text-xs text-muted-foreground">{t("recurring.preview.empty")}</div>
       ) : (
@@ -1488,20 +1970,31 @@ function PreviewPanel({
               const pf = parseISO(r.period_from);
               const pt = parseISO(r.period_to);
               const ctx = {
-                date: eff, dueDate: due, periodFrom: pf, periodTo: pt,
-                runNumber: i + 1, locale: fmtLocale,
+                date: eff,
+                dueDate: due,
+                periodFrom: pf,
+                periodTo: pt,
+                runNumber: i + 1,
+                locale: fmtLocale,
               };
               const resolved = interpolate(draft.description, ctx);
               const resolvedNote = interpolate(draft.note, ctx);
               const occ = occByDue.get(r.due_on) ?? null;
               const status: "posted" | "pending" | "missing" | "future" =
-                occ?.status === "posted" ? "posted"
-                  : occ?.status === "pending" ? "pending"
-                    : r.in_past ? "missing" : "future";
+                occ?.status === "posted"
+                  ? "posted"
+                  : occ?.status === "pending"
+                    ? "pending"
+                    : r.in_past
+                      ? "missing"
+                      : "future";
               const label =
-                status === "posted" ? t("recurring.preview.posted")
-                  : status === "pending" ? t("recurring.preview.pending")
-                    : status === "missing" ? t("recurring.preview.missing")
+                status === "posted"
+                  ? t("recurring.preview.posted")
+                  : status === "pending"
+                    ? t("recurring.preview.pending")
+                    : status === "missing"
+                      ? t("recurring.preview.missing")
                       : t("recurring.preview.future");
               return (
                 <li key={i} className="text-xs">
@@ -1517,8 +2010,13 @@ function PreviewPanel({
                         {label}
                       </Badge>
                       {actionsEnabled && status === "posted" && occ?.transaction_id && (
-                        <Button asChild variant="ghost" size="icon" className="h-6 w-6"
-                          aria-label={t("recurring.preview.open_tx")}>
+                        <Button
+                          asChild
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6"
+                          aria-label={t("recurring.preview.open_tx")}
+                        >
                           <Link to="/edit/$id" params={{ id: occ.transaction_id }}>
                             <Pencil className="h-3.5 w-3.5" />
                           </Link>
@@ -1529,22 +2027,29 @@ function PreviewPanel({
                           variant="outline"
                           size="sm"
                           className="h-6 px-2 text-[10px]"
-                          onClick={() => onPostRow({
-                            occurrence: occ,
-                            due_on: r.due_on,
-                            effective_on: r.effective_on,
-                            runNumber: i + 1,
-                            description: draft.is_split ? null : (draft.description || null),
-                            note: draft.is_split ? null : (draft.note || null),
-                          })}
+                          onClick={() =>
+                            onPostRow({
+                              occurrence: occ,
+                              due_on: r.due_on,
+                              effective_on: r.effective_on,
+                              runNumber: i + 1,
+                              description: draft.is_split ? null : draft.description || null,
+                              note: draft.is_split ? null : draft.note || null,
+                            })
+                          }
                         >
-                          {status === "pending" ? t("recurring.preview.post_now") : t("recurring.preview.create_entry")}
+                          {status === "pending"
+                            ? t("recurring.preview.post_now")
+                            : t("recurring.preview.create_entry")}
                         </Button>
                       )}
                     </div>
                   </div>
                   {!draft.is_split && resolved && draft.description && (
-                    <div className="truncate font-mono text-[11px] text-muted-foreground" title={resolved}>
+                    <div
+                      className="truncate font-mono text-[11px] text-muted-foreground"
+                      title={resolved}
+                    >
                       {resolved}
                     </div>
                   )}
@@ -1562,11 +2067,15 @@ function PreviewPanel({
                         return (
                           <li key={si} className="text-[11px] text-muted-foreground">
                             <div className="flex items-center justify-between gap-2">
-                              <span className="truncate">{sResolvedDesc || `${t("recurring.split.slice", { n: si + 1 })}`}</span>
+                              <span className="truncate">
+                                {sResolvedDesc || `${t("recurring.split.slice", { n: si + 1 })}`}
+                              </span>
                               <span className="tabular-nums">{amt}</span>
                             </div>
                             {s.note.trim() && (
-                              <div className="text-[11px]"><Markdown>{sResolvedNote.trim()}</Markdown></div>
+                              <div className="text-[11px]">
+                                <Markdown>{sResolvedNote.trim()}</Markdown>
+                              </div>
                             )}
                           </li>
                         );
@@ -1605,9 +2114,14 @@ function PreviewPanel({
           {!willAutoPostPast && pastRows.length > 0 && draft.backfill === "pending" && (
             <li>{t("recurring.impact.pending_past", { n: pastRows.length })}</li>
           )}
-          {!willAutoPostPast && pastRows.length > 0 && draft.backfill === "none" && showBackfillBlock && (
-            <li className="text-muted-foreground">{t("recurring.impact.skipped_past", { n: pastRows.length })}</li>
-          )}
+          {!willAutoPostPast &&
+            pastRows.length > 0 &&
+            draft.backfill === "none" &&
+            showBackfillBlock && (
+              <li className="text-muted-foreground">
+                {t("recurring.impact.skipped_past", { n: pastRows.length })}
+              </li>
+            )}
           <li className="text-muted-foreground">
             {t("recurring.impact.future", { n: futureCount })}
           </li>
@@ -1622,9 +2136,7 @@ function PreviewPanel({
             </li>
           )}
           {(draft.is_variable_amount || draft.is_variable_date) && (
-            <li className="text-muted-foreground">
-              {t("recurring.impact.variable_note")}
-            </li>
+            <li className="text-muted-foreground">{t("recurring.impact.variable_note")}</li>
           )}
           {pastRows.length === 0 && isNew && (
             <li className="text-muted-foreground">{t("recurring.impact.no_change")}</li>
@@ -1646,7 +2158,11 @@ function periodOffsetChoices(current: number): number[] {
 function firstPeriodLabel(draft: Draft, offsetMonths: number, locale: Locale): string {
   const start = parseISODate(draft.starts_on || todayStr());
   const from = new Date(start.getFullYear(), start.getMonth() + offsetMonths, 1);
-  const to = new Date(from.getFullYear(), from.getMonth() + Math.max(1, draft.recurrence_interval) - 1, 1);
+  const to = new Date(
+    from.getFullYear(),
+    from.getMonth() + Math.max(1, draft.recurrence_interval) - 1,
+    1,
+  );
   const f = (d: Date) => format(d, "MMM yyyy", { locale }).replace(".", "");
   return draft.recurrence_interval <= 1 ? f(from) : `${f(from)} – ${f(to)}`;
 }
@@ -1658,10 +2174,12 @@ function draftRuleShape(draft: Draft): RuleShape {
     ends_on: draft.ends_on || null,
     recurrence_interval: draft.recurrence_interval,
     execution_day_rule: draft.execution_day_rule,
-    execution_day_of_month: draft.execution_day_rule === "FixedDay" ? Number(draft.execution_day_of_month) || 1 : null,
+    execution_day_of_month:
+      draft.execution_day_rule === "FixedDay" ? Number(draft.execution_day_of_month) || 1 : null,
     execution_weekend_adjustment: draft.execution_weekend_adjustment,
     period_day_rule: draft.period_day_rule,
-    period_day_of_month: draft.period_day_rule === "FixedDay" ? Number(draft.period_day_of_month) || 1 : null,
+    period_day_of_month:
+      draft.period_day_rule === "FixedDay" ? Number(draft.period_day_of_month) || 1 : null,
     period_offset_months: draft.period_offset_months,
   };
 }

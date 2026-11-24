@@ -34,7 +34,11 @@ function endOfMonthISO(year: number, month0: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-function netWorthOf(balances: AccountBalance[]): { net: number; assets: number; liabilities: number } {
+function netWorthOf(balances: AccountBalance[]): {
+  net: number;
+  assets: number;
+  liabilities: number;
+} {
   let assets = 0;
   let liabilities = 0;
   for (const a of balances) {
@@ -61,13 +65,20 @@ export function ProjectionTab({ symbol }: { symbol: string }) {
     const monthsTo = (year: number, month0: number) =>
       (year - currentYear) * 12 + (month0 - today.getMonth());
     switch (aheadPreset) {
-      case "3mo": return 3;
-      case "6mo": return 6;
-      case "12mo": return 12;
-      case "24mo": return 24;
-      case "eoy": return Math.max(1, monthsTo(currentYear, 11));
-      case "eoy_next": return monthsTo(currentYear + 1, 11);
-      case "10y": return 120;
+      case "3mo":
+        return 3;
+      case "6mo":
+        return 6;
+      case "12mo":
+        return 12;
+      case "24mo":
+        return 24;
+      case "eoy":
+        return Math.max(1, monthsTo(currentYear, 11));
+      case "eoy_next":
+        return monthsTo(currentYear + 1, 11);
+      case "10y":
+        return 120;
     }
   }, [aheadPreset, currentYear, today]);
 
@@ -138,9 +149,10 @@ export function ProjectionTab({ symbol }: { symbol: string }) {
     if (cut === 0) return projection.points;
     const last = history[history.length - 1];
     if (!last) return projection.points;
-    const avgAdjusted = projection.summary.avgMonthlyNet < 0
-      ? projection.summary.avgMonthlyNet * (1 - cut)
-      : projection.summary.avgMonthlyNet;
+    const avgAdjusted =
+      projection.summary.avgMonthlyNet < 0
+        ? projection.summary.avgMonthlyNet * (1 - cut)
+        : projection.summary.avgMonthlyNet;
     return projection.points.map((p, i) => {
       if (p.actual !== undefined) return p;
       // i is overall index; offset = i - history.length + 1
@@ -157,9 +169,7 @@ export function ProjectionTab({ symbol }: { symbol: string }) {
       adjustedPoints.map((p) => ({
         ...p,
         bandHeight:
-          p.bandHigh !== undefined && p.bandLow !== undefined
-            ? p.bandHigh - p.bandLow
-            : undefined,
+          p.bandHigh !== undefined && p.bandLow !== undefined ? p.bandHigh - p.bandLow : undefined,
       })),
     [adjustedPoints],
   );
@@ -192,7 +202,10 @@ export function ProjectionTab({ symbol }: { symbol: string }) {
             { v: "12mo", l: "12 mo" },
             { v: "24mo", l: "24 mo" },
             { v: "eoy", l: t("insights.projection.preset.eoy", { year: String(currentYear) }) },
-            { v: "eoy_next", l: t("insights.projection.preset.eoy", { year: String(currentYear + 1) }) },
+            {
+              v: "eoy_next",
+              l: t("insights.projection.preset.eoy", { year: String(currentYear + 1) }),
+            },
             { v: "10y", l: t("insights.projection.preset.ten_years") },
           ]}
         />
@@ -204,7 +217,12 @@ export function ProjectionTab({ symbol }: { symbol: string }) {
             <ResponsiveContainer>
               <ComposedChart data={chartPoints} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="date" fontSize={11} tickLine={false} tickFormatter={(s) => s.slice(0, 7)} />
+                <XAxis
+                  dataKey="date"
+                  fontSize={11}
+                  tickLine={false}
+                  tickFormatter={(s) => s.slice(0, 7)}
+                />
                 <YAxis fontSize={11} tickLine={false} width={60} />
                 <Tooltip
                   contentStyle={{
@@ -242,12 +260,47 @@ export function ProjectionTab({ symbol }: { symbol: string }) {
                   name={t("insights.projection.band")}
                   isAnimationActive={false}
                 />
-                <Line type="monotone" dataKey="actual" stroke="var(--chart-3)" strokeWidth={2.5} dot={false} name={t("insights.projection.actual")} />
-                <Line type="monotone" dataKey="trend" stroke="var(--chart-3)" strokeWidth={2} strokeDasharray="6 4" dot={false} name={t("insights.projection.trend")} />
-                <Line type="monotone" dataKey="avg" stroke="var(--chart-2)" strokeWidth={2} strokeDasharray="3 3" dot={false} name={t("insights.projection.avg")} />
-                <Line type="monotone" dataKey="recurring" stroke="var(--chart-1)" strokeWidth={2} strokeDasharray="2 2" dot={false} name={t("insights.projection.recurring")} />
+                <Line
+                  type="monotone"
+                  dataKey="actual"
+                  stroke="var(--chart-3)"
+                  strokeWidth={2.5}
+                  dot={false}
+                  name={t("insights.projection.actual")}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="trend"
+                  stroke="var(--chart-3)"
+                  strokeWidth={2}
+                  strokeDasharray="6 4"
+                  dot={false}
+                  name={t("insights.projection.trend")}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="avg"
+                  stroke="var(--chart-2)"
+                  strokeWidth={2}
+                  strokeDasharray="3 3"
+                  dot={false}
+                  name={t("insights.projection.avg")}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="recurring"
+                  stroke="var(--chart-1)"
+                  strokeWidth={2}
+                  strokeDasharray="2 2"
+                  dot={false}
+                  name={t("insights.projection.recurring")}
+                />
                 {lastActual && (
-                  <ReferenceLine x={lastActual.date} stroke="var(--muted-foreground)" strokeDasharray="2 2" />
+                  <ReferenceLine
+                    x={lastActual.date}
+                    stroke="var(--muted-foreground)"
+                    strokeDasharray="2 2"
+                  />
                 )}
               </ComposedChart>
             </ResponsiveContainer>
@@ -271,8 +324,17 @@ export function ProjectionTab({ symbol }: { symbol: string }) {
         </CardHeader>
         <CardContent>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-muted-foreground whitespace-nowrap">{t("insights.projection.whatif.label")}</span>
-            <Slider value={cutPct} onValueChange={setCutPct} min={0} max={50} step={1} className="flex-1" />
+            <span className="text-xs text-muted-foreground whitespace-nowrap">
+              {t("insights.projection.whatif.label")}
+            </span>
+            <Slider
+              value={cutPct}
+              onValueChange={setCutPct}
+              min={0}
+              max={50}
+              step={1}
+              className="flex-1"
+            />
             <span className="w-12 text-right text-sm font-medium tabular-nums">{cutPct[0]}%</span>
           </div>
           <p className="mt-2 text-xs text-muted-foreground">

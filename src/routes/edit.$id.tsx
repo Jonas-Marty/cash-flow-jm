@@ -5,7 +5,9 @@ export const Route = createFileRoute("/edit/$id")({
   // `back` carries the search of the page the edit was opened from (the
   // transaction-list filters, or the Budgets month and open Verlauf) so it
   // survives the round trip; `backTo` names that page when it is not the list.
-  validateSearch: (search: Record<string, unknown>): {
+  validateSearch: (
+    search: Record<string, unknown>,
+  ): {
     back?: Record<string, unknown>;
     backTo?: "envelopes";
   } => ({

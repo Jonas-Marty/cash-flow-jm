@@ -164,7 +164,10 @@ test.describe("budget grid", () => {
 
   test("clicking a month heading selects it without leaving the grid", async ({ page }) => {
     await openGrid(page);
-    await page.getByRole("button", { name: /Select / }).first().click();
+    await page
+      .getByRole("button", { name: /Select / })
+      .first()
+      .click();
     await expect(page).toHaveURL(/view=grid/);
     await expect(cell(page, 0, 0)).toBeVisible();
   });
@@ -184,7 +187,9 @@ test.describe("budget grid", () => {
 
     await extend.click();
     await expect.poll(() => bulkCalls(calls).length).toBe(1);
-    const edits = (bulkCalls(calls)[0].body as { p_edits: Array<{ month: string; amount: number }> }).p_edits;
+    const edits = (
+      bulkCalls(calls)[0].body as { p_edits: Array<{ month: string; amount: number }> }
+    ).p_edits;
 
     // One row per envelope, so the new month is complete rather than partial.
     expect(edits).toHaveLength(3);

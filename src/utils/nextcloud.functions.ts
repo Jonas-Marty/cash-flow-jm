@@ -5,7 +5,13 @@ import { attachSupabaseAuth } from "@/integrations/supabase/client-auth-middlewa
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import type { Database } from "@/integrations/supabase/types";
 import { getRequestHost } from "@tanstack/react-start/server";
-import { callbackUrlForHost, downloadFile, listFolder, searchFiles, trimBaseUrl } from "./nextcloud.server";
+import {
+  callbackUrlForHost,
+  downloadFile,
+  listFolder,
+  searchFiles,
+  trimBaseUrl,
+} from "./nextcloud.server";
 
 // nextcloud_connections is server-only: the browser has no grant on it, so
 // every function here uses the service role and filters by the caller's id.
@@ -59,7 +65,8 @@ export const saveNextcloudConfig = createServerFn({ method: "POST" })
     if (readErr) throw new Error(readErr.message);
 
     if (!existing) {
-      if (!data.client_id || !data.client_secret) throw new Error("Client ID and client secret are required.");
+      if (!data.client_id || !data.client_secret)
+        throw new Error("Client ID and client secret are required.");
       const { error } = await supabaseAdmin.from("nextcloud_connections").insert({
         user_id: userId,
         base_url,
@@ -76,11 +83,20 @@ export const saveNextcloudConfig = createServerFn({ method: "POST" })
     // Tokens belong to one server and one app login. Pointing at another
     // makes them meaningless, and keeping them would show "connected" to a
     // server that never granted anything.
-    const changed = existing.base_url !== base_url || (!!data.client_id && existing.client_id !== data.client_id);
+    const changed =
+      existing.base_url !== base_url || (!!data.client_id && existing.client_id !== data.client_id);
     if (changed) {
-      Object.assign(patch, { access_token: null, refresh_token: null, token_expires_at: null, nextcloud_user: null });
+      Object.assign(patch, {
+        access_token: null,
+        refresh_token: null,
+        token_expires_at: null,
+        nextcloud_user: null,
+      });
     }
-    const { error } = await supabaseAdmin.from("nextcloud_connections").update(patch).eq("user_id", userId);
+    const { error } = await supabaseAdmin
+      .from("nextcloud_connections")
+      .update(patch)
+      .eq("user_id", userId);
     if (error) throw new Error(error.message);
     return { ok: true, reconnect: changed };
   });
@@ -88,7 +104,10 @@ export const saveNextcloudConfig = createServerFn({ method: "POST" })
 export const disconnectNextcloud = createServerFn({ method: "POST" })
   .middleware([attachSupabaseAuth, requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { error } = await supabaseAdmin.from("nextcloud_connections").delete().eq("user_id", context.userId);
+    const { error } = await supabaseAdmin
+      .from("nextcloud_connections")
+      .delete()
+      .eq("user_id", context.userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -108,7 +127,8 @@ export const startNextcloudOAuth = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!data) throw new Error("Please save the Nextcloud URL and OAuth credentials first.");
-    if (!data.client_id || !data.client_secret) throw new Error("Please enter the client ID and client secret first.");
+    if (!data.client_id || !data.client_secret)
+      throw new Error("Please enter the client ID and client secret first.");
     const state = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url");
     const { error: upErr } = await supabaseAdmin
       .from("nextcloud_connections")
@@ -140,7 +160,14 @@ export const searchNextcloud = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     return {
-      results: await searchFiles(context.userId, data.query, data.kind, 25, data.order, data.folder),
+      results: await searchFiles(
+        context.userId,
+        data.query,
+        data.kind,
+        25,
+        data.order,
+        data.folder,
+      ),
     };
   });
 

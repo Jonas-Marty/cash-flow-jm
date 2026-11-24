@@ -1,7 +1,8 @@
 import * as React from "react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { SuggestionList, listKeyHandler } from "@/components/SuggestionList";
+import { SuggestionList } from "@/components/SuggestionList";
+import { listKeyHandler } from "@/lib/listKeyHandler";
 import type { Transaction } from "@/lib/finance";
 import {
   detectActiveTag,

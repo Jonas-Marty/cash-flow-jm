@@ -3,18 +3,52 @@ import { useNavigate, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { SendHorizonal, Sparkles, Loader2, ExternalLink, Paperclip, X, FileText, Mic, Square, Plus, Camera, Cloud, Image as ImageIcon, Info } from "lucide-react";
+import {
+  SendHorizonal,
+  Sparkles,
+  Loader2,
+  ExternalLink,
+  Paperclip,
+  X,
+  FileText,
+  Mic,
+  Square,
+  Plus,
+  Camera,
+  Cloud,
+  Image as ImageIcon,
+  Info,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Markdown } from "@/components/Markdown";
 import { cn } from "@/lib/utils";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { chat, listAIEndpoints, getConversation, transcribeAudio, getAttachmentUrl } from "@/utils/ai.functions";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  chat,
+  listAIEndpoints,
+  getConversation,
+  transcribeAudio,
+  getAttachmentUrl,
+} from "@/utils/ai.functions";
 import { startVoiceRecording, blobToBase64, type VoiceRecorderHandle } from "@/lib/voiceRecorder";
 import { getNextcloudStatus, downloadNextcloudFile } from "@/utils/nextcloud.functions";
 import { NextcloudFilePicker, type PickedFile } from "@/components/NextcloudFilePicker";
 import { getChatDraft, setChatDraft, resetChatDraft } from "@/lib/ai/chatDraft";
-import type { AssistantAction, ChatAttachmentRef, ChatMessage, ChatNotice, AIEndpoint, AIEndpointOfflinePayload } from "@/lib/ai/types";
+import type {
+  AssistantAction,
+  ChatAttachmentRef,
+  ChatMessage,
+  ChatNotice,
+  AIEndpoint,
+  AIEndpointOfflinePayload,
+} from "@/lib/ai/types";
 import { setPendingRuleDraft } from "@/lib/ai/recurringHandoff";
 import { parseEndpointOffline } from "@/lib/ai/types";
 import {
@@ -38,7 +72,12 @@ type LocalMsg = {
   attachments?: (ChatAttachmentRef | { id?: undefined; file_name: string; mime: string })[];
   notices?: ChatNotice[];
   /** Token usage reported by the provider for this reply. */
-  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number; steps: number } | null;
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+    steps: number;
+  } | null;
 };
 
 const ACCEPT =
@@ -104,7 +143,10 @@ export function AssistantChat({
   const settingsQ = useQuery({ queryKey: ["ai_endpoints"], queryFn: () => listFn() });
   const historyQ = useQuery({
     queryKey: ["ai_conv", conversationId],
-    queryFn: () => (conversationId ? convFn({ data: { id: conversationId } }) : Promise.resolve({ messages: [] as ChatMessage[] })),
+    queryFn: () =>
+      conversationId
+        ? convFn({ data: { id: conversationId } })
+        : Promise.resolve({ messages: [] as ChatMessage[] }),
     enabled: !!conversationId,
   });
 
@@ -117,7 +159,9 @@ export function AssistantChat({
   );
   const [input, setInput] = React.useState(() => (keepDraft ? draft.input : ""));
   const [busy, setBusy] = React.useState(false);
-  const [endpointId, setEndpointId] = React.useState<string>(() => (keepDraft ? draft.endpointId : "auto"));
+  const [endpointId, setEndpointId] = React.useState<string>(() =>
+    keepDraft ? draft.endpointId : "auto",
+  );
   const scrollerRef = React.useRef<HTMLDivElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const cameraInputRef = React.useRef<HTMLInputElement>(null);
@@ -135,10 +179,10 @@ export function AssistantChat({
 
   React.useEffect(() => {
     if (!offline) return;
-    const first = offline.payload.alternatives.find((a) => a.available) ?? offline.payload.alternatives[0];
+    const first =
+      offline.payload.alternatives.find((a) => a.available) ?? offline.payload.alternatives[0];
     setRetryId(first?.id ?? "");
   }, [offline]);
-
 
   const pickFromNextcloud = React.useCallback(
     async (picked: PickedFile) => {
@@ -181,10 +225,7 @@ export function AssistantChat({
     if (keepDraft) resetChatDraft();
   }, [keepDraft]);
 
-  const isAccepted = React.useCallback(
-    isSupportedFile,
-    [],
-  );
+  const isAccepted = React.useCallback(isSupportedFile, []);
 
   const onPaste = React.useCallback(
     (e: React.ClipboardEvent) => {
@@ -228,9 +269,11 @@ export function AssistantChat({
   const chatBinding = settingsQ.data?.bindings.find((b) => b.action === "chat");
   const capsOf = (e: AIEndpoint) =>
     e.capabilities?.[chatModel(e, chatBinding?.model ?? null, chatBinding?.endpoint_id === e.id)];
-  const candidates = endpointId === "auto" ? endpoints : endpoints.filter((e) => e.id === endpointId);
+  const candidates =
+    endpointId === "auto" ? endpoints : endpoints.filter((e) => e.id === endpointId);
   const toolsBlocked = candidates.length > 0 && candidates.every((e) => capsOf(e)?.tools === false);
-  const visionBlocked = candidates.length > 0 && candidates.every((e) => capsOf(e)?.vision === false);
+  const visionBlocked =
+    candidates.length > 0 && candidates.every((e) => capsOf(e)?.vision === false);
 
   const addFiles = (incoming: File[]) => {
     const ok: File[] = [];
@@ -329,7 +372,9 @@ export function AssistantChat({
           .map((m) => ({
             role: m.role,
             text: m.text.slice(0, 20_000),
-            attachment_ids: (m.attachments ?? []).map((a) => a.id).filter((id): id is string => !!id),
+            attachment_ids: (m.attachments ?? [])
+              .map((a) => a.id)
+              .filter((id): id is string => !!id),
           }));
     setMessages((prev) => [
       ...prev,
@@ -341,7 +386,11 @@ export function AssistantChat({
     setBusy(true);
     try {
       const attachments = await Promise.all(
-        toSend.map(async (f) => ({ file_name: f.name, file_type: f.type || null, file_base64: await readFileAsBase64(f) })),
+        toSend.map(async (f) => ({
+          file_name: f.name,
+          file_type: f.type || null,
+          file_base64: await readFileAsBase64(f),
+        })),
       );
       const r = await chatFn({
         data: {
@@ -370,7 +419,8 @@ export function AssistantChat({
         return next;
       });
       if (r.endpoint?.fell_back) toast.info(t("ai.conn.fell_back", { name: r.endpoint.name }));
-      if (r.conversation_id && r.conversation_id !== conversationId) onConversationChange?.(r.conversation_id);
+      if (r.conversation_id && r.conversation_id !== conversationId)
+        onConversationChange?.(r.conversation_id);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       const offline = parseEndpointOffline(msg);
@@ -512,13 +562,21 @@ export function AssistantChat({
                       className="inline-flex max-w-full items-center gap-1 rounded-md bg-primary-foreground/15 px-2 py-0.5 text-xs hover:bg-primary-foreground/25 disabled:cursor-default"
                       title={a.file_name}
                     >
-                      {a.mime.startsWith("image/") ? <ImageIcon className="h-3 w-3 shrink-0" /> : <FileText className="h-3 w-3 shrink-0" />}
+                      {a.mime.startsWith("image/") ? (
+                        <ImageIcon className="h-3 w-3 shrink-0" />
+                      ) : (
+                        <FileText className="h-3 w-3 shrink-0" />
+                      )}
                       <span className="truncate">{a.file_name}</span>
                     </button>
                   ))}
                 </div>
               )}
-              {m.role === "assistant" ? <Markdown>{m.text || ""}</Markdown> : m.text ? <p className="whitespace-pre-wrap">{m.text}</p> : null}
+              {m.role === "assistant" ? (
+                <Markdown>{m.text || ""}</Markdown>
+              ) : m.text ? (
+                <p className="whitespace-pre-wrap">{m.text}</p>
+              ) : null}
               {m.action?.kind === "open_add" && (
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Button size="sm" variant="secondary" onClick={() => runAction(m.action!)}>
@@ -531,7 +589,10 @@ export function AssistantChat({
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => m.action?.kind === "open_add" && runAction(m.action, m.action.alternate!.search)}
+                      onClick={() =>
+                        m.action?.kind === "open_add" &&
+                        runAction(m.action, m.action.alternate!.search)
+                      }
                     >
                       <ExternalLink className="mr-1 h-3 w-3" />
                       {m.action.active_scope_name
@@ -545,7 +606,9 @@ export function AssistantChat({
                 <div className="mt-2 flex flex-wrap gap-2">
                   <Button size="sm" variant="secondary" onClick={() => runAction(m.action!)}>
                     <ExternalLink className="mr-1 h-3 w-3" />
-                    {m.action.kind === "open_recurring" ? t("ai.action.open_rule") : t("ai.attach.open")}
+                    {m.action.kind === "open_recurring"
+                      ? t("ai.action.open_rule")
+                      : t("ai.attach.open")}
                   </Button>
                 </div>
               )}
@@ -572,7 +635,9 @@ export function AssistantChat({
                     prompt: String(m.usage.prompt_tokens),
                     completion: String(m.usage.completion_tokens),
                   })}
-                  {m.usage.steps > 1 ? ` · ${t("ai.usage.steps", { n: String(m.usage.steps) })}` : ""}
+                  {m.usage.steps > 1
+                    ? ` · ${t("ai.usage.steps", { n: String(m.usage.steps) })}`
+                    : ""}
                 </div>
               )}
             </div>
@@ -587,7 +652,10 @@ export function AssistantChat({
       {files.length > 0 && (
         <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md border bg-muted/40 p-2 text-xs">
           {files.map((f, i) => (
-            <span key={`${f.name}-${i}`} className="inline-flex max-w-[45%] items-center gap-1 rounded bg-background px-2 py-0.5">
+            <span
+              key={`${f.name}-${i}`}
+              className="inline-flex max-w-[45%] items-center gap-1 rounded bg-background px-2 py-0.5"
+            >
               {f.type.startsWith("image/") ? (
                 <ImageIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
               ) : (
@@ -652,7 +720,13 @@ export function AssistantChat({
           size="icon"
           variant="ghost"
           disabled={busy || toolsBlocked || visionBlocked || files.length >= MAX_FILES}
-          title={toolsBlocked ? t("ai.attach.no_tools") : visionBlocked ? t("ai.attach.no_vision") : t("ai.attach.camera")}
+          title={
+            toolsBlocked
+              ? t("ai.attach.no_tools")
+              : visionBlocked
+                ? t("ai.attach.no_vision")
+                : t("ai.attach.camera")
+          }
           aria-label={t("ai.attach.camera")}
           onClick={() => cameraInputRef.current?.click()}
         >
@@ -668,7 +742,11 @@ export function AssistantChat({
             aria-label={t("ai.attach.nextcloud")}
             onClick={() => setNcOpen(true)}
           >
-            {ncLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Cloud className="h-4 w-4" />}
+            {ncLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Cloud className="h-4 w-4" />
+            )}
           </Button>
         )}
         {voiceAvailable && (
@@ -695,7 +773,9 @@ export function AssistantChat({
           onChange={(e) => setInput(e.target.value)}
           placeholder={
             recording
-              ? t("ai.voice.recording", { time: `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}` })
+              ? t("ai.voice.recording", {
+                  time: `${Math.floor(elapsed / 60)}:${String(elapsed % 60).padStart(2, "0")}`,
+                })
               : transcribing
                 ? t("ai.voice.transcribing")
                 : enabled
@@ -712,7 +792,11 @@ export function AssistantChat({
           }}
           disabled={!enabled || busy || recording || transcribing}
         />
-        <Button type="submit" size="icon" disabled={!enabled || busy || (!input.trim() && files.length === 0)}>
+        <Button
+          type="submit"
+          size="icon"
+          disabled={!enabled || busy || (!input.trim() && files.length === 0)}
+        >
           <SendHorizonal className="h-4 w-4" />
         </Button>
       </form>
@@ -752,7 +836,10 @@ export function AssistantChat({
               {t("common.cancel")}
             </Button>
             <Button
-              disabled={!retryId || !(offline?.payload.alternatives.find((a) => a.id === retryId)?.available ?? false)}
+              disabled={
+                !retryId ||
+                !(offline?.payload.alternatives.find((a) => a.id === retryId)?.available ?? false)
+              }
               onClick={() => {
                 const target = offline;
                 const id = retryId;
@@ -767,6 +854,5 @@ export function AssistantChat({
         </DialogContent>
       </Dialog>
     </div>
-
   );
 }

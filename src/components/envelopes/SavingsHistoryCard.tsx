@@ -119,7 +119,9 @@ export function SavingsHistoryCard({ symbol }: { symbol: string }) {
         {q.isLoading ? (
           <Skeleton className="h-56 w-full" />
         ) : data.length === 0 ? (
-          <div className="py-8 text-center text-sm text-muted-foreground">{t("env.history.empty")}</div>
+          <div className="py-8 text-center text-sm text-muted-foreground">
+            {t("env.history.empty")}
+          </div>
         ) : (
           <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
@@ -131,9 +133,16 @@ export function SavingsHistoryCard({ symbol }: { symbol: string }) {
                     tickFormatter={(v: string) => format(new Date(v), "MMM yy", { locale })}
                     fontSize={11}
                   />
-                  <YAxis fontSize={11} width={64} tickFormatter={(v: number) => fmtMoney(v, symbol)} />
+                  <YAxis
+                    fontSize={11}
+                    width={64}
+                    tickFormatter={(v: number) => fmtMoney(v, symbol)}
+                  />
                   <Tooltip
-                    formatter={(v: number, name: string) => [fmtMoney(Number(v), symbol), labelFor(name)]}
+                    formatter={(v: number, name: string) => [
+                      fmtMoney(Number(v), symbol),
+                      labelFor(name),
+                    ]}
                     labelFormatter={(v: string) => format(new Date(v), "d MMM yyyy", { locale })}
                   />
                   {keys.map((k, i) => (
@@ -157,12 +166,22 @@ export function SavingsHistoryCard({ symbol }: { symbol: string }) {
                     tickFormatter={(v: string) => format(new Date(v), "MMM yy", { locale })}
                     fontSize={11}
                   />
-                  <YAxis fontSize={11} width={64} tickFormatter={(v: number) => fmtMoney(v, symbol)} />
+                  <YAxis
+                    fontSize={11}
+                    width={64}
+                    tickFormatter={(v: number) => fmtMoney(v, symbol)}
+                  />
                   <Tooltip
                     formatter={(v: number) => [fmtMoney(Number(v), symbol), t("env.history.total")]}
                     labelFormatter={(v: string) => format(new Date(v), "d MMM yyyy", { locale })}
                   />
-                  <Line type="monotone" dataKey="__total" stroke={COLORS[0]} strokeWidth={2} dot={false} />
+                  <Line
+                    type="monotone"
+                    dataKey="__total"
+                    stroke={COLORS[0]}
+                    strokeWidth={2}
+                    dot={false}
+                  />
                 </LineChart>
               )}
             </ResponsiveContainer>

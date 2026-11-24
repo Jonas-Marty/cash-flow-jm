@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n";
 import { useAuth, JUST_SIGNED_IN_KEY } from "@/lib/auth";
 import type { Provider } from "@supabase/supabase-js";
-import { startLinkIdentity, useEnabledProviders, useUserIdentities } from "@/components/LinkedAccountsCard";
+import { startLinkIdentity, useEnabledProviders, useUserIdentities } from "@/lib/identities";
 
 const SESSION_KEY = "link-prompt-dismissed";
 const NEVER_KEY = "link-prompt-never";
@@ -52,7 +52,6 @@ export function LinkIdentityPrompt() {
     setOpen(true);
   }, [user, missing.length]);
 
-
   const dismiss = (never: boolean) => {
     if (user && typeof window !== "undefined") {
       window.sessionStorage.setItem(`${SESSION_KEY}:${user.id}`, "1");
@@ -79,7 +78,12 @@ export function LinkIdentityPrompt() {
   if (!user || missing.length === 0) return null;
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) dismiss(false); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) dismiss(false);
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{t("linked.prompt.title")}</DialogTitle>

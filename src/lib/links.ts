@@ -82,7 +82,10 @@ export async function deleteTransactionLink(id: string): Promise<void> {
  * Attach a transaction to a link. Because `transaction_id` is the PK, this
  * upsert atomically moves the transaction from any previous link to the new one.
  */
-export async function attachTransactionToLink(transactionId: string, linkId: string): Promise<void> {
+export async function attachTransactionToLink(
+  transactionId: string,
+  linkId: string,
+): Promise<void> {
   const { error } = await supabase
     .from("transaction_link_members")
     .upsert({ transaction_id: transactionId, link_id: linkId }, { onConflict: "transaction_id" });
@@ -100,7 +103,10 @@ export async function detachTransactionFromLink(transactionId: string): Promise<
  * Attach many transactions to the same link in chunked upserts. Because
  * `transaction_id` is the PK, transactions already in another link are moved.
  */
-export async function attachTransactionsToLink(transactionIds: string[], linkId: string): Promise<number> {
+export async function attachTransactionsToLink(
+  transactionIds: string[],
+  linkId: string,
+): Promise<number> {
   const rows = transactionIds.map((transaction_id) => ({ transaction_id, link_id: linkId }));
   for (let i = 0; i < rows.length; i += 200) {
     const { error } = await supabase

@@ -47,10 +47,20 @@ async function prune(request: Request): Promise<Response> {
     attachmentsDeleted = await pruneUnlinkedAttachments();
     log.info({ event: "ai_attachments.pruned", deleted: attachmentsDeleted });
   } catch (e) {
-    log.error({ event: "ai_attachments.prune_failed", err: e instanceof Error ? e.message : String(e) });
+    log.error({
+      event: "ai_attachments.prune_failed",
+      err: e instanceof Error ? e.message : String(e),
+    });
   }
-  return new Response(JSON.stringify({ deleted: data, retention_days: days, attachments_deleted: attachmentsDeleted }), {
-    status: 200,
-    headers: { "Content-Type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({
+      deleted: data,
+      retention_days: days,
+      attachments_deleted: attachmentsDeleted,
+    }),
+    {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    },
+  );
 }

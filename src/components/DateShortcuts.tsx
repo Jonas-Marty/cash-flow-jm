@@ -34,7 +34,9 @@ export function DateShortcuts({
   }
 
   const sameDay = (a: Date, b: Date) =>
-    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate();
 
   const weekdayLabel = (d: Date) => {
     const w = format(d, "EEEE", { locale });
@@ -44,14 +46,17 @@ export function DateShortcuts({
   // Build entries once per relevant inputs. Use stable string keys so identities
   // don't shift between renders (avoids losing focus tracking).
   const entries = React.useMemo(() => {
-    const t = new Date(); t.setHours(0, 0, 0, 0);
-    const y = new Date(t); y.setDate(t.getDate() - 1);
+    const t = new Date();
+    t.setHours(0, 0, 0, 0);
+    const y = new Date(t);
+    y.setDate(t.getDate() - 1);
     const list: { key: string; label: string; date: Date }[] = [
       { key: "today", label: labels.today, date: t },
       { key: "yesterday", label: labels.yesterday, date: y },
     ];
     for (let i = 2; i <= 5; i++) {
-      const d = new Date(t); d.setDate(t.getDate() - i);
+      const d = new Date(t);
+      d.setDate(t.getDate() - i);
       list.push({ key: `prev-${i}`, label: weekdayLabel(d), date: d });
     }
     return list;
@@ -76,24 +81,35 @@ export function DateShortcuts({
     // Focus after React commits the new tabIndex.
     requestAnimationFrame(() => {
       const root = groupRef.current;
-      const el = root?.querySelector<HTMLButtonElement>(`button[data-shortcut-key="${CSS.escape(next.key)}"]`);
+      const el = root?.querySelector<HTMLButtonElement>(
+        `button[data-shortcut-key="${CSS.escape(next.key)}"]`,
+      );
       el?.focus();
     });
   };
 
   const onKey = (e: React.KeyboardEvent<HTMLButtonElement>, currentKey: string) => {
-    if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); moveBy(currentKey, 1); }
-    else if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); moveBy(currentKey, -1); }
-    else if (e.key === "Home") { e.preventDefault(); const first = entries[0]; setActiveKey(first.key); onPick(first.date); }
-    else if (e.key === "End") { e.preventDefault(); const last = entries[entries.length - 1]; setActiveKey(last.key); onPick(last.date); }
+    if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+      e.preventDefault();
+      moveBy(currentKey, 1);
+    } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+      e.preventDefault();
+      moveBy(currentKey, -1);
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      const first = entries[0];
+      setActiveKey(first.key);
+      onPick(first.date);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      const last = entries[entries.length - 1];
+      setActiveKey(last.key);
+      onPick(last.date);
+    }
   };
 
   return (
-    <div
-      ref={groupRef}
-      role="radiogroup"
-      className={cn("flex flex-wrap gap-1.5", className)}
-    >
+    <div ref={groupRef} role="radiogroup" className={cn("flex flex-wrap gap-1.5", className)}>
       {entries.map((e) => {
         const isSelected = sameDay(selected, e.date);
         return (
@@ -104,7 +120,10 @@ export function DateShortcuts({
             aria-checked={isSelected}
             data-shortcut-key={e.key}
             tabIndex={e.key === activeKey ? 0 : -1}
-            onClick={() => { setActiveKey(e.key); onPick(e.date); }}
+            onClick={() => {
+              setActiveKey(e.key);
+              onPick(e.date);
+            }}
             onFocus={() => setActiveKey(e.key)}
             onKeyDown={(ev) => onKey(ev, e.key)}
             className={cn(

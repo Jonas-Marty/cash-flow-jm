@@ -37,14 +37,24 @@ describe("groupSumByCurrency", () => {
   ];
 
   it("sums per currency code", () => {
-    const m = groupSumByCurrency(items, (i) => i.currency, (i) => i.amount);
+    const m = groupSumByCurrency(
+      items,
+      (i) => i.currency,
+      (i) => i.amount,
+    );
     expect(m.get("CHF")).toBe(17); // 10 + 5 + 2
     expect(m.get("EUR")).toBe(-3);
     expect(m.size).toBe(2);
   });
 
   it("returns an empty map for an empty input", () => {
-    expect(groupSumByCurrency<Tx>([], (i) => i.currency, (i) => i.amount).size).toBe(0);
+    expect(
+      groupSumByCurrency<Tx>(
+        [],
+        (i) => i.currency,
+        (i) => i.amount,
+      ).size,
+    ).toBe(0);
   });
 });
 
@@ -56,7 +66,10 @@ describe("formatPerCurrency", () => {
   });
 
   it("omits zero-balance currencies by default", () => {
-    const m = new Map([["CHF", 0], ["EUR", 10]]);
+    const m = new Map([
+      ["CHF", 0],
+      ["EUR", 10],
+    ]);
     const out = formatPerCurrency(m, sym);
     expect(out).not.toContain("CHF");
     expect(out).toContain("EUR");
@@ -68,7 +81,11 @@ describe("formatPerCurrency", () => {
   });
 
   it("sorts entries alphabetically and joins with separator", () => {
-    const m = new Map([["USD", 1], ["EUR", 2], ["CHF", 3]]);
+    const m = new Map([
+      ["USD", 1],
+      ["EUR", 2],
+      ["CHF", 3],
+    ]);
     const out = formatPerCurrency(m, sym);
     expect(out.indexOf("CHF")).toBeLessThan(out.indexOf("EUR"));
     expect(out.indexOf("EUR")).toBeLessThan(out.indexOf("USD"));
@@ -94,11 +111,7 @@ describe("extractTags", () => {
   });
 
   it("deduplicates and supports umlauts / digits / hyphens", () => {
-    expect(extractTags("#Über #über #2024 #my-tag #my-tag")).toEqual([
-      "über",
-      "2024",
-      "my-tag",
-    ]);
+    expect(extractTags("#Über #über #2024 #my-tag #my-tag")).toEqual(["über", "2024", "my-tag"]);
   });
 
   it("ignores tags starting with - or punctuation", () => {
@@ -157,7 +170,9 @@ describe("date helpers", () => {
 describe("reimbursableSurplus", () => {
   const orig = (id: string, amount: number) => ({ id, amount });
   const link = (original: string, settling: string, amount: number) => ({
-    original_transaction_id: original, settling_transaction_id: settling, amount,
+    original_transaction_id: original,
+    settling_transaction_id: settling,
+    amount,
   });
 
   it("counts a repayment larger than what it covers", () => {
@@ -193,7 +208,10 @@ describe("reimbursableSurplus", () => {
     const s = reimbursableSurplus(
       [orig("o", 20)],
       [link("o", "s1", 12), link("o", "s2", 8)],
-      new Map([["s1", { amount: 12, category_id: null }], ["s2", { amount: 8, category_id: null }]]),
+      new Map([
+        ["s1", { amount: 12, category_id: null }],
+        ["s2", { amount: 8, category_id: null }],
+      ]),
     );
     expect(s.has("o")).toBe(false);
   });

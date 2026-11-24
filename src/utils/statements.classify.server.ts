@@ -40,8 +40,8 @@ export async function classifyOpenStatementLines(
     .limit(120);
   if (error) throw new Error(error.message);
   const open = (data || [])
-    .filter((r: any) => !r.suggested_description)
-    .map((r: any) => ({
+    .filter((r) => !r.suggested_description)
+    .map((r) => ({
       id: r.id,
       booking_date: r.booking_date,
       value_date: r.value_date,
@@ -72,16 +72,20 @@ export async function classifyOpenStatementLines(
   });
 
   const validCats = new Set(
-    ((await sb.from("categories").select("id").eq("archived", false)).data || []).map((c: any) => c.id),
+    ((await sb.from("categories").select("id").eq("archived", false)).data || []).map((c) => c.id),
   );
   const suggestions = Array.isArray(json?.suggestions) ? json.suggestions : [];
   const byId = new Map(open.map((l) => [l.id, l]));
   let n = 0;
-  for (const s of suggestions as any[]) {
+  for (const s of suggestions) {
     const line = byId.get(String(s?.line_id));
     if (!line) continue;
-    const desc = typeof s?.description === "string" && s.description.trim() ? s.description.trim().slice(0, 120) : null;
-    const catId = typeof s?.category_id === "string" && validCats.has(s.category_id) ? s.category_id : null;
+    const desc =
+      typeof s?.description === "string" && s.description.trim()
+        ? s.description.trim().slice(0, 120)
+        : null;
+    const catId =
+      typeof s?.category_id === "string" && validCats.has(s.category_id) ? s.category_id : null;
     const tags = Array.isArray(s?.tags)
       ? (s.tags as unknown[])
           .filter((t): t is string => typeof t === "string")

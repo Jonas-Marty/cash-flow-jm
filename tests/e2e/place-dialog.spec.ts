@@ -117,7 +117,9 @@ test.describe("place picker", () => {
     const dialogBox = await dialog.boundingBox();
     expect(headerBox).not.toBeNull();
     expect(dialogBox).not.toBeNull();
-    expect(headerBox!.x + headerBox!.width).toBeLessThanOrEqual(dialogBox!.x + dialogBox!.width + 1);
+    expect(headerBox!.x + headerBox!.width).toBeLessThanOrEqual(
+      dialogBox!.x + dialogBox!.width + 1,
+    );
   });
 
   test("shows earlier places without being asked", async ({ page }) => {

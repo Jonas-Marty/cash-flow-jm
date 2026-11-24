@@ -59,7 +59,11 @@ export function StatementDocButton({
         }
       }}
     >
-      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+      {busy ? (
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+      ) : (
+        <FileText className="h-3.5 w-3.5" />
+      )}
       {size !== "icon" && <span className="ml-1">{label ?? t("statements.doc.open")}</span>}
     </Button>
   );

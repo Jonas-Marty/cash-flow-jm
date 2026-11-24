@@ -111,7 +111,10 @@ export function AuditLogCard() {
               ))}
               {(q.data ?? []).length === 0 && (
                 <tr>
-                  <td colSpan={isAdminQ.data ? 6 : 5} className="px-2 py-3 text-center text-muted-foreground">
+                  <td
+                    colSpan={isAdminQ.data ? 6 : 5}
+                    className="px-2 py-3 text-center text-muted-foreground"
+                  >
                     {q.isLoading ? t("common.loading") : t("audit.empty")}
                   </td>
                 </tr>

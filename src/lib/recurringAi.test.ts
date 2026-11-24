@@ -85,10 +85,7 @@ describe("suggestionToDraft", () => {
   });
 
   it("variable amount uses the estimate and never auto-posts", () => {
-    const r = suggestionToDraft(
-      { is_variable_amount: true, amount: 132.4, auto_post: true },
-      ctx,
-    );
+    const r = suggestionToDraft({ is_variable_amount: true, amount: 132.4, auto_post: true }, ctx);
     expect(r.draft.is_variable_amount).toBe(true);
     expect(r.draft.estimated_amount).toBe("132.40");
     expect(r.draft.auto_post).toBe(false);
@@ -96,7 +93,13 @@ describe("suggestionToDraft", () => {
 
   it("transfer takes a destination account and no category", () => {
     const r = suggestionToDraft(
-      { type: "transfer", amount: 500, source_account: "UBS", destination_account: "Sparkonto", category: "Wohnen" },
+      {
+        type: "transfer",
+        amount: 500,
+        source_account: "UBS",
+        destination_account: "Sparkonto",
+        category: "Wohnen",
+      },
       ctx,
     );
     expect(r.draft.destination_account_id).toBe("acc-sav");
@@ -110,22 +113,42 @@ describe("suggestionToDraft", () => {
   });
 
   it("finds the similar rule by id or name", () => {
-    expect(suggestionToDraft({ similar_rule: "rule-rent" }, ctx).similar_rule).toEqual({ id: "rule-rent", name: "Miete" });
+    expect(suggestionToDraft({ similar_rule: "rule-rent" }, ctx).similar_rule).toEqual({
+      id: "rule-rent",
+      name: "Miete",
+    });
     expect(suggestionToDraft({ similar_rule: "miete" }, ctx).similar_rule?.id).toBe("rule-rent");
   });
 
   it("derives the month offset from the billing period, not the model's arithmetic", () => {
     const base = { amount: 272.45, recurrence_interval: 3, starts_on: "2026-11-01" };
-    expect(suggestionToDraft({ ...base, first_period_from: "2026-07-01" }, ctx).draft.period_offset_months).toBe(-4);
-    expect(suggestionToDraft({ ...base, first_period_from: "01.12.2026" }, ctx).draft.period_offset_months).toBe(1);
-    expect(suggestionToDraft({ ...base, period_offset_months: -2 }, ctx).draft.period_offset_months).toBe(-2);
+    expect(
+      suggestionToDraft({ ...base, first_period_from: "2026-07-01" }, ctx).draft
+        .period_offset_months,
+    ).toBe(-4);
+    expect(
+      suggestionToDraft({ ...base, first_period_from: "01.12.2026" }, ctx).draft
+        .period_offset_months,
+    ).toBe(1);
+    expect(
+      suggestionToDraft({ ...base, period_offset_months: -2 }, ctx).draft.period_offset_months,
+    ).toBe(-2);
     // Legacy interval offset: -1 quarter = -3 months.
-    expect(suggestionToDraft({ ...base, period_offset: -1 }, ctx).draft.period_offset_months).toBe(-3);
+    expect(suggestionToDraft({ ...base, period_offset: -1 }, ctx).draft.period_offset_months).toBe(
+      -3,
+    );
   });
 
   it("a billing period starting mid-month becomes a fixed period day", () => {
-    const r = suggestionToDraft({ amount: 50, starts_on: "2026-11-01", first_period_from: "2026-10-15" }, ctx);
-    expect(r.draft).toMatchObject({ period_offset_months: -1, period_day_rule: "FixedDay", period_day_of_month: "15" });
+    const r = suggestionToDraft(
+      { amount: 50, starts_on: "2026-11-01", first_period_from: "2026-10-15" },
+      ctx,
+    );
+    expect(r.draft).toMatchObject({
+      period_offset_months: -1,
+      period_day_rule: "FixedDay",
+      period_day_of_month: "15",
+    });
   });
 
   it("survives garbage", () => {
@@ -136,10 +159,12 @@ describe("suggestionToDraft", () => {
 
 describe("sanitizeTemplate", () => {
   it("keeps valid tokens including Q", () => {
-    expect(sanitizeTemplate("Quartal ${periodTo:Q} ${periodFrom:MMMM yyyy} #${runNumber}")).toEqual({
-      text: "Quartal ${periodTo:Q} ${periodFrom:MMMM yyyy} #${runNumber}",
-      removed: [],
-    });
+    expect(sanitizeTemplate("Quartal ${periodTo:Q} ${periodFrom:MMMM yyyy} #${runNumber}")).toEqual(
+      {
+        text: "Quartal ${periodTo:Q} ${periodFrom:MMMM yyyy} #${runNumber}",
+        removed: [],
+      },
+    );
   });
 
   it("removes unknown and dropped tokens", () => {
@@ -152,22 +177,57 @@ describe("sanitizeTemplate", () => {
 describe("guide", () => {
   const guideRules: GuideRule[] = [
     {
-      id: "rule-rent", name: "Miete", type: "expense", amount: 1850, is_variable_amount: false, estimated_amount: null,
-      source_account_id: "acc-ubs", destination_account_id: null, category_id: "cat-home",
-      description: "Miete ${periodFrom:MMMM yyyy}", recurrence_interval: 1, execution_day_rule: "FixedDay",
-      execution_day_of_month: 1, period_offset_months: 0, starts_on: "2024-01-01", ends_on: null, archived: false,
+      id: "rule-rent",
+      name: "Miete",
+      type: "expense",
+      amount: 1850,
+      is_variable_amount: false,
+      estimated_amount: null,
+      source_account_id: "acc-ubs",
+      destination_account_id: null,
+      category_id: "cat-home",
+      description: "Miete ${periodFrom:MMMM yyyy}",
+      recurrence_interval: 1,
+      execution_day_rule: "FixedDay",
+      execution_day_of_month: 1,
+      period_offset_months: 0,
+      starts_on: "2024-01-01",
+      ends_on: null,
+      archived: false,
     },
     {
-      id: "rule-old", name: "Altes Abo", type: "expense", amount: 9, is_variable_amount: false, estimated_amount: null,
-      source_account_id: "acc-ubs", destination_account_id: null, category_id: null,
-      description: null, recurrence_interval: 1, execution_day_rule: "LastDay",
-      execution_day_of_month: null, period_offset_months: 0, starts_on: "2024-01-01", ends_on: "2025-01-01", archived: false,
+      id: "rule-old",
+      name: "Altes Abo",
+      type: "expense",
+      amount: 9,
+      is_variable_amount: false,
+      estimated_amount: null,
+      source_account_id: "acc-ubs",
+      destination_account_id: null,
+      category_id: null,
+      description: null,
+      recurrence_interval: 1,
+      execution_day_rule: "LastDay",
+      execution_day_of_month: null,
+      period_offset_months: 0,
+      starts_on: "2024-01-01",
+      ends_on: "2025-01-01",
+      archived: false,
     },
   ];
-  const g = buildRecurringGuide({ rules: guideRules, accounts, categories, today: "2026-09-27", currency: "CHF", language: "de" });
+  const g = buildRecurringGuide({
+    rules: guideRules,
+    accounts,
+    categories,
+    today: "2026-09-27",
+    currency: "CHF",
+    language: "de",
+  });
 
   it("lists active rules with names instead of ids", () => {
-    expect(g).toContain('"Miete" | expense 1850 | UBS Privatkonto, category Wohnen | every 1 mo, day 1, starts 2024-01-01, first period 2024-01');
+    expect(g).toContain(
+      '"Miete" | expense 1850 | UBS Privatkonto, category Wohnen | every 1 mo, day 1, starts 2024-01-01, first period 2024-01',
+    );
     expect(g).not.toContain("Altes Abo");
   });
 
@@ -181,14 +241,26 @@ describe("guide", () => {
   });
 
   it("extraction prompt embeds the guide", () => {
-    expect(buildRuleExtractSystemPrompt({ rules: guideRules, accounts, categories, today: "2026-09-27", currency: "CHF", language: "de" }))
-      .toContain('"document_kind"');
+    expect(
+      buildRuleExtractSystemPrompt({
+        rules: guideRules,
+        accounts,
+        categories,
+        today: "2026-09-27",
+        currency: "CHF",
+        language: "de",
+      }),
+    ).toContain('"document_kind"');
   });
 
   // The worked examples teach the model how offset and starts_on line up with
   // the reporting period. If the engine's semantics ever change, these break
   // before the model starts proposing wrong rules.
-  const examples = [...RECURRING_RULE_GUIDE.matchAll(/^\d\. .*\n\s+(\{.*\})\n\s+→ (\d{1,2} \w{3}(?: \d{4})?) reports .* → "(.*)"\./gm)];
+  const examples = [
+    ...RECURRING_RULE_GUIDE.matchAll(
+      /^\d\. .*\n\s+(\{.*\})\n\s+→ (\d{1,2} \w{3}(?: \d{4})?) reports .* → "(.*)"\./gm,
+    ),
+  ];
 
   it("parses every example", () => expect(examples).toHaveLength(6));
 

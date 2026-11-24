@@ -298,10 +298,10 @@ export async function confirmPendingTransaction(
     type: overrides.type,
     occurred_on: overrides.occurred_on,
     destination_account_id:
-      overrides.type === "transfer" ? overrides.destination_account_id ?? null : null,
+      overrides.type === "transfer" ? (overrides.destination_account_id ?? null) : null,
     destination_amount:
-      overrides.type === "transfer" ? overrides.destination_amount ?? null : null,
-    category_id: overrides.type === "transfer" ? null : overrides.category_id ?? null,
+      overrides.type === "transfer" ? (overrides.destination_amount ?? null) : null,
+    category_id: overrides.type === "transfer" ? null : (overrides.category_id ?? null),
     description: overrides.description ?? null,
     note: overrides.note ?? null,
     ...locationToColumns(location),
@@ -512,7 +512,14 @@ export async function fetchSettings(): Promise<Settings> {
   if (!data) {
     const { data: created, error: cErr } = await supabase
       .from("settings")
-      .insert({ currency_code: "CHF", currency_symbol: "CHF", day_heatmap_threshold: 100, date_format: "dd.MM.yyyy", net_worth_show_converted: false, format_locale: "de" })
+      .insert({
+        currency_code: "CHF",
+        currency_symbol: "CHF",
+        day_heatmap_threshold: 100,
+        date_format: "dd.MM.yyyy",
+        net_worth_show_converted: false,
+        format_locale: "de",
+      })
       .select()
       .single();
     if (cErr) {
@@ -541,11 +548,7 @@ export async function updateActiveScope(activeScopeId: string | null): Promise<v
 }
 
 export async function fetchAccounts(): Promise<Account[]> {
-  const { data, error } = await supabase
-    .from("accounts")
-    .select("*")
-    .order("type")
-    .order("name");
+  const { data, error } = await supabase.from("accounts").select("*").order("type").order("name");
   if (error) throw error;
   return (data || []) as Account[];
 }
@@ -644,7 +647,10 @@ export interface CategoryBudgetCell {
  * A month with no row is genuinely undecided — the caller renders what it *would*
  * inherit, greyed, rather than a zero.
  */
-export async function fetchCategoryBudgetRange(from: string, to: string): Promise<CategoryBudgetCell[]> {
+export async function fetchCategoryBudgetRange(
+  from: string,
+  to: string,
+): Promise<CategoryBudgetCell[]> {
   const { data, error } = await supabase
     .from("category_budgets")
     .select("category_id, month, amount")
@@ -714,13 +720,23 @@ export async function fetchPendingImpactsForMonth(month: string): Promise<Pendin
   const end = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-01`;
   const { data, error } = await supabase
     .from("recurring_occurrences")
-    .select("effective_on, status, rule:recurring_rules!inner(category_id, type, amount, estimated_amount, is_variable_amount)")
+    .select(
+      "effective_on, status, rule:recurring_rules!inner(category_id, type, amount, estimated_amount, is_variable_amount)",
+    )
     .eq("status", "pending")
     .gte("effective_on", start)
     .lt("effective_on", end);
   if (error) throw error;
   const map = new Map<string, PendingCategoryImpact>();
-  for (const row of (data || []) as Array<{ rule: { category_id: string | null; type: "expense" | "income" | "transfer"; amount: number | null; estimated_amount: number | null; is_variable_amount: boolean } }>) {
+  for (const row of (data || []) as Array<{
+    rule: {
+      category_id: string | null;
+      type: "expense" | "income" | "transfer";
+      amount: number | null;
+      estimated_amount: number | null;
+      is_variable_amount: boolean;
+    };
+  }>) {
     const r = row.rule;
     if (!r || !r.category_id) continue;
     if (r.type === "transfer") continue;
@@ -755,7 +771,9 @@ export async function fetchPendingOccurrencesForMonth(month: string): Promise<Pe
   const end = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-01`;
   const { data, error } = await supabase
     .from("recurring_occurrences")
-    .select("id, effective_on, rule:recurring_rules!inner(name, description, category_id, type, amount, estimated_amount, is_variable_amount)")
+    .select(
+      "id, effective_on, rule:recurring_rules!inner(name, description, category_id, type, amount, estimated_amount, is_variable_amount)",
+    )
     .eq("status", "pending")
     .gte("effective_on", month)
     .lt("effective_on", end)
@@ -765,7 +783,15 @@ export async function fetchPendingOccurrencesForMonth(month: string): Promise<Pe
   for (const row of (data || []) as unknown as Array<{
     id: string;
     effective_on: string;
-    rule: { name: string; description: string | null; category_id: string | null; type: TxType; amount: number | null; estimated_amount: number | null; is_variable_amount: boolean };
+    rule: {
+      name: string;
+      description: string | null;
+      category_id: string | null;
+      type: TxType;
+      amount: number | null;
+      estimated_amount: number | null;
+      is_variable_amount: boolean;
+    };
   }>) {
     const r = row.rule;
     if (!r?.category_id || r.type === "transfer") continue;
@@ -792,7 +818,15 @@ export async function fetchPendingOccurrencesForMonth(month: string): Promise<Pe
 export async function fetchCategoryTxRange(
   from: string,
   to: string,
-): Promise<Array<{ category_id: string; type: TxType; amount: number; occurred_on: string; source_account_id: string }>> {
+): Promise<
+  Array<{
+    category_id: string;
+    type: TxType;
+    amount: number;
+    occurred_on: string;
+    source_account_id: string;
+  }>
+> {
   const { data, error } = await supabase
     .from("transactions")
     .select("category_id, type, amount, occurred_on, source_account_id")
@@ -813,9 +847,11 @@ export async function fetchCategoryTxRange(
 /** Aggregated pending impact for a single category, signed like `category_month_spending.spent_or_received`. */
 export interface PendingCategorySigned {
   expense: number; // positive sum of pending expenses
-  income: number;  // positive sum of pending incomes
+  income: number; // positive sum of pending incomes
 }
-export function buildPendingMap(impacts: PendingCategoryImpact[]): Map<string, PendingCategorySigned> {
+export function buildPendingMap(
+  impacts: PendingCategoryImpact[],
+): Map<string, PendingCategorySigned> {
   const m = new Map<string, PendingCategorySigned>();
   for (const i of impacts) {
     const cur = m.get(i.category_id) ?? { expense: 0, income: 0 };
@@ -954,7 +990,9 @@ export async function fetchRecurringRules(): Promise<RecurringRule[]> {
   return rules;
 }
 
-export async function fetchPendingOccurrences(): Promise<(RecurringOccurrence & { rule: RecurringRule })[]> {
+export async function fetchPendingOccurrences(): Promise<
+  (RecurringOccurrence & { rule: RecurringRule })[]
+> {
   const { data, error } = await supabase
     .from("recurring_occurrences")
     .select("*, rule:recurring_rules(*, slices:recurring_rule_slices(*))")
@@ -1016,7 +1054,16 @@ export async function deletePendingOccurrence(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function postOccurrence(occ: RecurringOccurrence & { rule: RecurringRule }, overrides?: { amount?: number; description?: string | null; note?: string | null; occurred_on?: string; slices?: Array<{ description?: string | null; note?: string | null }> }): Promise<void> {
+export async function postOccurrence(
+  occ: RecurringOccurrence & { rule: RecurringRule },
+  overrides?: {
+    amount?: number;
+    description?: string | null;
+    note?: string | null;
+    occurred_on?: string;
+    slices?: Array<{ description?: string | null; note?: string | null }>;
+  },
+): Promise<void> {
   const r = occ.rule;
   // Determine final amount
   let finalAmount: number;
@@ -1073,28 +1120,29 @@ export async function postOccurrence(occ: RecurringOccurrence & { rule: Recurrin
     };
     // siblings used only for run-number below; keep dead-simple markers to
     // avoid unused-var lint when the block above is inlined.
-    void prevStr; void nextStr;
+    void prevStr;
+    void nextStr;
     const rows = slices.map((s, i) => {
       const ov = overrides?.slices?.[i];
       const descTpl = ov?.description !== undefined ? ov.description : s.description;
       const noteTpl = ov?.note !== undefined ? ov.note : s.note;
       return {
-      user_id: userId,
-      occurred_on: occurredOn,
-      amount: sliceAmounts[i],
-      type: r.type,
-      source_account_id: r.source_account_id,
-      destination_account_id: null,
-      category_id: s.category_id ?? null,
-      description: descTpl ? interpolate(descTpl, ctx) : null,
-      note: noteTpl ? interpolate(noteTpl, ctx) : null,
-      recurring_rule_id: r.id,
-      split_group_id: groupId,
-      is_reimbursable: !!s.is_reimbursable,
-      reimbursable_status: s.is_reimbursable ? "open" : null,
-      reimbursable_counterparty: s.is_reimbursable ? (s.reimbursable_counterparty ?? null) : null,
-      reimbursable_reason: s.is_reimbursable ? (s.reimbursable_reason ?? null) : null,
-    };
+        user_id: userId,
+        occurred_on: occurredOn,
+        amount: sliceAmounts[i],
+        type: r.type,
+        source_account_id: r.source_account_id,
+        destination_account_id: null,
+        category_id: s.category_id ?? null,
+        description: descTpl ? interpolate(descTpl, ctx) : null,
+        note: noteTpl ? interpolate(noteTpl, ctx) : null,
+        recurring_rule_id: r.id,
+        split_group_id: groupId,
+        is_reimbursable: !!s.is_reimbursable,
+        reimbursable_status: s.is_reimbursable ? "open" : null,
+        reimbursable_counterparty: s.is_reimbursable ? (s.reimbursable_counterparty ?? null) : null,
+        reimbursable_reason: s.is_reimbursable ? (s.reimbursable_reason ?? null) : null,
+      };
     });
     const { data: inserted, error: insErr } = await supabase
       .from("transactions")
@@ -1104,7 +1152,11 @@ export async function postOccurrence(occ: RecurringOccurrence & { rule: Recurrin
     const firstId = inserted?.[0]?.id;
     const { error } = await supabase
       .from("recurring_occurrences")
-      .update({ status: "posted", transaction_id: firstId ?? null, posted_at: new Date().toISOString() })
+      .update({
+        status: "posted",
+        transaction_id: firstId ?? null,
+        posted_at: new Date().toISOString(),
+      })
       .eq("id", occ.id);
     if (error) throw error;
     return;
@@ -1146,7 +1198,12 @@ export async function discardOccurrenceProposal(id: string): Promise<void> {
 
 type ProposalFields = Pick<
   RecurringOccurrence,
-  "proposed_amount" | "proposed_occurred_on" | "proposal_source" | "proposal_ref" | "proposal_info" | "proposed_at"
+  | "proposed_amount"
+  | "proposed_occurred_on"
+  | "proposal_source"
+  | "proposal_ref"
+  | "proposal_info"
+  | "proposed_at"
 >;
 
 /** Bill proposals sitting on a rule's pending occurrences. */
@@ -1194,7 +1251,10 @@ export async function reattachProposals(
 }
 
 export async function skipOccurrence(id: string): Promise<void> {
-  const { error } = await supabase.from("recurring_occurrences").update({ status: "skipped" }).eq("id", id);
+  const { error } = await supabase
+    .from("recurring_occurrences")
+    .update({ status: "skipped" })
+    .eq("id", id);
   if (error) throw error;
 }
 
@@ -1237,11 +1297,17 @@ export async function previewRecurringRule(input: {
 }
 
 export async function archiveRecurringRule(id: string, deletePending = true): Promise<void> {
-  const { error } = await supabase.rpc("archive_recurring_rule", { p_id: id, p_delete_pending: deletePending });
+  const { error } = await supabase.rpc("archive_recurring_rule", {
+    p_id: id,
+    p_delete_pending: deletePending,
+  });
   if (error) throw error;
 }
 
-export async function applyRecurringRuleBackfill(ruleId: string, mode: "none" | "post" | "pending"): Promise<void> {
+export async function applyRecurringRuleBackfill(
+  ruleId: string,
+  mode: "none" | "post" | "pending",
+): Promise<void> {
   const today = new Date().toISOString().slice(0, 10);
   const { error } = await supabase.rpc("apply_recurring_rule_backfill", {
     p_rule_id: ruleId,
@@ -1251,14 +1317,19 @@ export async function applyRecurringRuleBackfill(ruleId: string, mode: "none" | 
   if (error) throw error;
 }
 
-export function describeSchedule(r: RecurringRule, t: (k: string, v?: Record<string, string | number>) => string): string {
+export function describeSchedule(
+  r: RecurringRule,
+  t: (k: string, v?: Record<string, string | number>) => string,
+): string {
   const parts: string[] = [];
   parts.push(t("recurring.sched.every_n_months", { n: r.recurrence_interval }));
   if (r.execution_day_rule === "FirstDay") parts.push(t("recurring.sched.first"));
   else if (r.execution_day_rule === "LastDay") parts.push(t("recurring.sched.end"));
   else parts.push(t("recurring.sched.day", { d: r.execution_day_of_month ?? 1 }));
-  if (r.execution_weekend_adjustment === "PreviousBusinessDay") parts.push(t("recurring.sched.weekend_before"));
-  else if (r.execution_weekend_adjustment === "NextBusinessDay") parts.push(t("recurring.sched.weekend_after"));
+  if (r.execution_weekend_adjustment === "PreviousBusinessDay")
+    parts.push(t("recurring.sched.weekend_before"));
+  else if (r.execution_weekend_adjustment === "NextBusinessDay")
+    parts.push(t("recurring.sched.weekend_after"));
   return parts.join(" · ");
 }
 
@@ -1271,7 +1342,13 @@ export async function fetchSavingsBalances(asOf?: string): Promise<CategorySavin
   return (data || []) as CategorySavingsBalance[];
 }
 
-export type LedgerKind = "opening" | "allocation" | "sweep_in" | "sweep_out" | "reallocation" | "transaction";
+export type LedgerKind =
+  | "opening"
+  | "allocation"
+  | "sweep_in"
+  | "sweep_out"
+  | "reallocation"
+  | "transaction";
 
 /** One movement of an envelope, from `category_ledger`, with the balance after it. */
 export interface LedgerRow {
@@ -1295,7 +1372,11 @@ export interface LedgerRow {
  * Every movement of one envelope up to `to`, oldest first. `from` null returns the
  * whole history including the opening balance.
  */
-export async function fetchCategoryLedger(categoryId: string, from: string | null, to: string): Promise<LedgerRow[]> {
+export async function fetchCategoryLedger(
+  categoryId: string,
+  from: string | null,
+  to: string,
+): Promise<LedgerRow[]> {
   const { data, error } = await supabase.rpc("category_ledger", {
     p_category_id: categoryId,
     p_from: from,
@@ -1364,7 +1445,10 @@ export interface PreviewImpactRow {
  * accounts, budgets, the months' budgets, unassigned money, people owed.
  * `entryIds` are the rows of the entry being edited (none for a new one).
  */
-export async function fetchPreviewImpact(ops: PreviewOp[], entryIds: string[]): Promise<PreviewImpactRow[]> {
+export async function fetchPreviewImpact(
+  ops: PreviewOp[],
+  entryIds: string[],
+): Promise<PreviewImpactRow[]> {
   const { data, error } = await supabase.rpc("preview_transaction_impact", {
     p_ops: ops as unknown as Json,
     p_entry_ids: entryIds,
@@ -1404,7 +1488,9 @@ export async function fetchSavingsBalanceSeries(
   return (data || []) as SavingsBalancePoint[];
 }
 
-export async function fetchEnvelopeReconciliation(asOf?: string): Promise<EnvelopeReconciliation | null> {
+export async function fetchEnvelopeReconciliation(
+  asOf?: string,
+): Promise<EnvelopeReconciliation | null> {
   const date = asOf ?? todayISO();
   const { data, error } = await supabase.rpc("envelope_reconciliation", { p_as_of: date });
   if (error) throw error;
@@ -1415,7 +1501,9 @@ export async function fetchEnvelopeReconciliation(asOf?: string): Promise<Envelo
 export async function fetchReallocations(): Promise<CategoryReallocation[]> {
   const { data, error } = await supabase
     .from("category_reallocations")
-    .select("id, from_category_id, to_category_id, transaction_id, closes_scope, amount, occurred_on, note, created_at")
+    .select(
+      "id, from_category_id, to_category_id, transaction_id, closes_scope, amount, occurred_on, note, created_at",
+    )
     .order("occurred_on", { ascending: false })
     .order("created_at", { ascending: false });
   if (error) throw error;
@@ -1439,13 +1527,16 @@ export async function createReallocation(input: {
   if (error) throw error;
 }
 
-export async function updateReallocation(id: string, patch: Partial<{
-  from_category_id: string;
-  to_category_id: string;
-  amount: number;
-  occurred_on: string;
-  note: string | null;
-}>): Promise<void> {
+export async function updateReallocation(
+  id: string,
+  patch: Partial<{
+    from_category_id: string;
+    to_category_id: string;
+    amount: number;
+    occurred_on: string;
+    note: string | null;
+  }>,
+): Promise<void> {
   const { error } = await supabase.from("category_reallocations").update(patch).eq("id", id);
   if (error) throw error;
 }
@@ -1455,7 +1546,10 @@ export async function deleteReallocation(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function archiveSavingsEnvelope(id: string, moveRemainingTo: string | null): Promise<void> {
+export async function archiveSavingsEnvelope(
+  id: string,
+  moveRemainingTo: string | null,
+): Promise<void> {
   const { error } = await supabase.rpc("archive_savings_envelope", {
     p_id: id,
     p_move_remaining_to: moveRemainingTo,
@@ -1463,7 +1557,10 @@ export async function archiveSavingsEnvelope(id: string, moveRemainingTo: string
   if (error) throw error;
 }
 
-export async function setCategorySweepTarget(categoryId: string, targetId: string | null): Promise<void> {
+export async function setCategorySweepTarget(
+  categoryId: string,
+  targetId: string | null,
+): Promise<void> {
   const { error } = await supabase
     .from("categories")
     .update({ sweep_target_category_id: targetId })
@@ -1478,9 +1575,12 @@ export async function setCategorySweepTarget(categoryId: string, targetId: strin
 export async function setOpeningBalances(
   balances: { category_id: string; amount: number }[],
 ): Promise<string[]> {
-  const { data, error } = await supabase.rpc("set_opening_balances" as never, {
-    p_balances: balances,
-  } as never);
+  const { data, error } = await supabase.rpc(
+    "set_opening_balances" as never,
+    {
+      p_balances: balances,
+    } as never,
+  );
   if (error) throw error;
   return ((data ?? []) as { reopened_id: string }[]).map((r) => r.reopened_id);
 }
@@ -1553,10 +1653,15 @@ export async function fetchOverfulfilledReimbursables(): Promise<
   const { data: links, error: lErr } = await supabase
     .from("transaction_reimbursements")
     .select("original_transaction_id, settling_transaction_id, amount")
-    .in("original_transaction_id", originals.map((o) => o.id));
+    .in(
+      "original_transaction_id",
+      originals.map((o) => o.id),
+    );
   if (lErr) throw lErr;
   const rows = (links ?? []) as Array<{
-    original_transaction_id: string; settling_transaction_id: string; amount: number;
+    original_transaction_id: string;
+    settling_transaction_id: string;
+    amount: number;
   }>;
   const settlingIds = [...new Set(rows.map((r) => r.settling_transaction_id))];
   if (settlingIds.length === 0) return [];
@@ -1567,8 +1672,9 @@ export async function fetchOverfulfilledReimbursables(): Promise<
     .in("id", settlingIds);
   if (tErr) throw tErr;
   const settling = new Map(
-    ((setts ?? []) as Array<{ id: string; amount: number; category_id: string | null }>)
-      .map((t) => [t.id, t]),
+    ((setts ?? []) as Array<{ id: string; amount: number; category_id: string | null }>).map(
+      (t) => [t.id, t],
+    ),
   );
 
   const surplus = reimbursableSurplus(originals, rows, settling);
@@ -1587,13 +1693,20 @@ export async function fetchOverfulfilledReimbursables(): Promise<
  */
 export function reimbursableSurplus(
   originals: Array<{ id: string; amount: number | string }>,
-  links: Array<{ original_transaction_id: string; settling_transaction_id: string; amount: number | string }>,
+  links: Array<{
+    original_transaction_id: string;
+    settling_transaction_id: string;
+    amount: number | string;
+  }>,
   settling: Map<string, { amount: number | string; category_id: string | null }>,
 ): Map<string, number> {
   // How much of each repayment is spoken for by *any* reimbursable.
   const claimed = new Map<string, number>();
   for (const r of links) {
-    claimed.set(r.settling_transaction_id, (claimed.get(r.settling_transaction_id) ?? 0) + Number(r.amount));
+    claimed.set(
+      r.settling_transaction_id,
+      (claimed.get(r.settling_transaction_id) ?? 0) + Number(r.amount),
+    );
   }
   const out = new Map<string, number>();
   for (const o of originals) {
@@ -1612,9 +1725,7 @@ export function reimbursableSurplus(
 }
 
 export async function fetchReimbursementLinks(): Promise<ReimbursementLink[]> {
-  const { data, error } = await supabase
-    .from("transaction_reimbursements")
-    .select("*");
+  const { data, error } = await supabase.from("transaction_reimbursements").select("*");
   if (error) throw error;
   return (data ?? []) as ReimbursementLink[];
 }
@@ -1703,7 +1814,9 @@ export async function fetchRefundCandidates(opts: {
         `description.ilike.*${q}*`,
         `note.ilike.*${q}*`,
         `reimbursable_counterparty.ilike.*${q}*`,
-        ...(Number.isFinite(amountQ) && amountQ > 0 && /^[\d'’.,\s]+$/.test(q) ? [`amount.eq.${amountQ}`] : []),
+        ...(Number.isFinite(amountQ) && amountQ > 0 && /^[\d'’.,\s]+$/.test(q)
+          ? [`amount.eq.${amountQ}`]
+          : []),
       ].join(",")
     : null;
   const base = (accountIds: string[], head: boolean) => {
@@ -1717,8 +1830,12 @@ export async function fetchRefundCandidates(opts: {
     return b;
   };
   const [rowsRes, otherRes] = await Promise.all([
-    base(opts.accountIds, false).order("occurred_on", { ascending: false }).limit(q ? 200 : 300),
-    q && opts.otherAccountIds.length > 0 ? base(opts.otherAccountIds, true) : Promise.resolve({ count: 0, error: null }),
+    base(opts.accountIds, false)
+      .order("occurred_on", { ascending: false })
+      .limit(q ? 200 : 300),
+    q && opts.otherAccountIds.length > 0
+      ? base(opts.otherAccountIds, true)
+      : Promise.resolve({ count: 0, error: null }),
   ]);
   if (rowsRes.error) throw rowsRes.error;
   if (otherRes.error) throw otherRes.error;
@@ -1734,10 +1851,7 @@ export async function fetchTransactionsByIds(ids: string[]): Promise<Transaction
 }
 
 export async function unlinkReimbursement(linkId: string): Promise<void> {
-  const { error } = await supabase
-    .from("transaction_reimbursements")
-    .delete()
-    .eq("id", linkId);
+  const { error } = await supabase.from("transaction_reimbursements").delete().eq("id", linkId);
   if (error) throw error;
 }
 
@@ -1750,13 +1864,15 @@ export async function setReimbursableStatus(
     .from("transactions")
     .update({
       reimbursable_status: status,
-      reimbursable_cancel_reason: status === "cancelled" ? cancelReason ?? null : null,
+      reimbursable_cancel_reason: status === "cancelled" ? (cancelReason ?? null) : null,
     })
     .eq("id", txId)
     .select("id");
   if (error) throw error;
   if (!data || data.length === 0) {
-    throw new Error("Update affected no rows — check permissions or that the transaction still exists.");
+    throw new Error(
+      "Update affected no rows — check permissions or that the transaction still exists.",
+    );
   }
 }
 
@@ -1796,7 +1912,11 @@ export async function writeOffReimbursable(
     .eq("original_transaction_id", originalTxId);
   if (linksErr) throw linksErr;
   const settlingIds = [
-    ...new Set((myLinks ?? []).map((l) => (l as { settling_transaction_id: string }).settling_transaction_id)),
+    ...new Set(
+      (myLinks ?? []).map(
+        (l) => (l as { settling_transaction_id: string }).settling_transaction_id,
+      ),
+    ),
   ];
 
   // A refund that also settles someone else's reimbursable cannot be moved to
@@ -1810,7 +1930,10 @@ export async function writeOffReimbursable(
       .in("settling_transaction_id", settlingIds);
     if (sharedErr) throw sharedErr;
     const originalsBySettling = new Map<string, Set<string>>();
-    for (const r of (shared ?? []) as Array<{ settling_transaction_id: string; original_transaction_id: string }>) {
+    for (const r of (shared ?? []) as Array<{
+      settling_transaction_id: string;
+      original_transaction_id: string;
+    }>) {
       const set = originalsBySettling.get(r.settling_transaction_id) ?? new Set<string>();
       set.add(r.original_transaction_id);
       originalsBySettling.set(r.settling_transaction_id, set);
@@ -1873,9 +1996,7 @@ export interface AccountStatementWithDiff extends AccountStatement {
 
 const RECONCILE_CATEGORY_NAME = "Reconciliation adjustment";
 
-export async function fetchAccountStatements(
-  accountId?: string,
-): Promise<AccountStatement[]> {
+export async function fetchAccountStatements(accountId?: string): Promise<AccountStatement[]> {
   let q = supabase
     .from("account_statements")
     .select("*")
@@ -1887,10 +2008,7 @@ export async function fetchAccountStatements(
   return (data || []) as AccountStatement[];
 }
 
-export async function fetchAccountBalanceAsOf(
-  accountId: string,
-  date: string,
-): Promise<number> {
+export async function fetchAccountBalanceAsOf(accountId: string, date: string): Promise<number> {
   const balances = await fetchAccountBalancesAsOf(date);
   const row = balances.find((b) => b.id === accountId);
   return row ? Number(row.balance) : 0;
@@ -1925,10 +2043,7 @@ export async function updateAccountStatement(
   id: string,
   patch: Partial<Pick<AccountStatement, "as_of" | "statement_balance" | "note" | "external_ref">>,
 ): Promise<void> {
-  const { error } = await supabase
-    .from("account_statements")
-    .update(patch)
-    .eq("id", id);
+  const { error } = await supabase.from("account_statements").update(patch).eq("id", id);
   if (error) throw error;
 }
 
@@ -2044,7 +2159,8 @@ export async function deleteAccountStatement(
       .select("compensation_transaction_id")
       .eq("id", id)
       .maybeSingle();
-    const compId = (s as { compensation_transaction_id: string | null } | null)?.compensation_transaction_id;
+    const compId = (s as { compensation_transaction_id: string | null } | null)
+      ?.compensation_transaction_id;
     if (compId) {
       await supabase.from("transactions").delete().eq("id", compId);
     }
@@ -2116,13 +2232,16 @@ export async function createScope(input: {
   return data as Category;
 }
 
-export async function updateScope(id: string, patch: Partial<{
-  name: string;
-  funding_category_id: string | null;
-  allocated_budget: number;
-  emoji: string | null;
-  color: string | null;
-}>): Promise<void> {
+export async function updateScope(
+  id: string,
+  patch: Partial<{
+    name: string;
+    funding_category_id: string | null;
+    allocated_budget: number;
+    emoji: string | null;
+    color: string | null;
+  }>,
+): Promise<void> {
   const { error } = await supabase.from("categories").update(patch).eq("id", id);
   if (error) throw error;
 }
@@ -2141,7 +2260,10 @@ export async function closeScope(
   scopeId: string,
   note?: string,
 ): Promise<{ reallocationId: string | null; total: number }> {
-  const { data, error } = await supabase.rpc("close_scope", { p_scope_id: scopeId, p_note: note ?? null });
+  const { data, error } = await supabase.rpc("close_scope", {
+    p_scope_id: scopeId,
+    p_note: note ?? null,
+  });
   if (error) throw error;
   const row = (data ?? [])[0] as { reallocation_id: string | null; amount: number } | undefined;
   return { reallocationId: row?.reallocation_id ?? null, total: Number(row?.amount ?? 0) };
@@ -2192,7 +2314,10 @@ export function parseTagInput(raw: string): string[] {
 }
 
 export function noteHasTag(note: string, tag: string): boolean {
-  const re = new RegExp(`(^|\\s)#${tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}_-])`, "iu");
+  const re = new RegExp(
+    `(^|\\s)#${tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}_-])`,
+    "iu",
+  );
   return re.test(note);
 }
 
@@ -2210,20 +2335,35 @@ export function addTagsToNote(note: string | null, tags: string[]): string {
 export function removeTagsFromNote(note: string | null, tags: string[]): string {
   let out = note ?? "";
   for (const tag of tags) {
-    const re = new RegExp(`#${tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}_-])`, "giu");
+    const re = new RegExp(
+      `#${tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}_-])`,
+      "giu",
+    );
     out = out.replace(re, " ");
   }
-  return out.replace(/[ \t]{2,}/g, " ").replace(/ +\n/g, "\n").trim();
+  return out
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/ +\n/g, "\n")
+    .trim();
 }
 
 /** Assign one category to many transactions. Transfers are skipped. */
-export async function bulkSetCategory(txs: Transaction[], categoryId: string | null): Promise<BulkResult> {
+export async function bulkSetCategory(
+  txs: Transaction[],
+  categoryId: string | null,
+): Promise<BulkResult> {
   const targets = txs.filter((t) => t.type !== "transfer");
   const skipped = txs.length - targets.length;
   const errors: string[] = [];
   let updated = 0;
-  for (const part of chunk(targets.map((t) => t.id), 200)) {
-    const { error } = await supabase.from("transactions").update({ category_id: categoryId }).in("id", part);
+  for (const part of chunk(
+    targets.map((t) => t.id),
+    200,
+  )) {
+    const { error } = await supabase
+      .from("transactions")
+      .update({ category_id: categoryId })
+      .in("id", part);
     if (error) errors.push(error.message);
     else updated += part.length;
   }
@@ -2240,7 +2380,10 @@ export async function bulkAddTags(txs: Transaction[], tags: string[]): Promise<B
   let skipped = 0;
   for (const t of txs) {
     const next = addTagsToNote(t.note ?? null, tags);
-    if (next === (t.note ?? "")) { skipped++; continue; }
+    if (next === (t.note ?? "")) {
+      skipped++;
+      continue;
+    }
     const { error } = await supabase.from("transactions").update({ note: next }).eq("id", t.id);
     if (error) errors.push(`${t.description ?? t.id}: ${error.message}`);
     else updated++;
@@ -2255,8 +2398,14 @@ export async function bulkRemoveTags(txs: Transaction[], tags: string[]): Promis
   let skipped = 0;
   for (const t of txs) {
     const next = removeTagsFromNote(t.note ?? null, tags);
-    if (next === (t.note ?? "")) { skipped++; continue; }
-    const { error } = await supabase.from("transactions").update({ note: next || null }).eq("id", t.id);
+    if (next === (t.note ?? "")) {
+      skipped++;
+      continue;
+    }
+    const { error } = await supabase
+      .from("transactions")
+      .update({ note: next || null })
+      .eq("id", t.id);
     if (error) errors.push(`${t.description ?? t.id}: ${error.message}`);
     else updated++;
   }

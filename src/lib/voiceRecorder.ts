@@ -67,7 +67,8 @@ export async function startVoiceRecording(): Promise<VoiceRecorderHandle> {
     audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
   });
   const Ctx: typeof AudioContext =
-    window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    window.AudioContext ||
+    (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
   const ctx = new Ctx();
   const source = ctx.createMediaStreamSource(stream);
   const node = ctx.createScriptProcessor(4096, 1, 1);

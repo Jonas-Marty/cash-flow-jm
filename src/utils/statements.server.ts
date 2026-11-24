@@ -128,7 +128,7 @@ export function parseCsvAmount(v: string): number | null {
     negative = true;
     s = s.replace(/-\s*$/, "");
   }
-  s = s.replace(/[^\d,.\-]/g, "");
+  s = s.replace(/[^\d,.-]/g, "");
   if (!s) return null;
   const lastComma = s.lastIndexOf(",");
   const lastDot = s.lastIndexOf(".");
@@ -140,7 +140,16 @@ export function parseCsvAmount(v: string): number | null {
 }
 
 const HEADER_HINTS = {
-  bookingDate: ["buchungsdatum", "booking date", "buchung", "datum", "date", "valutadatum ", "transaction date", "data"],
+  bookingDate: [
+    "buchungsdatum",
+    "booking date",
+    "buchung",
+    "datum",
+    "date",
+    "valutadatum ",
+    "transaction date",
+    "data",
+  ],
   valueDate: ["valuta", "value date", "valutadatum", "wertstellung"],
   description: [
     "beschreibung",
@@ -168,7 +177,9 @@ function findHeaderRow(rows: string[][]): number {
     const cells = rows[i]!.map((c) => c.trim().toLowerCase());
     const hasDate = cells.some((c) => HEADER_HINTS.bookingDate.some((h) => c.includes(h.trim())));
     const hasAmount = cells.some((c) =>
-      [...HEADER_HINTS.amount, ...HEADER_HINTS.debit, ...HEADER_HINTS.credit].some((h) => c.includes(h)),
+      [...HEADER_HINTS.amount, ...HEADER_HINTS.debit, ...HEADER_HINTS.credit].some((h) =>
+        c.includes(h),
+      ),
     );
     if (hasDate && hasAmount) return i;
   }
@@ -238,7 +249,10 @@ export function parseCsvStatement(text: string): ExtractedStatement | null {
       cDesc >= 0
         ? at(cDesc).trim()
         : r
-            .filter((_, i) => i !== cBooking && i !== cValue && i !== cAmount && i !== cDebit && i !== cCredit)
+            .filter(
+              (_, i) =>
+                i !== cBooking && i !== cValue && i !== cAmount && i !== cDebit && i !== cCredit,
+            )
             .map((c) => c.trim())
             .filter(Boolean)
             .join(" ");
@@ -258,7 +272,10 @@ export function parseCsvStatement(text: string): ExtractedStatement | null {
   }
 
   if (out.lines.length === 0) return null;
-  const dates = out.lines.map((l) => l.booking_date!).filter(Boolean).sort();
+  const dates = out.lines
+    .map((l) => l.booking_date!)
+    .filter(Boolean)
+    .sort();
   out.period_from = dates[0] ?? null;
   out.period_to = dates[dates.length - 1] ?? null;
   return out;
@@ -312,8 +329,12 @@ function chunkText(text: string, size = 12000): string[] {
   return chunks;
 }
 
-function parseJsonLoose(s: string): any {
-  const trimmed = s.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
+function parseJsonLoose(s: string): unknown {
+  const trimmed = s
+    .trim()
+    .replace(/^```(?:json)?/i, "")
+    .replace(/```$/, "")
+    .trim();
   try {
     return JSON.parse(trimmed);
   } catch {
@@ -335,7 +356,10 @@ function normDate(v: unknown): string | null {
 function normAmount(v: unknown): number | null {
   if (typeof v === "number" && Number.isFinite(v)) return v;
   if (typeof v === "string") {
-    const cleaned = v.replace(/[^\d,.\-+]/g, "").replace(/\.(?=\d{3}\b)/g, "").replace(",", ".");
+    const cleaned = v
+      .replace(/[^\d,.\-+]/g, "")
+      .replace(/\.(?=\d{3}\b)/g, "")
+      .replace(",", ".");
     const n = Number(cleaned);
     if (Number.isFinite(n)) return n;
   }
@@ -379,22 +403,29 @@ export interface ExtractAudit {
   source: "pdf" | "image" | "csv" | "rows";
   part?: string | null;
   /** Defaults to document_extract, which is what the PDF pipeline is. */
-  kind?: Extract<AuditKind, "document_extract" | "statement_classify" | "pending_enrich" | "recurring_extract">;
+  kind?: Extract<
+    AuditKind,
+    "document_extract" | "statement_classify" | "pending_enrich" | "recurring_extract"
+  >;
 }
 
-export async function callJsonModel(
+/** An object the model answered with: the keys asked for, nothing checked yet. */
+export type ModelAnswer<K extends string = string> = Partial<Record<K, unknown>>;
+
+/**
+ * Ask for JSON and parse it. Answers that are not a JSON object come back as
+ * null, so callers read fields with ?. and validate each one.
+ */
+export async function callJsonModel<K extends string = string>(
   creds: FullAICreds,
   system: string,
   user: string | unknown[],
   audit?: ExtractAudit | null,
-): Promise<any> {
+): Promise<ModelAnswer<K> | null> {
   let lastError = "";
   const cacheKey = `${providerHost(creds.base_url)}|${creds.model}`;
   const preferred = FORMAT_CACHE.get(cacheKey) ?? 0;
-  const order = [
-    ...RESPONSE_FORMATS.slice(preferred),
-    ...RESPONSE_FORMATS.slice(0, preferred),
-  ];
+  const order = [...RESPONSE_FORMATS.slice(preferred), ...RESPONSE_FORMATS.slice(0, preferred)];
   for (const format of order) {
     const started = Date.now();
     const resp = await fetch(`${creds.base_url}/chat/completions`, {
@@ -437,13 +468,16 @@ export async function callJsonModel(
             file_name: audit.fileName ?? null,
             source: audit.source,
             part: audit.part ?? null,
-            response_format: format ? (format as any).type : "none",
+            response_format: format ? format.type : "none",
             usage: json.usage ?? null,
             content_preview: preview(content, 1000),
           },
         });
       }
-      return parseJsonLoose(content);
+      const answer = parseJsonLoose(content);
+      return answer && typeof answer === "object" && !Array.isArray(answer)
+        ? (answer as ModelAnswer<K>)
+        : null;
     }
     const body = await resp.text();
     lastError = `AI provider error (${resp.status}): ${body.slice(0, 800)}`;
@@ -466,7 +500,7 @@ export async function callJsonModel(
           file_name: audit.fileName ?? null,
           source: audit.source,
           part: audit.part ?? null,
-          response_format: format ? (format as any).type : "none",
+          response_format: format ? format.type : "none",
           status: resp.status,
           response_body_preview: preview(body, 1000),
         },
@@ -533,7 +567,9 @@ ${chunk}`;
       out.lines.push({
         booking_date: normDate(r?.booking_date) ?? normDate(r?.date),
         value_date: normDate(r?.value_date),
-        description: String(r?.description ?? "").trim().slice(0, 300),
+        description: String(r?.description ?? "")
+          .trim()
+          .slice(0, 300),
         amount,
         raw_text: typeof r?.raw_text === "string" ? r.raw_text.slice(0, 500) : null,
       });
@@ -580,7 +616,9 @@ Read every transaction row from this statement image and return the JSON describ
     out.lines.push({
       booking_date: normDate(r?.booking_date) ?? normDate(r?.date),
       value_date: normDate(r?.value_date),
-      description: String(r?.description ?? "").trim().slice(0, 300),
+      description: String(r?.description ?? "")
+        .trim()
+        .slice(0, 300),
       amount,
       raw_text: typeof r?.raw_text === "string" ? r.raw_text.slice(0, 500) : null,
     });
@@ -677,7 +715,12 @@ export function matchLines(
       if (Math.abs(e.amount - l.amount) > 0.005) continue;
       const dd = daysBetween(ld, e.occurred_on);
       if (dd > windowDays) continue;
-      pairs.push({ lineId: l.id, entryKey: e.key, sim: descSimilarity(l.description, e.description), dateDiff: dd });
+      pairs.push({
+        lineId: l.id,
+        entryKey: e.key,
+        sim: descSimilarity(l.description, e.description),
+        dateDiff: dd,
+      });
     }
   }
   pairs.sort((a, b) => b.sim - a.sim || a.dateDiff - b.dateDiff);
@@ -696,7 +739,13 @@ export function matchLines(
 
   return lines.map((l): MatchOutcome => {
     const hit = byLine.get(l.id);
-    if (!hit) return { id: l.id, match_status: "unmatched", matched_transaction_id: null, match_score: null };
+    if (!hit)
+      return {
+        id: l.id,
+        match_status: "unmatched",
+        matched_transaction_id: null,
+        match_score: null,
+      };
     const strong = hit.sim >= 0.4 || (hit.dateDiff === 0 && hit.sim > 0);
     return {
       id: l.id,
@@ -724,7 +773,17 @@ export async function loadAppEntries(
     .or(`source_account_id.eq.${accountId},destination_account_id.eq.${accountId}`);
   if (error) throw new Error(error.message);
 
-  const rows = (data || []) as any[];
+  const rows = (data || []) as Array<{
+    id: string;
+    occurred_on: string;
+    amount: number;
+    destination_amount: number | null;
+    description: string | null;
+    type: string;
+    source_account_id: string | null;
+    destination_account_id: string | null;
+    split_group_id: string | null;
+  }>;
   const groups = new Map<string, AppEntry>();
   const out: AppEntry[] = [];
   for (const r of rows) {

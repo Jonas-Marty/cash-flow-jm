@@ -9,8 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import {
-  fetchPendingOccurrences, postOccurrence, skipOccurrence, fmtMoney,
-  type RecurringOccurrence, type RecurringRule,
+  fetchPendingOccurrences,
+  postOccurrence,
+  skipOccurrence,
+  fmtMoney,
+  type RecurringOccurrence,
+  type RecurringRule,
 } from "@/lib/finance";
 import { useI18n } from "@/i18n";
 import { PostOccurrenceDialog } from "@/components/PostOccurrenceDialog";
@@ -19,17 +23,19 @@ export function UpcomingCard({ symbol }: { symbol: string }) {
   const { t, locale } = useI18n();
   const qc = useQueryClient();
   const occQ = useQuery({ queryKey: ["pending_occurrences"], queryFn: fetchPendingOccurrences });
-  const allOccs = occQ.data ?? [];
+  const allOccs = React.useMemo(() => occQ.data ?? [], [occQ.data]);
   // Show only this calendar month + anything overdue (regardless of month)
-  const today0 = new Date(); today0.setHours(0, 0, 0, 0);
-  const monthEnd = new Date(today0.getFullYear(), today0.getMonth() + 1, 1);
-  const occs = React.useMemo(() => allOccs.filter((o) => {
-    const eff = parseISO(o.effective_on);
-    return eff < monthEnd; // covers overdue + current month; excludes future months
-  }), [allOccs, monthEnd]);
+  const occs = React.useMemo(() => {
+    const today0 = new Date();
+    const monthEnd = new Date(today0.getFullYear(), today0.getMonth() + 1, 1);
+    // covers overdue + current month; excludes future months
+    return allOccs.filter((o) => parseISO(o.effective_on) < monthEnd);
+  }, [allOccs]);
   const [amounts, setAmounts] = React.useState<Record<string, string>>({});
   const [visibleCount, setVisibleCount] = React.useState(5);
-  const [dialogOcc, setDialogOcc] = React.useState<(RecurringOccurrence & { rule: RecurringRule }) | null>(null);
+  const [dialogOcc, setDialogOcc] = React.useState<
+    (RecurringOccurrence & { rule: RecurringRule }) | null
+  >(null);
 
   React.useEffect(() => {
     setVisibleCount(5);
@@ -37,7 +43,7 @@ export function UpcomingCard({ symbol }: { symbol: string }) {
 
   if (occQ.isLoading || occs.length === 0) return null;
 
-  const today = today0;
+  const today = new Date();
 
   const visibleOccs = occs.slice(0, visibleCount);
   const hasMore = visibleCount < occs.length;
@@ -80,14 +86,20 @@ export function UpcomingCard({ symbol }: { symbol: string }) {
 
   return (
     <Card>
-      <CardHeader className="pb-2"><CardTitle className="text-base">{t("dashboard.upcoming")}</CardTitle></CardHeader>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-base">{t("dashboard.upcoming")}</CardTitle>
+      </CardHeader>
       <CardContent className="divide-y p-0">
         {visibleOccs.map((o) => {
           const eff = parseISO(o.effective_on);
           const diff = differenceInCalendarDays(eff, today);
-          let label: string; let late = false;
+          let label: string;
+          let late = false;
           if (diff < 0) {
-            label = Math.abs(diff) === 1 ? t("dashboard.upcoming.late_by_one") : t("dashboard.upcoming.late_by", { n: Math.abs(diff) });
+            label =
+              Math.abs(diff) === 1
+                ? t("dashboard.upcoming.late_by_one")
+                : t("dashboard.upcoming.late_by", { n: Math.abs(diff) });
             late = true;
           } else if (diff === 0) {
             label = t("dashboard.upcoming.due_today");
@@ -97,11 +109,21 @@ export function UpcomingCard({ symbol }: { symbol: string }) {
             label = t("dashboard.upcoming.due_in", { n: diff });
           }
           const sign = o.rule.type === "expense" ? "-" : o.rule.type === "income" ? "+" : "";
-          const tone = o.rule.type === "expense" ? "text-destructive" : o.rule.type === "income" ? "text-success" : "text-muted-foreground";
+          const tone =
+            o.rule.type === "expense"
+              ? "text-destructive"
+              : o.rule.type === "income"
+                ? "text-success"
+                : "text-muted-foreground";
           const isVar = o.rule.is_variable_amount;
-          const proposal = isVar && o.proposed_at && o.proposed_amount != null && o.proposed_occurred_on
-            ? { amount: Number(o.proposed_amount), date: o.proposed_occurred_on, source: o.proposal_source ?? "" }
-            : null;
+          const proposal =
+            isVar && o.proposed_at && o.proposed_amount != null && o.proposed_occurred_on
+              ? {
+                  amount: Number(o.proposed_amount),
+                  date: o.proposed_occurred_on,
+                  source: o.proposal_source ?? "",
+                }
+              : null;
           // A bill proposal pre-fills the field; anything typed wins.
           const inputVal = amounts[o.id] ?? (proposal ? proposal.amount.toFixed(2) : "");
           const canPost = !isVar || (inputVal !== "" && Number(inputVal) > 0);
@@ -110,10 +132,23 @@ export function UpcomingCard({ symbol }: { symbol: string }) {
               <div className="min-w-0 flex-1 basis-full sm:basis-0">
                 <div className="flex items-center gap-2">
                   <span className="truncate text-sm font-medium">{o.rule.name}</span>
-                  <Badge variant="outline" className={cn("text-[10px]", late && "border-destructive text-destructive")}>{label}</Badge>
-                  {isVar && <Badge variant="outline" className="text-[10px]">{t("recurring.variable_badge")}</Badge>}
+                  <Badge
+                    variant="outline"
+                    className={cn("text-[10px]", late && "border-destructive text-destructive")}
+                  >
+                    {label}
+                  </Badge>
+                  {isVar && (
+                    <Badge variant="outline" className="text-[10px]">
+                      {t("recurring.variable_badge")}
+                    </Badge>
+                  )}
                   {proposal && (
-                    <Badge variant="secondary" className="text-[10px]" title={o.proposal_info ?? undefined}>
+                    <Badge
+                      variant="secondary"
+                      className="text-[10px]"
+                      title={o.proposal_info ?? undefined}
+                    >
                       {t("recurring.proposal.badge", { source: proposal.source })}
                     </Badge>
                   )}
@@ -133,19 +168,32 @@ export function UpcomingCard({ symbol }: { symbol: string }) {
                 <Input
                   inputMode="decimal"
                   className="w-24 text-right"
-                  placeholder={o.rule.estimated_amount != null ? Number(o.rule.estimated_amount).toFixed(2) : t("dashboard.upcoming.enter_amount")}
+                  placeholder={
+                    o.rule.estimated_amount != null
+                      ? Number(o.rule.estimated_amount).toFixed(2)
+                      : t("dashboard.upcoming.enter_amount")
+                  }
                   value={inputVal}
                   onChange={(e) => setAmounts((m) => ({ ...m, [o.id]: e.target.value }))}
-                  onBlur={() => setAmounts((m) => (o.id in m ? { ...m, [o.id]: formatAmountInput(m[o.id]) } : m))}
+                  onBlur={() =>
+                    setAmounts((m) =>
+                      o.id in m ? { ...m, [o.id]: formatAmountInput(m[o.id]) } : m,
+                    )
+                  }
                 />
               ) : (
                 <div className={cn("text-sm font-semibold tabular-nums", tone)}>
-                  {sign}{fmtMoney(Number(o.rule.amount ?? 0), symbol).replace("-", "")}
+                  {sign}
+                  {fmtMoney(Number(o.rule.amount ?? 0), symbol).replace("-", "")}
                 </div>
               )}
               <div className="flex shrink-0 gap-1">
-                <Button size="sm" variant="outline" onClick={() => onSkip(o.id)}>{t("dashboard.upcoming.skip")}</Button>
-                <Button size="sm" onClick={() => onPost(o)} disabled={!canPost}>{t("dashboard.upcoming.post")}</Button>
+                <Button size="sm" variant="outline" onClick={() => onSkip(o.id)}>
+                  {t("dashboard.upcoming.skip")}
+                </Button>
+                <Button size="sm" onClick={() => onPost(o)} disabled={!canPost}>
+                  {t("dashboard.upcoming.post")}
+                </Button>
               </div>
             </div>
           );
@@ -181,7 +229,10 @@ export function UpcomingCard({ symbol }: { symbol: string }) {
  * we only have pendings here, fall back to: position among pendings of this
  * rule sorted by effective_on (1-based). This is a best-effort counter that
  * matches what the user sees on screen. */
-function computeRunNumber(all: (RecurringOccurrence & { rule: RecurringRule })[], target: RecurringOccurrence & { rule: RecurringRule }): number {
+function computeRunNumber(
+  all: (RecurringOccurrence & { rule: RecurringRule })[],
+  target: RecurringOccurrence & { rule: RecurringRule },
+): number {
   const sameRule = all
     .filter((o) => o.rule.id === target.rule.id)
     .sort((a, b) => a.effective_on.localeCompare(b.effective_on));
@@ -189,7 +240,10 @@ function computeRunNumber(all: (RecurringOccurrence & { rule: RecurringRule })[]
   return Math.max(1, idx + 1);
 }
 
-function computePrevDate(all: (RecurringOccurrence & { rule: RecurringRule })[], target: RecurringOccurrence & { rule: RecurringRule }): string {
+function computePrevDate(
+  all: (RecurringOccurrence & { rule: RecurringRule })[],
+  target: RecurringOccurrence & { rule: RecurringRule },
+): string {
   const sameRule = all
     .filter((o) => o.rule.id === target.rule.id)
     .sort((a, b) => a.effective_on.localeCompare(b.effective_on));
@@ -198,7 +252,10 @@ function computePrevDate(all: (RecurringOccurrence & { rule: RecurringRule })[],
   return target.rule.starts_on;
 }
 
-function computeNextDate(all: (RecurringOccurrence & { rule: RecurringRule })[], target: RecurringOccurrence & { rule: RecurringRule }): string | null {
+function computeNextDate(
+  all: (RecurringOccurrence & { rule: RecurringRule })[],
+  target: RecurringOccurrence & { rule: RecurringRule },
+): string | null {
   const sameRule = all
     .filter((o) => o.rule.id === target.rule.id)
     .sort((a, b) => a.effective_on.localeCompare(b.effective_on));

@@ -35,22 +35,32 @@ describe("singleFlight", () => {
 
   it("runs again after the first one finished, even if it failed", async () => {
     const run = singleFlight<string>();
-    await expect(run("u", async () => { throw new Error("boom"); })).rejects.toThrow("boom");
+    await expect(
+      run("u", async () => {
+        throw new Error("boom");
+      }),
+    ).rejects.toThrow("boom");
     expect(await run("u", async () => "ok")).toBe("ok");
   });
 });
 
 describe("afterRefusedRefresh", () => {
   it("uses the stored pair when someone else renewed first", () => {
-    expect(afterRefusedRefresh("old", { refresh_token: "new", access_token: "a" })).toBe("use-stored");
+    expect(afterRefusedRefresh("old", { refresh_token: "new", access_token: "a" })).toBe(
+      "use-stored",
+    );
   });
 
   it("asks to reconnect when the token we sent is still the stored one", () => {
-    expect(afterRefusedRefresh("old", { refresh_token: "old", access_token: "a" })).toBe("reconnect");
+    expect(afterRefusedRefresh("old", { refresh_token: "old", access_token: "a" })).toBe(
+      "reconnect",
+    );
   });
 
   it("asks to reconnect when the row lost its tokens or is gone", () => {
-    expect(afterRefusedRefresh("old", { refresh_token: null, access_token: null })).toBe("reconnect");
+    expect(afterRefusedRefresh("old", { refresh_token: null, access_token: null })).toBe(
+      "reconnect",
+    );
     expect(afterRefusedRefresh("old", null)).toBe("reconnect");
   });
 });

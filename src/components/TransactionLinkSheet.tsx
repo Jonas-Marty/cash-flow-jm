@@ -4,38 +4,62 @@ import { Link as RouterLink } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { Trash2, X, Search, ShoppingBag, CalendarDays, Plane, Package, Pencil, ArrowRight } from "lucide-react";
+import { Trash2, X, Search, ShoppingBag, Pencil, ArrowRight } from "lucide-react";
 import { DatePicker } from "@/components/DatePicker";
 
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/i18n";
 import {
-  attachTransactionToLink, deleteTransactionLink, detachTransactionFromLink,
-  fetchTransactionLinks, fetchTransactionLinkMembers, updateTransactionLink,
-  LINK_KINDS, linkTotals, type TransactionLink, type TransactionLinkKind,
+  attachTransactionToLink,
+  deleteTransactionLink,
+  detachTransactionFromLink,
+  fetchTransactionLinks,
+  fetchTransactionLinkMembers,
+  updateTransactionLink,
+  LINK_KINDS,
+  linkTotals,
+  type TransactionLink,
+  type TransactionLinkKind,
 } from "@/lib/links";
-import { fetchAccounts, fetchCategories, fetchSettings, fetchTransactions, fmtMoney, type Transaction } from "@/lib/finance";
+import {
+  fetchAccounts,
+  fetchCategories,
+  fetchSettings,
+  fetchTransactions,
+  fmtMoney,
+  type Transaction,
+} from "@/lib/finance";
 import { supabase } from "@/integrations/supabase/client";
 import { EntityVisual } from "@/components/EntityVisual";
-
-export const KIND_ICON: Record<TransactionLinkKind, React.ComponentType<{ className?: string }>> = {
-  purchase: ShoppingBag,
-  event: CalendarDays,
-  trip: Plane,
-  other: Package,
-};
+import { KIND_ICON } from "@/lib/linkKindIcons";
 
 type Props = {
   linkId: string | null;
@@ -47,11 +71,27 @@ export function TransactionLinkSheet({ linkId, open, onOpenChange }: Props) {
   const { t, locale } = useI18n();
   const qc = useQueryClient();
 
-  const linksQ = useQuery({ queryKey: ["transaction_links"], queryFn: fetchTransactionLinks, enabled: open });
-  const membersQ = useQuery({ queryKey: ["transaction_link_members"], queryFn: fetchTransactionLinkMembers, enabled: open });
-  const txQ = useQuery({ queryKey: ["transactions", "all"], queryFn: () => fetchTransactions(), enabled: open });
+  const linksQ = useQuery({
+    queryKey: ["transaction_links"],
+    queryFn: fetchTransactionLinks,
+    enabled: open,
+  });
+  const membersQ = useQuery({
+    queryKey: ["transaction_link_members"],
+    queryFn: fetchTransactionLinkMembers,
+    enabled: open,
+  });
+  const txQ = useQuery({
+    queryKey: ["transactions", "all"],
+    queryFn: () => fetchTransactions(),
+    enabled: open,
+  });
   const accountsQ = useQuery({ queryKey: ["accounts"], queryFn: fetchAccounts, enabled: open });
-  const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories, enabled: open });
+  const categoriesQ = useQuery({
+    queryKey: ["categories"],
+    queryFn: fetchCategories,
+    enabled: open,
+  });
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings, enabled: open });
 
   const link = React.useMemo(
@@ -86,7 +126,9 @@ export function TransactionLinkSheet({ linkId, open, onOpenChange }: Props) {
     const dst = tx.destination_account_id ? accountById.get(tx.destination_account_id) : undefined;
     const cat = tx.category_id ? categoryById.get(tx.category_id) : undefined;
     return (
-      <div className={`flex flex-wrap items-center gap-x-1.5 gap-y-1 text-muted-foreground ${textClass}`}>
+      <div
+        className={`flex flex-wrap items-center gap-x-1.5 gap-y-1 text-muted-foreground ${textClass}`}
+      >
         <span>{format(new Date(tx.occurred_on), dateFmt, { locale })}</span>
         {src && (
           <>
@@ -208,7 +250,10 @@ export function TransactionLinkSheet({ linkId, open, onOpenChange }: Props) {
   // Inline transaction search to add a member.
   const [addQuery, setAddQuery] = React.useState("");
   const [addOpen, setAddOpen] = React.useState(false);
-  const linkedIds = React.useMemo(() => new Set((membersQ.data ?? []).map((m) => m.transaction_id)), [membersQ.data]);
+  const linkedIds = React.useMemo(
+    () => new Set((membersQ.data ?? []).map((m) => m.transaction_id)),
+    [membersQ.data],
+  );
   const candidates = React.useMemo(() => {
     const q = addQuery.trim().toLowerCase();
     return (txQ.data ?? [])
@@ -216,7 +261,8 @@ export function TransactionLinkSheet({ linkId, open, onOpenChange }: Props) {
       .filter((tx) => {
         if (!q) return true;
         const desc = (tx.description ?? "").toLowerCase();
-        const cat = (tx.category_id ? categoryById.get(tx.category_id)?.name : "")?.toLowerCase() ?? "";
+        const cat =
+          (tx.category_id ? categoryById.get(tx.category_id)?.name : "")?.toLowerCase() ?? "";
         const amt = Math.abs(Number(tx.amount)).toFixed(2);
         return desc.includes(q) || cat.includes(q) || amt.includes(q);
       })
@@ -253,12 +299,21 @@ export function TransactionLinkSheet({ linkId, open, onOpenChange }: Props) {
               <SheetTitle className="flex items-center gap-2">
                 <Kicon className="h-5 w-5 text-muted-foreground" />
                 {editing ? (
-                  <Input value={title} onChange={(e) => setTitle(e.target.value)} className="flex-1" />
+                  <Input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="flex-1"
+                  />
                 ) : (
                   <span className="flex-1 truncate">{link.title}</span>
                 )}
                 {!editing && (
-                  <Button variant="ghost" size="icon" aria-label={t("common.edit")} onClick={() => setEditing(true)}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={t("common.edit")}
+                    onClick={() => setEditing(true)}
+                  >
                     <Pencil className="h-4 w-4" />
                   </Button>
                 )}
@@ -268,39 +323,59 @@ export function TransactionLinkSheet({ linkId, open, onOpenChange }: Props) {
 
             <div className="mt-4 space-y-4">
               {editing && (
-                <Card><CardContent className="space-y-3 py-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <Label className="text-xs">{t("links.kind")}</Label>
-                      <Select value={kind} onValueChange={(v) => setKind(v as TransactionLinkKind)}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {LINK_KINDS.map((k) => (
-                            <SelectItem key={k} value={k}>{t(`links.kind.${k}`)}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                <Card>
+                  <CardContent className="space-y-3 py-3">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label className="text-xs">{t("links.kind")}</Label>
+                        <Select
+                          value={kind}
+                          onValueChange={(v) => setKind(v as TransactionLinkKind)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {LINK_KINDS.map((k) => (
+                              <SelectItem key={k} value={k}>
+                                {t(`links.kind.${k}`)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="text-xs">{t("links.planned_on")}</Label>
+                        <DatePicker
+                          value={plannedOn}
+                          onChange={setPlannedOn}
+                          clearLabel={t("common.clear")}
+                        />
+                      </div>
                     </div>
                     <div>
-                      <Label className="text-xs">{t("links.planned_on")}</Label>
-                      <DatePicker value={plannedOn} onChange={setPlannedOn} clearLabel={t("common.clear")} />
+                      <Label className="text-xs">{t("links.note")}</Label>
+                      <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
                     </div>
-                  </div>
-                  <div>
-                    <Label className="text-xs">{t("links.note")}</Label>
-                    <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} />
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>{t("common.cancel")}</Button>
-                    <Button size="sm" onClick={saveEdits}>{t("common.save")}</Button>
-                  </div>
-                </CardContent></Card>
+                    <div className="flex justify-end gap-2">
+                      <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>
+                        {t("common.cancel")}
+                      </Button>
+                      <Button size="sm" onClick={saveEdits}>
+                        {t("common.save")}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               )}
 
               {!editing && (link.planned_on || link.note) && (
                 <div className="space-y-1 text-sm text-muted-foreground">
                   {link.planned_on && (
-                    <div>{t("links.planned_on")}: {format(new Date(link.planned_on), dateFmt, { locale })}</div>
+                    <div>
+                      {t("links.planned_on")}:{" "}
+                      {format(new Date(link.planned_on), dateFmt, { locale })}
+                    </div>
                   )}
                   {link.note && <div className="whitespace-pre-wrap">{link.note}</div>}
                 </div>
@@ -309,7 +384,9 @@ export function TransactionLinkSheet({ linkId, open, onOpenChange }: Props) {
               {/* Totals */}
               {totals.length > 0 && (
                 <div className="rounded-md border border-border bg-muted/20 p-3">
-                  <div className="text-xs uppercase text-muted-foreground">{t("links.totals.label")}</div>
+                  <div className="text-xs uppercase text-muted-foreground">
+                    {t("links.totals.label")}
+                  </div>
                   <div className="mt-1 flex flex-wrap items-baseline gap-3">
                     {totals.map(([sym, sum]) => (
                       <div key={sym} className="text-base font-semibold tabular-nums">
@@ -317,7 +394,9 @@ export function TransactionLinkSheet({ linkId, open, onOpenChange }: Props) {
                       </div>
                     ))}
                   </div>
-                  <div className="mt-1 text-[11px] text-muted-foreground">{t("links.totals.hint")}</div>
+                  <div className="mt-1 text-[11px] text-muted-foreground">
+                    {t("links.totals.hint")}
+                  </div>
                 </div>
               )}
 
@@ -334,7 +413,10 @@ export function TransactionLinkSheet({ linkId, open, onOpenChange }: Props) {
                         {t("links.members.add")}
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] sm:w-96 p-0" align="end">
+                    <PopoverContent
+                      className="w-[--radix-popover-trigger-width] sm:w-96 p-0"
+                      align="end"
+                    >
                       <Command shouldFilter={false}>
                         <CommandInput
                           placeholder={t("links.members.search")}
@@ -344,16 +426,23 @@ export function TransactionLinkSheet({ linkId, open, onOpenChange }: Props) {
                         <CommandList>
                           <CommandEmpty>{t("links.members.empty")}</CommandEmpty>
                           {candidates.map((tx) => {
-                            const cat = tx.category_id ? categoryById.get(tx.category_id)?.name : "";
-                            const sym = accountById.get(tx.source_account_id)?.currency_symbol ?? "CHF";
+                            const cat = tx.category_id
+                              ? categoryById.get(tx.category_id)?.name
+                              : "";
+                            const sym =
+                              accountById.get(tx.source_account_id)?.currency_symbol ?? "CHF";
                             return (
                               <CommandItem key={tx.id} value={tx.id} onSelect={() => addMember(tx)}>
                                 <div className="flex w-full items-center justify-between gap-2">
                                   <div className="min-w-0 flex-1">
-                                    <div className="truncate text-sm">{tx.description || cat || tx.type}</div>
+                                    <div className="truncate text-sm">
+                                      {tx.description || cat || tx.type}
+                                    </div>
                                     {txMeta(tx, "text-[11px]")}
                                   </div>
-                                  <div className="text-sm tabular-nums">{fmtMoney(Number(tx.amount), sym)}</div>
+                                  <div className="text-sm tabular-nums">
+                                    {fmtMoney(Number(tx.amount), sym)}
+                                  </div>
                                 </div>
                               </CommandItem>
                             );
@@ -364,44 +453,64 @@ export function TransactionLinkSheet({ linkId, open, onOpenChange }: Props) {
                   </Popover>
                 </div>
                 {memberTxs.length === 0 ? (
-                  <Card><CardContent className="py-6 text-center text-sm text-muted-foreground">
-                    {t("links.members.none")}
-                  </CardContent></Card>
+                  <Card>
+                    <CardContent className="py-6 text-center text-sm text-muted-foreground">
+                      {t("links.members.none")}
+                    </CardContent>
+                  </Card>
                 ) : (
-                  <Card><CardContent className="divide-y p-0">
-                    {memberTxs.map((tx) => {
-                      const cat = tx.category_id ? categoryById.get(tx.category_id)?.name : "";
-                      const sym = accountById.get(tx.source_account_id)?.currency_symbol ?? "CHF";
-                      const sign = tx.type === "expense" ? "-" : tx.type === "income" ? "+" : "";
-                      const tone = tx.type === "expense" ? "text-destructive" : tx.type === "income" ? "text-success" : "text-muted-foreground";
-                      return (
-                        <div key={tx.id} className="flex items-start justify-between gap-2 p-3 text-sm">
-                          <div className="min-w-0 flex-1">
-                            <div className="truncate font-medium">
-                              <RouterLink to="/edit/$id" params={{ id: tx.id }} className="hover:underline">
-                                {tx.description || cat || tx.type}
-                              </RouterLink>
-                            </div>
-                            {txMeta(tx)}
-                            {tx.type === "transfer" && (
-                              <Badge variant="secondary" className="mt-1 text-[10px]">{t("links.transfer_excluded")}</Badge>
-                            )}
-                          </div>
-                          <div className={`tabular-nums font-medium ${tone}`}>
-                            {sign}{fmtMoney(Math.abs(Number(tx.amount)), sym)}
-                          </div>
-                          <Button
-                            variant="ghost" size="icon"
-                            aria-label={t("common.remove")}
-                            className="text-muted-foreground hover:text-destructive"
-                            onClick={() => removeMember(tx)}
+                  <Card>
+                    <CardContent className="divide-y p-0">
+                      {memberTxs.map((tx) => {
+                        const cat = tx.category_id ? categoryById.get(tx.category_id)?.name : "";
+                        const sym = accountById.get(tx.source_account_id)?.currency_symbol ?? "CHF";
+                        const sign = tx.type === "expense" ? "-" : tx.type === "income" ? "+" : "";
+                        const tone =
+                          tx.type === "expense"
+                            ? "text-destructive"
+                            : tx.type === "income"
+                              ? "text-success"
+                              : "text-muted-foreground";
+                        return (
+                          <div
+                            key={tx.id}
+                            className="flex items-start justify-between gap-2 p-3 text-sm"
                           >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      );
-                    })}
-                  </CardContent></Card>
+                            <div className="min-w-0 flex-1">
+                              <div className="truncate font-medium">
+                                <RouterLink
+                                  to="/edit/$id"
+                                  params={{ id: tx.id }}
+                                  className="hover:underline"
+                                >
+                                  {tx.description || cat || tx.type}
+                                </RouterLink>
+                              </div>
+                              {txMeta(tx)}
+                              {tx.type === "transfer" && (
+                                <Badge variant="secondary" className="mt-1 text-[10px]">
+                                  {t("links.transfer_excluded")}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className={`tabular-nums font-medium ${tone}`}>
+                              {sign}
+                              {fmtMoney(Math.abs(Number(tx.amount)), sym)}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={t("common.remove")}
+                              className="text-muted-foreground hover:text-destructive"
+                              onClick={() => removeMember(tx)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        );
+                      })}
+                    </CardContent>
+                  </Card>
                 )}
               </div>
 

@@ -26,11 +26,23 @@ export function EntityVisual({ entity, size = "sm", className }: Props) {
   const Icon = getIcon(entity.icon);
 
   if (entity.image_url) {
-    return <img src={entity.image_url} alt="" className={cn(dim, "rounded-full object-cover", className)} />;
+    return (
+      <img
+        src={entity.image_url}
+        alt=""
+        className={cn(dim, "rounded-full object-cover", className)}
+      />
+    );
   }
   if (entity.emoji) {
     return (
-      <span className={cn(dim, "flex items-center justify-center rounded-full bg-muted leading-none", className)}>
+      <span
+        className={cn(
+          dim,
+          "flex items-center justify-center rounded-full bg-muted leading-none",
+          className,
+        )}
+      >
         {entity.emoji}
       </span>
     );
@@ -47,7 +59,11 @@ export function EntityVisual({ entity, size = "sm", className }: Props) {
   }
   return (
     <span
-      className={cn(dim, "flex items-center justify-center rounded-full font-semibold text-white", className)}
+      className={cn(
+        dim,
+        "flex items-center justify-center rounded-full font-semibold text-white",
+        className,
+      )}
       style={{ backgroundColor: color }}
     >
       {monogram(entity.name)}

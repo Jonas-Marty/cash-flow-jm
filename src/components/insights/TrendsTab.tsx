@@ -19,24 +19,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useI18n } from "@/i18n";
-import {
-  fetchTransactionsRange,
-  fmtMoney,
-} from "@/lib/finance";
+import { fetchTransactionsRange, fmtMoney } from "@/lib/finance";
 import { aggregateMonthly } from "@/lib/insights";
 
 type SeriesKind = "income_expense" | "net" | "cumulative_net";
 type ChartShape = "line" | "area";
 
-export function TrendsTab({
-  from,
-  to,
-  symbol,
-}: {
-  from: string;
-  to: string;
-  symbol: string;
-}) {
+export function TrendsTab({ from, to, symbol }: { from: string; to: string; symbol: string }) {
   const { t } = useI18n();
   const [series, setSeries] = React.useState<SeriesKind>("income_expense");
   const [shape, setShape] = React.useState<ChartShape>("line");
@@ -46,12 +35,9 @@ export function TrendsTab({
     queryKey: ["insights", "tx_range", from, to],
     queryFn: () => fetchTransactionsRange(from, to),
   });
-  const tx = txQ.data ?? [];
+  const tx = React.useMemo(() => txQ.data ?? [], [txQ.data]);
 
-  const monthly = React.useMemo(
-    () => aggregateMonthly(tx, from, to),
-    [tx, from, to],
-  );
+  const monthly = React.useMemo(() => aggregateMonthly(tx, from, to), [tx, from, to]);
 
   const data = React.useMemo(() => {
     if (series === "cumulative_net") {
@@ -115,21 +101,53 @@ export function TrendsTab({
                   <XAxis dataKey="month" fontSize={11} tickLine={false} />
                   <YAxis fontSize={11} tickLine={false} width={50} />
                   <Tooltip
-                    contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 6 }}
+                    contentStyle={{
+                      background: "var(--popover)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 6,
+                    }}
                     formatter={(v: number) => fmtMoney(v, symbol)}
                   />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   {series === "income_expense" && (
                     <>
-                      <Line type="monotone" dataKey="income" stroke="var(--chart-2)" strokeWidth={2} dot={false} name={t("insights.kpi.income")} />
-                      <Line type="monotone" dataKey="expense" stroke="var(--chart-1)" strokeWidth={2} dot={false} name={t("insights.kpi.expense")} />
+                      <Line
+                        type="monotone"
+                        dataKey="income"
+                        stroke="var(--chart-2)"
+                        strokeWidth={2}
+                        dot={false}
+                        name={t("insights.kpi.income")}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="expense"
+                        stroke="var(--chart-1)"
+                        strokeWidth={2}
+                        dot={false}
+                        name={t("insights.kpi.expense")}
+                      />
                     </>
                   )}
                   {series === "net" && (
-                    <Line type="monotone" dataKey="net" stroke="var(--chart-3)" strokeWidth={2} dot={false} name={t("insights.kpi.net")} />
+                    <Line
+                      type="monotone"
+                      dataKey="net"
+                      stroke="var(--chart-3)"
+                      strokeWidth={2}
+                      dot={false}
+                      name={t("insights.kpi.net")}
+                    />
                   )}
                   {series === "cumulative_net" && (
-                    <Line type="monotone" dataKey="cumulative" stroke="var(--chart-4)" strokeWidth={2} dot={false} name={t("insights.series.cumulative_net")} />
+                    <Line
+                      type="monotone"
+                      dataKey="cumulative"
+                      stroke="var(--chart-4)"
+                      strokeWidth={2}
+                      dot={false}
+                      name={t("insights.series.cumulative_net")}
+                    />
                   )}
                 </LineChart>
               ) : (
@@ -138,21 +156,53 @@ export function TrendsTab({
                   <XAxis dataKey="month" fontSize={11} tickLine={false} />
                   <YAxis fontSize={11} tickLine={false} width={50} />
                   <Tooltip
-                    contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 6 }}
+                    contentStyle={{
+                      background: "var(--popover)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 6,
+                    }}
                     formatter={(v: number) => fmtMoney(v, symbol)}
                   />
                   <Legend wrapperStyle={{ fontSize: 11 }} />
                   {series === "income_expense" && (
                     <>
-                      <Area type="monotone" dataKey="income" stroke="var(--chart-2)" fill="var(--chart-2)" fillOpacity={0.3} name={t("insights.kpi.income")} />
-                      <Area type="monotone" dataKey="expense" stroke="var(--chart-1)" fill="var(--chart-1)" fillOpacity={0.3} name={t("insights.kpi.expense")} />
+                      <Area
+                        type="monotone"
+                        dataKey="income"
+                        stroke="var(--chart-2)"
+                        fill="var(--chart-2)"
+                        fillOpacity={0.3}
+                        name={t("insights.kpi.income")}
+                      />
+                      <Area
+                        type="monotone"
+                        dataKey="expense"
+                        stroke="var(--chart-1)"
+                        fill="var(--chart-1)"
+                        fillOpacity={0.3}
+                        name={t("insights.kpi.expense")}
+                      />
                     </>
                   )}
                   {series === "net" && (
-                    <Area type="monotone" dataKey="net" stroke="var(--chart-3)" fill="var(--chart-3)" fillOpacity={0.3} name={t("insights.kpi.net")} />
+                    <Area
+                      type="monotone"
+                      dataKey="net"
+                      stroke="var(--chart-3)"
+                      fill="var(--chart-3)"
+                      fillOpacity={0.3}
+                      name={t("insights.kpi.net")}
+                    />
                   )}
                   {series === "cumulative_net" && (
-                    <Area type="monotone" dataKey="cumulative" stroke="var(--chart-4)" fill="var(--chart-4)" fillOpacity={0.3} name={t("insights.series.cumulative_net")} />
+                    <Area
+                      type="monotone"
+                      dataKey="cumulative"
+                      stroke="var(--chart-4)"
+                      fill="var(--chart-4)"
+                      fillOpacity={0.3}
+                      name={t("insights.series.cumulative_net")}
+                    />
                   )}
                 </AreaChart>
               )}
@@ -179,13 +229,23 @@ export function TrendsTab({
           <div className="grid grid-cols-7 gap-2">
             {dow.map((d) => {
               const intensity = maxDow > 0 ? d.value / maxDow : 0;
-              const dayLabels = [t("dow.sun"), t("dow.mon"), t("dow.tue"), t("dow.wed"), t("dow.thu"), t("dow.fri"), t("dow.sat")];
+              const dayLabels = [
+                t("dow.sun"),
+                t("dow.mon"),
+                t("dow.tue"),
+                t("dow.wed"),
+                t("dow.thu"),
+                t("dow.fri"),
+                t("dow.sat"),
+              ];
               return (
                 <div key={d.day} className="space-y-1 text-center">
                   <div className="text-[10px] text-muted-foreground">{dayLabels[d.day]}</div>
                   <div
                     className="rounded-md p-2 text-xs"
-                    style={{ background: `color-mix(in oklab, var(--chart-1) ${intensity * 80 + 5}%, transparent)` }}
+                    style={{
+                      background: `color-mix(in oklab, var(--chart-1) ${intensity * 80 + 5}%, transparent)`,
+                    }}
                     title={`${d.count} tx`}
                   >
                     <div className="font-medium tabular-nums">{fmtMoney(d.value, symbol)}</div>

@@ -7,7 +7,10 @@ import { fmtMoney, type Transaction, type Account } from "@/lib/finance";
 import { useI18n } from "@/i18n";
 
 export function TopMonthTransactionsCard({
-  transactions, accountById, symbol, monthStart,
+  transactions,
+  accountById,
+  symbol,
+  monthStart,
 }: {
   transactions: Transaction[];
   accountById: Map<string, Account>;
@@ -31,15 +34,21 @@ export function TopMonthTransactionsCard({
     const d = new Date(tx.occurred_on).getTime();
     return d >= ms && d < me;
   });
-  const expenses = inMonth.filter((t) => t.type === "expense")
-    .sort((a, b) => Number(b.amount) - Number(a.amount)).slice(0, 5);
-  const incomes = inMonth.filter((t) => t.type === "income")
-    .sort((a, b) => Number(b.amount) - Number(a.amount)).slice(0, 5);
+  const expenses = inMonth
+    .filter((t) => t.type === "expense")
+    .sort((a, b) => Number(b.amount) - Number(a.amount))
+    .slice(0, 5);
+  const incomes = inMonth
+    .filter((t) => t.type === "income")
+    .sort((a, b) => Number(b.amount) - Number(a.amount))
+    .slice(0, 5);
 
   if (expenses.length === 0 && incomes.length === 0) {
     return (
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">{t("dashboard.top_month.title")}</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">{t("dashboard.top_month.title")}</CardTitle>
+        </CardHeader>
         <CardContent className="py-6 text-center text-sm text-muted-foreground">
           {t("dashboard.top_month.empty")}
         </CardContent>
@@ -47,10 +56,7 @@ export function TopMonthTransactionsCard({
     );
   }
 
-  const renderList = (
-    items: Transaction[],
-    kind: "expense" | "income",
-  ) => {
+  const renderList = (items: Transaction[], kind: "expense" | "income") => {
     const Icon = kind === "expense" ? ArrowDown : ArrowUp;
     const tone = kind === "expense" ? "text-destructive" : "text-success";
     const sign = kind === "expense" ? "-" : "+";
@@ -64,8 +70,16 @@ export function TopMonthTransactionsCard({
           const txSym = srcAcc?.currency_symbol ?? symbol;
           const isUpcoming = new Date(tx.occurred_on).getTime() > todayMs;
           return (
-            <div key={tx.id} className={cn("flex items-center gap-3 px-4 py-2.5", isUpcoming && "bg-warning/10")}>
-              <div className={cn("flex h-8 w-8 items-center justify-center rounded-full bg-muted", isUpcoming ? "text-warning" : tone)}>
+            <div
+              key={tx.id}
+              className={cn("flex items-center gap-3 px-4 py-2.5", isUpcoming && "bg-warning/10")}
+            >
+              <div
+                className={cn(
+                  "flex h-8 w-8 items-center justify-center rounded-full bg-muted",
+                  isUpcoming ? "text-warning" : tone,
+                )}
+              >
                 <Icon className="h-4 w-4" />
               </div>
               <div className="min-w-0 flex-1">
@@ -77,10 +91,18 @@ export function TopMonthTransactionsCard({
                     </span>
                   )}
                 </div>
-                <div className="text-xs text-muted-foreground">{format(new Date(tx.occurred_on), "MMM d", { locale })}</div>
+                <div className="text-xs text-muted-foreground">
+                  {format(new Date(tx.occurred_on), "MMM d", { locale })}
+                </div>
               </div>
-              <div className={cn("text-sm font-semibold tabular-nums", isUpcoming ? "text-warning" : tone)}>
-                {sign}{fmtMoney(Number(tx.amount), txSym).replace("-", "")}
+              <div
+                className={cn(
+                  "text-sm font-semibold tabular-nums",
+                  isUpcoming ? "text-warning" : tone,
+                )}
+              >
+                {sign}
+                {fmtMoney(Number(tx.amount), txSym).replace("-", "")}
               </div>
             </div>
           );
@@ -96,11 +118,19 @@ export function TopMonthTransactionsCard({
       </div>
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.top_month.expenses")}</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              {t("dashboard.top_month.expenses")}
+            </CardTitle>
+          </CardHeader>
           <CardContent className="p-0">{renderList(expenses, "expense")}</CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">{t("dashboard.top_month.income")}</CardTitle></CardHeader>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              {t("dashboard.top_month.income")}
+            </CardTitle>
+          </CardHeader>
           <CardContent className="p-0">{renderList(incomes, "income")}</CardContent>
         </Card>
       </div>

@@ -9,7 +9,10 @@ export const descriptionProvider: SuggestionProvider = {
     if (q.length < 2) return [];
 
     // Group by description, pick the most recent transaction for each matching description
-    const seen = new Map<string, { tx: SuggestionContext["recentTransactions"][number]; count: number }>();
+    const seen = new Map<
+      string,
+      { tx: SuggestionContext["recentTransactions"][number]; count: number }
+    >();
     for (const t of ctx.recentTransactions) {
       if (t.type !== ctx.type) continue;
       if (!t.description) continue;
@@ -33,7 +36,8 @@ export const descriptionProvider: SuggestionProvider = {
         id: `description:${p}`,
         score,
         label: tx.description ?? "",
-        sublabel: [cat?.name, count > 1 ? `${count}×` : null].filter(Boolean).join(" · ") || undefined,
+        sublabel:
+          [cat?.name, count > 1 ? `${count}×` : null].filter(Boolean).join(" · ") || undefined,
         source: "description_match",
         draft: {
           description: tx.description,

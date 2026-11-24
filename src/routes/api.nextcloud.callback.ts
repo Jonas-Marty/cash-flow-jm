@@ -12,13 +12,19 @@ function htmlPage(title: string, body: string) {
 }
 
 function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;",
-  } as Record<string, string>)[c]!);
+  return s.replace(
+    /[&<>"']/g,
+    (c) =>
+      (
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        }) as Record<string, string>
+      )[c]!,
+  );
 }
 
 export const Route = createFileRoute("/api/nextcloud/callback")({
@@ -30,10 +36,22 @@ export const Route = createFileRoute("/api/nextcloud/callback")({
         const state = url.searchParams.get("state");
         const errParam = url.searchParams.get("error");
         if (errParam) {
-          return new Response(htmlPage("Nextcloud", `<h1>Authorization cancelled</h1><p>${escapeHtml(errParam)}</p><p><a href="/settings">Back to settings</a></p>`), { status: 400, headers: { "Content-Type": "text/html" } });
+          return new Response(
+            htmlPage(
+              "Nextcloud",
+              `<h1>Authorization cancelled</h1><p>${escapeHtml(errParam)}</p><p><a href="/settings">Back to settings</a></p>`,
+            ),
+            { status: 400, headers: { "Content-Type": "text/html" } },
+          );
         }
         if (!code || !state) {
-          return new Response(htmlPage("Nextcloud", `<h1>Missing parameters</h1><p><a href="/settings">Back to settings</a></p>`), { status: 400, headers: { "Content-Type": "text/html" } });
+          return new Response(
+            htmlPage(
+              "Nextcloud",
+              `<h1>Missing parameters</h1><p><a href="/settings">Back to settings</a></p>`,
+            ),
+            { status: 400, headers: { "Content-Type": "text/html" } },
+          );
         }
         // No session here: the nonce is what identifies the user. It is looked
         // up and cleared before anything else, so a replayed callback finds nothing.
@@ -43,21 +61,39 @@ export const Route = createFileRoute("/api/nextcloud/callback")({
           .eq("oauth_state", state)
           .maybeSingle();
         if (cErr || !conn) {
-          return new Response(htmlPage("Nextcloud", `<h1>Invalid or expired state</h1><p>Please retry from the settings page.</p><p><a href="/settings">Back to settings</a></p>`), { status: 400, headers: { "Content-Type": "text/html" } });
+          return new Response(
+            htmlPage(
+              "Nextcloud",
+              `<h1>Invalid or expired state</h1><p>Please retry from the settings page.</p><p><a href="/settings">Back to settings</a></p>`,
+            ),
+            { status: 400, headers: { "Content-Type": "text/html" } },
+          );
         }
         const userId = conn.user_id;
         await supabaseAdmin
           .from("nextcloud_connections")
           .update({ oauth_state: null, oauth_state_created_at: null })
           .eq("user_id", userId);
-        const issued = conn.oauth_state_created_at ? new Date(conn.oauth_state_created_at).getTime() : 0;
+        const issued = conn.oauth_state_created_at
+          ? new Date(conn.oauth_state_created_at).getTime()
+          : 0;
         if (!(Date.now() - issued <= STATE_MAX_AGE_MS)) {
-          return new Response(htmlPage("Nextcloud", `<h1>Invalid or expired state</h1><p>Please retry from the settings page.</p><p><a href="/settings">Back to settings</a></p>`), { status: 400, headers: { "Content-Type": "text/html" } });
+          return new Response(
+            htmlPage(
+              "Nextcloud",
+              `<h1>Invalid or expired state</h1><p>Please retry from the settings page.</p><p><a href="/settings">Back to settings</a></p>`,
+            ),
+            { status: 400, headers: { "Content-Type": "text/html" } },
+          );
         }
         const redirectUri = callbackUrlForHost(url.host);
         try {
           const tok = await exchangeCodeForToken(
-            { base_url: trimBaseUrl(conn.base_url), client_id: conn.client_id, client_secret: conn.client_secret },
+            {
+              base_url: trimBaseUrl(conn.base_url),
+              client_id: conn.client_id,
+              client_secret: conn.client_secret,
+            },
             code,
             redirectUri,
           );
@@ -75,7 +111,13 @@ export const Route = createFileRoute("/api/nextcloud/callback")({
           return new Response(null, { status: 302, headers: { Location: "/settings#nextcloud" } });
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
-          return new Response(htmlPage("Nextcloud", `<h1>Connection failed</h1><p>${escapeHtml(msg)}</p><p><a href="/settings">Back to settings</a></p>`), { status: 500, headers: { "Content-Type": "text/html" } });
+          return new Response(
+            htmlPage(
+              "Nextcloud",
+              `<h1>Connection failed</h1><p>${escapeHtml(msg)}</p><p><a href="/settings">Back to settings</a></p>`,
+            ),
+            { status: 500, headers: { "Content-Type": "text/html" } },
+          );
         }
       },
     },

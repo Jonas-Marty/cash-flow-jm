@@ -65,6 +65,7 @@ export function afterRefusedRefresh(
   sent: string,
   stored: { refresh_token: string | null; access_token: string | null } | null,
 ): "use-stored" | "reconnect" {
-  if (stored?.access_token && stored.refresh_token && stored.refresh_token !== sent) return "use-stored";
+  if (stored?.access_token && stored.refresh_token && stored.refresh_token !== sent)
+    return "use-stored";
   return "reconnect";
 }

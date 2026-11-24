@@ -208,7 +208,14 @@ export const Route = createFileRoute("/api/public/pending-transactions")({
         // Comma-separated, so a client can ask about a whole batch at once.
         const externalRef = url.searchParams.get("external_ref");
         if (externalRef !== null) {
-          const refs = [...new Set(externalRef.split(",").map((r) => r.trim()).filter(Boolean))];
+          const refs = [
+            ...new Set(
+              externalRef
+                .split(",")
+                .map((r) => r.trim())
+                .filter(Boolean),
+            ),
+          ];
           if (refs.length === 0) return json({ pending_transactions: [] });
           q = q.in("external_ref", refs.slice(0, 200));
         }
@@ -245,7 +252,11 @@ export const Route = createFileRoute("/api/public/pending-transactions")({
           .select("id, user_id")
           .in("id", accountIds);
         if (accErr) return json({ error: "Database error" }, 500);
-        if (!accs || accs.length !== accountIds.length || accs.some((a) => a.user_id !== auth.userId)) {
+        if (
+          !accs ||
+          accs.length !== accountIds.length ||
+          accs.some((a) => a.user_id !== auth.userId)
+        ) {
           return json({ error: "Account not found" }, 404);
         }
         if (payload.category_id) {
@@ -312,11 +323,19 @@ export const Route = createFileRoute("/api/public/pending-transactions")({
 
         const { data: ins, error: insErr } = await supabaseAdmin
           .from("pending_transactions")
-          .insert({ ...payload, location_label: label ?? payload.location_label, user_id: auth.userId })
+          .insert({
+            ...payload,
+            location_label: label ?? payload.location_label,
+            user_id: auth.userId,
+          })
           .select(SELECT_COLS)
           .single();
         if (insErr) {
-          log.error({ event: "api.public.pending.insert_error", err: insErr.message, userId: auth.userId });
+          log.error({
+            event: "api.public.pending.insert_error",
+            err: insErr.message,
+            userId: auth.userId,
+          });
           return json({ error: "Internal server error" }, 500);
         }
         // Category suggestions are filled in behind the response so the phone
@@ -371,7 +390,11 @@ export const Route = createFileRoute("/api/public/pending-transactions")({
           .eq("id", row.id)
           .eq("user_id", auth.userId);
         if (delErr) {
-          log.error({ event: "api.public.pending.delete_error", err: delErr.message, userId: auth.userId });
+          log.error({
+            event: "api.public.pending.delete_error",
+            err: delErr.message,
+            userId: auth.userId,
+          });
           return json({ error: "Internal server error" }, 500);
         }
         return json({ deleted: true, id: row.id });

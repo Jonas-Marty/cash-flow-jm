@@ -50,7 +50,7 @@ export function MultiSelectCombobox({
     value.length === 0
       ? placeholder
       : value.length === 1
-        ? labelById.get(value[0]) ?? placeholder
+        ? (labelById.get(value[0]) ?? placeholder)
         : selectedLabel
           ? selectedLabel(value.length)
           : `${value.length} selected`;

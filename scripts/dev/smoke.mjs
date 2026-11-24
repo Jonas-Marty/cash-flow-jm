@@ -22,16 +22,30 @@ const password = process.env.DEV_LOGIN_PASSWORD;
 const statePath = process.env.DEV_STORAGE_STATE ?? "screenshots/.auth-state.json";
 const storageState = !password && existsSync(statePath) ? statePath : undefined;
 if (!storageState && (!email || !password)) {
-  throw new Error("run scripts/dev/dev-session.mjs first, or set DEV_LOGIN_EMAIL and DEV_LOGIN_PASSWORD");
+  throw new Error(
+    "run scripts/dev/dev-session.mjs first, or set DEV_LOGIN_EMAIL and DEV_LOGIN_PASSWORD",
+  );
 }
 
 const pages = [
-  "/", "/transactions", "/add", "/pending", "/statements", "/envelopes", "/insights",
-  "/reconcile", "/scopes", "/links", "/assistant", "/settings",
+  "/",
+  "/transactions",
+  "/add",
+  "/pending",
+  "/statements",
+  "/envelopes",
+  "/insights",
+  "/reconcile",
+  "/scopes",
+  "/links",
+  "/assistant",
+  "/settings",
 ];
 
 const browser = await chromium.launch();
-const page = await (await browser.newContext({ viewport: { width: 1280, height: 900 }, storageState })).newPage();
+const page = await (
+  await browser.newContext({ viewport: { width: 1280, height: 900 }, storageState })
+).newPage();
 let current = "login";
 const problems = [];
 const calls = new Map();
@@ -42,14 +56,16 @@ page.on("console", (m) => {
 });
 page.on("pageerror", (e) => problems.push(`${current}: page error: ${String(e).slice(0, 200)}`));
 page.on("requestfailed", (r) => {
-  if (isBackend(r.url())) problems.push(`${current}: no answer: ${r.method()} ${r.url().slice(0, 140)}`);
+  if (isBackend(r.url()))
+    problems.push(`${current}: no answer: ${r.method()} ${r.url().slice(0, 140)}`);
 });
 page.on("response", (r) => {
   const url = r.url();
   if (!isBackend(url)) return;
   const key = url.replace(/\?.*/, "").replace(/^https?:\/\/[^/]+/, "");
   calls.set(key, (calls.get(key) ?? 0) + 1);
-  if (r.status() >= 400) problems.push(`${current}: HTTP ${r.status()} ${r.request().method()} ${url.slice(0, 140)}`);
+  if (r.status() >= 400)
+    problems.push(`${current}: HTTP ${r.status()} ${r.request().method()} ${url.slice(0, 140)}`);
 });
 
 await page.goto(baseUrl, { waitUntil: "networkidle" });
@@ -58,7 +74,9 @@ if (!storageState) {
   await page.fill("#pw-in", password);
   await page.locator("form button[type=submit]").first().click();
   await page
-    .waitForFunction(() => Object.keys(localStorage).some((k) => k.endsWith("-auth-token")), null, { timeout: 15_000 })
+    .waitForFunction(() => Object.keys(localStorage).some((k) => k.endsWith("-auth-token")), null, {
+      timeout: 15_000,
+    })
     .catch(() => {});
 }
 

@@ -51,7 +51,11 @@ const json = (route: Route, body: unknown, status = 200) =>
  * is what an unseeded table would legitimately return — the app then renders its
  * empty state rather than hanging on a pending query.
  */
-interface BudgetRow { category_id: string; month: string; amount: number }
+interface BudgetRow {
+  category_id: string;
+  month: string;
+  amount: number;
+}
 
 export async function stubSupabase(
   page: Page,
@@ -72,7 +76,9 @@ export async function stubSupabase(
   const budgets: BudgetRow[] = structuredClone(
     (fixtures.tables?.category_budgets as BudgetRow[]) ?? [],
   );
-  const applyEdits = (edits: Array<{ category_id: string; month: string; amount: number | null }>) => {
+  const applyEdits = (
+    edits: Array<{ category_id: string; month: string; amount: number | null }>,
+  ) => {
     for (const e of edits) {
       const i = budgets.findIndex((b) => b.category_id === e.category_id && b.month === e.month);
       if (e.amount === null) {
@@ -145,7 +151,12 @@ export async function stubSupabase(
       calls.rpc.push({ name, body });
 
       if (name === "set_category_budgets_bulk") {
-        const edits = (body as { p_edits?: Array<{ category_id: string; month: string; amount: number | null }> })?.p_edits ?? [];
+        const edits =
+          (
+            body as {
+              p_edits?: Array<{ category_id: string; month: string; amount: number | null }>;
+            }
+          )?.p_edits ?? [];
         return json(route, applyEdits(edits));
       }
       if (name === "set_category_budget") {

@@ -23,7 +23,10 @@ const flag = (name) => args.includes(`--${name}`);
 const all = (name) =>
   args.reduce((acc, a, i) => (a === `--${name}` ? [...acc, args[i + 1]] : acc), []);
 
-const baseUrl = (opt("url") ?? process.env.DEV_APP_URL ?? "https://dev-cash-flow.wi-wo.ch").replace(/\/$/, "");
+const baseUrl = (opt("url") ?? process.env.DEV_APP_URL ?? "https://dev-cash-flow.wi-wo.ch").replace(
+  /\/$/,
+  "",
+);
 const pagePath = opt("path", "/");
 const outDir = opt("out", "screenshots");
 const settle = Number(opt("wait", "600"));
@@ -44,7 +47,10 @@ for (const spec of all("viewport")) {
   targets.push({ label: `${w}x${h}`, context: { viewport: { width: w, height: h } } });
 }
 if (flag("mobile")) {
-  for (const [w, h] of [[360, 800], [390, 844]]) {
+  for (const [w, h] of [
+    [360, 800],
+    [390, 844],
+  ]) {
     targets.push({
       label: `${w}x${h}`,
       context: {
@@ -58,10 +64,15 @@ if (flag("mobile")) {
     });
   }
 }
-if (targets.length === 0) targets.push({ label: "1280x900", context: { viewport: { width: 1280, height: 900 } } });
+if (targets.length === 0)
+  targets.push({ label: "1280x900", context: { viewport: { width: 1280, height: 900 } } });
 
 const statePath = path.join(outDir, ".auth-state.json");
-const exists = async (p) => access(p).then(() => true, () => false);
+const exists = async (p) =>
+  access(p).then(
+    () => true,
+    () => false,
+  );
 const stamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
 const slug = pagePath.replace(/^\//, "").replace(/\//g, "-") || "root";
 
@@ -76,20 +87,31 @@ for (const target of targets) {
 
   const problems = [];
   page.on("console", (m) => {
-    if (m.type() === "error" || m.type() === "warning") problems.push({ kind: m.type(), text: m.text() });
+    if (m.type() === "error" || m.type() === "warning")
+      problems.push({ kind: m.type(), text: m.text() });
   });
   page.on("pageerror", (e) => problems.push({ kind: "pageerror", text: String(e) }));
   page.on("requestfailed", (r) =>
-    problems.push({ kind: "requestfailed", text: `${r.url()} — ${r.failure()?.errorText ?? "failed"}` }),
+    problems.push({
+      kind: "requestfailed",
+      text: `${r.url()} — ${r.failure()?.errorText ?? "failed"}`,
+    }),
   );
 
   const target_url = `${baseUrl}${pagePath}`;
   await page.goto(target_url, { waitUntil: "networkidle" });
 
-  if (wantLogin && (await page.locator("#email-in").isVisible().catch(() => false))) {
+  if (
+    wantLogin &&
+    (await page
+      .locator("#email-in")
+      .isVisible()
+      .catch(() => false))
+  ) {
     const email = process.env.DEV_LOGIN_EMAIL;
     const password = process.env.DEV_LOGIN_PASSWORD;
-    if (!email || !password) throw new Error("--login needs DEV_LOGIN_EMAIL and DEV_LOGIN_PASSWORD");
+    if (!email || !password)
+      throw new Error("--login needs DEV_LOGIN_EMAIL and DEV_LOGIN_PASSWORD");
     await page.fill("#email-in", email);
     await page.fill("#pw-in", password);
     await page.click("form:has(#pw-in) button[type=submit]");

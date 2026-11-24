@@ -164,7 +164,9 @@ export function parseEndpointOffline(message: string): AIEndpointOfflinePayload 
   const i = message.indexOf(AI_ENDPOINT_OFFLINE_PREFIX);
   if (i < 0) return null;
   try {
-    return JSON.parse(message.slice(i + AI_ENDPOINT_OFFLINE_PREFIX.length)) as AIEndpointOfflinePayload;
+    return JSON.parse(
+      message.slice(i + AI_ENDPOINT_OFFLINE_PREFIX.length),
+    ) as AIEndpointOfflinePayload;
   } catch {
     return null;
   }

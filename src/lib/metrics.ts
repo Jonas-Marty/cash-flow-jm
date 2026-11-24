@@ -53,6 +53,12 @@ export function renderMetrics(): string {
 
 // Pre-register the metrics we use so /metrics always lists them.
 export const requestsTotal = counter("app_requests_total", "Total HTTP requests handled");
-export const requestErrorsTotal = counter("app_request_errors_total", "Total HTTP requests resulting in 4xx/5xx");
-export const requestDurationMsSum = counter("app_request_duration_ms_sum", "Sum of request durations in ms");
+export const requestErrorsTotal = counter(
+  "app_request_errors_total",
+  "Total HTTP requests resulting in 4xx/5xx",
+);
+export const requestDurationMsSum = counter(
+  "app_request_duration_ms_sum",
+  "Sum of request durations in ms",
+);
 export const auditEventsTotal = counter("app_audit_events_total", "Audit events written");

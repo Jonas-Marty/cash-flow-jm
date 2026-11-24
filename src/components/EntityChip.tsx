@@ -30,7 +30,19 @@ interface Props {
 const LONG_PRESS_MS = 500;
 
 export const EntityChip = React.forwardRef<HTMLButtonElement, Props>(function EntityChip(
-  { entity, selected, disabled, onClick, showLabel = true, size = "md", className, tabIndex, role, onKeyDown, onFocus },
+  {
+    entity,
+    selected,
+    disabled,
+    onClick,
+    showLabel = true,
+    size = "md",
+    className,
+    tabIndex,
+    role,
+    onKeyDown,
+    onFocus,
+  },
   ref,
 ) {
   const [tipOpen, setTipOpen] = React.useState(false);
@@ -49,10 +61,17 @@ export const EntityChip = React.forwardRef<HTMLButtonElement, Props>(function En
     }, LONG_PRESS_MS);
   };
   const endPress = () => {
-    if (timer.current) { window.clearTimeout(timer.current); timer.current = null; }
+    if (timer.current) {
+      window.clearTimeout(timer.current);
+      timer.current = null;
+    }
   };
   const handleClick = (e: React.MouseEvent) => {
-    if (longPressed.current) { e.preventDefault(); longPressed.current = false; return; }
+    if (longPressed.current) {
+      e.preventDefault();
+      longPressed.current = false;
+      return;
+    }
     if (!disabled) onClick?.();
   };
 
@@ -60,20 +79,36 @@ export const EntityChip = React.forwardRef<HTMLButtonElement, Props>(function En
   const visual = entity.image_url ? (
     <img src={entity.image_url} alt="" className={cn(dim, "rounded-full object-cover")} />
   ) : entity.emoji ? (
-    <span className={cn(dim, "flex items-center justify-center rounded-full bg-muted text-base leading-none")}>{entity.emoji}</span>
+    <span
+      className={cn(
+        dim,
+        "flex items-center justify-center rounded-full bg-muted text-base leading-none",
+      )}
+    >
+      {entity.emoji}
+    </span>
   ) : entity.icon ? (
-    <span className={cn(dim, "flex items-center justify-center rounded-full text-white")} style={{ backgroundColor: color }}>
+    <span
+      className={cn(dim, "flex items-center justify-center rounded-full text-white")}
+      style={{ backgroundColor: color }}
+    >
       <Icon className="h-3.5 w-3.5" />
     </span>
   ) : (
-    <span className={cn(dim, "flex items-center justify-center rounded-full font-semibold text-white")} style={{ backgroundColor: color }}>
+    <span
+      className={cn(dim, "flex items-center justify-center rounded-full font-semibold text-white")}
+      style={{ backgroundColor: color }}
+    >
       {monogram(entity.name)}
     </span>
   );
 
   return (
     <TooltipProvider delayDuration={300}>
-      <Tooltip open={showLabel ? undefined : tipOpen} onOpenChange={showLabel ? undefined : setTipOpen}>
+      <Tooltip
+        open={showLabel ? undefined : tipOpen}
+        onOpenChange={showLabel ? undefined : setTipOpen}
+      >
         <TooltipTrigger asChild>
           <button
             ref={ref}

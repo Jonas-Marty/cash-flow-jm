@@ -57,17 +57,32 @@ export function MonthNavigator({
 
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="sm" className="text-base font-semibold sm:text-lg" aria-label={t("env.month.pick")}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-base font-semibold sm:text-lg"
+            aria-label={t("env.month.pick")}
+          >
             {format(month, "MMMM yyyy", { locale })}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-64 p-3" align="center">
           <div className="mb-2 flex items-center justify-between">
-            <Button variant="ghost" size="sm" aria-label={t("env.month.prev_year")} onClick={() => setYear((y) => y - 1)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={t("env.month.prev_year")}
+              onClick={() => setYear((y) => y - 1)}
+            >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <div className="text-sm font-medium tabular-nums">{year}</div>
-            <Button variant="ghost" size="sm" aria-label={t("env.month.next_year")} onClick={() => setYear((y) => y + 1)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              aria-label={t("env.month.next_year")}
+              onClick={() => setYear((y) => y + 1)}
+            >
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
@@ -92,7 +107,12 @@ export function MonthNavigator({
           </div>
 
           {!isSameMonth(month, today) && (
-            <Button variant="ghost" size="sm" className="mt-2 w-full text-xs" onClick={() => pick(today)}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mt-2 w-full text-xs"
+              onClick={() => pick(today)}
+            >
               {t("env.month.this_month")}
             </Button>
           )}

@@ -260,8 +260,16 @@ describe("creation date", () => {
       e("unknown.pdf", null, "2026-05-01T00:00:00Z"),
       e("new.pdf", "2026-09-01T00:00:00Z", "2026-09-01T00:00:00Z"),
     ];
-    expect(sortEntries(list, "created_desc").map((x) => x.name)).toEqual(["new.pdf", "unknown.pdf", "old.pdf"]);
-    expect(sortEntries(list, "created_asc").map((x) => x.name)).toEqual(["old.pdf", "unknown.pdf", "new.pdf"]);
+    expect(sortEntries(list, "created_desc").map((x) => x.name)).toEqual([
+      "new.pdf",
+      "unknown.pdf",
+      "old.pdf",
+    ]);
+    expect(sortEntries(list, "created_asc").map((x) => x.name)).toEqual([
+      "old.pdf",
+      "unknown.pdf",
+      "new.pdf",
+    ]);
   });
 });
 
@@ -270,7 +278,9 @@ describe("buildSearchXml scope and date order", () => {
     expect(buildSearchXml("jonas", "x", "any", 25, "desc", "/Finanzen/Belege 2026")).toContain(
       "<d:href>/files/jonas/Finanzen/Belege%202026</d:href>",
     );
-    expect(buildSearchXml("jonas", "x", "any", 25, "desc", "/")).toContain("<d:href>/files/jonas</d:href>");
+    expect(buildSearchXml("jonas", "x", "any", 25, "desc", "/")).toContain(
+      "<d:href>/files/jonas</d:href>",
+    );
   });
 
   it("orders by creation date, or by modification date for servers that cannot", () => {

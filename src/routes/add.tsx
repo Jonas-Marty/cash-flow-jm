@@ -44,7 +44,6 @@ function AddTransactionRoute() {
           location_source: sp.get("loc_source"),
         }) ?? undefined,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return <TransactionForm editId={null} prefill={prefill} />;
 }
@@ -62,6 +61,11 @@ function numberParam(v: string | null): number | null {
 /** Strip quotes/currency noise from an amount passed via URL (e.g. AI prefill). */
 function cleanAmountParam(v: string | null): string | undefined {
   if (v == null) return undefined;
-  const s = v.trim().replace(/^["'`]+|["'`]+$/g, "").replace(/[^\d.,-]/g, "").replace(",", ".").trim();
+  const s = v
+    .trim()
+    .replace(/^["'`]+|["'`]+$/g, "")
+    .replace(/[^\d.,-]/g, "")
+    .replace(",", ".")
+    .trim();
   return s === "" ? undefined : s;
 }

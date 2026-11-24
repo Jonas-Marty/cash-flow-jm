@@ -22,20 +22,37 @@ export function TagChips({
   const present = React.useMemo(() => extractTags(currentNote), [currentNote]);
   const presentSet = React.useMemo(() => new Set(present), [present]);
 
+  const { type, sourceAccountId, destAccountId, categoryId, description } = ctx ?? {};
   const top = React.useMemo(() => {
-    const scores = scoreTags(transactions, ctx ?? {});
+    const scores = scoreTags(transactions, {
+      type,
+      sourceAccountId,
+      destAccountId,
+      categoryId,
+      description,
+    });
     return Array.from(scores.entries())
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
       .slice(0, 6)
       .map(([t]) => t);
-  }, [transactions, ctx?.type, ctx?.sourceAccountId, ctx?.destAccountId, ctx?.categoryId, ctx?.description]);
+  }, [transactions, type, sourceAccountId, destAccountId, categoryId, description]);
 
   // Merge: active (in-note) tags first, then top suggestions not already shown.
   const merged = React.useMemo(() => {
     const seen = new Set<string>();
     const out: string[] = [];
-    for (const t of present) { if (!seen.has(t)) { seen.add(t); out.push(t); } }
-    for (const t of top) { if (!seen.has(t)) { seen.add(t); out.push(t); } }
+    for (const t of present) {
+      if (!seen.has(t)) {
+        seen.add(t);
+        out.push(t);
+      }
+    }
+    for (const t of top) {
+      if (!seen.has(t)) {
+        seen.add(t);
+        out.push(t);
+      }
+    }
     return out;
   }, [present, top]);
 

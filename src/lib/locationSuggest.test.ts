@@ -160,7 +160,6 @@ describe("suggestLocationLabel", () => {
   });
 });
 
-
 /** The same branch, visited on distinct days — what a habit looks like. */
 function visits(base: LocationHistoryEntry, days: string[]): LocationHistoryEntry[] {
   return days.map((occurred_on) => ({ ...base, occurred_on }));
@@ -180,8 +179,9 @@ describe("suggestPlaceFromProximity", () => {
   });
 
   it("refuses a single visit", () => {
-    expect(suggestPlaceFromProximity([{ ...coopBahnhof, occurred_on: "2026-09-01" }], atBahnhof))
-      .toBeNull();
+    expect(
+      suggestPlaceFromProximity([{ ...coopBahnhof, occurred_on: "2026-09-01" }], atBahnhof),
+    ).toBeNull();
   });
 
   it("refuses two visits on two days — near, but not yet a habit", () => {
@@ -261,8 +261,15 @@ describe("suggestPlaceFromProximity", () => {
     // place known only by where the phone was must stay a chip, however many
     // times the user has been there.
     const many = visits(coopBahnhof, [
-      "2026-09-01", "2026-09-02", "2026-09-03", "2026-09-04",
-      "2026-09-05", "2026-09-06", "2026-09-07", "2026-09-08", "2026-09-09",
+      "2026-09-01",
+      "2026-09-02",
+      "2026-09-03",
+      "2026-09-04",
+      "2026-09-05",
+      "2026-09-06",
+      "2026-09-07",
+      "2026-09-08",
+      "2026-09-09",
     ]);
     const c = suggestPlaceFromProximity(many, { ...coopBahnhof, accuracy_m: 40 })!.confidence;
     expect(c).toBeLessThan(0.9);
@@ -314,7 +321,6 @@ describe("pickRepresentative", () => {
   });
 });
 
-
 describe("buildPlaceTable", () => {
   it("gives one ref per place, not one per visit", () => {
     const table = buildPlaceTable([
@@ -332,7 +338,10 @@ describe("buildPlaceTable", () => {
     // coordinates would merge them and offer the model one ref where the whole
     // point is that it has to choose between two.
     expect(haversineMeters(coopBahnhof, migros)).toBeLessThan(40);
-    const table = buildPlaceTable([...visits(coopBahnhof, THREE_DAYS), ...visits(migros, THREE_DAYS)]);
+    const table = buildPlaceTable([
+      ...visits(coopBahnhof, THREE_DAYS),
+      ...visits(migros, THREE_DAYS),
+    ]);
     expect(table).toHaveLength(2);
   });
 
@@ -365,7 +374,10 @@ describe("buildPlaceTable", () => {
   });
 
   it("numbers refs from p1 without gaps", () => {
-    const table = buildPlaceTable([...visits(coopBahnhof, THREE_DAYS), ...visits(migros, ["2026-09-02"])]);
+    const table = buildPlaceTable([
+      ...visits(coopBahnhof, THREE_DAYS),
+      ...visits(migros, ["2026-09-02"]),
+    ]);
     expect(table.map((p) => p.ref)).toEqual(["p1", "p2"]);
   });
 });

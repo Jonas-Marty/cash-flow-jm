@@ -34,7 +34,10 @@ export function ActiveScopeChip({ compact = false }: { compact?: boolean }) {
           aria-label={t("scopes.chip.aria")}
         >
           <Target className="h-3.5 w-3.5" />
-          <span className="max-w-[140px] truncate">{scope.emoji ? "" : ""}{scope.name}</span>
+          <span className="max-w-[140px] truncate">
+            {scope.emoji ? "" : ""}
+            {scope.name}
+          </span>
         </button>
       </PopoverTrigger>
       <PopoverContent align="end" className="w-56 p-2">

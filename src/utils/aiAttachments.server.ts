@@ -1,6 +1,7 @@
 // Server-only: chat attachments (upload, lookup, bytes) in the ai-attachments bucket.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import type { ChatAttachmentRef } from "@/lib/ai/types";
 import type { AttachmentForPrompt } from "@/lib/ai/attachmentTurn";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
@@ -19,7 +20,12 @@ export interface AttachmentRow extends AttachmentForPrompt {
 
 const COLS = "id, file_name, mime, page_count, extracted_text, storage_path, conversation_id";
 
-function toRow(r: any): AttachmentRow {
+type StoredAttachment = Pick<
+  Database["public"]["Tables"]["ai_attachments"]["Row"],
+  "id" | "file_name" | "mime" | "page_count" | "extracted_text" | "storage_path" | "conversation_id"
+>;
+
+function toRow(r: StoredAttachment): AttachmentRow {
   return {
     id: r.id,
     file_name: r.file_name,
@@ -50,11 +56,14 @@ export async function storeAttachment(
   conversationId: string | null,
 ): Promise<AttachmentRow> {
   const bytes = base64ToBytes(file.file_base64);
-  if (bytes.length > MAX_ATTACHMENT_BYTES) throw new Error(`"${file.file_name}" is larger than 15 MB.`);
+  if (bytes.length > MAX_ATTACHMENT_BYTES)
+    throw new Error(`"${file.file_name}" is larger than 15 MB.`);
   const doc = await readDocument(file.file_name, file.file_type, bytes);
   const mime = doc.mime;
   const path = `${userId}/${crypto.randomUUID()}.${ext(file.file_name)}`;
-  const up = await sb.storage.from(AI_ATTACHMENT_BUCKET).upload(path, bytes, { contentType: mime, upsert: false });
+  const up = await sb.storage
+    .from(AI_ATTACHMENT_BUCKET)
+    .upload(path, bytes, { contentType: mime, upsert: false });
   if (up.error) throw new Error(up.error.message);
   const { data, error } = await sb
     .from("ai_attachments")
@@ -98,12 +107,24 @@ export async function attachmentBase64(sb: SupabaseClient, a: AttachmentRow): Pr
 }
 
 /** Remove the files and rows of one conversation (called before it is deleted). */
-export async function deleteConversationAttachments(sb: SupabaseClient, conversationId: string): Promise<void> {
-  const { data } = await sb.from("ai_attachments").select("id, storage_path").eq("conversation_id", conversationId);
+export async function deleteConversationAttachments(
+  sb: SupabaseClient,
+  conversationId: string,
+): Promise<void> {
+  const { data } = await sb
+    .from("ai_attachments")
+    .select("id, storage_path")
+    .eq("conversation_id", conversationId);
   const rows = (data || []) as { id: string; storage_path: string }[];
   if (rows.length === 0) return;
   await sb.storage.from(AI_ATTACHMENT_BUCKET).remove(rows.map((r) => r.storage_path));
-  await sb.from("ai_attachments").delete().in("id", rows.map((r) => r.id));
+  await sb
+    .from("ai_attachments")
+    .delete()
+    .in(
+      "id",
+      rows.map((r) => r.id),
+    );
 }
 
 /**
@@ -124,7 +145,13 @@ export async function pruneUnlinkedAttachments(days = ATTACHMENT_RETENTION_DAYS)
     const rows = (data || []) as { id: string; storage_path: string }[];
     if (rows.length === 0) return deleted;
     await supabaseAdmin.storage.from(AI_ATTACHMENT_BUCKET).remove(rows.map((r) => r.storage_path));
-    const del = await supabaseAdmin.from("ai_attachments").delete().in("id", rows.map((r) => r.id));
+    const del = await supabaseAdmin
+      .from("ai_attachments")
+      .delete()
+      .in(
+        "id",
+        rows.map((r) => r.id),
+      );
     if (del.error) throw new Error(del.error.message);
     deleted += rows.length;
     if (rows.length < 500) return deleted;

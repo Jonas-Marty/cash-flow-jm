@@ -2,7 +2,12 @@ import { createServerFn } from "@tanstack/react-start";
 import * as z from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import type { StatementImport, StatementImportDetail, StatementLine, StatementRef } from "@/lib/ai/statementTypes";
+import type {
+  StatementImport,
+  StatementImportDetail,
+  StatementLine,
+  StatementRef,
+} from "@/lib/ai/statementTypes";
 
 export const listStatementImports = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -50,11 +55,7 @@ export const extractStatement = createServerFn({ method: "POST" })
     return res;
   });
 
-async function classifyBestEffort(
-  sb: SupabaseClient,
-  userId: string,
-  importId: string,
-) {
+async function classifyBestEffort(sb: SupabaseClient, userId: string, importId: string) {
   try {
     const { classifyOpenStatementLines } = await import("./statements.classify.server");
     await classifyOpenStatementLines(sb, userId, importId);
@@ -75,7 +76,11 @@ export const extractStatementFromNextcloud = createServerFn({ method: "POST" })
       .object({
         account_id: z.string().uuid(),
         path: z.string().min(1).max(1000),
-        file_id: z.string().regex(/^\d{1,20}$/).nullable().optional(),
+        file_id: z
+          .string()
+          .regex(/^\d{1,20}$/)
+          .nullable()
+          .optional(),
         invert_amounts: z.boolean().optional(),
         window_days: z.number().int().min(0).max(30).optional(),
         endpoint_id: z.string().uuid().nullable().optional(),
@@ -110,8 +115,16 @@ export const rematchStatementImport = createServerFn({ method: "POST" })
       .object({
         id: z.string().uuid(),
         window_days: z.number().int().min(0).max(30),
-        period_from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
-        period_to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
+        period_from: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .nullable()
+          .optional(),
+        period_to: z
+          .string()
+          .regex(/^\d{4}-\d{2}-\d{2}$/)
+          .nullable()
+          .optional(),
       })
       .parse(d),
   )
@@ -123,7 +136,11 @@ export const rematchStatementImport = createServerFn({ method: "POST" })
     });
     try {
       const { classifyOpenStatementLines } = await import("./statements.classify.server");
-      const { classified } = await classifyOpenStatementLines(context.supabase, context.userId, data.id);
+      const { classified } = await classifyOpenStatementLines(
+        context.supabase,
+        context.userId,
+        data.id,
+      );
       if (classified > 0) {
         const { buildImportDetail } = await import("./statements.detail.server");
         return buildImportDetail(context.supabase, data.id);
@@ -162,10 +179,15 @@ export const deleteStatementImport = createServerFn({ method: "POST" })
 export const getStatementFileUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) => z.object({ id: z.string().uuid() }).parse(d))
-  .handler(async ({ data, context }): Promise<{ url: string | null; file_name: string; source: string }> => {
-    const { getStatementFileLink } = await import("./statements.detail.server");
-    return getStatementFileLink(context.supabase, data.id);
-  });
+  .handler(
+    async ({
+      data,
+      context,
+    }): Promise<{ url: string | null; file_name: string; source: string }> => {
+      const { getStatementFileLink } = await import("./statements.detail.server");
+      return getStatementFileLink(context.supabase, data.id);
+    },
+  );
 
 export const getStatementRefsForTransactions = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])

@@ -29,7 +29,7 @@ export async function loadGuideContext(sb: SupabaseClient): Promise<GuideContext
   ]);
   if (rules.error) throw new Error(rules.error.message);
   return {
-    rules: ((rules.data || []) as any[]).map((r) => ({
+    rules: (rules.data || []).map((r) => ({
       ...r,
       amount: r.amount == null ? null : Number(r.amount),
       estimated_amount: r.estimated_amount == null ? null : Number(r.estimated_amount),
@@ -97,11 +97,30 @@ export async function analyseDocumentForRule(
   });
   const kindRaw = String(parsed?.document_kind ?? "").toLowerCase();
   const document_kind: RuleDocumentResult["document_kind"] =
-    kindRaw === "statement" ? "statement" : kindRaw === "invoice" || parsed?.rule ? "invoice" : "other";
-  const endpoint = { id: resolved.endpoint.id, name: resolved.endpoint.name, fell_back: resolved.fell_back };
+    kindRaw === "statement"
+      ? "statement"
+      : kindRaw === "invoice" || parsed?.rule
+        ? "invoice"
+        : "other";
+  const endpoint = {
+    id: resolved.endpoint.id,
+    name: resolved.endpoint.name,
+    fell_back: resolved.fell_back,
+  };
   if (document_kind !== "invoice" || !parsed?.rule) {
-    const notes = Array.isArray(parsed?.rule?.notes ?? parsed?.notes) ? (parsed?.rule?.notes ?? parsed?.notes) : [];
-    return { document_kind, draft: null, warnings: [], notes: notes.filter((n: unknown) => typeof n === "string"), similar_rule: null, endpoint };
+    const rule = parsed?.rule;
+    const ruleNotes =
+      rule && typeof rule === "object" ? (rule as { notes?: unknown }).notes : undefined;
+    const notesRaw = ruleNotes ?? parsed?.notes;
+    const notes: unknown[] = Array.isArray(notesRaw) ? notesRaw : [];
+    return {
+      document_kind,
+      draft: null,
+      warnings: [],
+      notes: notes.filter((n: unknown) => typeof n === "string"),
+      similar_rule: null,
+      endpoint,
+    };
   }
   const res = toSuggestionResult(parsed.rule, ctx);
   return { document_kind, ...res, endpoint };

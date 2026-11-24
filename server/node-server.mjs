@@ -41,14 +41,18 @@ const PUBLIC_DIR = resolve(process.env.PUBLIC_DIR ?? "/app/dist/client");
 const SERVER_ENTRY = resolve(process.env.SERVER_ENTRY ?? "/app/dist/server/server.js");
 
 if (!existsSync(SERVER_ENTRY)) {
-  console.error(JSON.stringify({ level: "error", event: "boot.missing_server_entry", path: SERVER_ENTRY }));
+  console.error(
+    JSON.stringify({ level: "error", event: "boot.missing_server_entry", path: SERVER_ENTRY }),
+  );
   process.exit(1);
 }
 
 const mod = await import(SERVER_ENTRY);
 const handler = mod.default ?? mod;
 if (!handler || typeof handler.fetch !== "function") {
-  console.error(JSON.stringify({ level: "error", event: "boot.invalid_server_entry", keys: Object.keys(mod) }));
+  console.error(
+    JSON.stringify({ level: "error", event: "boot.invalid_server_entry", keys: Object.keys(mod) }),
+  );
   process.exit(1);
 }
 
@@ -71,7 +75,9 @@ function nodeReqToWebRequest(req) {
 
 async function writeWebResponse(webRes, res) {
   const headers = {};
-  webRes.headers.forEach((v, k) => { headers[k] = v; });
+  webRes.headers.forEach((v, k) => {
+    headers[k] = v;
+  });
   res.writeHead(webRes.status, headers);
   if (!webRes.body) return res.end();
   // Stream the body
@@ -94,18 +100,31 @@ const server = createServer(async (req, res) => {
     const webRes = await handler.fetch(webReq);
     await writeWebResponse(webRes, res);
   } catch (err) {
-    console.error(JSON.stringify({
-      level: "error",
-      event: "request.unhandled",
-      err: err instanceof Error ? { name: err.name, message: err.message, stack: err.stack } : String(err),
-    }));
+    console.error(
+      JSON.stringify({
+        level: "error",
+        event: "request.unhandled",
+        err:
+          err instanceof Error
+            ? { name: err.name, message: err.message, stack: err.stack }
+            : String(err),
+      }),
+    );
     if (!res.headersSent) res.writeHead(500, { "Content-Type": "text/plain" });
     res.end("Internal Server Error");
   }
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(JSON.stringify({ level: "info", event: "server.listening", host: HOST, port: PORT, publicDir: PUBLIC_DIR }));
+  console.log(
+    JSON.stringify({
+      level: "info",
+      event: "server.listening",
+      host: HOST,
+      port: PORT,
+      publicDir: PUBLIC_DIR,
+    }),
+  );
 });
 
 function shutdown(sig) {

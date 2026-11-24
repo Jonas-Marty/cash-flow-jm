@@ -40,7 +40,11 @@ function descriptionMatches(query: string | undefined, candidate: string | null)
   return !!candidate && candidate.toLowerCase().includes(q);
 }
 
-function contextWeight(t: Transaction, ctx: SuggestionContext, opts: { ignoreField?: "source" | "category" | "dest" } = {}): number {
+function contextWeight(
+  t: Transaction,
+  ctx: SuggestionContext,
+  opts: { ignoreField?: "source" | "category" | "dest" } = {},
+): number {
   // Type acts as a hard filter — mixing income/expense history would noise
   // up category and tag suggestions in opposite directions.
   if (ctx.type && t.type !== ctx.type) return 0;
@@ -73,7 +77,8 @@ export function scoreAccounts(
     if (cw === 0) continue;
     const w = decay(t.occurred_on, now) * cw;
     if (t.source_account_id) m.set(t.source_account_id, (m.get(t.source_account_id) ?? 0) + w);
-    if (t.destination_account_id) m.set(t.destination_account_id, (m.get(t.destination_account_id) ?? 0) + w);
+    if (t.destination_account_id)
+      m.set(t.destination_account_id, (m.get(t.destination_account_id) ?? 0) + w);
   }
   return m;
 }
@@ -120,7 +125,10 @@ export interface SortableEntity {
   pin_order?: number | null;
 }
 
-export function sortByPinAndScore<T extends SortableEntity>(items: T[], scores: Map<string, number>): T[] {
+export function sortByPinAndScore<T extends SortableEntity>(
+  items: T[],
+  scores: Map<string, number>,
+): T[] {
   return [...items].sort((a, b) => {
     if (a.pinned && !b.pinned) return -1;
     if (!a.pinned && b.pinned) return 1;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readDashboardPrivacy } from "./DashboardPrivacy";
+import { readDashboardPrivacy } from "@/lib/dashboardPrivacy";
 
 describe("dashboard privacy persistence", () => {
   it("restores a hidden dashboard", () => {
@@ -9,6 +9,12 @@ describe("dashboard privacy persistence", () => {
   it("defaults safely for absent, malformed, or unavailable storage", () => {
     expect(readDashboardPrivacy(null)).toBe(false);
     expect(readDashboardPrivacy({ getItem: () => "invalid" })).toBe(false);
-    expect(readDashboardPrivacy({ getItem: () => { throw new Error("blocked"); } })).toBe(false);
+    expect(
+      readDashboardPrivacy({
+        getItem: () => {
+          throw new Error("blocked");
+        },
+      }),
+    ).toBe(false);
   });
 });

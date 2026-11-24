@@ -29,7 +29,11 @@ export function parseToolProbe(status: number, body: string): boolean | null {
       const json = JSON.parse(body);
       const choice = json?.choices?.[0];
       const calls = choice?.message?.tool_calls;
-      if (Array.isArray(calls) && calls.some((c: { function?: { name?: string } }) => c?.function?.name === "ping")) return true;
+      if (
+        Array.isArray(calls) &&
+        calls.some((c: { function?: { name?: string } }) => c?.function?.name === "ping")
+      )
+        return true;
       if (choice?.finish_reason === "length") return null;
       // Some models print the call as text instead of emitting tool_calls.
       return false;
@@ -79,6 +83,9 @@ export function looksLikeTextToolCall(text: string, toolNames: string[]): boolea
   const names = toolNames.map((n) => n.replace(/[^a-z0-9_]/gi, "")).join("|");
   return (
     /<\/?tool_call>|<\|?(tool|function)_?call/i.test(text) ||
-    new RegExp(`^\\s*\`{0,3}(json)?\\s*\\{\\s*"(name|function|tool)"\\s*:\\s*"(${names})"`, "i").test(text)
+    new RegExp(
+      `^\\s*\`{0,3}(json)?\\s*\\{\\s*"(name|function|tool)"\\s*:\\s*"(${names})"`,
+      "i",
+    ).test(text)
   );
 }

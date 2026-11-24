@@ -44,8 +44,7 @@ export default function LocationMiniMap({
     () =>
       L.divIcon({
         className: "",
-        html:
-          '<div style="width:18px;height:18px;border-radius:9999px;background:hsl(var(--primary));border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>',
+        html: '<div style="width:18px;height:18px;border-radius:9999px;background:hsl(var(--primary));border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.4)"></div>',
         iconSize: [18, 18],
         iconAnchor: [9, 9],
       }),
@@ -56,8 +55,7 @@ export default function LocationMiniMap({
     () =>
       L.divIcon({
         className: "",
-        html:
-          '<div style="width:12px;height:12px;border-radius:9999px;background:#f59e0b;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.4);cursor:pointer"></div>',
+        html: '<div style="width:12px;height:12px;border-radius:9999px;background:#f59e0b;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,.4);cursor:pointer"></div>',
         iconSize: [12, 12],
         iconAnchor: [6, 6],
       }),

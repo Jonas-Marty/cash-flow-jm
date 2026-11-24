@@ -86,11 +86,7 @@ describe("Scenario C — Option 2 (StartDate 10.05.26, Interval 3, FixedDay(15)/
 
   it("execution series yields 15.05, 15.08, 15.11 (no skip; 15.05 ≥ start)", () => {
     const preview = previewOccurrences(r, 3);
-    expect(preview.map((p) => iso(p.due))).toEqual([
-      "2026-05-15",
-      "2026-08-15",
-      "2026-11-15",
-    ]);
+    expect(preview.map((p) => iso(p.due))).toEqual(["2026-05-15", "2026-08-15", "2026-11-15"]);
   });
 
   it("offset 0 pairs exec #1 (15.05) with period 01.05–31.07", () => {
@@ -125,11 +121,16 @@ describe("Scenario C — Option 2 (StartDate 10.05.26, Interval 3, FixedDay(15)/
   // Offsets that are not whole intervals: impossible before period_offset_months.
   it("quarterly bill for Jul–Sep paid 4 Nov: -4 months", () => {
     const q = rule({
-      starts_on: "2026-11-01", recurrence_interval: 3,
-      execution_day_of_month: 4, period_day_rule: "FirstDay", period_day_of_month: null,
+      starts_on: "2026-11-01",
+      recurrence_interval: 3,
+      execution_day_of_month: 4,
+      period_day_rule: "FirstDay",
+      period_day_of_month: null,
       period_offset_months: -4,
     });
-    const got = previewOccurrences(q, 3).map((p) => `${iso(p.due)} ${iso(p.periodFrom)}..${iso(p.periodTo)}`);
+    const got = previewOccurrences(q, 3).map(
+      (p) => `${iso(p.due)} ${iso(p.periodFrom)}..${iso(p.periodTo)}`,
+    );
     expect(got).toEqual([
       "2026-11-04 2026-07-01..2026-09-30",
       "2027-02-04 2026-10-01..2026-12-31",
@@ -139,9 +140,13 @@ describe("Scenario C — Option 2 (StartDate 10.05.26, Interval 3, FixedDay(15)/
 
   it("quarter paid on its last day (30 Jun for Apr–Jun): -2 months", () => {
     const q = rule({
-      starts_on: "2026-06-01", recurrence_interval: 3,
-      execution_day_rule: "LastDay", execution_day_of_month: null,
-      period_day_rule: "FirstDay", period_day_of_month: null, period_offset_months: -2,
+      starts_on: "2026-06-01",
+      recurrence_interval: 3,
+      execution_day_rule: "LastDay",
+      execution_day_of_month: null,
+      period_day_rule: "FirstDay",
+      period_day_of_month: null,
+      period_offset_months: -2,
     });
     const p = periodBoundsForDue(q, parseISODate("2026-06-30"));
     expect(`${iso(p.from)}..${iso(p.to)}`).toBe("2026-04-01..2026-06-30");
@@ -149,8 +154,12 @@ describe("Scenario C — Option 2 (StartDate 10.05.26, Interval 3, FixedDay(15)/
 
   it("yearly premium billed in December for the next calendar year: +1 month", () => {
     const y = rule({
-      starts_on: "2026-12-01", recurrence_interval: 12, execution_day_of_month: 20,
-      period_day_rule: "FirstDay", period_day_of_month: null, period_offset_months: 1,
+      starts_on: "2026-12-01",
+      recurrence_interval: 12,
+      execution_day_of_month: 20,
+      period_day_rule: "FirstDay",
+      period_day_of_month: null,
+      period_offset_months: 1,
     });
     const p = periodBoundsForDue(y, parseISODate("2026-12-20"));
     expect(`${iso(p.from)}..${iso(p.to)}`).toBe("2027-01-01..2027-12-31");

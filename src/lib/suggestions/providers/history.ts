@@ -82,10 +82,7 @@ export const historyProvider: SuggestionProvider = {
         };
         const cat = ctx.categories.find((c) => c.id === t.category_id);
         const acc = ctx.accounts.find((a) => a.id === t.source_account_id);
-        const parts = [
-          cat?.name,
-          acc?.name,
-        ].filter(Boolean) as string[];
+        const parts = [cat?.name, acc?.name].filter(Boolean) as string[];
         const sug: Suggestion = {
           id: `history:${key}`,
           score,
@@ -108,10 +105,11 @@ export const historyProvider: SuggestionProvider = {
     // Apply frequency boost and finalise sublabel
     const out: Suggestion[] = [];
     for (const g of groups.values()) {
-      const freqBoost = Math.min(0.2, Math.log(1 + g.count) / Math.log(10) * 0.2);
+      const freqBoost = Math.min(0.2, (Math.log(1 + g.count) / Math.log(10)) * 0.2);
       const finalScore = Math.min(1, g.best.score + freqBoost);
-      const subParts = [g.best.sublabel, g.count > 1 ? `${g.count}×` : null]
-        .filter(Boolean) as string[];
+      const subParts = [g.best.sublabel, g.count > 1 ? `${g.count}×` : null].filter(
+        Boolean,
+      ) as string[];
       out.push({ ...g.best, score: finalScore, sublabel: subParts.join(" · ") || undefined });
     }
     return out;

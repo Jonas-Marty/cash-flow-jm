@@ -1,20 +1,28 @@
 import { amountToInput, formatAmountInput } from "@/lib/amountInput";
 import * as React from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { DateInput } from "@/components/DateInput";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useI18n } from "@/i18n";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  createReallocation,
-  fetchCategories,
-  fetchSettings,
-  type Category,
-} from "@/lib/finance";
+import { createReallocation, fetchCategories, fetchSettings, type Category } from "@/lib/finance";
 import { toast } from "sonner";
 import { UNASSIGNED_ENVELOPE } from "@/lib/allocations";
 
@@ -30,7 +38,14 @@ interface Props {
   onReallocated?: () => void;
 }
 
-export function ReallocateDialog({ open, defaultFromId, defaultToId, defaultAmount, onOpenChange, onReallocated }: Props) {
+export function ReallocateDialog({
+  open,
+  defaultFromId,
+  defaultToId,
+  defaultAmount,
+  onOpenChange,
+  onReallocated,
+}: Props) {
   const { t } = useI18n();
   const qc = useQueryClient();
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings, enabled: open });
@@ -61,7 +76,8 @@ export function ReallocateDialog({ open, defaultFromId, defaultToId, defaultAmou
   const mut = useMutation({
     mutationFn: async () => {
       const amt = Number(amount);
-      if (!Number.isFinite(amt) || amt <= 0) throw new Error(t("envelopes.reallocate.invalid_amount"));
+      if (!Number.isFinite(amt) || amt <= 0)
+        throw new Error(t("envelopes.reallocate.invalid_amount"));
       if (!fromId || !toId) throw new Error(t("envelopes.reallocate.same_endpoint"));
       if (fromId === toId) throw new Error(t("envelopes.reallocate.same_endpoint"));
       await createReallocation({
@@ -96,11 +112,17 @@ export function ReallocateDialog({ open, defaultFromId, defaultToId, defaultAmou
           <div className="grid gap-1.5">
             <Label>{t("envelopes.reallocate.from")}</Label>
             <Select value={fromId} onValueChange={setFromId}>
-              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="—" />
+              </SelectTrigger>
               <SelectContent>
-                <SelectItem value={UNASSIGNED_ENVELOPE} disabled={toId === UNASSIGNED_ENVELOPE}>{t("env.moves.unassigned")}</SelectItem>
+                <SelectItem value={UNASSIGNED_ENVELOPE} disabled={toId === UNASSIGNED_ENVELOPE}>
+                  {t("env.moves.unassigned")}
+                </SelectItem>
                 {savings.map((c) => (
-                  <SelectItem key={c.id} value={c.id} disabled={c.id === toId}>{c.name}</SelectItem>
+                  <SelectItem key={c.id} value={c.id} disabled={c.id === toId}>
+                    {c.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -108,18 +130,26 @@ export function ReallocateDialog({ open, defaultFromId, defaultToId, defaultAmou
           <div className="grid gap-1.5">
             <Label>{t("envelopes.reallocate.to")}</Label>
             <Select value={toId} onValueChange={setToId}>
-              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="—" />
+              </SelectTrigger>
               <SelectContent>
-                <SelectItem value={UNASSIGNED_ENVELOPE} disabled={fromId === UNASSIGNED_ENVELOPE}>{t("env.moves.unassigned")}</SelectItem>
+                <SelectItem value={UNASSIGNED_ENVELOPE} disabled={fromId === UNASSIGNED_ENVELOPE}>
+                  {t("env.moves.unassigned")}
+                </SelectItem>
                 {savings.map((c) => (
-                  <SelectItem key={c.id} value={c.id} disabled={c.id === fromId}>{c.name}</SelectItem>
+                  <SelectItem key={c.id} value={c.id} disabled={c.id === fromId}>
+                    {c.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="grid gap-1.5">
-              <Label>{t("envelopes.reallocate.amount")} ({symbol})</Label>
+              <Label>
+                {t("envelopes.reallocate.amount")} ({symbol})
+              </Label>
               <Input
                 type="number"
                 inputMode="decimal"
@@ -137,7 +167,9 @@ export function ReallocateDialog({ open, defaultFromId, defaultToId, defaultAmou
             </div>
           </div>
           <div className="grid gap-1.5">
-            <Label>{t("envelopes.reallocate.note")} {t("common.optional")}</Label>
+            <Label>
+              {t("envelopes.reallocate.note")} {t("common.optional")}
+            </Label>
             <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} />
           </div>
         </div>
@@ -145,7 +177,10 @@ export function ReallocateDialog({ open, defaultFromId, defaultToId, defaultAmou
           <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={mut.isPending}>
             {t("common.cancel")}
           </Button>
-          <Button onClick={() => mut.mutate()} disabled={mut.isPending || !fromId || !toId || !amount}>
+          <Button
+            onClick={() => mut.mutate()}
+            disabled={mut.isPending || !fromId || !toId || !amount}
+          >
             {mut.isPending ? t("common.saving") : t("envelopes.reallocate.submit")}
           </Button>
         </DialogFooter>

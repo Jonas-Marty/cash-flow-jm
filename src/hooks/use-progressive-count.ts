@@ -55,7 +55,10 @@ export function useProgressiveCount({
 }) {
   // The remembered depth only applies when the list mounts (coming back from
   // another page). A change of filters while here starts over at `initial`.
-  const [state, setState] = React.useState(() => ({ key: resetKey, count: recallCount(resetKey, initial) }));
+  const [state, setState] = React.useState(() => ({
+    key: resetKey,
+    count: recallCount(resetKey, initial),
+  }));
   let count = state.count;
   if (state.key !== resetKey) {
     // Adjust during render (not in an effect) so the old depth never flashes.

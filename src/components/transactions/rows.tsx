@@ -3,7 +3,17 @@ import { Link } from "@tanstack/react-router";
 import { format } from "date-fns";
 import type { Locale } from "date-fns";
 import {
-  ArrowDown, ArrowUp, ArrowLeftRight, ChevronDown, ChevronRight, FileText, Layers, Link2, MapPin, Pencil, Trash2,
+  ArrowDown,
+  ArrowUp,
+  ArrowLeftRight,
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  Layers,
+  Link2,
+  MapPin,
+  Pencil,
+  Trash2,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +23,7 @@ import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/h
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { EntityVisual } from "@/components/EntityVisual";
 import { TransactionLinkPicker } from "@/components/TransactionLinkPicker";
-import { KIND_ICON } from "@/components/TransactionLinkSheet";
+import { KIND_ICON } from "@/lib/linkKindIcons";
 import { cn } from "@/lib/utils";
 import { highlightTokens, normalize } from "@/lib/highlight";
 import { locationFromRow, type TxLocation } from "@/lib/location";
@@ -108,12 +118,17 @@ function renderNoteWithTags(note: string, tokens: string[]): React.ReactNode {
       out.push(<span key={`t${i}`}>{highlightTokens(note.slice(last, m.index), tokens)}</span>);
     }
     const tagBody = m[1];
-    const matched = tokens.some((tok) => normalize(tagBody).includes(normalize(tok.replace(/^#/, ""))));
+    const matched = tokens.some((tok) =>
+      normalize(tagBody).includes(normalize(tok.replace(/^#/, ""))),
+    );
     out.push(
       <Badge
         key={`g${i}`}
         variant="secondary"
-        className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-medium", matched && "ring-1 ring-yellow-400/60")}
+        className={cn(
+          "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+          matched && "ring-1 ring-yellow-400/60",
+        )}
       >
         {`#${tagBody}`}
       </Badge>,
@@ -121,7 +136,8 @@ function renderNoteWithTags(note: string, tokens: string[]): React.ReactNode {
     last = m.index + m[0].length;
     i++;
   }
-  if (last < note.length) out.push(<span key={`t${i}`}>{highlightTokens(note.slice(last), tokens)}</span>);
+  if (last < note.length)
+    out.push(<span key={`t${i}`}>{highlightTokens(note.slice(last), tokens)}</span>);
   return out;
 }
 
@@ -130,12 +146,17 @@ export function TagBadges({ tags, tokens }: { tags: string[]; tokens: string[] }
   return (
     <div className="mt-1 flex flex-wrap items-center gap-1">
       {tags.map((t) => {
-        const matched = tokens.some((tok) => normalize(t).includes(normalize(tok.replace(/^#/, ""))));
+        const matched = tokens.some((tok) =>
+          normalize(t).includes(normalize(tok.replace(/^#/, ""))),
+        );
         return (
           <Badge
             key={t}
             variant="secondary"
-            className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-medium", matched && "ring-1 ring-yellow-400/60")}
+            className={cn(
+              "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+              matched && "ring-1 ring-yellow-400/60",
+            )}
           >
             {`#${t}`}
           </Badge>
@@ -150,7 +171,13 @@ function RowVisual({
   typeIcon,
   tone,
 }: {
-  entity: { name: string; icon?: string | null; emoji?: string | null; image_url?: string | null; color?: string | null } | null;
+  entity: {
+    name: string;
+    icon?: string | null;
+    emoji?: string | null;
+    image_url?: string | null;
+    color?: string | null;
+  } | null;
   typeIcon: React.ReactNode;
   tone: string;
 }) {
@@ -159,10 +186,17 @@ function RowVisual({
       {entity ? (
         <EntityVisual entity={entity} size="md" />
       ) : (
-        <div className={cn("flex h-9 w-9 items-center justify-center rounded-full bg-muted", tone)}>{typeIcon}</div>
+        <div className={cn("flex h-9 w-9 items-center justify-center rounded-full bg-muted", tone)}>
+          {typeIcon}
+        </div>
       )}
       {entity && (
-        <div className={cn("absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-background ring-1 ring-border", tone)}>
+        <div
+          className={cn(
+            "absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-background ring-1 ring-border",
+            tone,
+          )}
+        >
           {typeIcon}
         </div>
       )}
@@ -177,16 +211,37 @@ function ArrowRightDot() {
 function typeStyle(type: Transaction["type"]) {
   return {
     Icon: type === "expense" ? ArrowDown : type === "income" ? ArrowUp : ArrowLeftRight,
-    tone: type === "expense" ? "text-destructive" : type === "income" ? "text-success" : "text-muted-foreground",
+    tone:
+      type === "expense"
+        ? "text-destructive"
+        : type === "income"
+          ? "text-success"
+          : "text-muted-foreground",
     sign: type === "expense" ? "-" : type === "income" ? "+" : "",
   };
 }
 
-function Amount({ value, sym, sign, tone, marked }: { value: number; sym: string; sign: string; tone: string; marked: boolean }) {
+function Amount({
+  value,
+  sym,
+  sign,
+  tone,
+  marked,
+}: {
+  value: number;
+  sym: string;
+  sign: string;
+  tone: string;
+  marked: boolean;
+}) {
   const text = `${sign}${fmtMoney(value, sym).replace("-", "")}`;
   return (
     <div className={cn("text-sm font-semibold tabular-nums whitespace-nowrap", tone)}>
-      {marked ? <mark className="rounded bg-yellow-200/70 px-1 dark:bg-yellow-500/30">{text}</mark> : text}
+      {marked ? (
+        <mark className="rounded bg-yellow-200/70 px-1 dark:bg-yellow-500/30">{text}</mark>
+      ) : (
+        text
+      )}
     </div>
   );
 }
@@ -195,7 +250,15 @@ function Amount({ value, sym, sign, tone, marked }: { value: number; sym: string
  * The 🔗 marker for a transaction in a link. Hover shows what the link is;
  * click opens it, as the chip in the card view does.
  */
-export function LinkMarker({ link, onOpen, tr }: { link: LinkSummary; onOpen?: (id: string) => void; tr: RowContext["tr"] }) {
+export function LinkMarker({
+  link,
+  onOpen,
+  tr,
+}: {
+  link: LinkSummary;
+  onOpen?: (id: string) => void;
+  tr: RowContext["tr"];
+}) {
   const KindIcon = KIND_ICON[link.kind];
   return (
     <HoverCard openDelay={150} closeDelay={80}>
@@ -219,19 +282,28 @@ export function LinkMarker({ link, onOpen, tr }: { link: LinkSummary; onOpen?: (
           <span className="truncate">{link.title}</span>
         </div>
         <div className="text-muted-foreground">
-          {tr(`links.kind.${link.kind}`)} · {tr(link.count === 1 ? "tx.link.count_one" : "tx.link.count", { n: link.count })}
+          {tr(`links.kind.${link.kind}`)} ·{" "}
+          {tr(link.count === 1 ? "tx.link.count_one" : "tx.link.count", { n: link.count })}
         </div>
         {link.totals.length > 0 && (
           <div className="flex flex-wrap items-baseline gap-x-2">
             <span className="text-muted-foreground">{tr("links.totals.label")}:</span>
             {link.totals.map(([sym, sum]) => (
-              <span key={sym} className={cn("font-medium tabular-nums", sum < 0 ? "text-destructive" : "text-success")}>
+              <span
+                key={sym}
+                className={cn(
+                  "font-medium tabular-nums",
+                  sum < 0 ? "text-destructive" : "text-success",
+                )}
+              >
                 {fmtMoney(sum, sym)}
               </span>
             ))}
           </div>
         )}
-        {link.note && <p className="line-clamp-3 whitespace-pre-wrap text-muted-foreground">{link.note}</p>}
+        {link.note && (
+          <p className="line-clamp-3 whitespace-pre-wrap text-muted-foreground">{link.note}</p>
+        )}
         <div className="pt-0.5 text-[11px] text-muted-foreground">{tr("tx.link.open_hint")}</div>
       </HoverCardContent>
     </HoverCard>
@@ -243,12 +315,22 @@ export function RowActions({ tx, ctx }: { tx: Transaction; ctx: RowContext }) {
   const { tr } = ctx;
   return (
     <>
-      <Button asChild variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label={tr("common.edit")}>
+      <Button
+        asChild
+        variant="ghost"
+        size="icon"
+        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+        aria-label={tr("common.edit")}
+      >
         <Link to="/edit/$id" params={{ id: tx.id }} search={{ back: ctx.backSearch }}>
           <Pencil className="h-4 w-4" />
         </Link>
       </Button>
-      <TransactionLinkPicker transactionId={tx.id} currentLinkId={ctx.linkByTx.get(tx.id)?.id ?? null} compact />
+      <TransactionLinkPicker
+        transactionId={tx.id}
+        currentLinkId={ctx.linkByTx.get(tx.id)?.id ?? null}
+        compact
+      />
       <Button
         variant="ghost"
         size="icon"
@@ -280,22 +362,36 @@ export const CardRow = React.memo(function CardRow({
   const { tr, tokens } = ctx;
   const { Icon, tone, sign } = typeStyle(t.type);
   const src = ctx.accountById.get(t.source_account_id) ?? null;
-  const dst = t.destination_account_id ? ctx.accountById.get(t.destination_account_id) ?? null : null;
-  const cat = t.category_id ? ctx.categoryById.get(t.category_id) ?? null : null;
+  const dst = t.destination_account_id
+    ? (ctx.accountById.get(t.destination_account_id) ?? null)
+    : null;
+  const cat = t.category_id ? (ctx.categoryById.get(t.category_id) ?? null) : null;
   const primary = cat ?? src;
   const txSym = src?.currency_symbol ?? ctx.symbol;
   const dstSym = dst?.currency_symbol ?? txSym;
   // Another currency, or the same one with more received than paid (a gift card
   // bought at a discount): either way the arriving amount differs.
   const showDstAmount =
-    t.type === "transfer" && dst && t.destination_amount != null && Number(t.destination_amount) !== Number(t.amount);
+    t.type === "transfer" &&
+    dst &&
+    t.destination_amount != null &&
+    Number(t.destination_amount) !== Number(t.amount);
   const gain =
-    t.type === "transfer" && dst && t.destination_amount != null && (src?.currency_code ?? "") === (dst?.currency_code ?? "")
+    t.type === "transfer" &&
+    dst &&
+    t.destination_amount != null &&
+    (src?.currency_code ?? "") === (dst?.currency_code ?? "")
       ? Number(t.destination_amount) - Number(t.amount)
       : 0;
   const amount = (
     <div className="flex items-baseline">
-      <Amount value={Number(t.amount)} sym={txSym} sign={sign} tone={tone} marked={ctx.amountMatched(Number(t.amount))} />
+      <Amount
+        value={Number(t.amount)}
+        sym={txSym}
+        sign={sign}
+        tone={tone}
+        marked={ctx.amountMatched(Number(t.amount))}
+      />
       {showDstAmount && (
         <span className="ml-1 text-xs font-normal text-muted-foreground">
           → {fmtMoney(Number(t.destination_amount), dstSym).replace("-", "")}
@@ -308,7 +404,9 @@ export const CardRow = React.memo(function CardRow({
   if (gain > 0.005) {
     // The difference went to a budget (or waits under "Nicht zugeordnet"); the
     // chip opens that budget's Verlauf in the transfer's month.
-    const target = t.difference_category_id ? ctx.categoryById.get(t.difference_category_id) ?? null : null;
+    const target = t.difference_category_id
+      ? (ctx.categoryById.get(t.difference_category_id) ?? null)
+      : null;
     chips.push(
       <Link
         key="gain"
@@ -349,7 +447,8 @@ export const CardRow = React.memo(function CardRow({
         className={cn(
           t.reimbursable_status === "open" && "bg-warning/15 text-warning",
           t.reimbursable_status === "settled" && "bg-success/15 text-success",
-          (t.reimbursable_status === "written_off" || t.reimbursable_status === "cancelled") && "bg-muted text-muted-foreground",
+          (t.reimbursable_status === "written_off" || t.reimbursable_status === "cancelled") &&
+            "bg-muted text-muted-foreground",
         )}
         title={t.reimbursable_counterparty ?? ""}
         label={
@@ -400,7 +499,10 @@ export const CardRow = React.memo(function CardRow({
           ev.preventDefault();
           ctx.onOpenLink(lnk.id);
         }}
-        className={cn(CHIP, "inline-flex items-center gap-1 bg-primary/10 text-primary hover:bg-primary/20")}
+        className={cn(
+          CHIP,
+          "inline-flex items-center gap-1 bg-primary/10 text-primary hover:bg-primary/20",
+        )}
         title={lnk.title}
       >
         <LinkIcon className="h-3 w-3" /> {lnk.title}
@@ -418,7 +520,10 @@ export const CardRow = React.memo(function CardRow({
           ev.stopPropagation();
           ctx.onPeekLocation(txLoc);
         }}
-        className={cn(CHIP, "inline-flex items-center gap-1 bg-muted text-muted-foreground hover:bg-accent hover:text-foreground")}
+        className={cn(
+          CHIP,
+          "inline-flex items-center gap-1 bg-muted text-muted-foreground hover:bg-accent hover:text-foreground",
+        )}
         title={txLoc.label ?? tr("loc.title")}
       >
         <MapPin className="h-3 w-3" /> {txLoc.label ? txLoc.label.split(",")[0] : tr("loc.title")}
@@ -433,7 +538,10 @@ export const CardRow = React.memo(function CardRow({
         to="/statements"
         search={{ import: stmt.importId }}
         onClick={(ev) => ev.stopPropagation()}
-        className={cn(CHIP, "inline-flex items-center gap-1 bg-muted text-muted-foreground hover:bg-accent hover:text-foreground")}
+        className={cn(
+          CHIP,
+          "inline-flex items-center gap-1 bg-muted text-muted-foreground hover:bg-accent hover:text-foreground",
+        )}
         title={stmt.fileName}
       >
         <FileText className="h-3 w-3" /> {stmt.fileName}
@@ -443,7 +551,12 @@ export const CardRow = React.memo(function CardRow({
 
   const actions = <RowActions tx={t} ctx={ctx} />;
   const title =
-    t.description || (t.type === "transfer" ? tr("tx.transfer_label") : t.type === "income" ? tr("add.income") : tr("add.expense"));
+    t.description ||
+    (t.type === "transfer"
+      ? tr("tx.transfer_label")
+      : t.type === "income"
+        ? tr("add.income")
+        : tr("add.expense"));
 
   return (
     <div className="flex items-start gap-3 px-4 py-3">
@@ -456,7 +569,9 @@ export const CardRow = React.memo(function CardRow({
       <RowVisual entity={primary} typeIcon={<Icon className="h-3 w-3" />} tone={tone} />
       <div className="min-w-0 flex-1">
         <div className="grid grid-cols-1 items-start gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-2">
-          <div className="min-w-0 break-words text-sm font-medium">{highlightTokens(title, tokens)}</div>
+          <div className="min-w-0 break-words text-sm font-medium">
+            {highlightTokens(title, tokens)}
+          </div>
           {ctx.isSm && <div>{amount}</div>}
         </div>
         {chips.length > 0 && (
@@ -531,14 +646,21 @@ export const SplitGroupRow = React.memo(function SplitGroupRow({
   const src = ctx.accountById.get(first.source_account_id);
   const grpSym = src?.currency_symbol ?? ctx.symbol;
   const ChevIcon = open ? ChevronDown : ChevronRight;
-  const headerLabel = txs.map((x) => x.description).filter(Boolean).slice(0, 2).join(", ") || tr("tx.split.label");
+  const headerLabel =
+    txs
+      .map((x) => x.description)
+      .filter(Boolean)
+      .slice(0, 2)
+      .join(", ") || tr("tx.split.label");
   const perSliceTags = txs.map((x) => ctx.tagsByTx.get(x.id) ?? []);
   const unionTags = Array.from(new Set(perSliceTags.flat()));
   const sharedTags = perSliceTags.reduce<string[]>(
     (acc, cur, idx) => (idx === 0 ? [...cur] : acc.filter((tg) => cur.includes(tg))),
     [],
   );
-  const amount = <Amount value={total} sym={grpSym} sign={sign} tone={tone} marked={ctx.amountMatched(total)} />;
+  const amount = (
+    <Amount value={total} sym={grpSym} sign={sign} tone={tone} marked={ctx.amountMatched(total)} />
+  );
 
   return (
     <div className="bg-muted/20">
@@ -546,16 +668,27 @@ export const SplitGroupRow = React.memo(function SplitGroupRow({
         <Checkbox
           className="mt-3"
           checked={selected}
-          onCheckedChange={(v) => ctx.onToggleMany(txs.map((x) => x.id), v === true)}
+          onCheckedChange={(v) =>
+            ctx.onToggleMany(
+              txs.map((x) => x.id),
+              v === true,
+            )
+          }
           aria-label={tr("tx.bulk.select_row")}
         />
-        <button type="button" onClick={() => ctx.onToggleGroup(groupId)} className="flex min-w-0 flex-1 items-start gap-3 text-left">
+        <button
+          type="button"
+          onClick={() => ctx.onToggleGroup(groupId)}
+          className="flex min-w-0 flex-1 items-start gap-3 text-left"
+        >
           <RowVisual entity={src ?? null} typeIcon={<Icon className="h-3 w-3" />} tone={tone} />
           <div className="min-w-0 flex-1">
             <div className="grid min-w-0 grid-cols-1 items-start gap-1 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-2">
               <div className="flex min-w-0 items-start gap-1.5">
                 <ChevIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <span className="min-w-0 break-words text-sm font-medium">{highlightTokens(headerLabel, tokens)}</span>
+                <span className="min-w-0 break-words text-sm font-medium">
+                  {highlightTokens(headerLabel, tokens)}
+                </span>
               </div>
               {ctx.isSm && <div className="sm:text-right">{amount}</div>}
             </div>
@@ -573,7 +706,13 @@ export const SplitGroupRow = React.memo(function SplitGroupRow({
           </div>
         </button>
         <div className="flex shrink-0 items-center self-center">
-          <Button asChild variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" aria-label={tr("common.edit")}>
+          <Button
+            asChild
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            aria-label={tr("common.edit")}
+          >
             <Link to="/edit/$id" params={{ id: first.id }} search={{ back: ctx.backSearch }}>
               <Pencil className="h-4 w-4" />
             </Link>
@@ -594,10 +733,17 @@ export const SplitGroupRow = React.memo(function SplitGroupRow({
           {txs.map((t) => {
             const cat = t.category_id ? ctx.categoryById.get(t.category_id) : null;
             return (
-              <li key={t.id} className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 px-4 py-2 pl-14 text-sm">
+              <li
+                key={t.id}
+                className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 px-4 py-2 pl-14 text-sm"
+              >
                 <div className="min-w-0">
-                  <div className="break-words font-medium">{highlightTokens(t.description || tr("add.split.no_category"), tokens)}</div>
-                  <div className="text-xs text-muted-foreground">{highlightTokens(cat?.name ?? tr("add.split.no_category"), tokens)}</div>
+                  <div className="break-words font-medium">
+                    {highlightTokens(t.description || tr("add.split.no_category"), tokens)}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {highlightTokens(cat?.name ?? tr("add.split.no_category"), tokens)}
+                  </div>
                   <TagBadges tags={ctx.tagsByTx.get(t.id) ?? []} tokens={tokens} />
                 </div>
                 <div className={cn("tabular-nums font-medium", tone)}>
@@ -645,7 +791,11 @@ function ReimbChip({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button type="button" className={cn(CHIP, className, "cursor-pointer hover:brightness-110")} title={title}>
+        <button
+          type="button"
+          className={cn(CHIP, className, "cursor-pointer hover:brightness-110")}
+          title={title}
+        >
           {label} ▾
         </button>
       </PopoverTrigger>
@@ -662,9 +812,13 @@ function ReimbChip({
                   search={{ back: ctx.backSearch }}
                   className="min-w-0 truncate text-primary underline underline-offset-2"
                 >
-                  {other?.description || ctx.tr(other?.type === "income" ? "add.income" : "add.expense")}
+                  {other?.description ||
+                    ctx.tr(other?.type === "income" ? "add.income" : "add.expense")}
                   {other && (
-                    <span className="text-muted-foreground"> · {format(new Date(other.occurred_on), "dd.MM.", { locale: ctx.locale })}</span>
+                    <span className="text-muted-foreground">
+                      {" "}
+                      · {format(new Date(other.occurred_on), "dd.MM.", { locale: ctx.locale })}
+                    </span>
                   )}
                 </Link>
                 <span className="shrink-0 tabular-nums">{fmtMoney(it.amount, sym)}</span>

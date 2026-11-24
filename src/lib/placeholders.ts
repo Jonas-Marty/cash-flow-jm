@@ -41,18 +41,57 @@ export interface TokenInfo {
 }
 
 export const TOKENS: TokenInfo[] = [
-  { token: "date",       kind: "date",   help: "Effective transaction date (after weekend shift).", example: "${date:dd.MM.yyyy}" },
-  { token: "dueDate",    kind: "date",   help: "Original due date (before weekend shift).",         example: "${dueDate:dd.MM.yyyy}" },
-  { token: "periodFrom", kind: "date",   help: "First day of the reporting period.",                example: "${periodFrom:dd.MM.yyyy}" },
-  { token: "periodTo",   kind: "date",   help: "Last day of the reporting period.",                 example: "${periodTo:dd.MM.yyyy}" },
-  { token: "runNumber",  kind: "number", help: "1-based occurrence counter.",                        example: "${runNumber:000}" },
+  {
+    token: "date",
+    kind: "date",
+    help: "Effective transaction date (after weekend shift).",
+    example: "${date:dd.MM.yyyy}",
+  },
+  {
+    token: "dueDate",
+    kind: "date",
+    help: "Original due date (before weekend shift).",
+    example: "${dueDate:dd.MM.yyyy}",
+  },
+  {
+    token: "periodFrom",
+    kind: "date",
+    help: "First day of the reporting period.",
+    example: "${periodFrom:dd.MM.yyyy}",
+  },
+  {
+    token: "periodTo",
+    kind: "date",
+    help: "Last day of the reporting period.",
+    example: "${periodTo:dd.MM.yyyy}",
+  },
+  {
+    token: "runNumber",
+    kind: "number",
+    help: "1-based occurrence counter.",
+    example: "${runNumber:000}",
+  },
 ];
 
 /** Tokens the v2 engine no longer supports. Kept only so the UI can warn. */
 export const DROPPED_TOKENS: readonly string[] = Object.freeze([
-  "periodStart", "periodEnd", "periodLabel", "periodMonth", "periodQuarter", "periodYear",
-  "periodSemester", "periodTrimester", "quarter", "semester", "trimester", "today",
-  "prevDate", "nextDate", "monthOfYear", "year", "weekOfYear",
+  "periodStart",
+  "periodEnd",
+  "periodLabel",
+  "periodMonth",
+  "periodQuarter",
+  "periodYear",
+  "periodSemester",
+  "periodTrimester",
+  "quarter",
+  "semester",
+  "trimester",
+  "today",
+  "prevDate",
+  "nextDate",
+  "monthOfYear",
+  "year",
+  "weekOfYear",
 ]);
 
 export function describeTokens(): TokenInfo[] {
@@ -72,11 +111,16 @@ export function findDroppedTokens(template: string | null | undefined): string[]
 
 function dateValue(token: string, ctx: PlaceholderContext): Date | null {
   switch (token) {
-    case "date":       return ctx.date;
-    case "dueDate":    return ctx.dueDate;
-    case "periodFrom": return ctx.periodFrom;
-    case "periodTo":   return ctx.periodTo;
-    default:           return null;
+    case "date":
+      return ctx.date;
+    case "dueDate":
+      return ctx.dueDate;
+    case "periodFrom":
+      return ctx.periodFrom;
+    case "periodTo":
+      return ctx.periodTo;
+    default:
+      return null;
   }
 }
 
@@ -88,14 +132,25 @@ function normalizeDateFormat(fmt: string): string {
     const ch = fmt[i];
     if (ch === "[") {
       const close = fmt.indexOf("]", i);
-      if (close === -1) { out += fmt.slice(i); break; }
+      if (close === -1) {
+        out += fmt.slice(i);
+        break;
+      }
       out += fmt.slice(i, close + 1);
       i = close + 1;
       continue;
     }
     // longest match first
-    if (fmt.startsWith("dddd", i)) { out += "EEEE"; i += 4; continue; }
-    if (fmt.startsWith("ddd", i))  { out += "EEE";  i += 3; continue; }
+    if (fmt.startsWith("dddd", i)) {
+      out += "EEEE";
+      i += 4;
+      continue;
+    }
+    if (fmt.startsWith("ddd", i)) {
+      out += "EEE";
+      i += 3;
+      continue;
+    }
     out += ch;
     i += 1;
   }
@@ -121,7 +176,10 @@ function formatRespectingMMM(d: Date, fmt: string, locale: Locale): string {
   while (i < fmt.length) {
     if (fmt[i] === "[") {
       const close = fmt.indexOf("]", i);
-      if (close === -1) { buf += fmt.slice(i); break; }
+      if (close === -1) {
+        buf += fmt.slice(i);
+        break;
+      }
       buf += fmt.slice(i, close + 1);
       i = close + 1;
       continue;
@@ -134,7 +192,10 @@ function formatRespectingMMM(d: Date, fmt: string, locale: Locale): string {
     }
     // Detect MMM (short) — split here.
     if (fmt.startsWith("MMM", i)) {
-      if (buf.length > 0) { parts.push({ text: buf, isMMM: false }); buf = ""; }
+      if (buf.length > 0) {
+        parts.push({ text: buf, isMMM: false });
+        buf = "";
+      }
       parts.push({ text: "MMM", isMMM: true });
       i += 3;
       continue;
@@ -177,7 +238,11 @@ function bracketsToQuotes(fmt: string): string {
       i = close + 1;
       continue;
     }
-    if (fmt[i] === "'") { literal += "'"; i += 1; continue; }
+    if (fmt[i] === "'") {
+      literal += "'";
+      i += 1;
+      continue;
+    }
     flush();
     out += fmt[i];
     i += 1;
@@ -218,15 +283,41 @@ function formatDateExtended(d: Date, fmt: string | undefined, locale: Locale): s
   while (i < f.length) {
     if (f[i] === "[") {
       const close = f.indexOf("]", i);
-      if (close === -1) { out += f.slice(i); break; }
-      out += f.slice(i, close + 1); i = close + 1; continue;
+      if (close === -1) {
+        out += f.slice(i);
+        break;
+      }
+      out += f.slice(i, close + 1);
+      i = close + 1;
+      continue;
     }
-    if (f.startsWith("ww", i)) { out += "[" + ww + "]"; i += 2; continue; }
-    if (f[i] === "w")          { out += "[" + w  + "]"; i += 1; continue; }
-    if (f[i] === "Q")          { out += "[" + q  + "]"; i += 1; continue; }
-    if (f[i] === "S")          { out += "[" + s  + "]"; i += 1; continue; }
-    if (f[i] === "T")          { out += "[" + t  + "]"; i += 1; continue; }
-    out += f[i]; i += 1;
+    if (f.startsWith("ww", i)) {
+      out += "[" + ww + "]";
+      i += 2;
+      continue;
+    }
+    if (f[i] === "w") {
+      out += "[" + w + "]";
+      i += 1;
+      continue;
+    }
+    if (f[i] === "Q") {
+      out += "[" + q + "]";
+      i += 1;
+      continue;
+    }
+    if (f[i] === "S") {
+      out += "[" + s + "]";
+      i += 1;
+      continue;
+    }
+    if (f[i] === "T") {
+      out += "[" + t + "]";
+      i += 1;
+      continue;
+    }
+    out += f[i];
+    i += 1;
   }
   return formatRespectingMMM(d, out, locale);
 }
@@ -241,7 +332,10 @@ export function interpolate(template: string | null | undefined, ctx: Placeholde
     if (name === "runNumber") return padNumber(ctx.runNumber, fmt);
     const d = dateValue(name, ctx);
     if (!d) return match; // unknown token → surface for typo detection
-    try { return formatDateExtended(d, fmt, ctx.locale); }
-    catch { return match; }
+    try {
+      return formatDateExtended(d, fmt, ctx.locale);
+    } catch {
+      return match;
+    }
   });
 }

@@ -5,11 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/i18n";
-import {
-  fetchTransactionsRange,
-  fetchRecurringRules,
-  fmtMoney,
-} from "@/lib/finance";
+import { fetchTransactionsRange, fetchRecurringRules, fmtMoney } from "@/lib/finance";
 import { detectRecurringCandidates } from "@/lib/insights";
 
 /**
@@ -55,16 +51,41 @@ export function RecurringDetectorCard({ symbol }: { symbol: string }) {
       <CardContent className="space-y-3">
         <div className="grid grid-cols-3 gap-2">
           <div className="space-y-1">
-            <Label className="text-[10px] uppercase tracking-wide">{t("insights.detector.min_occ")}</Label>
-            <Input type="number" min={2} value={minOcc} onChange={(e) => setMinOcc(Math.max(2, Number(e.target.value) || 2))} className="h-8" />
+            <Label className="text-[10px] uppercase tracking-wide">
+              {t("insights.detector.min_occ")}
+            </Label>
+            <Input
+              type="number"
+              min={2}
+              value={minOcc}
+              onChange={(e) => setMinOcc(Math.max(2, Number(e.target.value) || 2))}
+              className="h-8"
+            />
           </div>
           <div className="space-y-1">
-            <Label className="text-[10px] uppercase tracking-wide">{t("insights.detector.min_months")}</Label>
-            <Input type="number" min={2} value={minMonths} onChange={(e) => setMinMonths(Math.max(2, Number(e.target.value) || 2))} className="h-8" />
+            <Label className="text-[10px] uppercase tracking-wide">
+              {t("insights.detector.min_months")}
+            </Label>
+            <Input
+              type="number"
+              min={2}
+              value={minMonths}
+              onChange={(e) => setMinMonths(Math.max(2, Number(e.target.value) || 2))}
+              className="h-8"
+            />
           </div>
           <div className="space-y-1">
-            <Label className="text-[10px] uppercase tracking-wide">{t("insights.detector.max_cv")} (%)</Label>
-            <Input type="number" min={0} max={100} value={maxCv} onChange={(e) => setMaxCv(Math.max(0, Math.min(100, Number(e.target.value) || 0)))} className="h-8" />
+            <Label className="text-[10px] uppercase tracking-wide">
+              {t("insights.detector.max_cv")} (%)
+            </Label>
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              value={maxCv}
+              onChange={(e) => setMaxCv(Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+              className="h-8"
+            />
           </div>
         </div>
 
@@ -75,16 +96,24 @@ export function RecurringDetectorCard({ symbol }: { symbol: string }) {
         ) : (
           <div className="space-y-1.5">
             {candidates.slice(0, 12).map((c) => (
-              <div key={c.key} className="flex items-center justify-between gap-2 rounded-md border bg-card p-2 text-sm">
+              <div
+                key={c.key}
+                className="flex items-center justify-between gap-2 rounded-md border bg-card p-2 text-sm"
+              >
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-medium">{c.label}</div>
                   <div className="text-[11px] text-muted-foreground">
-                    {c.occurrences}× · {c.monthsCovered} {t("insights.detector.months")} · ±{(c.cv * 100).toFixed(0)}% · {t("insights.detector.last_seen")}: {c.lastSeen}
+                    {c.occurrences}× · {c.monthsCovered} {t("insights.detector.months")} · ±
+                    {(c.cv * 100).toFixed(0)}% · {t("insights.detector.last_seen")}: {c.lastSeen}
                   </div>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm font-semibold tabular-nums">{fmtMoney(c.avgAmount, symbol)}</div>
-                  <div className="text-[11px] text-muted-foreground">{t("insights.detector.avg")}</div>
+                  <div className="text-sm font-semibold tabular-nums">
+                    {fmtMoney(c.avgAmount, symbol)}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {t("insights.detector.avg")}
+                  </div>
                 </div>
               </div>
             ))}

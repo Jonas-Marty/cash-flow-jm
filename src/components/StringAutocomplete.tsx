@@ -54,7 +54,9 @@ export function StringAutocomplete({
     return scored.slice(0, maxItems).map((s) => s.v);
   }, [options, value, maxItems]);
 
-  React.useEffect(() => { setActive(0); }, [value, items.length]);
+  React.useEffect(() => {
+    setActive(0);
+  }, [value, items.length]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -71,7 +73,9 @@ export function StringAutocomplete({
     setOpen(false);
   };
 
-  const showList = open && items.length > 0 &&
+  const showList =
+    open &&
+    items.length > 0 &&
     !(items.length === 1 && items[0].toLowerCase() === value.trim().toLowerCase());
 
   return (
@@ -79,7 +83,10 @@ export function StringAutocomplete({
       <Input
         id={id}
         value={value}
-        onChange={(e) => { onChange(e.target.value); setOpen(true); }}
+        onChange={(e) => {
+          onChange(e.target.value);
+          setOpen(true);
+        }}
         onFocus={() => setOpen(true)}
         placeholder={placeholder}
         autoComplete="off"
@@ -120,7 +127,10 @@ export function StringAutocomplete({
               key={it}
               role="option"
               aria-selected={i === active}
-              onMouseDown={(e) => { e.preventDefault(); commit(it); }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                commit(it);
+              }}
               onMouseEnter={() => setActive(i)}
               className={cn(
                 "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm",

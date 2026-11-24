@@ -86,8 +86,7 @@ export interface RuleShape {
 export function execIndexForDue(r: RuleShape, dueDate: Date): number {
   const starts = parseISODate(r.starts_on);
   const monthsDiff =
-    (dueDate.getFullYear() - starts.getFullYear()) * 12 +
-    (dueDate.getMonth() - starts.getMonth());
+    (dueDate.getFullYear() - starts.getFullYear()) * 12 + (dueDate.getMonth() - starts.getMonth());
   const nStep = Math.floor(monthsDiff / r.recurrence_interval);
   const firstAnchor = seriesStep(
     starts,

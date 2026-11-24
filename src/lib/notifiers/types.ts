@@ -43,8 +43,11 @@ export interface Notifier {
 
 export function eventNameForSource(source: TransactionEventSource): TransactionEventName {
   switch (source) {
-    case "manual": return "transaction.created.manual";
-    case "recurring": return "transaction.created.recurring";
-    case "api": return "transaction.created.api";
+    case "manual":
+      return "transaction.created.manual";
+    case "recurring":
+      return "transaction.created.recurring";
+    case "api":
+      return "transaction.created.api";
   }
 }

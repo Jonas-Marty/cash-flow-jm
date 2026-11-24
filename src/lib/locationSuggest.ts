@@ -139,7 +139,6 @@ export function suggestLocationLabel(
   return best?.label?.trim() ?? null;
 }
 
-
 // ---------------------------------------------------------------------------
 // Proximity
 // ---------------------------------------------------------------------------
@@ -249,9 +248,7 @@ export function suggestPlaceFromProximity(
   if (groups.size === 0) return null;
 
   const ranked = [...groups.values()].sort(
-    (a, b) =>
-      b.length - a.length ||
-      (b[0].occurred_on ?? "").localeCompare(a[0].occurred_on ?? ""),
+    (a, b) => b.length - a.length || (b[0].occurred_on ?? "").localeCompare(a[0].occurred_on ?? ""),
   );
   const winner = ranked[0];
 
@@ -281,7 +278,6 @@ export function suggestPlaceFromProximity(
 function round3(n: number): number {
   return Math.round(n * 1000) / 1000;
 }
-
 
 // ---------------------------------------------------------------------------
 // A shortlist the model can point at
@@ -336,8 +332,7 @@ export function buildPlaceTable(
   return [...groups.values()]
     .map((members) => ({ members, last: lastSeen(members) }))
     .sort(
-      (a, b) =>
-        b.members.length - a.members.length || (b.last ?? "").localeCompare(a.last ?? ""),
+      (a, b) => b.members.length - a.members.length || (b.last ?? "").localeCompare(a.last ?? ""),
     )
     .slice(0, opts.limit ?? PLACE_TABLE_LIMIT)
     .map(({ members, last }, i) => ({

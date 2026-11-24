@@ -2,7 +2,10 @@ import * as React from "react";
 import type { Suggestion, SuggestionContext } from "./types";
 import { runSuggestions } from "./registry";
 
-export function useSuggestions(ctx: SuggestionContext): { suggestions: Suggestion[]; isLoading: boolean } {
+export function useSuggestions(ctx: SuggestionContext): {
+  suggestions: Suggestion[];
+  isLoading: boolean;
+} {
   const [suggestions, setSuggestions] = React.useState<Suggestion[]>([]);
   const [isLoading, setLoading] = React.useState(false);
 

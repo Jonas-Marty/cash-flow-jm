@@ -58,7 +58,11 @@ describe("serveStatic", () => {
 
   const get = async (url: string, acceptEncoding?: string, method = "GET") => {
     const res = fakeRes();
-    const req = { method, url, headers: acceptEncoding ? { "accept-encoding": acceptEncoding } : {} };
+    const req = {
+      method,
+      url,
+      headers: acceptEncoding ? { "accept-encoding": acceptEncoding } : {},
+    };
     const served = await serveStatic(req as never, res as never, dir);
     return { served, res };
   };

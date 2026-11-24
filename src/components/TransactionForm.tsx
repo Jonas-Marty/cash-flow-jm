@@ -20,24 +20,45 @@ import { useServerFn } from "@tanstack/react-start";
 import { notifyTransactionCreated } from "@/utils/webhooks.functions";
 import { resolveStatementLine } from "@/utils/statements.functions";
 import {
-  fetchAccounts, fetchCategories, fetchCategoryGroups, fetchSettings,
-  fetchOpenReimbursables, fetchReimbursementLinks, fetchReimbursementCounterpartyUses,
+  fetchAccounts,
+  fetchCategories,
+  fetchCategoryGroups,
+  fetchSettings,
+  fetchOpenReimbursables,
+  fetchReimbursementLinks,
+  fetchReimbursementCounterpartyUses,
   linkReimbursement,
-  extractTags, fmtMoney,
-  type TxType, type Transaction, type ReimbursementLink,
+  extractTags,
+  fmtMoney,
+  type TxType,
+  type Transaction,
+  type ReimbursementLink,
 } from "@/lib/finance";
 import {
-  fetchAccountBalances, fetchCategoryMonthRows, monthKey,
-  type AccountBalance, type CategoryMonthRow,
+  fetchAccountBalances,
+  fetchCategoryMonthRows,
+  monthKey,
+  type AccountBalance,
+  type CategoryMonthRow,
 } from "@/lib/finance";
 import { fetchSavingsBalances, type CategorySavingsBalance } from "@/lib/finance";
 import { markPendingConfirmed } from "@/lib/finance";
-import { fetchPreviewImpact, fetchTransactionsByIds, type PreviewImpactRow, type PreviewOp } from "@/lib/finance";
+import {
+  fetchPreviewImpact,
+  fetchTransactionsByIds,
+  type PreviewImpactRow,
+  type PreviewOp,
+} from "@/lib/finance";
 import { applyRefundLinks, fetchRefundCandidates } from "@/lib/finance";
 import { RefundCard } from "@/components/RefundCard";
 import {
-  defaultDecision, pickIssue, planIncomeParts, refundLinksPayload, refundPreviewOps,
-  type PreviewExpense, type RefundPicks,
+  defaultDecision,
+  pickIssue,
+  planIncomeParts,
+  refundLinksPayload,
+  refundPreviewOps,
+  type PreviewExpense,
+  type RefundPicks,
 } from "@/lib/refundPlan";
 import { ReimbursementPayments } from "@/components/ReimbursementPayments";
 import { EntityVisual } from "@/components/EntityVisual";
@@ -54,7 +75,13 @@ import { TagChips } from "@/components/TagChips";
 import { TagAutocompleteTextarea } from "@/components/TagAutocomplete";
 import { DateShortcuts } from "@/components/DateShortcuts";
 import { ChipPicker, type ChipPickerItem } from "@/components/ChipPicker";
-import { rankCounterparties, scoreAccounts, scoreCategories, sortByPinAndScore, type SuggestionContext } from "@/lib/usageScoring";
+import {
+  rankCounterparties,
+  scoreAccounts,
+  scoreCategories,
+  sortByPinAndScore,
+  type SuggestionContext,
+} from "@/lib/usageScoring";
 import { DayHeatmapCalendar } from "@/components/DayHeatmapCalendar";
 import { DateInput } from "@/components/DateInput";
 import { ShortcutsDialog } from "@/components/ShortcutsDialog";
@@ -64,9 +91,7 @@ import { AttachmentsSection, type DraftAttachment } from "@/components/Attachmen
 import { TransactionStatementRow } from "@/components/StatementDocLink";
 import { Markdown } from "@/components/Markdown";
 import { useFxRates, convert } from "@/lib/fx";
-import {
-  clampLinkAmounts,
-} from "@/lib/reimbMatch";
+import { clampLinkAmounts } from "@/lib/reimbMatch";
 import type { FxRates } from "@/lib/fx";
 import { fetchScopes } from "@/lib/finance";
 import { useActiveScopeId } from "@/lib/activeScope";
@@ -136,7 +161,9 @@ export function TransactionForm({
     if (before.length === 0) return;
     const touched = new Set<string>();
     const og = editQ.data;
-    if (og) for (const r of og.group && og.group.length > 1 ? og.group : [og.tx]) if (r.category_id) touched.add(r.category_id);
+    if (og)
+      for (const r of og.group && og.group.length > 1 ? og.group : [og.tx])
+        if (r.category_id) touched.add(r.category_id);
     if (categoryId) touched.add(categoryId);
     for (const sl of slices) if (sl.categoryId) touched.add(sl.categoryId);
     const candidates = before.filter((c) => touched.has(c.id));
@@ -144,7 +171,10 @@ export function TransactionForm({
     const { data } = await supabase
       .from("categories")
       .select("id, closed_at")
-      .in("id", candidates.map((c) => c.id));
+      .in(
+        "id",
+        candidates.map((c) => c.id),
+      );
     for (const c of candidates) {
       if ((data ?? []).some((d) => d.id === c.id && !d.closed_at)) {
         toast.info(tr("toast.scope_reopened", { name: c.name }));
@@ -152,7 +182,10 @@ export function TransactionForm({
     }
   };
   const goBack = () =>
-    navigate({ to: backTo === "envelopes" ? "/envelopes" : "/transactions", search: (backSearch ?? {}) as never });
+    navigate({
+      to: backTo === "envelopes" ? "/envelopes" : "/transactions",
+      search: (backSearch ?? {}) as never,
+    });
   const qc = useQueryClient();
   const notifyCreated = useServerFn(notifyTransactionCreated);
   const linkStatementLineFn = useServerFn(resolveStatementLine);
@@ -163,14 +196,18 @@ export function TransactionForm({
       const lineId = prefill?.statement_line;
       if (!lineId) return false;
       try {
-        await linkStatementLineFn({ data: { line_id: lineId, decision: "link", transaction_id: txId } });
+        await linkStatementLineFn({
+          data: { line_id: lineId, decision: "link", transaction_id: txId },
+        });
         toast.success(tr("statements.toast.linked"));
       } catch (e) {
         toast.error(e instanceof Error ? e.message : String(e));
       }
       navigate({
         to: "/statements",
-        search: prefill?.statement_import ? ({ import: prefill.statement_import } as never) : undefined,
+        search: prefill?.statement_import
+          ? ({ import: prefill.statement_import } as never)
+          : undefined,
       });
       return true;
     },
@@ -201,8 +238,14 @@ export function TransactionForm({
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   const groupsQ = useQuery({ queryKey: ["category_groups"], queryFn: fetchCategoryGroups });
   const recentQ = useRecentTransactions();
-  const openReimbQ = useQuery({ queryKey: ["reimbursables", "open"], queryFn: fetchOpenReimbursables });
-  const reimbLinksQ = useQuery({ queryKey: ["reimbursement_links"], queryFn: fetchReimbursementLinks });
+  const openReimbQ = useQuery({
+    queryKey: ["reimbursables", "open"],
+    queryFn: fetchOpenReimbursables,
+  });
+  const reimbLinksQ = useQuery({
+    queryKey: ["reimbursement_links"],
+    queryFn: fetchReimbursementLinks,
+  });
   // Names for "from whom" / "to whom": most used first, recent use counting more.
   const reimbCpQ = useQuery({
     queryKey: ["reimbursement_counterparties"],
@@ -226,10 +269,7 @@ export function TransactionForm({
   const categories = (categoriesQ.data ?? []).filter((c) => !c.archived && !c.closed_at);
   const groupKindById = new Map((groupsQ.data ?? []).map((g) => [g.id, g.kind]));
   const mainSymbol = settingsQ.data?.currency_symbol ?? "CHF";
-  const accountById = React.useMemo(
-    () => new Map(accounts.map((a) => [a.id, a])),
-    [accounts],
-  );
+  const accountById = React.useMemo(() => new Map(accounts.map((a) => [a.id, a])), [accounts]);
 
   const [type, setType] = React.useState<TxType>("expense");
   const [amount, setAmount] = React.useState("");
@@ -271,8 +311,12 @@ export function TransactionForm({
     };
     const scores = scoreAccounts(recentQ.data ?? [], ctx);
     return sortByPinAndScore(accounts, scores).map((a) => ({
-      id: a.id, name: a.name,
-      icon: a.icon, emoji: a.emoji, image_url: a.image_url, color: a.color,
+      id: a.id,
+      name: a.name,
+      icon: a.icon,
+      emoji: a.emoji,
+      image_url: a.image_url,
+      color: a.color,
       pinned: a.pinned,
     }));
   }, [accounts, recentQ.data, type, categoryId, description]);
@@ -285,8 +329,12 @@ export function TransactionForm({
     };
     const scores = scoreCategories(recentQ.data ?? [], ctx);
     return sortByPinAndScore(categories, scores).map((c) => ({
-      id: c.id, name: c.name,
-      icon: c.icon, emoji: c.emoji, image_url: c.image_url, color: c.color,
+      id: c.id,
+      name: c.name,
+      icon: c.icon,
+      emoji: c.emoji,
+      image_url: c.image_url,
+      color: c.color,
       pinned: c.pinned,
     }));
   }, [categories, recentQ.data, type, sourceId, destId, description]);
@@ -366,12 +414,7 @@ export function TransactionForm({
       setDestAmount("");
       return;
     }
-    const conv = convert(
-      n,
-      sourceAccount!.currency_code,
-      destAccount!.currency_code,
-      fxQ.data,
-    );
+    const conv = convert(n, sourceAccount!.currency_code, destAccount!.currency_code, fxQ.data);
     setDestAmount(conv != null ? conv.toFixed(2) : "");
   }, [isCrossCurrency, amount, sourceAccount, destAccount, fxQ.data, destAmountTouched]);
   // Reset cross-currency state when leaving transfer mode or matching currencies.
@@ -439,7 +482,15 @@ export function TransactionForm({
 
   const [appliedFrom, setAppliedFrom] = React.useState<null | {
     suggestion: Suggestion;
-    prev: { amount: string; description: string; note: string; sourceId: string; categoryId: string; location: TxLocation | null; locationTouched: boolean };
+    prev: {
+      amount: string;
+      description: string;
+      note: string;
+      sourceId: string;
+      categoryId: string;
+      location: TxLocation | null;
+      locationTouched: boolean;
+    };
   }>(null);
 
   const isEdit = !!editId;
@@ -571,27 +622,54 @@ export function TransactionForm({
   React.useEffect(() => {
     if (isEdit || prefillAppliedRef.current || !prefill) return;
     const anyField =
-      prefill.type || prefill.amount || prefill.source || prefill.counterparty || prefill.reimburse_for ||
-      prefill.account_name || prefill.category || prefill.category_name || prefill.description ||
-      prefill.note || prefill.occurred_on || prefill.iou_with || prefill.iou_amount ||
-      prefill.location || prefill.destination;
+      prefill.type ||
+      prefill.amount ||
+      prefill.source ||
+      prefill.counterparty ||
+      prefill.reimburse_for ||
+      prefill.account_name ||
+      prefill.category ||
+      prefill.category_name ||
+      prefill.description ||
+      prefill.note ||
+      prefill.occurred_on ||
+      prefill.iou_with ||
+      prefill.iou_amount ||
+      prefill.location ||
+      prefill.destination;
     if (!anyField) return;
     // Wait until accounts/categories are loaded so name-based prefill can resolve.
-    if ((prefill.account_name || prefill.category_name) && (accounts.length === 0 || categories.length === 0)) return;
+    if (
+      (prefill.account_name || prefill.category_name) &&
+      (accounts.length === 0 || categories.length === 0)
+    )
+      return;
     prefillAppliedRef.current = true;
     if (prefill.type) setType(prefill.type);
-    if (prefill.amount) { setAmount(prefill.amount); mark("amount"); }
-    if (prefill.source) { accountFromPrefillRef.current = true; setSourceId(prefill.source); mark("sourceId"); }
+    if (prefill.amount) {
+      setAmount(prefill.amount);
+      mark("amount");
+    }
+    if (prefill.source) {
+      accountFromPrefillRef.current = true;
+      setSourceId(prefill.source);
+      mark("sourceId");
+    }
     if (prefill.counterparty) setReimbCounterparty(prefill.counterparty);
     if (!prefill.source && prefill.account_name) {
       const needle = prefill.account_name.toLowerCase();
       const match =
         accounts.find((a) => a.name.toLowerCase() === needle) ||
         accounts.find((a) => a.name.toLowerCase().includes(needle));
-      if (match) { accountFromPrefillRef.current = true; setSourceId(match.id); mark("sourceId"); }
+      if (match) {
+        accountFromPrefillRef.current = true;
+        setSourceId(match.id);
+        mark("sourceId");
+      }
     }
-    if (prefill.category) { setCategoryId(prefill.category); }
-    else if (prefill.category_name) {
+    if (prefill.category) {
+      setCategoryId(prefill.category);
+    } else if (prefill.category_name) {
       const needle = prefill.category_name.toLowerCase();
       const match =
         categories.find((c) => c.name.toLowerCase() === needle) ||
@@ -614,7 +692,9 @@ export function TransactionForm({
       setIsReimbursable(true);
       if (prefill.iou_with) setReimbCounterparty(prefill.iou_with);
       if (prefill.iou_amount) {
-        const cur = prefill.iou_with ? ` (${prefill.iou_with}: ${prefill.iou_amount})` : ` (owed: ${prefill.iou_amount})`;
+        const cur = prefill.iou_with
+          ? ` (${prefill.iou_with}: ${prefill.iou_amount})`
+          : ` (owed: ${prefill.iou_amount})`;
         setReimbReason((prev) => (prev ? prev : `Share owed${cur}`));
       }
     }
@@ -627,12 +707,17 @@ export function TransactionForm({
     if (isEdit || accountFromPrefillRef.current) return;
     if (sourceId || accounts.length === 0) return;
     const counts = new Map<string, number>();
-    (recentQ.data ?? []).forEach((t) => counts.set(t.source_account_id, (counts.get(t.source_account_id) ?? 0) + 1));
+    (recentQ.data ?? []).forEach((t) =>
+      counts.set(t.source_account_id, (counts.get(t.source_account_id) ?? 0) + 1),
+    );
     let best = accounts[0]?.id;
     let bestN = -1;
     for (const a of accounts) {
       const n = counts.get(a.id) ?? 0;
-      if (n > bestN) { bestN = n; best = a.id; }
+      if (n > bestN) {
+        bestN = n;
+        best = a.id;
+      }
     }
     if (best) setSourceId(best);
   }, [accounts, recentQ.data, sourceId, isEdit]);
@@ -665,7 +750,10 @@ export function TransactionForm({
     for (const l of reimbLinksQ.data ?? []) {
       if (!entryRowIds.has(l.settling_transaction_id)) continue;
       const row = m.get(l.settling_transaction_id) ?? new Map<string, number>();
-      row.set(l.original_transaction_id, (row.get(l.original_transaction_id) ?? 0) + Number(l.amount));
+      row.set(
+        l.original_transaction_id,
+        (row.get(l.original_transaction_id) ?? 0) + Number(l.amount),
+      );
       m.set(l.settling_transaction_id, row);
     }
     return m;
@@ -673,7 +761,13 @@ export function TransactionForm({
 
   // The lines of the income that can repay expenses: the whole income, or
   // each split line. `rowId` is the existing row when editing.
-  type RefundLine = { key: string; rowId: string | null; amount: number; categoryId: string | null; picks: RefundPicks };
+  type RefundLine = {
+    key: string;
+    rowId: string | null;
+    amount: number;
+    categoryId: string | null;
+    picks: RefundPicks;
+  };
   const refundLines = React.useMemo<RefundLine[]>(() => {
     if (type !== "income") return [];
     if (splitMode) {
@@ -685,7 +779,15 @@ export function TransactionForm({
         picks: s.refunds,
       }));
     }
-    return [{ key: "single", rowId: isEdit && editId ? editId : null, amount: amountNum ?? 0, categoryId: categoryId || null, picks: refundPicks }];
+    return [
+      {
+        key: "single",
+        rowId: isEdit && editId ? editId : null,
+        amount: amountNum ?? 0,
+        categoryId: categoryId || null,
+        picks: refundPicks,
+      },
+    ];
   }, [type, splitMode, slices, entryRowIds, isEdit, editId, amountNum, categoryId, refundPicks]);
 
   // Expenses to show: search results in the income's currency, plus the ones
@@ -699,17 +801,29 @@ export function TransactionForm({
   const refundAccountIds = React.useMemo(() => {
     const all = accountsQ.data ?? [];
     return {
-      same: all.filter((a) => a.currency_code === incomeCurrency).map((a) => a.id).sort(),
-      other: all.filter((a) => a.currency_code !== incomeCurrency).map((a) => a.id).sort(),
+      same: all
+        .filter((a) => a.currency_code === incomeCurrency)
+        .map((a) => a.id)
+        .sort(),
+      other: all
+        .filter((a) => a.currency_code !== incomeCurrency)
+        .map((a) => a.id)
+        .sort(),
     };
   }, [accountsQ.data, incomeCurrency]);
   const refundSearchQ = useQuery({
-    queryKey: ["refund_candidates", refundAccountIds.same, refundAccountIds.other, refundQueryDebounced],
-    queryFn: () => fetchRefundCandidates({
-      accountIds: refundAccountIds.same,
-      otherAccountIds: refundAccountIds.other,
-      query: refundQueryDebounced,
-    }),
+    queryKey: [
+      "refund_candidates",
+      refundAccountIds.same,
+      refundAccountIds.other,
+      refundQueryDebounced,
+    ],
+    queryFn: () =>
+      fetchRefundCandidates({
+        accountIds: refundAccountIds.same,
+        otherAccountIds: refundAccountIds.other,
+        query: refundQueryDebounced,
+      }),
     enabled: type === "income" && !!incomeCurrency,
     staleTime: 30_000,
   });
@@ -730,37 +844,52 @@ export function TransactionForm({
     for (const t of refundSearchQ.data?.rows ?? []) if (!m.has(t.id)) m.set(t.id, t);
     return m;
   }, [refundKnownQ.data, refundSearchQ.data]);
-  const refundCandidates = React.useMemo(() => [...refundExpenseById.values()], [refundExpenseById]);
+  const refundCandidates = React.useMemo(
+    () => [...refundExpenseById.values()],
+    [refundExpenseById],
+  );
   // What each expense can still take from one line: its amount, less what
   // other incomes and the other lines of this one pay towards it.
-  const refundOpenFor = React.useCallback((lineKey: string) => {
-    const m = new Map<string, number>();
-    for (const t of refundCandidates) {
-      let other = linkedElsewhere.get(t.id) ?? 0;
-      for (const line of refundLines) if (line.key !== lineKey) other += Number(line.picks[t.id]?.amount) || 0;
-      m.set(t.id, Math.max(0, Math.round((Number(t.amount) - other) * 100) / 100));
-    }
-    return m;
-  }, [refundCandidates, linkedElsewhere, refundLines]);
+  const refundOpenFor = React.useCallback(
+    (lineKey: string) => {
+      const m = new Map<string, number>();
+      for (const t of refundCandidates) {
+        let other = linkedElsewhere.get(t.id) ?? 0;
+        for (const line of refundLines)
+          if (line.key !== lineKey) other += Number(line.picks[t.id]?.amount) || 0;
+        m.set(t.id, Math.max(0, Math.round((Number(t.amount) - other) * 100) / 100));
+      }
+      return m;
+    },
+    [refundCandidates, linkedElsewhere, refundLines],
+  );
   const refundExistingFor = React.useCallback(
-    (rowId: string | null) => new Set(rowId ? [...(existingLinksByRow.get(rowId)?.keys() ?? [])] : []),
+    (rowId: string | null) =>
+      new Set(rowId ? [...(existingLinksByRow.get(rowId)?.keys() ?? [])] : []),
     [existingLinksByRow],
   );
-  const refundLockedFor = React.useCallback((rowId: string | null) => {
-    const out = new Set<string>();
-    for (const id of refundExistingFor(rowId)) {
-      const st = refundExpenseById.get(id)?.reimbursable_status;
-      if (st === "written_off" || st === "cancelled") out.add(id);
-    }
-    return out;
-  }, [refundExistingFor, refundExpenseById]);
+  const refundLockedFor = React.useCallback(
+    (rowId: string | null) => {
+      const out = new Set<string>();
+      for (const id of refundExistingFor(rowId)) {
+        const st = refundExpenseById.get(id)?.reimbursable_status;
+        if (st === "written_off" || st === "cancelled") out.add(id);
+      }
+      return out;
+    },
+    [refundExistingFor, refundExpenseById],
+  );
 
   // The income's rows as they will be saved: each line in parts, one per
   // category; the first part of a line keeps the line's row.
-  const refundPlan = React.useMemo(() => refundLines.map((line) => ({
-    line,
-    parts: planIncomeParts(line.amount, line.categoryId, line.picks, refundOpenFor(line.key)),
-  })), [refundLines, refundOpenFor]);
+  const refundPlan = React.useMemo(
+    () =>
+      refundLines.map((line) => ({
+        line,
+        parts: planIncomeParts(line.amount, line.categoryId, line.picks, refundOpenFor(line.key)),
+      })),
+    [refundLines, refundOpenFor],
+  );
   // Something that cannot be saved yet: an i18n key, or null.
   const refundIssue = React.useMemo(() => {
     for (const { line } of refundPlan) {
@@ -781,17 +910,23 @@ export function TransactionForm({
   // The category the booking shows: for an income whose picks decide it, the
   // first of its parts (the impact card's figures come from the database).
   const previewCategoryId =
-    type === "income" && !splitMode && hasNewRefundPick ? refundPlan[0]?.parts[0]?.categoryId ?? null : categoryId || null;
+    type === "income" && !splitMode && hasNewRefundPick
+      ? (refundPlan[0]?.parts[0]?.categoryId ?? null)
+      : categoryId || null;
   const refundCategoryOptions = React.useMemo(
     () => categories.map((c) => ({ id: c.id, name: c.name })),
     [categories],
   );
   /** The "Zahlt Ausgaben zurück" card for one line of the income. */
-  const renderRefundCard = (line: RefundLine, onChange: (next: RefundPicks) => void, extra: {
-    surplusCategoryId: string | null;
-    onSurplusCategoryChange: (id: string | null) => void;
-    onSplitSurplus?: () => void;
-  }) => (
+  const renderRefundCard = (
+    line: RefundLine,
+    onChange: (next: RefundPicks) => void,
+    extra: {
+      surplusCategoryId: string | null;
+      onSurplusCategoryChange: (id: string | null) => void;
+      onSplitSurplus?: () => void;
+    },
+  ) => (
     <RefundCard
       lineAmount={line.amount > 0 ? line.amount : null}
       picks={line.picks}
@@ -821,7 +956,9 @@ export function TransactionForm({
     <div className="space-y-1 rounded-md bg-muted px-3 py-2 text-sm">
       {parts.length <= 1 ? (
         <div>
-          {parts[0]?.categoryId ? categoryById.get(parts[0].categoryId)?.name : tr("refund.no_category")}
+          {parts[0]?.categoryId
+            ? categoryById.get(parts[0].categoryId)?.name
+            : tr("refund.no_category")}
           <span className="text-xs text-muted-foreground"> · {tr("refund.derived")}</span>
         </div>
       ) : (
@@ -829,7 +966,8 @@ export function TransactionForm({
           <div className="font-medium">{tr("refund.derived.split", { n: parts.length })}</div>
           {parts.map((p, i) => (
             <div key={i} className="tabular-nums">
-              {fmtMoney(p.amount, sourceAccount?.currency_symbol ?? mainSymbol)} · {p.categoryId ? categoryById.get(p.categoryId)?.name : tr("refund.no_category")}
+              {fmtMoney(p.amount, sourceAccount?.currency_symbol ?? mainSymbol)} ·{" "}
+              {p.categoryId ? categoryById.get(p.categoryId)?.name : tr("refund.no_category")}
             </div>
           ))}
           <div className="text-xs text-muted-foreground">{tr("refund.derived")}</div>
@@ -849,9 +987,16 @@ export function TransactionForm({
       categoryId,
       description,
       refunds: refundPicks,
-      isReimbursable, reimbCounterparty, reimbReason,
+      isReimbursable,
+      reimbCounterparty,
+      reimbReason,
     };
-    const second: Slice = { ...newSlice(), amount: surplus.toFixed(2), description, categoryId: "" };
+    const second: Slice = {
+      ...newSlice(),
+      amount: surplus.toFixed(2),
+      description,
+      categoryId: "",
+    };
     setSlices([first, second]);
     setRefundPicks({});
     setRefundSliceOpen(first.id);
@@ -862,12 +1007,20 @@ export function TransactionForm({
   // Editing an income: start from the expenses it repays today.
   const refundHydratedRef = React.useRef(false);
   React.useEffect(() => {
-    if (!isEdit || refundHydratedRef.current || !editQ.data || !reimbLinksQ.data || !hydratedRef.current) return;
+    if (
+      !isEdit ||
+      refundHydratedRef.current ||
+      !editQ.data ||
+      !reimbLinksQ.data ||
+      !hydratedRef.current
+    )
+      return;
     if (editQ.data.tx.type !== "income") return;
     refundHydratedRef.current = true;
     const picksOf = (rowId: string): RefundPicks => {
       const out: RefundPicks = {};
-      for (const [id, a] of existingLinksByRow.get(rowId) ?? []) out[id] = { amount: Math.round(a * 100) / 100 };
+      for (const [id, a] of existingLinksByRow.get(rowId) ?? [])
+        out[id] = { amount: Math.round(a * 100) / 100 };
       return out;
     };
     if (editQ.data.group && editQ.data.group.length > 1) {
@@ -918,14 +1071,24 @@ export function TransactionForm({
       destination_amount:
         type !== "transfer" ? null : isCrossCurrency ? num(destAmount) : receivedNum,
       difference_category_id:
-        type === "transfer" && !isCrossCurrency && receivedNum != null ? diffCategoryId || null : null,
+        type === "transfer" && !isCrossCurrency && receivedNum != null
+          ? diffCategoryId || null
+          : null,
       is_reimbursable: type !== "transfer" ? isReimbursable : false,
-      reimbursable_counterparty: type !== "transfer" && isReimbursable ? reimbCounterparty.trim() || null : null,
+      reimbursable_counterparty:
+        type !== "transfer" && isReimbursable ? reimbCounterparty.trim() || null : null,
     };
     const fee = type === "transfer" && feeOpen ? num(feeAmount) : null;
-    const feeRow = fee != null && feeCategoryId
-      ? { type: "expense", amount: fee, occurred_on: on, source_account_id: sourceId, category_id: feeCategoryId }
-      : null;
+    const feeRow =
+      fee != null && feeCategoryId
+        ? {
+            type: "expense",
+            amount: fee,
+            occurred_on: on,
+            source_account_id: sourceId,
+            category_id: feeCategoryId,
+          }
+        : null;
     const ops: PreviewOp[] = [];
     const og = editQ.data;
     // An income repaying expenses: its rows per category, and what the picks
@@ -936,13 +1099,21 @@ export function TransactionForm({
         parts.forEach((part, i) => {
           const row = { ...base, amount: part.amount, category_id: part.categoryId };
           const id = i === 0 ? line.rowId : null;
-          if (id) { kept.add(id); ops.push({ op: "update", id, row }); }
-          else ops.push({ op: "insert", row });
+          if (id) {
+            kept.add(id);
+            ops.push({ op: "update", id, row });
+          } else ops.push({ op: "insert", row });
         });
       }
       for (const id of entryRowIds) if (!kept.has(id)) ops.push({ op: "delete", id });
       for (const { line } of refundPlan) {
-        ops.push(...refundPreviewOps(line.picks, refundExpenseById as Map<string, PreviewExpense>, refundOpenFor(line.key)));
+        ops.push(
+          ...refundPreviewOps(
+            line.picks,
+            refundExpenseById as Map<string, PreviewExpense>,
+            refundOpenFor(line.key),
+          ),
+        );
       }
       return ops.length > 0 ? ops : null;
     }
@@ -981,10 +1152,33 @@ export function TransactionForm({
     }
     return ops;
   }, [
-    sourceId, amountNum, type, destId, date, isCrossCurrency, diffOpen, received, destAmount,
-    categoryId, diffCategoryId, isReimbursable, reimbCounterparty, feeOpen, feeAmount, feeCategoryId, editQ.data,
-    splitMode, slices, isEdit, editId, existingFeeTxId,
-    refundTouched, refundPlan, entryRowIds, refundExpenseById, refundOpenFor,
+    sourceId,
+    amountNum,
+    type,
+    destId,
+    date,
+    isCrossCurrency,
+    diffOpen,
+    received,
+    destAmount,
+    categoryId,
+    diffCategoryId,
+    isReimbursable,
+    reimbCounterparty,
+    feeOpen,
+    feeAmount,
+    feeCategoryId,
+    editQ.data,
+    splitMode,
+    slices,
+    isEdit,
+    editId,
+    existingFeeTxId,
+    refundTouched,
+    refundPlan,
+    entryRowIds,
+    refundExpenseById,
+    refundOpenFor,
   ]);
   // The rows that make up the entry being edited, so the preview can also show
   // it as if booked new: its slices, or the booking and its transfer fee.
@@ -995,7 +1189,9 @@ export function TransactionForm({
     if (existingFeeTxId) ids.push(existingFeeTxId);
     return ids;
   }, [isEdit, editQ.data, existingFeeTxId]);
-  const previewRequest = previewOps ? JSON.stringify({ ops: previewOps, entryIds: previewEntryIds }) : null;
+  const previewRequest = previewOps
+    ? JSON.stringify({ ops: previewOps, entryIds: previewEntryIds })
+    : null;
   // Ask once typing pauses, not on every keystroke.
   const [previewKey, setPreviewKey] = React.useState<string | null>(null);
   React.useEffect(() => {
@@ -1017,7 +1213,14 @@ export function TransactionForm({
   // Received no more than was paid on a same-currency transfer: that is a fee,
   // and the database refuses it. Said at the field, and saving waits for a fix.
   const receivedTooLow = (() => {
-    if (type !== "transfer" || isCrossCurrency || !diffOpen || received.trim() === "" || amountNum == null) return false;
+    if (
+      type !== "transfer" ||
+      isCrossCurrency ||
+      !diffOpen ||
+      received.trim() === "" ||
+      amountNum == null
+    )
+      return false;
     const n = Number(received.replace(",", "."));
     return !Number.isFinite(n) || n <= amountNum;
   })();
@@ -1061,16 +1264,16 @@ export function TransactionForm({
     });
   }, [splitMode, sourceId, amountNum, date, recentQ.data, isEdit, editId]);
 
-  const categoryById = React.useMemo(
-    () => new Map(categories.map((c) => [c.id, c])),
-    [categories],
-  );
+  const categoryById = React.useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
 
   // Remaining (open) amount per reimbursable original transaction.
   const remainingByOrig = React.useMemo(() => {
     const linked = new Map<string, number>();
     (reimbLinksQ.data ?? []).forEach((l: ReimbursementLink) => {
-      linked.set(l.original_transaction_id, (linked.get(l.original_transaction_id) ?? 0) + Number(l.amount));
+      linked.set(
+        l.original_transaction_id,
+        (linked.get(l.original_transaction_id) ?? 0) + Number(l.amount),
+      );
     });
     const out = new Map<string, number>();
     (openReimbQ.data ?? []).forEach((t) => {
@@ -1091,7 +1294,10 @@ export function TransactionForm({
     if ((prefill?.type ?? type) === "income") {
       const next: RefundPicks = {};
       for (const tx of txs) {
-        next[tx.id] = { amount: remainingByOrig.get(tx.id) ?? Number(tx.amount), decision: defaultDecision(tx) };
+        next[tx.id] = {
+          amount: remainingByOrig.get(tx.id) ?? Number(tx.amount),
+          decision: defaultDecision(tx),
+        };
       }
       setRefundTouched(true);
       setRefundPicks(next);
@@ -1120,7 +1326,15 @@ export function TransactionForm({
   });
 
   const applySuggestion = (s: Suggestion, mode: "sticky" | "all") => {
-    const prev = { amount, description, note, sourceId, categoryId, location, locationTouched: locationTouchedRef.current };
+    const prev = {
+      amount,
+      description,
+      note,
+      sourceId,
+      categoryId,
+      location,
+      locationTouched: locationTouchedRef.current,
+    };
     const d = s.draft;
     const shouldSet = (key: string, val: unknown) => {
       if (val == null || val === "") return false;
@@ -1143,8 +1357,11 @@ export function TransactionForm({
   const undoApply = () => {
     if (!appliedFrom) return;
     const p = appliedFrom.prev;
-    setAmount(p.amount); setDescription(p.description); setNote(p.note);
-    setSourceId(p.sourceId); setCategoryId(p.categoryId);
+    setAmount(p.amount);
+    setDescription(p.description);
+    setNote(p.note);
+    setSourceId(p.sourceId);
+    setCategoryId(p.categoryId);
     setLocation(p.location);
     locationTouchedRef.current = p.locationTouched;
     setAppliedFrom(null);
@@ -1160,8 +1377,15 @@ export function TransactionForm({
 
   const removeTagFrom = (text: string, tag: string): string => {
     // Remove `#tag` tokens (case-insensitive on tag name, word-bounded by tag chars).
-    const re = new RegExp(`(^|\\s)#${tag.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}(?![\\p{L}\\p{N}_-])`, "giu");
-    return text.replace(re, (_m, lead: string) => lead).replace(/[ \t]{2,}/g, " ").replace(/\s+$/g, "").replace(/^\s+/g, (s) => s);
+    const re = new RegExp(
+      `(^|\\s)#${tag.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}(?![\\p{L}\\p{N}_-])`,
+      "giu",
+    );
+    return text
+      .replace(re, (_m, lead: string) => lead)
+      .replace(/[ \t]{2,}/g, " ")
+      .replace(/\s+$/g, "")
+      .replace(/^\s+/g, (s) => s);
   };
   const removeTag = (tag: string) => {
     setNote(removeTagFrom(note, tag));
@@ -1169,7 +1393,9 @@ export function TransactionForm({
   };
 
   const reset = () => {
-    setAmount(""); setDescription(""); setNote("");
+    setAmount("");
+    setDescription("");
+    setNote("");
     setCategoryId(activeScope && type !== "transfer" ? activeScope.id : "");
     setDate(new Date());
     setTouched({});
@@ -1223,7 +1449,10 @@ export function TransactionForm({
    * gets its links and the expense changes in one apply_refund_links() call.
    */
   const saveIncomeWithRefunds = async (andNew: boolean) => {
-    if (refundIssue) { toast.error(tr(refundIssue)); return; }
+    if (refundIssue) {
+      toast.error(tr(refundIssue));
+      return;
+    }
     const occurred_on = format(date, "yyyy-MM-dd");
     const sharedNote = note.trim();
     const sliceById = new Map(slices.map((x) => [x.id, x]));
@@ -1245,42 +1474,76 @@ export function TransactionForm({
         links: part.links,
       }));
     });
-    if (rows.length === 0 || rows.some((r) => !(r.amount > 0))) { toast.error(tr("add.split.toast.amounts")); return; }
+    if (rows.length === 0 || rows.some((r) => !(r.amount > 0))) {
+      toast.error(tr("add.split.toast.amounts"));
+      return;
+    }
     const og = editQ.data;
     const wasSplit = isEdit && !!og?.tx.split_group_id;
-    if (wasSplit && rows.length < 2) { toast.error(tr("add.split.toast.min")); return; }
+    if (wasSplit && rows.length < 2) {
+      toast.error(tr("add.split.toast.min"));
+      return;
+    }
 
     setSaving(true);
     let ids: string[];
     if (rows.length === 1 && !wasSplit) {
       const r = rows[0];
       const payload = {
-        occurred_on, amount: r.amount, description: r.description, note: r.note, type,
-        source_account_id: sourceId, destination_account_id: null, category_id: r.category_id,
-        destination_amount: null, difference_category_id: null,
-        is_reimbursable: r.is_reimbursable, reimbursable_counterparty: r.reimbursable_counterparty,
+        occurred_on,
+        amount: r.amount,
+        description: r.description,
+        note: r.note,
+        type,
+        source_account_id: sourceId,
+        destination_account_id: null,
+        category_id: r.category_id,
+        destination_amount: null,
+        difference_category_id: null,
+        is_reimbursable: r.is_reimbursable,
+        reimbursable_counterparty: r.reimbursable_counterparty,
         reimbursable_reason: r.reimbursable_reason,
-        fee_amount: null, fee_category_id: null, fee_transaction_id: null,
+        fee_amount: null,
+        fee_category_id: null,
+        fee_transaction_id: null,
         ...locationToColumns(location),
       };
       if (isEdit && editId) {
         const { error } = await supabase.from("transactions").update(payload).eq("id", editId);
-        if (error) { setSaving(false); toast.error(error.message); return; }
+        if (error) {
+          setSaving(false);
+          toast.error(error.message);
+          return;
+        }
         ids = [editId];
       } else {
-        const { data, error } = await supabase.from("transactions").insert(payload).select("id").single();
-        if (error || !data) { setSaving(false); toast.error(error?.message ?? "insert failed"); return; }
+        const { data, error } = await supabase
+          .from("transactions")
+          .insert(payload)
+          .select("id")
+          .single();
+        if (error || !data) {
+          setSaving(false);
+          toast.error(error?.message ?? "insert failed");
+          return;
+        }
         ids = [data.id as string];
       }
     } else {
       // Rows of the entry that are not kept lose their links with them.
       const keptIds = new Set(rows.map((r) => r.id).filter(Boolean));
       const lost = [...entryRowIds].filter((id) => !keptIds.has(id) && existingLinksByRow.has(id));
-      if (lost.length > 0 && !(typeof window !== "undefined" && window.confirm(tr("add.split.confirm_remove_linked")))) {
+      if (
+        lost.length > 0 &&
+        !(typeof window !== "undefined" && window.confirm(tr("add.split.confirm_remove_linked")))
+      ) {
         setSaving(false);
         return;
       }
-      const groupId = og?.tx.split_group_id ?? (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
+      const groupId =
+        og?.tx.split_group_id ??
+        globalThis.crypto?.randomUUID?.() ??
+        Math.random().toString(36).slice(2);
       const { data, error } = await supabase.rpc("save_split_group", {
         p_group_id: groupId,
         p_occurred_on: occurred_on,
@@ -1289,7 +1552,11 @@ export function TransactionForm({
         p_slices: rows.map(({ links: _links, ...r }) => r),
         p_location: locationToColumns(location),
       });
-      if (error) { setSaving(false); toast.error(error.message); return; }
+      if (error) {
+        setSaving(false);
+        toast.error(error.message);
+        return;
+      }
       ids = (data ?? []) as string[];
     }
 
@@ -1309,8 +1576,13 @@ export function TransactionForm({
       void notifyCreated({ data: { ids } }).catch(() => {});
       if (draftAttachments.length > 0 && ids[0]) {
         const att = draftAttachments.map((a) => ({
-          transaction_id: ids[0], statement_id: null, source: a.source, display_name: a.display_name,
-          link_url: a.link_url, external_id: a.external_id ?? null, external_path: a.external_path ?? null,
+          transaction_id: ids[0],
+          statement_id: null,
+          source: a.source,
+          display_name: a.display_name,
+          link_url: a.link_url,
+          external_id: a.external_id ?? null,
+          external_path: a.external_path ?? null,
         }));
         const { error: aErr } = await supabase.from("transaction_attachments").insert(att);
         if (aErr) toast.error(aErr.message);
@@ -1321,20 +1593,41 @@ export function TransactionForm({
     toast.success(tr("toast.saved"));
     void noticeReopenedScopes();
     qc.invalidateQueries();
-    if (isEdit) { goBack(); return; }
+    if (isEdit) {
+      goBack();
+      return;
+    }
     if (ids[0] && (await linkStatementLine(ids[0]))) return;
     if (ids[0] && (await linkPendingRow(ids[0]))) return;
-    if (andNew) { setSplitMode(false); setSlices([newSlice(), newSlice()]); reset(); }
-    else navigate({ to: "/" });
+    if (andNew) {
+      setSplitMode(false);
+      setSlices([newSlice(), newSlice()]);
+      reset();
+    } else navigate({ to: "/" });
   };
 
   const save = async (andNew: boolean) => {
     const amt = Number(amount.replace(",", "."));
-    if (!amt || amt <= 0) { toast.error(tr("toast.amount_required")); return; }
-    if (!sourceId) { toast.error(tr("toast.account_required")); return; }
-    if (type === "transfer" && !destId) { toast.error(tr("toast.dest_required")); return; }
-    if (type === "transfer" && destId === sourceId) { toast.error(tr("toast.dest_must_differ")); return; }
-    if (location && !location.label?.trim()) { toast.error(tr("loc.error.label_required")); return; }
+    if (!amt || amt <= 0) {
+      toast.error(tr("toast.amount_required"));
+      return;
+    }
+    if (!sourceId) {
+      toast.error(tr("toast.account_required"));
+      return;
+    }
+    if (type === "transfer" && !destId) {
+      toast.error(tr("toast.dest_required"));
+      return;
+    }
+    if (type === "transfer" && destId === sourceId) {
+      toast.error(tr("toast.dest_must_differ"));
+      return;
+    }
+    if (location && !location.label?.trim()) {
+      toast.error(tr("loc.error.label_required"));
+      return;
+    }
 
     // Validate optional transfer fee
     const feeAmtNum =
@@ -1391,7 +1684,10 @@ export function TransactionForm({
 
     // Split path: insert N rows sharing a split_group_id
     if (splitMode && type !== "transfer") {
-      if (slices.length < 2) { toast.error(tr("add.split.toast.min")); return; }
+      if (slices.length < 2) {
+        toast.error(tr("add.split.toast.min"));
+        return;
+      }
       const sharedNote = note.trim();
       const parsed = slices.map((s) => {
         const sliceNote = s.note.trim();
@@ -1403,11 +1699,14 @@ export function TransactionForm({
           description: s.description.trim() || null,
           note: merged || null,
           isReimbursable: !!s.isReimbursable,
-          reimbCounterparty: s.isReimbursable ? (s.reimbCounterparty.trim() || null) : null,
-          reimbReason: s.isReimbursable ? (s.reimbReason.trim() || null) : null,
+          reimbCounterparty: s.isReimbursable ? s.reimbCounterparty.trim() || null : null,
+          reimbReason: s.isReimbursable ? s.reimbReason.trim() || null : null,
         };
       });
-      if (parsed.some((p) => !p.amount || p.amount <= 0)) { toast.error(tr("add.split.toast.amounts")); return; }
+      if (parsed.some((p) => !p.amount || p.amount <= 0)) {
+        toast.error(tr("add.split.toast.amounts"));
+        return;
+      }
 
       setSaving(true);
       const occurred_on = format(date, "yyyy-MM-dd");
@@ -1423,7 +1722,8 @@ export function TransactionForm({
         );
         const groupId =
           tx.split_group_id ??
-          (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
+          globalThis.crypto?.randomUUID?.() ??
+          Math.random().toString(36).slice(2);
 
         // Slices that are already rows keep their id (and with it their
         // reimbursement links and attachments); new ones go in with id null.
@@ -1450,9 +1750,7 @@ export function TransactionForm({
           if (!prev) continue;
           const becameNotReimb = !!prev.is_reimbursable && !r.is_reimbursable;
           if (!becameNotReimb) continue;
-          const hasLink = (reimbLinksQ.data ?? []).some(
-            (l) => l.original_transaction_id === r.id,
-          );
+          const hasLink = (reimbLinksQ.data ?? []).some((l) => l.original_transaction_id === r.id);
           const hasWriteoff = !!prev.reimbursable_writeoff_transaction_id;
           if (hasLink || hasWriteoff) {
             setSaving(false);
@@ -1470,8 +1768,7 @@ export function TransactionForm({
         );
         if (lostLinkIds.length > 0) {
           const ok =
-            typeof window !== "undefined" &&
-            window.confirm(tr("add.split.confirm_remove_linked"));
+            typeof window !== "undefined" && window.confirm(tr("add.split.confirm_remove_linked"));
           if (!ok) {
             setSaving(false);
             return;
@@ -1490,7 +1787,11 @@ export function TransactionForm({
           p_slices: rows,
           p_location: locationToColumns(location),
         });
-        if (saveErr) { setSaving(false); toast.error(saveErr.message); return; }
+        if (saveErr) {
+          setSaving(false);
+          toast.error(saveErr.message);
+          return;
+        }
 
         setSaving(false);
         toast.success(tr("toast.saved"));
@@ -1499,7 +1800,7 @@ export function TransactionForm({
         goBack();
         return;
       }
-      const groupId = (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
+      const groupId = globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
       const rows = parsed.map((p) => ({
         occurred_on,
         amount: p.amount,
@@ -1520,18 +1821,24 @@ export function TransactionForm({
         .insert(rows)
         .select("id");
       setSaving(false);
-      if (error) { toast.error(error.message); return; }
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
       const newIds = (insRows ?? []).map((r) => r.id).filter((x): x is string => !!x);
       if (newIds.length > 0) {
         void notifyCreated({ data: { ids: newIds } }).catch(() => {});
       }
       toast.success(tr("toast.saved"));
-        void noticeReopenedScopes();
+      void noticeReopenedScopes();
       qc.invalidateQueries();
       if (newIds.length > 0 && (await linkStatementLine(newIds[0]))) return;
       if (newIds.length > 0 && (await linkPendingRow(newIds[0]))) return;
-      if (andNew) { setSplitMode(false); setSlices([newSlice(), newSlice()]); reset(); }
-      else navigate({ to: "/" });
+      if (andNew) {
+        setSplitMode(false);
+        setSlices([newSlice(), newSlice()]);
+        reset();
+      } else navigate({ to: "/" });
       return;
     }
 
@@ -1543,8 +1850,9 @@ export function TransactionForm({
     let feeTxId: string | null = existingFeeTxId;
     if (type === "transfer" && feeAmtNum > 0 && feeCategoryId) {
       if (!existingFeeTxId) {
-        const feeDesc =
-          (description.trim() ? `${tr("add.transfer.fee.tx_prefix")}: ${description.trim()}` : tr("add.transfer.fee.tx_default"));
+        const feeDesc = description.trim()
+          ? `${tr("add.transfer.fee.tx_prefix")}: ${description.trim()}`
+          : tr("add.transfer.fee.tx_default");
         const { data: feeIns, error: feeErr } = await supabase
           .from("transactions")
           .insert({
@@ -1560,7 +1868,11 @@ export function TransactionForm({
           })
           .select("id")
           .single();
-        if (feeErr) { setSaving(false); toast.error(feeErr.message); return; }
+        if (feeErr) {
+          setSaving(false);
+          toast.error(feeErr.message);
+          return;
+        }
         feeTxId = feeIns?.id ?? null;
       } else {
         // Update the existing linked fee tx amount / category / date.
@@ -1573,7 +1885,11 @@ export function TransactionForm({
             category_id: feeCategoryId,
           })
           .eq("id", existingFeeTxId);
-        if (feeUpdErr) { setSaving(false); toast.error(feeUpdErr.message); return; }
+        if (feeUpdErr) {
+          setSaving(false);
+          toast.error(feeUpdErr.message);
+          return;
+        }
       }
     } else if (existingFeeTxId) {
       // Fee was removed by the user (or type changed off transfer). Delete
@@ -1583,7 +1899,11 @@ export function TransactionForm({
         .from("transactions")
         .delete()
         .eq("id", existingFeeTxId);
-      if (feeDelErr) { setSaving(false); toast.error(feeDelErr.message); return; }
+      if (feeDelErr) {
+        setSaving(false);
+        toast.error(feeDelErr.message);
+        return;
+      }
       feeTxId = null;
     }
 
@@ -1595,17 +1915,19 @@ export function TransactionForm({
       type,
       source_account_id: sourceId,
       destination_account_id: type === "transfer" ? destId : null,
-      category_id: type === "transfer" ? null : (categoryId || null),
+      category_id: type === "transfer" ? null : categoryId || null,
       destination_amount: type === "transfer" ? destAmountNum : null,
       difference_category_id:
-        type === "transfer" && !isCrossCurrency && destAmountNum != null ? diffCategoryId || null : null,
+        type === "transfer" && !isCrossCurrency && destAmountNum != null
+          ? diffCategoryId || null
+          : null,
       // Reimbursable flag only meaningful for expenses (or income that you
       // expect to receive — rare, but allowed). Transfers can't be reimbursable.
       is_reimbursable: type !== "transfer" ? isReimbursable : false,
       reimbursable_counterparty:
-        type !== "transfer" && isReimbursable ? (reimbCounterparty.trim() || null) : null,
+        type !== "transfer" && isReimbursable ? reimbCounterparty.trim() || null : null,
       reimbursable_reason:
-        type !== "transfer" && isReimbursable ? (reimbReason.trim() || null) : null,
+        type !== "transfer" && isReimbursable ? reimbReason.trim() || null : null,
       fee_amount: type === "transfer" && feeAmtNum > 0 ? feeAmtNum : null,
       fee_category_id: type === "transfer" && feeAmtNum > 0 ? feeCategoryId : null,
       fee_transaction_id: type === "transfer" && feeAmtNum > 0 ? feeTxId : null,
@@ -1621,7 +1943,11 @@ export function TransactionForm({
     );
     if (isEdit && editId) {
       const { error } = await supabase.from("transactions").update(payload).eq("id", editId);
-      if (error) { setSaving(false); toast.error(error.message); return; }
+      if (error) {
+        setSaving(false);
+        toast.error(error.message);
+        return;
+      }
       // Reimbursables covered by this income: the card's list replaces the
       // current links in one step when it was changed. Otherwise a single
       // link follows the amount, so the original's status stays correct.
@@ -1643,7 +1969,7 @@ export function TransactionForm({
       }
       setSaving(false);
       toast.success(tr("toast.saved"));
-        void noticeReopenedScopes();
+      void noticeReopenedScopes();
       qc.invalidateQueries();
       goBack();
       return;
@@ -1653,7 +1979,11 @@ export function TransactionForm({
       .insert(payload)
       .select("id")
       .single();
-    if (error) { setSaving(false); toast.error(error.message); return; }
+    if (error) {
+      setSaving(false);
+      toast.error(error.message);
+      return;
+    }
     const newTxId = inserted?.id as string | undefined;
     if (newTxId) {
       void notifyCreated({ data: { ids: [newTxId] } }).catch(() => {});
@@ -1688,11 +2018,12 @@ export function TransactionForm({
     }
     setSaving(false);
     toast.success(tr("toast.saved"));
-        void noticeReopenedScopes();
+    void noticeReopenedScopes();
     qc.invalidateQueries();
     if (newTxId && (await linkStatementLine(newTxId))) return;
     if (newTxId && (await linkPendingRow(newTxId))) return;
-    if (andNew) reset(); else navigate({ to: "/" });
+    if (andNew) reset();
+    else navigate({ to: "/" });
   };
 
   // Global keyboard shortcuts
@@ -1721,13 +2052,28 @@ export function TransactionForm({
       }
       // Alt+1/2/3 — switch type
       if (e.altKey && !e.ctrlKey && !e.metaKey) {
-        if (e.key === "1") { e.preventDefault(); setType("expense"); return; }
-        if (e.key === "2") { e.preventDefault(); setType("income"); return; }
-        if (e.key === "3") { e.preventDefault(); setType("transfer"); return; }
+        if (e.key === "1") {
+          e.preventDefault();
+          setType("expense");
+          return;
+        }
+        if (e.key === "2") {
+          e.preventDefault();
+          setType("income");
+          return;
+        }
+        if (e.key === "3") {
+          e.preventDefault();
+          setType("transfer");
+          return;
+        }
         // Alt+0 → use-all from best suggestion
         if (e.key === "0") {
           const best = suggestionsRef.current[0];
-          if (best) { e.preventDefault(); applyRef.current(best, "all"); }
+          if (best) {
+            e.preventDefault();
+            applyRef.current(best, "all");
+          }
           return;
         }
         // Alt+1..9 already handled above for 1/2/3 (type switch wins by design).
@@ -1735,7 +2081,10 @@ export function TransactionForm({
         const n = Number(e.key);
         if (n >= 4 && n <= 9) {
           const s = suggestionsRef.current[n - 1];
-          if (s) { e.preventDefault(); applyRef.current(s, "sticky"); }
+          if (s) {
+            e.preventDefault();
+            applyRef.current(s, "sticky");
+          }
           return;
         }
       }
@@ -1756,20 +2105,23 @@ export function TransactionForm({
     return () => window.removeEventListener("keydown", handler);
   }, [helpOpen]);
 
-  const shortcutRows = React.useMemo(() => [
-    { keys: "Ctrl+Enter / Cmd+Enter", label: tr("kbd.save") },
-    { keys: "Ctrl+Shift+Enter / Cmd+Shift+Enter", label: tr("kbd.save_new") },
-    { keys: "Alt+1", label: tr("kbd.expense") },
-    { keys: "Alt+2", label: tr("kbd.income") },
-    { keys: "Alt+3", label: tr("kbd.transfer") },
-    { keys: "Alt+0", label: tr("kbd.suggest_all") },
-    { keys: "Alt+4 … Alt+9", label: tr("kbd.suggestion", { n: "N" }) },
-    { keys: "← → ↑ ↓", label: tr("kbd.picker_arrows") },
-    { keys: "/ / Ctrl+K", label: tr("kbd.picker_search") },
-    { keys: "+ / -", label: tr("kbd.date_step_day") },
-    { keys: "PgUp / PgDn", label: tr("kbd.date_step_month") },
-    { keys: "?", label: tr("kbd.help") },
-  ], [tr]);
+  const shortcutRows = React.useMemo(
+    () => [
+      { keys: "Ctrl+Enter / Cmd+Enter", label: tr("kbd.save") },
+      { keys: "Ctrl+Shift+Enter / Cmd+Shift+Enter", label: tr("kbd.save_new") },
+      { keys: "Alt+1", label: tr("kbd.expense") },
+      { keys: "Alt+2", label: tr("kbd.income") },
+      { keys: "Alt+3", label: tr("kbd.transfer") },
+      { keys: "Alt+0", label: tr("kbd.suggest_all") },
+      { keys: "Alt+4 … Alt+9", label: tr("kbd.suggestion", { n: "N" }) },
+      { keys: "← → ↑ ↓", label: tr("kbd.picker_arrows") },
+      { keys: "/ / Ctrl+K", label: tr("kbd.picker_search") },
+      { keys: "+ / -", label: tr("kbd.date_step_day") },
+      { keys: "PgUp / PgDn", label: tr("kbd.date_step_month") },
+      { keys: "?", label: tr("kbd.help") },
+    ],
+    [tr],
+  );
 
   const typeBtn = (t: TxType, label: string, Icon: typeof ArrowDown) => (
     <button
@@ -1787,14 +2139,18 @@ export function TransactionForm({
   return (
     <AppShell>
       <div className="space-y-5">
-        <h1 className="text-2xl font-semibold tracking-tight">{isEdit ? tr("edit.title") : tr("add.title")}</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          {isEdit ? tr("edit.title") : tr("add.title")}
+        </h1>
         {activeScope && type !== "transfer" && (
-          <div className={cn(
-            "flex items-start gap-3 rounded-lg border px-3 py-2 text-sm",
-            scopeSkipped
-              ? "border-muted bg-muted/30 text-muted-foreground"
-              : "border-primary/40 bg-primary/5 text-foreground",
-          )}>
+          <div
+            className={cn(
+              "flex items-start gap-3 rounded-lg border px-3 py-2 text-sm",
+              scopeSkipped
+                ? "border-muted bg-muted/30 text-muted-foreground"
+                : "border-primary/40 bg-primary/5 text-foreground",
+            )}
+          >
             <Target className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
             <div className="flex-1">
               <div className="font-medium">
@@ -1803,7 +2159,9 @@ export function TransactionForm({
                   : tr("add.scope.banner_active", { name: activeScope.name })}
               </div>
               <div className="text-xs text-muted-foreground">
-                {scopeSkipped ? tr("add.scope.banner_skipped_hint") : tr("add.scope.banner_active_hint")}
+                {scopeSkipped
+                  ? tr("add.scope.banner_skipped_hint")
+                  : tr("add.scope.banner_active_hint")}
               </div>
             </div>
             <Button
@@ -1849,7 +2207,10 @@ export function TransactionForm({
                 ref={amountRef}
                 placeholder="0.00"
                 value={amount}
-                onChange={(e) => { setAmount(e.target.value.replace(/[^0-9.,]/g, "")); mark("amount"); }}
+                onChange={(e) => {
+                  setAmount(e.target.value.replace(/[^0-9.,]/g, ""));
+                  mark("amount");
+                }}
                 onBlur={() => setAmount((v) => formatAmountInput(v))}
                 className={cn(
                   "mt-1 h-auto border-0 bg-transparent p-0 text-center text-5xl font-bold tabular-nums shadow-none focus-visible:ring-0",
@@ -1862,7 +2223,10 @@ export function TransactionForm({
                 transactions={recentQ.data ?? []}
                 type={type}
                 symbol={symbol}
-                onPick={(a) => { setAmount(a); mark("amount"); }}
+                onPick={(a) => {
+                  setAmount(a);
+                  mark("amount");
+                }}
                 excludeTransactionIds={ruleTxIdsQ.data}
               />
             </div>
@@ -1870,42 +2234,53 @@ export function TransactionForm({
         </Card>
 
         {/* Smart suggestions — reserve space to avoid layout jumps (hidden in edit mode) */}
-        {!isEdit && <div className="space-y-2">
-          <div className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {tr("add.suggestions")}
-          </div>
-          <div className="h-[120px]">
-            {suggestions.length > 0 ? (
-              <SuggestionRow
-                suggestions={suggestions}
-                symbol={symbol}
-                applyAllLabel={tr("add.suggest.use_all")}
-                onApply={applySuggestion}
-              />
-            ) : (
-              <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-border/60 px-3 text-center text-xs text-muted-foreground">
-                {tr("add.suggest.empty")}
+        {!isEdit && (
+          <div className="space-y-2">
+            <div className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {tr("add.suggestions")}
+            </div>
+            <div className="h-[120px]">
+              {suggestions.length > 0 ? (
+                <SuggestionRow
+                  suggestions={suggestions}
+                  symbol={symbol}
+                  applyAllLabel={tr("add.suggest.use_all")}
+                  onApply={applySuggestion}
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-border/60 px-3 text-center text-xs text-muted-foreground">
+                  {tr("add.suggest.empty")}
+                </div>
+              )}
+            </div>
+            {appliedFrom && (
+              <div className="flex items-center justify-between rounded-md bg-muted px-3 py-1.5 text-xs text-muted-foreground">
+                <span>{tr("add.suggest.applied")}</span>
+                <button
+                  type="button"
+                  onClick={undoApply}
+                  className="text-primary underline-offset-2 hover:underline"
+                >
+                  {tr("add.suggest.undo")}
+                </button>
               </div>
             )}
           </div>
-          {appliedFrom && (
-            <div className="flex items-center justify-between rounded-md bg-muted px-3 py-1.5 text-xs text-muted-foreground">
-              <span>{tr("add.suggest.applied")}</span>
-              <button type="button" onClick={undoApply} className="text-primary underline-offset-2 hover:underline">
-                {tr("add.suggest.undo")}
-              </button>
-            </div>
-          )}
-        </div>}
+        )}
 
         {/* Account(s) */}
         <div className="space-y-3">
           <div>
-            <Label className="mb-1.5 block">{type === "transfer" ? tr("add.from_account") : tr("add.account")}</Label>
+            <Label className="mb-1.5 block">
+              {type === "transfer" ? tr("add.from_account") : tr("add.account")}
+            </Label>
             <ChipPicker
               items={accountChips}
               value={sourceId || null}
-              onChange={(v) => { setSourceId(v); mark("sourceId"); }}
+              onChange={(v) => {
+                setSourceId(v);
+                mark("sourceId");
+              }}
               placeholder={accounts.length ? tr("add.account") : tr("add.no_accounts")}
               moreLabel={tr("picker.more")}
               searchPlaceholder={tr("picker.search")}
@@ -1913,7 +2288,9 @@ export function TransactionForm({
             />
             {accounts.length === 0 && (
               <p className="mt-1 text-xs text-muted-foreground">
-                <Link to="/settings" className="text-primary underline-offset-2 hover:underline">{tr("add.create_first_account")}</Link>
+                <Link to="/settings" className="text-primary underline-offset-2 hover:underline">
+                  {tr("add.create_first_account")}
+                </Link>
               </p>
             )}
           </div>
@@ -1978,112 +2355,130 @@ export function TransactionForm({
                 </div>
               )}
               {/* Received more than paid, same currency (gift card at a discount) */}
-              {sourceAccount && destAccount && !isCrossCurrency && (() => {
-                if (!diffOpen) {
-                  return (
-                    <button
-                      type="button"
-                      onClick={() => setDiffOpen(true)}
-                      className="mt-2 mr-4 text-xs text-primary underline-offset-2 hover:underline"
-                    >
-                      + {tr("add.transfer.diff.add")}
-                    </button>
-                  );
-                }
-                const paid = Number(amount.replace(",", "."));
-                const got = Number(received.replace(",", "."));
-                const diff = Number.isFinite(paid) && Number.isFinite(got) && received.trim() !== "" ? got - paid : null;
-                const target = diffCategoryId ? categoryById.get(diffCategoryId) : null;
-                return (
-                  <div className="mt-3 rounded-md border border-dashed border-border/60 p-3">
-                    <div className="mb-2 flex items-center justify-between">
-                      <Label htmlFor="received-amount" className="text-xs">
-                        {tr("add.transfer.diff.label", { sym: destSymbol })}
-                      </Label>
-                      <Button
+              {sourceAccount &&
+                destAccount &&
+                !isCrossCurrency &&
+                (() => {
+                  if (!diffOpen) {
+                    return (
+                      <button
                         type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => {
-                          setDiffOpen(false);
-                          setReceived("");
-                          setDiffCategoryId("");
-                        }}
+                        onClick={() => setDiffOpen(true)}
+                        className="mt-2 mr-4 text-xs text-primary underline-offset-2 hover:underline"
                       >
-                        {tr("add.transfer.fee.remove")}
-                      </Button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs uppercase tracking-wide text-muted-foreground">{destSymbol}</span>
-                      <Input
-                        id="received-amount"
-                        inputMode="decimal"
-                        placeholder="0.00"
-                        value={received}
-                        onChange={(e) => setReceived(e.target.value.replace(/[^0-9.,]/g, ""))}
-                        onBlur={() => setReceived((v) => formatAmountInput(v))}
-                        aria-invalid={receivedTooLow || undefined}
-                        aria-describedby={receivedTooLow ? "received-error" : undefined}
-                        className={cn("tabular-nums", receivedTooLow && "border-destructive focus-visible:ring-destructive")}
-                      />
-                    </div>
-                    {diff != null && diff > 0.005 && (
-                      <div className="mt-2 flex items-baseline justify-between rounded-md bg-success/10 px-2 py-1.5 text-xs">
-                        <span>{tr("add.transfer.diff.gain")}</span>
-                        <span className="font-semibold tabular-nums text-success">
-                          +{fmtMoney(diff, destSymbol)}
-                          {paid > 0 && (
-                            <span className="ml-1 font-normal text-muted-foreground">
-                              ({((diff / paid) * 100).toFixed(1)} %)
-                            </span>
-                          )}
-                        </span>
+                        + {tr("add.transfer.diff.add")}
+                      </button>
+                    );
+                  }
+                  const paid = Number(amount.replace(",", "."));
+                  const got = Number(received.replace(",", "."));
+                  const diff =
+                    Number.isFinite(paid) && Number.isFinite(got) && received.trim() !== ""
+                      ? got - paid
+                      : null;
+                  const target = diffCategoryId ? categoryById.get(diffCategoryId) : null;
+                  return (
+                    <div className="mt-3 rounded-md border border-dashed border-border/60 p-3">
+                      <div className="mb-2 flex items-center justify-between">
+                        <Label htmlFor="received-amount" className="text-xs">
+                          {tr("add.transfer.diff.label", { sym: destSymbol })}
+                        </Label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => {
+                            setDiffOpen(false);
+                            setReceived("");
+                            setDiffCategoryId("");
+                          }}
+                        >
+                          {tr("add.transfer.fee.remove")}
+                        </Button>
                       </div>
-                    )}
-                    {receivedTooLow && (
-                      <p id="received-error" role="alert" className="mt-2 text-xs text-destructive">
-                        {tr("add.transfer.diff.less")}{" "}
-                        {!feeOpen && (
-                          <button
-                            type="button"
-                            className="text-primary underline underline-offset-2"
-                            onClick={() => {
-                              setFeeOpen(true);
-                              if (diff != null && diff < 0) setFeeAmount((-diff).toFixed(2));
-                              setDiffOpen(false);
-                              setReceived("");
-                              setDiffCategoryId("");
-                            }}
-                          >
-                            {tr("add.transfer.fee.add")}
-                          </button>
-                        )}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs uppercase tracking-wide text-muted-foreground">
+                          {destSymbol}
+                        </span>
+                        <Input
+                          id="received-amount"
+                          inputMode="decimal"
+                          placeholder="0.00"
+                          value={received}
+                          onChange={(e) => setReceived(e.target.value.replace(/[^0-9.,]/g, ""))}
+                          onBlur={() => setReceived((v) => formatAmountInput(v))}
+                          aria-invalid={receivedTooLow || undefined}
+                          aria-describedby={receivedTooLow ? "received-error" : undefined}
+                          className={cn(
+                            "tabular-nums",
+                            receivedTooLow && "border-destructive focus-visible:ring-destructive",
+                          )}
+                        />
+                      </div>
+                      {diff != null && diff > 0.005 && (
+                        <div className="mt-2 flex items-baseline justify-between rounded-md bg-success/10 px-2 py-1.5 text-xs">
+                          <span>{tr("add.transfer.diff.gain")}</span>
+                          <span className="font-semibold tabular-nums text-success">
+                            +{fmtMoney(diff, destSymbol)}
+                            {paid > 0 && (
+                              <span className="ml-1 font-normal text-muted-foreground">
+                                ({((diff / paid) * 100).toFixed(1)} %)
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      )}
+                      {receivedTooLow && (
+                        <p
+                          id="received-error"
+                          role="alert"
+                          className="mt-2 text-xs text-destructive"
+                        >
+                          {tr("add.transfer.diff.less")}{" "}
+                          {!feeOpen && (
+                            <button
+                              type="button"
+                              className="text-primary underline underline-offset-2"
+                              onClick={() => {
+                                setFeeOpen(true);
+                                if (diff != null && diff < 0) setFeeAmount((-diff).toFixed(2));
+                                setDiffOpen(false);
+                                setReceived("");
+                                setDiffCategoryId("");
+                              }}
+                            >
+                              {tr("add.transfer.fee.add")}
+                            </button>
+                          )}
+                        </p>
+                      )}
+                      <div className="mt-2">
+                        <Label className="mb-1 block text-xs">
+                          {tr("add.transfer.diff.category")}
+                        </Label>
+                        <ChipPicker
+                          items={rollingCategoryChips}
+                          value={diffCategoryId || null}
+                          onChange={(v) => setDiffCategoryId(v ?? "")}
+                          placeholder={tr("add.transfer.diff.none")}
+                          moreLabel={tr("picker.more")}
+                          searchPlaceholder={tr("picker.search")}
+                          emptyLabel={tr("picker.no_match")}
+                        />
+                      </div>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {target
+                          ? tr("add.transfer.diff.help", { name: target.name })
+                          : tr("add.transfer.diff.help_none")}
                       </p>
-                    )}
-                    <div className="mt-2">
-                      <Label className="mb-1 block text-xs">{tr("add.transfer.diff.category")}</Label>
-                      <ChipPicker
-                        items={rollingCategoryChips}
-                        value={diffCategoryId || null}
-                        onChange={(v) => setDiffCategoryId(v ?? "")}
-                        placeholder={tr("add.transfer.diff.none")}
-                        moreLabel={tr("picker.more")}
-                        searchPlaceholder={tr("picker.search")}
-                        emptyLabel={tr("picker.no_match")}
-                      />
                     </div>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      {target
-                        ? tr("add.transfer.diff.help", { name: target.name })
-                        : tr("add.transfer.diff.help_none")}
-                    </p>
-                  </div>
-                );
-              })()}
+                  );
+                })()}
               {/* Optional fee on the transfer (e.g. ATM withdrawal fee) */}
-              {sourceAccount && destAccount && (
-                feeOpen ? (
+              {sourceAccount &&
+                destAccount &&
+                (feeOpen ? (
                   <div className="mt-3 rounded-md border border-dashed border-border/60 p-3">
                     <div className="mb-2 flex items-center justify-between">
                       <Label className="text-xs">
@@ -2112,9 +2507,7 @@ export function TransactionForm({
                         placeholder="0.00"
                         value={feeAmount}
                         onBlur={() => setFeeAmount((v) => formatAmountInput(v))}
-                        onChange={(e) =>
-                          setFeeAmount(e.target.value.replace(/[^0-9.,]/g, ""))
-                        }
+                        onChange={(e) => setFeeAmount(e.target.value.replace(/[^0-9.,]/g, ""))}
                         className="tabular-nums"
                       />
                     </div>
@@ -2144,8 +2537,7 @@ export function TransactionForm({
                   >
                     + {tr("add.transfer.fee.add")}
                   </button>
-                )
-              )}
+                ))}
             </div>
           )}
 
@@ -2188,11 +2580,26 @@ export function TransactionForm({
                         },
                         newSlice(),
                       ]);
-                      if (type === "income") { setRefundPicks({}); setRefundTouched(true); }
-                    } else if (!isEdit && type === "income" && Object.keys(refundPicks).length > 0) {
+                      if (type === "income") {
+                        setRefundPicks({});
+                        setRefundTouched(true);
+                      }
+                    } else if (
+                      !isEdit &&
+                      type === "income" &&
+                      Object.keys(refundPicks).length > 0
+                    ) {
                       // New income: what it repays stays with the first line.
-                      const first = { ...newSlice(), categoryId, description, refunds: refundPicks };
-                      const linkedSum = Object.values(refundPicks).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+                      const first = {
+                        ...newSlice(),
+                        categoryId,
+                        description,
+                        refunds: refundPicks,
+                      };
+                      const linkedSum = Object.values(refundPicks).reduce(
+                        (sum, p) => sum + (Number(p.amount) || 0),
+                        0,
+                      );
                       first.amount = (Math.round(linkedSum * 100) / 100).toFixed(2);
                       setSlices([first, newSlice()]);
                       setRefundPicks({});
@@ -2220,10 +2627,15 @@ export function TransactionForm({
             </div>
           )}
 
-          {type === "income" && !splitMode && refundLines[0] &&
+          {type === "income" &&
+            !splitMode &&
+            refundLines[0] &&
             renderRefundCard(refundLines[0], changeRefundPicks, {
               surplusCategoryId: categoryId || null,
-              onSurplusCategoryChange: (v) => { setCategoryId(v ?? ""); mark("categoryId"); },
+              onSurplusCategoryChange: (v) => {
+                setCategoryId(v ?? "");
+                mark("categoryId");
+              },
               onSplitSurplus: splitOffSurplus,
             })}
 
@@ -2237,12 +2649,20 @@ export function TransactionForm({
           {type !== "transfer" && !splitMode && !(type === "income" && hasNewRefundPick) && (
             <div>
               <Label className="mb-1.5 block">
-                {tr("add.category")} {type === "income" && <span className="text-xs font-normal text-muted-foreground">{tr("add.category_optional_reimb")}</span>}
+                {tr("add.category")}{" "}
+                {type === "income" && (
+                  <span className="text-xs font-normal text-muted-foreground">
+                    {tr("add.category_optional_reimb")}
+                  </span>
+                )}
               </Label>
               <ChipPicker
                 items={categoryChips}
                 value={categoryId || null}
-                onChange={(v) => { setCategoryId(v); mark("categoryId"); }}
+                onChange={(v) => {
+                  setCategoryId(v);
+                  mark("categoryId");
+                }}
                 allowClear
                 clearLabel={tr("common.none")}
                 placeholder={tr("add.select_category")}
@@ -2252,21 +2672,24 @@ export function TransactionForm({
               />
               {activeScope && !scopeSkipped && categoryId === activeScope.id && (
                 <p className="mt-1 flex items-center gap-1 text-xs text-primary">
-                  <Target className="h-3 w-3" /> {tr("add.scope.field_hint", { name: activeScope.name })}
+                  <Target className="h-3 w-3" />{" "}
+                  {tr("add.scope.field_hint", { name: activeScope.name })}
                 </p>
               )}
-              {type === "income" && categoryId && (() => {
-                const c = categories.find((x) => x.id === categoryId);
-                if (!c) return null;
-                const kind = c.group_id ? groupKindById.get(c.group_id) : undefined;
-                const isSavings = c.rolls_over || kind === "savings";
-                if (kind !== "expense" && !isSavings) return null;
-                return (
-                  <p className="mt-1.5 text-xs text-muted-foreground">
-                    {tr(isSavings ? "add.reimbursement_hint.savings" : "add.reimbursement_hint")}
-                  </p>
-                );
-              })()}
+              {type === "income" &&
+                categoryId &&
+                (() => {
+                  const c = categories.find((x) => x.id === categoryId);
+                  if (!c) return null;
+                  const kind = c.group_id ? groupKindById.get(c.group_id) : undefined;
+                  const isSavings = c.rolls_over || kind === "savings";
+                  if (kind !== "expense" && !isSavings) return null;
+                  return (
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      {tr(isSavings ? "add.reimbursement_hint.savings" : "add.reimbursement_hint")}
+                    </p>
+                  );
+                })()}
             </div>
           )}
         </div>
@@ -2308,22 +2731,32 @@ export function TransactionForm({
                           value={s.amount}
                           onChange={(e) => {
                             const v = e.target.value.replace(/[^0-9.,]/g, "");
-                            setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, amount: v } : x)));
+                            setSlices((cur) =>
+                              cur.map((x, i) => (i === idx ? { ...x, amount: v } : x)),
+                            );
                           }}
                           onBlur={() =>
-                            setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, amount: formatAmountInput(x.amount) } : x)))
+                            setSlices((cur) =>
+                              cur.map((x, i) =>
+                                i === idx ? { ...x, amount: formatAmountInput(x.amount) } : x,
+                              ),
+                            )
                           }
                           className="tabular-nums"
                         />
                       </div>
                       <div>
-                        <Label htmlFor={`slice-description-${idx}`} className="mb-1 block text-xs">{tr("add.split.description")}</Label>
+                        <Label htmlFor={`slice-description-${idx}`} className="mb-1 block text-xs">
+                          {tr("add.split.description")}
+                        </Label>
                         {/* The same suggestions as the single description field. */}
                         <DescriptionAutocomplete
                           id={`slice-description-${idx}`}
                           value={s.description}
                           onChange={(v) =>
-                            setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, description: v } : x)))
+                            setSlices((cur) =>
+                              cur.map((x, i) => (i === idx ? { ...x, description: v } : x)),
+                            )
                           }
                           transactions={recentQ.data ?? []}
                           placeholder={tr("add.description_placeholder")}
@@ -2334,17 +2767,24 @@ export function TransactionForm({
                       const line = refundLines.find((l) => l.key === s.id);
                       const plan = refundPlan.find((pl) => pl.line.key === s.id);
                       const hasNew = !!line && Object.values(line.picks).some((p) => p.decision);
-                      const open = refundSliceOpen === s.id || (!!line && Object.keys(line.picks).length > 0);
+                      const open =
+                        refundSliceOpen === s.id || (!!line && Object.keys(line.picks).length > 0);
                       return (
                         <>
                           <div className="mt-2">
                             <Label className="mb-1 block text-xs">{tr("add.split.category")}</Label>
-                            {hasNew && plan ? renderDerivedCategory(plan.parts) : (
+                            {hasNew && plan ? (
+                              renderDerivedCategory(plan.parts)
+                            ) : (
                               <ChipPicker
                                 items={categoryChips}
                                 value={s.categoryId || null}
                                 onChange={(v) =>
-                                  setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, categoryId: v ?? "" } : x)))
+                                  setSlices((cur) =>
+                                    cur.map((x, i) =>
+                                      i === idx ? { ...x, categoryId: v ?? "" } : x,
+                                    ),
+                                  )
                                 }
                                 allowClear
                                 clearLabel={tr("add.split.no_category")}
@@ -2359,19 +2799,38 @@ export function TransactionForm({
                             <div className="mt-2">
                               {open ? (
                                 <>
-                                  {renderRefundCard(line, (next) => changeSliceRefunds(s.id, next), {
-                                    surplusCategoryId: s.categoryId || null,
-                                    onSurplusCategoryChange: (v) =>
-                                      setSlices((cur) => cur.map((x) => (x.id === s.id ? { ...x, categoryId: v ?? "" } : x))),
-                                  })}
+                                  {renderRefundCard(
+                                    line,
+                                    (next) => changeSliceRefunds(s.id, next),
+                                    {
+                                      surplusCategoryId: s.categoryId || null,
+                                      onSurplusCategoryChange: (v) =>
+                                        setSlices((cur) =>
+                                          cur.map((x) =>
+                                            x.id === s.id ? { ...x, categoryId: v ?? "" } : x,
+                                          ),
+                                        ),
+                                    },
+                                  )}
                                   {Object.keys(line.picks).length === 0 && (
-                                    <Button type="button" variant="ghost" size="sm" className="mt-1" onClick={() => setRefundSliceOpen(null)}>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="mt-1"
+                                      onClick={() => setRefundSliceOpen(null)}
+                                    >
                                       {tr("refund.slice_hide")}
                                     </Button>
                                   )}
                                 </>
                               ) : (
-                                <Button type="button" variant="outline" size="sm" onClick={() => setRefundSliceOpen(s.id)}>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setRefundSliceOpen(s.id)}
+                                >
                                   <Plus className="mr-1 h-4 w-4" /> {tr("refund.slice_add")}
                                 </Button>
                               )}
@@ -2386,7 +2845,9 @@ export function TransactionForm({
                         rows={2}
                         value={s.note}
                         onChange={(next) =>
-                          setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, note: next } : x)))
+                          setSlices((cur) =>
+                            cur.map((x, i) => (i === idx ? { ...x, note: next } : x)),
+                          )
                         }
                         transactions={recentQ.data ?? []}
                         placeholder={tr("add.split.note_placeholder")}
@@ -2420,7 +2881,9 @@ export function TransactionForm({
                         }}
                         onRemove={(tag) => {
                           setSlices((cur) =>
-                            cur.map((x, i) => (i === idx ? { ...x, note: removeTagFrom(x.note, tag) } : x)),
+                            cur.map((x, i) =>
+                              i === idx ? { ...x, note: removeTagFrom(x.note, tag) } : x,
+                            ),
                           );
                         }}
                       />
@@ -2429,12 +2892,16 @@ export function TransactionForm({
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <Label className="text-xs font-medium">{tr("add.reimb.section")}</Label>
-                          <p className="mt-0.5 text-[11px] text-muted-foreground">{tr("add.reimb.toggle.hint")}</p>
+                          <p className="mt-0.5 text-[11px] text-muted-foreground">
+                            {tr("add.reimb.toggle.hint")}
+                          </p>
                         </div>
                         <Switch
                           checked={s.isReimbursable}
                           onCheckedChange={(v) =>
-                            setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, isReimbursable: !!v } : x)))
+                            setSlices((cur) =>
+                              cur.map((x, i) => (i === idx ? { ...x, isReimbursable: !!v } : x)),
+                            )
                           }
                           aria-label={tr("add.reimb.toggle")}
                         />
@@ -2442,11 +2909,17 @@ export function TransactionForm({
                       {s.isReimbursable && (
                         <div className="mt-2 space-y-2">
                           <div>
-                            <Label className="mb-1 block text-xs">{tr("add.reimb.counterparty")}</Label>
+                            <Label className="mb-1 block text-xs">
+                              {tr("add.reimb.counterparty")}
+                            </Label>
                             <StringAutocomplete
                               value={s.reimbCounterparty}
                               onChange={(v) =>
-                                setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, reimbCounterparty: v } : x)))
+                                setSlices((cur) =>
+                                  cur.map((x, i) =>
+                                    i === idx ? { ...x, reimbCounterparty: v } : x,
+                                  ),
+                                )
                               }
                               options={reimbCpQ.data ?? []}
                             />
@@ -2456,12 +2929,18 @@ export function TransactionForm({
                             <Input
                               value={s.reimbReason}
                               onChange={(e) =>
-                                setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, reimbReason: e.target.value } : x)))
+                                setSlices((cur) =>
+                                  cur.map((x, i) =>
+                                    i === idx ? { ...x, reimbReason: e.target.value } : x,
+                                  ),
+                                )
                               }
                             />
                           </div>
                           {type === "expense" && s.categoryId && (
-                            <p className="text-[11px] text-warning">{tr("add.reimb.category_clear_warning")}</p>
+                            <p className="text-[11px] text-warning">
+                              {tr("add.reimb.category_clear_warning")}
+                            </p>
                           )}
                         </div>
                       )}
@@ -2483,20 +2962,37 @@ export function TransactionForm({
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">{tr("add.split.total")}</span>
                   <span className="tabular-nums font-medium">
-                    {splitTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {symbol}
+                    {splitTotal.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{" "}
+                    {symbol}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">{tr("add.split.target_total")}</span>
                   <span className="tabular-nums">
-                    {targetTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {symbol}
+                    {targetTotal.toLocaleString(undefined, {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })}{" "}
+                    {symbol}
                   </span>
                 </div>
                 {Math.abs(splitDiff) > 0.005 && targetTotal > 0 && (
-                  <div className={cn("mt-1 flex justify-between font-medium", splitDiff > 0 ? "text-warning" : "text-destructive")}>
+                  <div
+                    className={cn(
+                      "mt-1 flex justify-between font-medium",
+                      splitDiff > 0 ? "text-warning" : "text-destructive",
+                    )}
+                  >
                     <span>{tr("add.split.diff")}</span>
                     <span className="tabular-nums">
-                      {splitDiff.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {symbol}
+                      {splitDiff.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}{" "}
+                      {symbol}
                     </span>
                   </div>
                 )}
@@ -2507,13 +3003,20 @@ export function TransactionForm({
 
         {!splitMode && (
           <div>
-            <Label htmlFor="description" className="mb-1.5 block">{tr("add.description")}</Label>
+            <Label htmlFor="description" className="mb-1.5 block">
+              {tr("add.description")}
+            </Label>
             <DescriptionAutocomplete
               id="description"
               value={description}
-              onChange={(v) => { setDescription(v); mark("description"); }}
+              onChange={(v) => {
+                setDescription(v);
+                mark("description");
+              }}
               transactions={recentQ.data ?? []}
-              placeholder={type === "transfer" ? tr("common.optional") : tr("add.description_placeholder")}
+              placeholder={
+                type === "transfer" ? tr("common.optional") : tr("add.description_placeholder")
+              }
             />
           </div>
         )}
@@ -2529,7 +3032,10 @@ export function TransactionForm({
             id="note"
             rows={2}
             value={note}
-            onChange={(next) => { setNote(next); mark("note"); }}
+            onChange={(next) => {
+              setNote(next);
+              mark("note");
+            }}
             transactions={recentQ.data ?? []}
             placeholder={tr("add.note_placeholder")}
             ctx={{
@@ -2593,7 +3099,9 @@ export function TransactionForm({
               net: tr("add.day_preview.net"),
             }}
           />
-          <p className="mt-1 text-xs text-muted-foreground md:hidden">{tr("add.day_preview.long_press_hint")}</p>
+          <p className="mt-1 text-xs text-muted-foreground md:hidden">
+            {tr("add.day_preview.long_press_hint")}
+          </p>
           <p className="mt-1 hidden text-xs text-muted-foreground md:block">
             {tr("add.date_input_hint", { fmt: dateFmt })}
           </p>
@@ -2606,7 +3114,9 @@ export function TransactionForm({
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <Label className="text-sm font-medium">{tr("add.reimb.section")}</Label>
-                  <p className="mt-0.5 text-xs text-muted-foreground">{tr("add.reimb.toggle.hint")}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {tr("add.reimb.toggle.hint")}
+                  </p>
                 </div>
                 <Switch
                   checked={isReimbursable}
@@ -2617,7 +3127,9 @@ export function TransactionForm({
               {isReimbursable && (
                 <div className="space-y-2">
                   <div>
-                    <Label htmlFor="reimb-cp" className="mb-1 block text-xs">{tr("add.reimb.counterparty")}</Label>
+                    <Label htmlFor="reimb-cp" className="mb-1 block text-xs">
+                      {tr("add.reimb.counterparty")}
+                    </Label>
                     <StringAutocomplete
                       id="reimb-cp"
                       value={reimbCounterparty}
@@ -2626,7 +3138,9 @@ export function TransactionForm({
                     />
                   </div>
                   <div>
-                    <Label htmlFor="reimb-reason" className="mb-1 block text-xs">{tr("add.reimb.reason")}</Label>
+                    <Label htmlFor="reimb-reason" className="mb-1 block text-xs">
+                      {tr("add.reimb.reason")}
+                    </Label>
                     <Input
                       id="reimb-reason"
                       value={reimbReason}
@@ -2644,9 +3158,17 @@ export function TransactionForm({
         )}
 
         {/* A reimbursable being edited: the incomes that repay it. */}
-        {isEdit && editQ.data && editQ.data.tx.is_reimbursable && !splitMode && type !== "transfer" && (
-          <ReimbursementPayments original={editQ.data.tx} links={editAsOriginalLinks} symbol={symbol} />
-        )}
+        {isEdit &&
+          editQ.data &&
+          editQ.data.tx.is_reimbursable &&
+          !splitMode &&
+          type !== "transfer" && (
+            <ReimbursementPayments
+              original={editQ.data.tx}
+              links={editAsOriginalLinks}
+              symbol={symbol}
+            />
+          )}
 
         <div className="pt-2">
           {isEdit && editId ? (
@@ -2675,13 +3197,15 @@ export function TransactionForm({
           type={type}
           amountNum={amountNum}
           destAmountNum={(() => {
-            const n = Number((isCrossCurrency ? destAmount : diffOpen ? received : "").replace(",", "."));
+            const n = Number(
+              (isCrossCurrency ? destAmount : diffOpen ? received : "").replace(",", "."),
+            );
             return Number.isFinite(n) && n > 0 ? n : null;
           })()}
           isCrossCurrency={isCrossCurrency}
           source={sourceAccount ?? null}
           destination={destAccount ?? null}
-          category={previewCategoryId ? categoryById.get(previewCategoryId) ?? null : null}
+          category={previewCategoryId ? (categoryById.get(previewCategoryId) ?? null) : null}
           description={description}
           note={note}
           date={date}
@@ -2689,16 +3213,21 @@ export function TransactionForm({
           symbol={symbol}
           destSymbol={destSymbol}
           splitMode={splitMode}
-          slices={splitMode ? slices.map((s) => ({
-            amount: Number(s.amount.replace(",", ".")) || 0,
-            description: s.description,
-            category: s.categoryId ? categoryById.get(s.categoryId) ?? null : null,
-            reimb: s.isReimbursable ? { from: s.reimbCounterparty.trim() } : null,
-          })) : null}
+          slices={
+            splitMode
+              ? slices.map((s) => ({
+                  amount: Number(s.amount.replace(",", ".")) || 0,
+                  description: s.description,
+                  category: s.categoryId ? (categoryById.get(s.categoryId) ?? null) : null,
+                  reimb: s.isReimbursable ? { from: s.reimbCounterparty.trim() } : null,
+                }))
+              : null
+          }
           reimb={type !== "transfer" && isReimbursable ? { from: reimbCounterparty.trim() } : null}
           settles={
             type === "income"
-              ? refundLines.flatMap((l) => Object.entries(l.picks))
+              ? refundLines
+                  .flatMap((l) => Object.entries(l.picks))
                   .filter(([, p]) => Number(p.amount) > 0)
                   .map(([id, p]) => {
                     const o = refundExpenseById.get(id);
@@ -2712,7 +3241,8 @@ export function TransactionForm({
             expense: tr("add.expense"),
             preview: tr("add.preview.title"),
             split: tr("add.split.title"),
-            reimb: (from) => (from ? tr("add.preview.reimb_from", { name: from }) : tr("add.preview.reimb")),
+            reimb: (from) =>
+              from ? tr("add.preview.reimb_from", { name: from }) : tr("add.preview.reimb"),
             settles: (list) => tr("add.preview.settles", { list }),
           }}
         />
@@ -2721,7 +3251,9 @@ export function TransactionForm({
           type={type}
           amountNum={amountNum}
           destAmountNum={(() => {
-            const n = Number((isCrossCurrency ? destAmount : diffOpen ? received : "").replace(",", "."));
+            const n = Number(
+              (isCrossCurrency ? destAmount : diffOpen ? received : "").replace(",", "."),
+            );
             return Number.isFinite(n) && n > 0 ? n : null;
           })()}
           feeAmountNum={(() => {
@@ -2732,13 +3264,17 @@ export function TransactionForm({
           feeCategoryId={type === "transfer" && feeOpen ? feeCategoryId || null : null}
           source={sourceAccount ?? null}
           destination={destAccount ?? null}
-          category={previewCategoryId ? categoryById.get(previewCategoryId) ?? null : null}
+          category={previewCategoryId ? (categoryById.get(previewCategoryId) ?? null) : null}
           date={date}
           splitMode={splitMode}
-          slices={splitMode ? slices.map((s) => ({
-            amount: Number(s.amount.replace(",", ".")) || 0,
-            categoryId: s.categoryId || null,
-          })) : null}
+          slices={
+            splitMode
+              ? slices.map((s) => ({
+                  amount: Number(s.amount.replace(",", ".")) || 0,
+                  categoryId: s.categoryId || null,
+                }))
+              : null
+          }
           categoryById={categoryById}
           balances={balancesQ.data ?? null}
           categoryRows={categoryMonthQ.data ?? null}
@@ -2746,7 +3282,7 @@ export function TransactionForm({
           mainCode={settingsQ.data?.currency_code ?? "CHF"}
           mainSymbol={mainSymbol}
           fxRates={fxQ.data}
-          editOriginal={isEdit ? editQ.data ?? null : null}
+          editOriginal={isEdit ? (editQ.data ?? null) : null}
           serverImpact={serverImpact}
           locale={locale}
           tr={tr}
@@ -2756,9 +3292,16 @@ export function TransactionForm({
           <div
             role="alert"
             className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-warning-foreground"
-            style={{ borderColor: "hsl(38 92% 50% / 0.5)", backgroundColor: "hsl(38 92% 50% / 0.12)", color: "hsl(25 95% 35%)" }}
+            style={{
+              borderColor: "hsl(38 92% 50% / 0.5)",
+              backgroundColor: "hsl(38 92% 50% / 0.12)",
+              color: "hsl(25 95% 35%)",
+            }}
           >
-            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "hsl(25 95% 45%)" }} />
+            <AlertTriangle
+              className="mt-0.5 h-4 w-4 shrink-0"
+              style={{ color: "hsl(25 95% 45%)" }}
+            />
             <div className="min-w-0 flex-1">
               <div className="font-medium">{tr("add.duplicate.warning")}</div>
               <div className="mt-0.5 text-xs">
@@ -2778,19 +3321,53 @@ export function TransactionForm({
         )}
 
         {refundBlocks && refundIssue && (
-          <p role="alert" className="text-sm text-destructive">{tr(refundIssue)}</p>
+          <p role="alert" className="text-sm text-destructive">
+            {tr(refundIssue)}
+          </p>
         )}
 
         <div className="flex gap-2 pt-2">
           {isEdit ? (
             <>
-              <Button variant="outline" className="flex-1" disabled={saving} onClick={() => goBack()}>{tr("common.cancel")}</Button>
-              <Button className="flex-1" disabled={saving || receivedTooLow || linkOverAssigned || refundBlocks || refusalBlocks} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("edit.save_changes")}</Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                disabled={saving}
+                onClick={() => goBack()}
+              >
+                {tr("common.cancel")}
+              </Button>
+              <Button
+                className="flex-1"
+                disabled={
+                  saving || receivedTooLow || linkOverAssigned || refundBlocks || refusalBlocks
+                }
+                onClick={() => save(false)}
+              >
+                {saving ? tr("common.saving") : tr("edit.save_changes")}
+              </Button>
             </>
           ) : (
             <>
-              <Button variant="outline" className="flex-1" disabled={saving || receivedTooLow || linkOverAssigned || refundBlocks || refusalBlocks} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("common.save")}</Button>
-              <Button className="flex-1" disabled={saving || receivedTooLow || linkOverAssigned || refundBlocks || refusalBlocks} onClick={() => save(true)}>{tr("add.save_new")}</Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                disabled={
+                  saving || receivedTooLow || linkOverAssigned || refundBlocks || refusalBlocks
+                }
+                onClick={() => save(false)}
+              >
+                {saving ? tr("common.saving") : tr("common.save")}
+              </Button>
+              <Button
+                className="flex-1"
+                disabled={
+                  saving || receivedTooLow || linkOverAssigned || refundBlocks || refusalBlocks
+                }
+                onClick={() => save(true)}
+              >
+                {tr("add.save_new")}
+              </Button>
             </>
           )}
         </div>
@@ -2853,7 +3430,12 @@ function TransactionPreview({
   symbol: string;
   destSymbol: string;
   splitMode: boolean;
-  slices: Array<{ amount: number; description: string; category: PreviewEntity; reimb: { from: string } | null }> | null;
+  slices: Array<{
+    amount: number;
+    description: string;
+    category: PreviewEntity;
+    reimb: { from: string } | null;
+  }> | null;
   labels: {
     transfer: string;
     income: string;
@@ -2869,13 +3451,20 @@ function TransactionPreview({
 
   const Icon = type === "expense" ? ArrowDown : type === "income" ? ArrowUp : ArrowLeftRight;
   const tone =
-    type === "expense" ? "text-destructive" : type === "income" ? "text-success" : "text-muted-foreground";
+    type === "expense"
+      ? "text-destructive"
+      : type === "income"
+        ? "text-success"
+        : "text-muted-foreground";
   const sign = type === "expense" ? "-" : type === "income" ? "+" : "";
   const primary = (type !== "transfer" ? category : null) ?? source;
   // Another currency, or more received than paid (a gift card at a discount).
   const showDst =
-    type === "transfer" && destAmountNum != null && (isCrossCurrency || destAmountNum !== amountNum);
-  const fallbackTitle = type === "transfer" ? labels.transfer : type === "income" ? labels.income : labels.expense;
+    type === "transfer" &&
+    destAmountNum != null &&
+    (isCrossCurrency || destAmountNum !== amountNum);
+  const fallbackTitle =
+    type === "transfer" ? labels.transfer : type === "income" ? labels.income : labels.expense;
 
   return (
     <Card className="border-dashed">
@@ -2886,7 +3475,12 @@ function TransactionPreview({
         <div className="flex items-start gap-3">
           <div className="relative mt-0.5 shrink-0">
             <EntityVisual entity={primary} size="md" />
-            <div className={cn("absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-background ring-1 ring-border", tone)}>
+            <div
+              className={cn(
+                "absolute -bottom-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-background ring-1 ring-border",
+                tone,
+              )}
+            >
               <Icon className="h-3 w-3" />
             </div>
           </div>
@@ -2954,12 +3548,16 @@ function TransactionPreview({
         </div>
         {splitMode && slices && slices.length > 0 && (
           <ul className="mt-2 space-y-1 border-t border-dashed border-border/60 pt-2 text-xs">
-            <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{labels.split}</div>
+            <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              {labels.split}
+            </div>
             {slices.map((s, i) => (
               <li key={i} className="flex items-center justify-between gap-2">
                 <span className="inline-flex min-w-0 items-center gap-1.5 text-muted-foreground">
                   {s.category && <EntityVisual entity={s.category} size="xs" />}
-                  <span className="truncate">{s.description.trim() || s.category?.name || "—"}</span>
+                  <span className="truncate">
+                    {s.description.trim() || s.category?.name || "—"}
+                  </span>
                   {s.reimb && (
                     <span className="shrink-0 rounded bg-warning/15 px-1.5 py-0.5 text-[10px] font-medium text-warning">
                       {labels.reimb(s.reimb.from)}
@@ -2989,11 +3587,28 @@ function TransactionPreview({
 type ImpactAccount = { id: string; name: string; currency_code?: string; currency_symbol?: string };
 type ImpactCategory = { id: string; name: string; allocated_budget: number } | null;
 function ImpactPreview({
-  type, amountNum, destAmountNum, feeAmountNum, feeCategoryId,
-  source, destination, category, date,
-  splitMode, slices, categoryById,
-  balances, categoryRows, savingsBalances, mainCode, mainSymbol, fxRates,
-  editOriginal, tr, serverImpact, locale,
+  type,
+  amountNum,
+  destAmountNum,
+  feeAmountNum,
+  feeCategoryId,
+  source,
+  destination,
+  category,
+  date,
+  splitMode,
+  slices,
+  categoryById,
+  balances,
+  categoryRows,
+  savingsBalances,
+  mainCode,
+  mainSymbol,
+  fxRates,
+  editOriginal,
+  tr,
+  serverImpact,
+  locale,
 }: {
   type: TxType;
   amountNum: number | null;
@@ -3006,7 +3621,10 @@ function ImpactPreview({
   date: Date;
   splitMode: boolean;
   slices: Array<{ amount: number; categoryId: string | null }> | null;
-  categoryById: Map<string, { id: string; name: string; allocated_budget: number; is_scope?: boolean }>;
+  categoryById: Map<
+    string,
+    { id: string; name: string; allocated_budget: number; is_scope?: boolean }
+  >;
   balances: AccountBalance[] | null;
   categoryRows: CategoryMonthRow[] | null;
   savingsBalances: CategorySavingsBalance[] | null;
@@ -3034,7 +3652,10 @@ function ImpactPreview({
   else if (type === "income") add(source.id, +amountNum);
   else if (type === "transfer") {
     add(source.id, -amountNum);
-    add(destination?.id ?? null, destAmountNum != null && destAmountNum > 0 ? destAmountNum : amountNum);
+    add(
+      destination?.id ?? null,
+      destAmountNum != null && destAmountNum > 0 ? destAmountNum : amountNum,
+    );
   }
   if (feeAmountNum != null) add(source.id, -feeAmountNum);
 
@@ -3058,7 +3679,10 @@ function ImpactPreview({
       else if (original.type === "income") ogAdd(original.source_account_id, +a);
       else if (original.type === "transfer") {
         ogAdd(original.source_account_id, -a);
-        ogAdd(original.destination_account_id, original.destination_amount != null ? Number(original.destination_amount) : a);
+        ogAdd(
+          original.destination_account_id,
+          original.destination_amount != null ? Number(original.destination_amount) : a,
+        );
       }
       if (original.fee_amount != null && Number(original.fee_amount) > 0) {
         ogAdd(original.source_account_id, -Number(original.fee_amount));
@@ -3092,18 +3716,24 @@ function ImpactPreview({
   for (const b of balances ?? []) {
     if (b.archived) continue;
     const conv = toMain(Number(b.balance), b.currency_code);
-    if (conv == null) { netDeltaUnknown = true; } else { netBefore += conv; }
+    if (conv == null) {
+      netDeltaUnknown = true;
+    } else {
+      netBefore += conv;
+    }
   }
   // Back out original net effect from netBefore
   for (const [id, eff] of originalEffects) {
     const b = balById.get(id);
     const conv = toMain(eff, b?.currency_code);
-    if (conv == null) netDeltaUnknown = true; else netBefore -= conv;
+    if (conv == null) netDeltaUnknown = true;
+    else netBefore -= conv;
   }
   for (const [id, d] of accDelta) {
     const b = balById.get(id);
     const conv = toMain(d, b?.currency_code);
-    if (conv == null) netDeltaUnknown = true; else netDelta += conv;
+    if (conv == null) netDeltaUnknown = true;
+    else netDelta += conv;
   }
   const netAfter = netBefore + netDelta;
 
@@ -3116,9 +3746,17 @@ function ImpactPreview({
   // Drift category in source currency assumed = main currency for the budget
   // view (budgets are in main currency in this app).
   type CatItem = {
-    id: string; name: string; allocated: number; before: number; after: number;
-    isSavings: boolean; savedBefore: number; savedAfter: number; isScope: boolean;
-    scopeSpentBefore: number; scopeSpentAfter: number;
+    id: string;
+    name: string;
+    allocated: number;
+    before: number;
+    after: number;
+    isSavings: boolean;
+    savedBefore: number;
+    savedAfter: number;
+    isScope: boolean;
+    scopeSpentBefore: number;
+    scopeSpentAfter: number;
   };
   const catImpacts = new Map<string, number>();
   // Savings envelopes follow the DB convention in category_savings_balance:
@@ -3135,8 +3773,14 @@ function ImpactPreview({
     if (splitMode && slices) {
       for (const s of slices) {
         if (!s.categoryId || s.amount <= 0) continue;
-        catImpacts.set(s.categoryId, (catImpacts.get(s.categoryId) ?? 0) + s.amount * catSign(s.categoryId, type));
-        savImpacts.set(s.categoryId, (savImpacts.get(s.categoryId) ?? 0) + s.amount * savSign(type));
+        catImpacts.set(
+          s.categoryId,
+          (catImpacts.get(s.categoryId) ?? 0) + s.amount * catSign(s.categoryId, type),
+        );
+        savImpacts.set(
+          s.categoryId,
+          (savImpacts.get(s.categoryId) ?? 0) + s.amount * savSign(type),
+        );
       }
     } else if (category) {
       catImpacts.set(category.id, amountNum * catSign(category.id, type));
@@ -3145,8 +3789,14 @@ function ImpactPreview({
   }
   // Fee creates an extra expense in feeCategory on transfers.
   if (feeAmountNum != null && feeCategoryId) {
-    catImpacts.set(feeCategoryId, (catImpacts.get(feeCategoryId) ?? 0) + feeAmountNum * catSign(feeCategoryId, "expense"));
-    savImpacts.set(feeCategoryId, (savImpacts.get(feeCategoryId) ?? 0) + feeAmountNum * savSign("expense"));
+    catImpacts.set(
+      feeCategoryId,
+      (catImpacts.get(feeCategoryId) ?? 0) + feeAmountNum * catSign(feeCategoryId, "expense"),
+    );
+    savImpacts.set(
+      feeCategoryId,
+      (savImpacts.get(feeCategoryId) ?? 0) + feeAmountNum * savSign("expense"),
+    );
   }
   // Back out original category spent for same month
   const sameMonth = (iso: string) => {
@@ -3172,25 +3822,40 @@ function ImpactPreview({
       if (!sameMonth(r.occurred_on)) continue;
       ogCatImpacts.set(r.category_id, (ogCatImpacts.get(r.category_id) ?? 0) + v);
     }
-    if (original.fee_amount != null && Number(original.fee_amount) > 0 && original.fee_category_id) {
+    if (
+      original.fee_amount != null &&
+      Number(original.fee_amount) > 0 &&
+      original.fee_category_id
+    ) {
       const fv = Number(original.fee_amount) * catSign(original.fee_category_id, "expense");
-      ogCatImpactsAll.set(original.fee_category_id, (ogCatImpactsAll.get(original.fee_category_id) ?? 0) + fv);
+      ogCatImpactsAll.set(
+        original.fee_category_id,
+        (ogCatImpactsAll.get(original.fee_category_id) ?? 0) + fv,
+      );
       ogSavImpactsAll.set(
         original.fee_category_id,
-        (ogSavImpactsAll.get(original.fee_category_id) ?? 0) + Number(original.fee_amount) * savSign("expense"),
+        (ogSavImpactsAll.get(original.fee_category_id) ?? 0) +
+          Number(original.fee_amount) * savSign("expense"),
       );
       if (sameMonth(original.occurred_on)) {
-        ogCatImpacts.set(original.fee_category_id, (ogCatImpacts.get(original.fee_category_id) ?? 0) + fv);
+        ogCatImpacts.set(
+          original.fee_category_id,
+          (ogCatImpacts.get(original.fee_category_id) ?? 0) + fv,
+        );
       }
     }
   }
   const catRows: CatItem[] = [];
-  const savedByCat = new Map((savingsBalances ?? []).map((s) => [s.category_id, Number(s.cumulative_balance) || 0]));
+  const savedByCat = new Map(
+    (savingsBalances ?? []).map((s) => [s.category_id, Number(s.cumulative_balance) || 0]),
+  );
   // A scope's budget is a target, not money: it is funded from its envelope for
   // exactly what it spent when it closes, so cumulative_balance nets to ~0 and
   // would report a fully-spent trip as untouched. Its own spending is
   // from_transactions (negative for an expense).
-  const scopeSpentByCat = new Map((savingsBalances ?? []).map((s) => [s.category_id, Number(s.from_transactions) || 0]));
+  const scopeSpentByCat = new Map(
+    (savingsBalances ?? []).map((s) => [s.category_id, Number(s.from_transactions) || 0]),
+  );
   const allCatIds = new Set<string>([...catImpacts.keys(), ...ogCatImpacts.keys()]);
   for (const id of allCatIds) {
     const meta = categoryById.get(id);
@@ -3207,15 +3872,25 @@ function ImpactPreview({
     const scopeSpentBefore = scopeSpentNow - (ogSavImpactsAll.get(id) ?? 0);
     const scopeSpentAfter = scopeSpentBefore + (savImpacts.get(id) ?? 0);
     catRows.push({
-      id, name: meta.name,
+      id,
+      name: meta.name,
       allocated: Number(row?.allocated ?? meta.allocated_budget ?? 0),
-      before, after, isSavings, savedBefore, savedAfter,
-      isScope: Boolean(meta.is_scope), scopeSpentBefore, scopeSpentAfter,
+      before,
+      after,
+      isSavings,
+      savedBefore,
+      savedAfter,
+      isScope: Boolean(meta.is_scope),
+      scopeSpentBefore,
+      scopeSpentAfter,
     });
   }
 
   // Cross-currency hint
-  const xCur = type === "transfer" && source && destination &&
+  const xCur =
+    type === "transfer" &&
+    source &&
+    destination &&
     (source.currency_code ?? mainCode) !== (destination.currency_code ?? mainCode);
 
   const fmt = (v: number, sym: string) => fmtMoney(v, sym);
@@ -3254,81 +3929,113 @@ function ImpactPreview({
             tr={tr}
           />
         ) : (
-        <ul className="space-y-1 opacity-60" aria-busy="true">
-          {accountRows.map((r) => {
-            const delta = r.after - r.before;
-            return (
-              <li key={r.id} className="flex flex-wrap items-baseline justify-between gap-x-3">
-                <span className="min-w-0 text-muted-foreground">
-                  {tr("add.impact.account")} · {r.name}
-                </span>
+          <ul className="space-y-1 opacity-60" aria-busy="true">
+            {accountRows.map((r) => {
+              const delta = r.after - r.before;
+              return (
+                <li key={r.id} className="flex flex-wrap items-baseline justify-between gap-x-3">
+                  <span className="min-w-0 text-muted-foreground">
+                    {tr("add.impact.account")} · {r.name}
+                  </span>
+                  <span className="ml-auto text-right tabular-nums">
+                    {fmt(r.before, r.sym)} →{" "}
+                    <span className="font-medium text-foreground">{fmt(r.after, r.sym)}</span>{" "}
+                    <span className={cn(delta >= 0 ? "text-success" : "text-destructive")}>
+                      ({deltaStr(delta, r.sym)})
+                    </span>
+                  </span>
+                </li>
+              );
+            })}
+            {showNetWorth && !netDeltaUnknown && (
+              <li className="flex flex-wrap items-baseline justify-between gap-x-3">
+                <span className="min-w-0 text-muted-foreground">{tr("add.impact.networth")}</span>
                 <span className="ml-auto text-right tabular-nums">
-                  {fmt(r.before, r.sym)} → <span className="font-medium text-foreground">{fmt(r.after, r.sym)}</span>{" "}
-                  <span className={cn(delta >= 0 ? "text-success" : "text-destructive")}>({deltaStr(delta, r.sym)})</span>
+                  {fmt(netBefore, mainSymbol)} →{" "}
+                  <span className="font-medium text-foreground">{fmt(netAfter, mainSymbol)}</span>{" "}
+                  <span className={cn(netDelta >= 0 ? "text-success" : "text-destructive")}>
+                    ({deltaStr(netDelta, mainSymbol)})
+                  </span>
                 </span>
               </li>
-            );
-          })}
-          {showNetWorth && !netDeltaUnknown && (
-            <li className="flex flex-wrap items-baseline justify-between gap-x-3">
-              <span className="min-w-0 text-muted-foreground">{tr("add.impact.networth")}</span>
-              <span className="ml-auto text-right tabular-nums">
-                {fmt(netBefore, mainSymbol)} → <span className="font-medium text-foreground">{fmt(netAfter, mainSymbol)}</span>{" "}
-                <span className={cn(netDelta >= 0 ? "text-success" : "text-destructive")}>({deltaStr(netDelta, mainSymbol)})</span>
-              </span>
-            </li>
-          )}
-          {catRows.map((r) => {
-            const hasBudget = r.allocated > 0;
-            const remBefore = r.allocated - r.before;
-            const remAfter = r.allocated - r.after;
-            // Scopes (trips/projects) are savings envelopes that mostly only
-            // get spent from. Show budget left instead of a negative balance:
-            // saved balance is ≤ 0 for pure spending, so allocated + saved.
-            const scopeRemBefore = r.allocated + r.scopeSpentBefore;
-            const scopeRemAfter = r.allocated + r.scopeSpentAfter;
-            return (
-              <li key={"cat-" + r.id} className="flex flex-wrap items-baseline justify-between gap-x-3">
-                <span className="min-w-0 text-muted-foreground">
-                  {tr("add.impact.category")} · {r.name}
-                </span>
-                <span className="ml-auto text-right tabular-nums">
-                  {r.isScope && hasBudget ? (
-                    <>
-                      {tr("add.impact.remaining")}: {fmt(scopeRemBefore, mainSymbol)} →{" "}
-                      <span className={cn("font-medium", scopeRemAfter < 0 ? "text-destructive" : "text-foreground")}>
-                        {fmt(scopeRemAfter, mainSymbol)}
-                      </span>{" "}
-                      <span className="text-muted-foreground">{tr("add.impact.of", { x: fmtMoney(r.allocated, mainSymbol) })}</span>
-                    </>
-                  ) : r.isSavings ? (
-                    <>
-                      {tr("add.impact.saved")}: {fmt(r.savedBefore, mainSymbol)} →{" "}
-                      <span className={cn("font-medium", r.savedAfter < 0 ? "text-destructive" : "text-foreground")}>
-                        {fmt(r.savedAfter, mainSymbol)}
-                      </span>
-                    </>
-                  ) : hasBudget ? (
-                    <>
-                      {tr("add.impact.remaining")}: {fmt(remBefore, mainSymbol)} →{" "}
-                      <span className={cn("font-medium", remAfter < 0 ? "text-destructive" : "text-foreground")}>
-                        {fmt(remAfter, mainSymbol)}
-                      </span>{" "}
-                      <span className="text-muted-foreground">{tr("add.impact.of", { x: fmtMoney(r.allocated, mainSymbol) })}</span>
-                    </>
-                  ) : (
-                    <>
-                      {tr("add.impact.spent")}: {fmt(r.before, mainSymbol)} →{" "}
-                      <span className="font-medium text-foreground">{fmt(r.after, mainSymbol)}</span>
-                    </>
-                  )}
-                </span>
-              </li>
-            );
-          })}
-        </ul>
+            )}
+            {catRows.map((r) => {
+              const hasBudget = r.allocated > 0;
+              const remBefore = r.allocated - r.before;
+              const remAfter = r.allocated - r.after;
+              // Scopes (trips/projects) are savings envelopes that mostly only
+              // get spent from. Show budget left instead of a negative balance:
+              // saved balance is ≤ 0 for pure spending, so allocated + saved.
+              const scopeRemBefore = r.allocated + r.scopeSpentBefore;
+              const scopeRemAfter = r.allocated + r.scopeSpentAfter;
+              return (
+                <li
+                  key={"cat-" + r.id}
+                  className="flex flex-wrap items-baseline justify-between gap-x-3"
+                >
+                  <span className="min-w-0 text-muted-foreground">
+                    {tr("add.impact.category")} · {r.name}
+                  </span>
+                  <span className="ml-auto text-right tabular-nums">
+                    {r.isScope && hasBudget ? (
+                      <>
+                        {tr("add.impact.remaining")}: {fmt(scopeRemBefore, mainSymbol)} →{" "}
+                        <span
+                          className={cn(
+                            "font-medium",
+                            scopeRemAfter < 0 ? "text-destructive" : "text-foreground",
+                          )}
+                        >
+                          {fmt(scopeRemAfter, mainSymbol)}
+                        </span>{" "}
+                        <span className="text-muted-foreground">
+                          {tr("add.impact.of", { x: fmtMoney(r.allocated, mainSymbol) })}
+                        </span>
+                      </>
+                    ) : r.isSavings ? (
+                      <>
+                        {tr("add.impact.saved")}: {fmt(r.savedBefore, mainSymbol)} →{" "}
+                        <span
+                          className={cn(
+                            "font-medium",
+                            r.savedAfter < 0 ? "text-destructive" : "text-foreground",
+                          )}
+                        >
+                          {fmt(r.savedAfter, mainSymbol)}
+                        </span>
+                      </>
+                    ) : hasBudget ? (
+                      <>
+                        {tr("add.impact.remaining")}: {fmt(remBefore, mainSymbol)} →{" "}
+                        <span
+                          className={cn(
+                            "font-medium",
+                            remAfter < 0 ? "text-destructive" : "text-foreground",
+                          )}
+                        >
+                          {fmt(remAfter, mainSymbol)}
+                        </span>{" "}
+                        <span className="text-muted-foreground">
+                          {tr("add.impact.of", { x: fmtMoney(r.allocated, mainSymbol) })}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        {tr("add.impact.spent")}: {fmt(r.before, mainSymbol)} →{" "}
+                        <span className="font-medium text-foreground">
+                          {fmt(r.after, mainSymbol)}
+                        </span>
+                      </>
+                    )}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
         )}
-        {xCur && !refusal && <div className="mt-1 text-[11px] text-muted-foreground">{tr("add.impact.hint_fx")}</div>}
+        {xCur && !refusal && (
+          <div className="mt-1 text-[11px] text-muted-foreground">{tr("add.impact.hint_fx")}</div>
+        )}
       </CardContent>
     </Card>
   );
@@ -3355,7 +4062,15 @@ type ImpactLine = {
 };
 
 function ImpactBlocks({
-  rows, isEdit, noBudgetReason, balances, categoryById, mainCode, mainSymbol, locale, tr,
+  rows,
+  isEdit,
+  noBudgetReason,
+  balances,
+  categoryById,
+  mainCode,
+  mainSymbol,
+  locale,
+  tr,
 }: {
   rows: PreviewImpactRow[];
   isEdit: boolean;
@@ -3390,7 +4105,11 @@ function ImpactBlocks({
 
     const accounts = moved
       .filter((r) => r.kind === "account")
-      .sort((a, b) => (balById.get(a.ref_id ?? "")?.name ?? "").localeCompare(balById.get(b.ref_id ?? "")?.name ?? ""));
+      .sort((a, b) =>
+        (balById.get(a.ref_id ?? "")?.name ?? "").localeCompare(
+          balById.get(b.ref_id ?? "")?.name ?? "",
+        ),
+      );
     for (const r of accounts) {
       const b = balById.get(r.ref_id ?? "");
       money.push({
@@ -3414,13 +4133,22 @@ function ImpactBlocks({
         netTo = t == null || netTo == null ? null : netTo + t;
       }
       if (netFrom != null && netTo != null && Math.abs(netTo - netFrom) >= 0.005) {
-        money.push({ key: "net", label: tr("add.impact.networth"), from: netFrom, to: netTo, sym: mainSymbol });
+        money.push({
+          key: "net",
+          label: tr("add.impact.networth"),
+          from: netFrom,
+          to: netTo,
+          sym: mainSymbol,
+        });
       }
     }
 
     const people = moved
       .filter((r) => r.kind === "person")
-      .sort((a, b) => Number(!!a.income) - Number(!!b.income) || (a.label ?? "").localeCompare(b.label ?? ""));
+      .sort(
+        (a, b) =>
+          Number(!!a.income) - Number(!!b.income) || (a.label ?? "").localeCompare(b.label ?? ""),
+      );
     for (const r of people) {
       const who = r.label?.trim() || tr("add.impact.no_one");
       money.push({
@@ -3437,8 +4165,14 @@ function ImpactBlocks({
     // months that feed it, then other envelopes, then unassigned money.
     const months = moved
       .filter((r) => r.kind === "month")
-      .sort((a, b) => (a.month ?? "").localeCompare(b.month ?? "") || catName(a.ref_id).localeCompare(catName(b.ref_id)));
-    const envelopes = new Map(moved.filter((r) => r.kind === "envelope").map((r) => [r.ref_id ?? "", r]));
+      .sort(
+        (a, b) =>
+          (a.month ?? "").localeCompare(b.month ?? "") ||
+          catName(a.ref_id).localeCompare(catName(b.ref_id)),
+      );
+    const envelopes = new Map(
+      moved.filter((r) => r.kind === "envelope").map((r) => [r.ref_id ?? "", r]),
+    );
     const feeders = new Map<string, PreviewImpactRow[]>();
     for (const m of months) {
       if (!m.sweep_target || !envelopes.has(m.sweep_target)) continue;
@@ -3492,7 +4226,13 @@ function ImpactBlocks({
     }
     const unalloc = moved.find((r) => r.kind === "unallocated");
     if (unalloc) {
-      budgets.push({ key: "unalloc", label: tr("env.moves.unassigned"), from: from(unalloc), to: unalloc.after, sym: mainSymbol });
+      budgets.push({
+        key: "unalloc",
+        label: tr("env.moves.unassigned"),
+        from: from(unalloc),
+        to: unalloc.after,
+        sym: mainSymbol,
+      });
     }
     return { money, budgets };
   };
@@ -3505,17 +4245,27 @@ function ImpactBlocks({
         <span className={cn("min-w-0 text-muted-foreground", l.indent && "pl-4")}>{l.label}</span>
         <span className="ml-auto text-right tabular-nums">
           {l.what && <>{l.what}: </>}
-          {fmtMoney(l.from, l.sym)} → <span className="font-medium text-foreground">{fmtMoney(l.to, l.sym)}</span>{" "}
+          {fmtMoney(l.from, l.sym)} →{" "}
+          <span className="font-medium text-foreground">{fmtMoney(l.to, l.sym)}</span>{" "}
           <span className={good ? "text-success" : "text-destructive"}>
-            ({delta >= 0 ? "+" : "−"}{fmtMoney(Math.abs(delta), l.sym)})
+            ({delta >= 0 ? "+" : "−"}
+            {fmtMoney(Math.abs(delta), l.sym)})
           </span>
-          {l.of != null && <span className="text-muted-foreground"> {tr("add.impact.of", { x: fmtMoney(l.of, mainSymbol) })}</span>}
+          {l.of != null && (
+            <span className="text-muted-foreground">
+              {" "}
+              {tr("add.impact.of", { x: fmtMoney(l.of, mainSymbol) })}
+            </span>
+          )}
         </span>
       </li>
     );
   };
   const quiet = (key: string, label: string, value?: string) => (
-    <li key={key} className="flex flex-wrap items-baseline justify-between gap-x-3 text-muted-foreground">
+    <li
+      key={key}
+      className="flex flex-wrap items-baseline justify-between gap-x-3 text-muted-foreground"
+    >
       <span className="min-w-0">{label}</span>
       {value && <span className="ml-auto text-right">{value}</span>}
     </li>
@@ -3526,8 +4276,13 @@ function ImpactBlocks({
     <ul className="space-y-1">
       {entry.money.map(renderLine)}
       {entry.budgets.map(renderLine)}
-      {entry.budgets.length === 0 && noBudgetReason &&
-        quiet("no-budget", tr("add.impact.budgets"), tr(`add.impact.budgets_none_${noBudgetReason}`))}
+      {entry.budgets.length === 0 &&
+        noBudgetReason &&
+        quiet(
+          "no-budget",
+          tr("add.impact.budgets"),
+          tr(`add.impact.budgets_none_${noBudgetReason}`),
+        )}
     </ul>
   );
   if (!isEdit) return entryList;
@@ -3546,7 +4301,9 @@ function ImpactBlocks({
         <ul className="space-y-1">
           {edit.money.map(renderLine)}
           {edit.budgets.map(renderLine)}
-          {edit.money.length === 0 && edit.budgets.length === 0 && quiet("none", tr("add.impact.no_changes"))}
+          {edit.money.length === 0 &&
+            edit.budgets.length === 0 &&
+            quiet("none", tr("add.impact.no_changes"))}
         </ul>
       </div>
       <div className="border-t pt-2">
@@ -3561,18 +4318,31 @@ function ImpactBlocks({
  * A refusal the app recognises, in plain words with what to do about it, or
  * null. Anything else is most likely a bug in the app, not in the input.
  */
-function knownRefusal(message: string, tr: (k: string, p?: Record<string, string>) => string): string | null {
-  if (message.includes("in the same currency, destination_amount must be more than the amount sent")) {
+function knownRefusal(
+  message: string,
+  tr: (k: string, p?: Record<string, string>) => string,
+): string | null {
+  if (
+    message.includes("in the same currency, destination_amount must be more than the amount sent")
+  ) {
     return tr("add.impact.refusal.received_too_low");
   }
   return null;
 }
 
-function ImpactRefusal({ message, tr }: { message: string; tr: (k: string, p?: Record<string, string>) => string }) {
+function ImpactRefusal({
+  message,
+  tr,
+}: {
+  message: string;
+  tr: (k: string, p?: Record<string, string>) => string;
+}) {
   const known = knownRefusal(message, tr);
   return (
     <div role="status" className="space-y-1">
-      <div className="text-warning">{tr(known ? "add.impact.refusal.known_title" : "add.impact.refusal.unknown_title")}</div>
+      <div className="text-warning">
+        {tr(known ? "add.impact.refusal.known_title" : "add.impact.refusal.unknown_title")}
+      </div>
       <div className="text-foreground">{known ?? tr("add.impact.refusal.unknown_body")}</div>
       {!known && (
         <details className="text-[11px] text-muted-foreground">

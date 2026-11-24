@@ -13,14 +13,24 @@ import type { Category, CategoryBudgetCell, CategoryGroup, GroupKind } from "./f
 
 const cat = (over: Partial<Category> & { id: string }): Category =>
   ({
-    name: over.id, allocated_budget: 0, sort_order: 0, archived: false,
-    is_scope: false, rolls_over: false, group_id: null, ...over,
+    name: over.id,
+    allocated_budget: 0,
+    sort_order: 0,
+    archived: false,
+    is_scope: false,
+    rolls_over: false,
+    group_id: null,
+    ...over,
   }) as Category;
 
 const grp = (id: string, kind: GroupKind, sort_order: number, name = id): CategoryGroup =>
   ({ id, name, kind, sort_order, archived: false }) as CategoryGroup;
 
-const groups = [grp("gi", "income", 0, "Income"), grp("ge", "expense", 1, "Variable"), grp("gs", "savings", 2, "Savings")];
+const groups = [
+  grp("gi", "income", 0, "Income"),
+  grp("ge", "expense", 1, "Variable"),
+  grp("gs", "savings", 2, "Savings"),
+];
 const kindById = new Map(groups.map((g) => [g.id, g.kind] as const));
 
 describe("effectiveKind", () => {
@@ -97,8 +107,11 @@ describe("monthWindow", () => {
 describe("resolveCells", () => {
   const months = [new Date(2026, 0, 1), new Date(2026, 1, 1), new Date(2026, 2, 1)];
   const food = cat({ id: "food", allocated_budget: 500 });
-  const cell = (month: string, amount: number): CategoryBudgetCell =>
-    ({ category_id: "food", month, amount });
+  const cell = (month: string, amount: number): CategoryBudgetCell => ({
+    category_id: "food",
+    month,
+    amount,
+  });
 
   const at = (m: Map<string, { amount: number; inherited: boolean }>, month: string) =>
     m.get(cellId("food", month));

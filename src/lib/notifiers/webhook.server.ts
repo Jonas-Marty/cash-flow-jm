@@ -35,7 +35,11 @@ async function fetchWithTimeout(url: string, init: RequestInit, ms: number): Pro
   }
 }
 
-async function deliverOne(userId: string, wh: WebhookRow, event: TransactionCreatedEvent): Promise<void> {
+async function deliverOne(
+  userId: string,
+  wh: WebhookRow,
+  event: TransactionCreatedEvent,
+): Promise<void> {
   const body = JSON.stringify(event);
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (wh.auth_header_name && wh.auth_header_value) {
@@ -108,14 +112,25 @@ async function deliverOne(userId: string, wh: WebhookRow, event: TransactionCrea
     status: lastStatus ?? undefined,
     err: lastError,
   });
-  await writeAudit(userId, wh, event, { ok: false, status: lastStatus, attempts, error: lastError });
+  await writeAudit(userId, wh, event, {
+    ok: false,
+    status: lastStatus,
+    attempts,
+    error: lastError,
+  });
 }
 
 async function writeAudit(
   userId: string,
   wh: WebhookRow,
   event: TransactionCreatedEvent,
-  outcome: { ok: boolean; status: number | null; attempts: number; durationMs?: number; error?: string | null },
+  outcome: {
+    ok: boolean;
+    status: number | null;
+    attempts: number;
+    durationMs?: number;
+    error?: string | null;
+  },
 ) {
   try {
     await supabaseAdmin.from("audit_logs").insert({
@@ -140,7 +155,10 @@ async function writeAudit(
       },
     });
   } catch (e) {
-    log.error({ event: "webhook.audit.write_failed", err: e instanceof Error ? e.message : String(e) });
+    log.error({
+      event: "webhook.audit.write_failed",
+      err: e instanceof Error ? e.message : String(e),
+    });
   }
 }
 
@@ -157,8 +175,15 @@ export const webhookNotifier: Notifier = {
       return;
     }
     const matches = (data ?? []).filter((w) => (w.events ?? []).includes(event.event));
-    await Promise.all(matches.map((w) => deliverOne(userId, w as WebhookRow, event).catch((e) => {
-      log.error({ event: "webhook.deliver.unexpected", err: e instanceof Error ? e.message : String(e) });
-    })));
+    await Promise.all(
+      matches.map((w) =>
+        deliverOne(userId, w as WebhookRow, event).catch((e) => {
+          log.error({
+            event: "webhook.deliver.unexpected",
+            err: e instanceof Error ? e.message : String(e),
+          });
+        }),
+      ),
+    );
   },
 };

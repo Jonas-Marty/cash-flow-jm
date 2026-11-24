@@ -78,7 +78,12 @@ test.describe("place suggestion on a pending row", () => {
   test("still offers it to a row that arrived with no location at all", async ({ page }) => {
     await openPending(
       page,
-      pendingRow({ latitude: null, longitude: null, location_accuracy_m: null, location_source: null }),
+      pendingRow({
+        latitude: null,
+        longitude: null,
+        location_accuracy_m: null,
+        location_source: null,
+      }),
     );
     await expect(page.getByRole("button", { name: /Coop Bahnhof, Luzern/ }).first()).toBeVisible();
   });

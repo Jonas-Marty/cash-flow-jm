@@ -18,7 +18,9 @@ export const listApiTokens = createServerFn({ method: "GET" })
 
 export const createApiToken = createServerFn({ method: "POST" })
   .middleware([attachSupabaseAuth, requireSupabaseAuth])
-  .inputValidator((d: { name: string }) => z.object({ name: z.string().trim().min(1).max(100) }).parse(d))
+  .inputValidator((d: { name: string }) =>
+    z.object({ name: z.string().trim().min(1).max(100) }).parse(d),
+  )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const raw = generateRawToken();

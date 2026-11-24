@@ -85,7 +85,11 @@ export const Route = createFileRoute("/api/public/attachments")({
           .select("id, transaction_id, link_url, display_name, source, added_at")
           .single();
         if (insErr) {
-          log.error({ event: "api.public.attachments.db_error", err: insErr.message, userId: auth.userId });
+          log.error({
+            event: "api.public.attachments.db_error",
+            err: insErr.message,
+            userId: auth.userId,
+          });
           return json({ error: "Internal server error" }, 500);
         }
         return json({ attachment: ins }, 201);

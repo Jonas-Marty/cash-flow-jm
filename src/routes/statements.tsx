@@ -4,7 +4,18 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { Loader2, Trash2, Upload, CheckCircle2, AlertTriangle, HelpCircle, EyeOff, RefreshCw, Cloud, X } from "lucide-react";
+import {
+  Loader2,
+  Trash2,
+  Upload,
+  CheckCircle2,
+  AlertTriangle,
+  HelpCircle,
+  EyeOff,
+  RefreshCw,
+  Cloud,
+  X,
+} from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +24,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { DatePicker } from "@/components/DatePicker";
 import { StatementDocButton } from "@/components/StatementDocLink";
 import { StatementLineTable } from "@/components/statements/StatementLineTable";
@@ -85,14 +102,33 @@ function readFileAsBase64Impl(file: File): Promise<string> {
 
 function StatusBadge({ line, t }: { line: StatementLine; t: (k: string) => string }) {
   const map: Record<string, { label: string; cls: string }> = {
-    exact: { label: t("statements.status.exact"), cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-600" },
-    probable: { label: t("statements.status.probable"), cls: "border-amber-500/50 bg-amber-500/10 text-amber-600" },
-    unmatched: { label: t("statements.status.missing"), cls: "border-destructive/40 bg-destructive/10 text-destructive" },
-    ignored: { label: t("statements.status.ignored"), cls: "border-muted-foreground/30 text-muted-foreground" },
-    resolved: { label: t("statements.status.resolved"), cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-600" },
+    exact: {
+      label: t("statements.status.exact"),
+      cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-600",
+    },
+    probable: {
+      label: t("statements.status.probable"),
+      cls: "border-amber-500/50 bg-amber-500/10 text-amber-600",
+    },
+    unmatched: {
+      label: t("statements.status.missing"),
+      cls: "border-destructive/40 bg-destructive/10 text-destructive",
+    },
+    ignored: {
+      label: t("statements.status.ignored"),
+      cls: "border-muted-foreground/30 text-muted-foreground",
+    },
+    resolved: {
+      label: t("statements.status.resolved"),
+      cls: "border-emerald-500/40 bg-emerald-500/10 text-emerald-600",
+    },
   };
   const s = map[line.match_status] ?? map.unmatched;
-  return <Badge variant="outline" className={s.cls}>{s.label}</Badge>;
+  return (
+    <Badge variant="outline" className={s.cls}>
+      {s.label}
+    </Badge>
+  );
 }
 
 function StatementsPage() {
@@ -221,18 +257,29 @@ function StatementsPage() {
   function renderLine(l: StatementLine) {
     const m = l.matched_transaction_id ? detail?.matched[l.matched_transaction_id] : null;
     return (
-      <li key={l.id} className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between">
+      <li
+        key={l.id}
+        className="flex flex-col gap-2 px-3 py-2 sm:flex-row sm:items-center sm:justify-between"
+      >
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs text-muted-foreground">{l.booking_date ?? l.value_date ?? "—"}</span>
+            <span className="text-xs text-muted-foreground">
+              {l.booking_date ?? l.value_date ?? "—"}
+            </span>
             <StatusBadge line={l} t={t} />
           </div>
           <div className="break-words text-sm font-medium">{l.description || "—"}</div>
-          {l.match_status === "unmatched" && (l.suggested_description || l.suggested_category_id || (l.suggested_tags?.length ?? 0) > 0) && (
-            <div className="text-xs text-muted-foreground">
-              {t("statements.suggested")}: {[l.suggested_description, (l.suggested_tags ?? []).map((x) => `#${x}`).join(" ")].filter(Boolean).join(" · ")}
-            </div>
-          )}
+          {l.match_status === "unmatched" &&
+            (l.suggested_description ||
+              l.suggested_category_id ||
+              (l.suggested_tags?.length ?? 0) > 0) && (
+              <div className="text-xs text-muted-foreground">
+                {t("statements.suggested")}:{" "}
+                {[l.suggested_description, (l.suggested_tags ?? []).map((x) => `#${x}`).join(" ")]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </div>
+            )}
           {m && (
             <div className="truncate text-xs text-muted-foreground">
               ↔ {m.occurred_on} · {m.description || "—"} · {fmtMoney(m.amount, symbol)}
@@ -240,7 +287,11 @@ function StatementsPage() {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <span className={l.amount < 0 ? "text-sm font-semibold" : "text-sm font-semibold text-emerald-600"}>
+          <span
+            className={
+              l.amount < 0 ? "text-sm font-semibold" : "text-sm font-semibold text-emerald-600"
+            }
+          >
             {fmtMoney(l.amount, symbol)}
           </span>
           {l.match_status === "unmatched" && (
@@ -364,20 +415,27 @@ function StatementsPage() {
                 min={0}
                 max={30}
                 value={windowDays}
-                onChange={(e) => setWindowDays(Math.max(0, Math.min(30, Number(e.target.value) || 0)))}
+                onChange={(e) =>
+                  setWindowDays(Math.max(0, Math.min(30, Number(e.target.value) || 0)))
+                }
                 className="h-9"
               />
             </div>
             <div className="flex items-center justify-between rounded-md border px-3 py-2">
               <div>
                 <div className="text-sm">{t("statements.field.invert")}</div>
-                <div className="text-xs text-muted-foreground">{t("statements.field.invert_hint")}</div>
+                <div className="text-xs text-muted-foreground">
+                  {t("statements.field.invert_hint")}
+                </div>
               </div>
               <Switch checked={invert} onCheckedChange={setInvert} />
             </div>
             <div className="sm:col-span-2 flex items-center justify-between gap-2">
               <p className="text-xs text-muted-foreground">{t("statements.import.hint")}</p>
-              <Button onClick={() => importMut.mutate()} disabled={importMut.isPending || (!file && !ncFile)}>
+              <Button
+                onClick={() => importMut.mutate()}
+                disabled={importMut.isPending || (!file && !ncFile)}
+              >
                 {importMut.isPending ? (
                   <Loader2 className="mr-1 h-4 w-4 animate-spin" />
                 ) : (
@@ -428,13 +486,17 @@ function StatementsPage() {
                 </div>
               ))}
               {(importsQ.data?.imports ?? []).length === 0 && (
-                <p className="px-2 py-2 text-xs text-muted-foreground">{t("statements.list.empty")}</p>
+                <p className="px-2 py-2 text-xs text-muted-foreground">
+                  {t("statements.list.empty")}
+                </p>
               )}
             </CardContent>
           </Card>
 
           <div className="space-y-3">
-            {!activeId && <p className="text-sm text-muted-foreground">{t("statements.detail.pick")}</p>}
+            {!activeId && (
+              <p className="text-sm text-muted-foreground">{t("statements.detail.pick")}</p>
+            )}
             {activeId && detailQ.isLoading && (
               <p className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" /> {t("common.loading")}
@@ -483,7 +545,8 @@ function StatementsPage() {
                   </div>
                   {detail.import.closing_balance !== null && (
                     <span className="text-muted-foreground">
-                      {t("statements.detail.closing")}: {fmtMoney(detail.import.closing_balance, symbol)}
+                      {t("statements.detail.closing")}:{" "}
+                      {fmtMoney(detail.import.closing_balance, symbol)}
                     </span>
                   )}
                   <span className="text-muted-foreground">
@@ -492,7 +555,9 @@ function StatementsPage() {
                   {detail.import.file_source !== "none" ? (
                     <StatementDocButton importId={detail.import.id} hasDocument size="sm" />
                   ) : (
-                    <span className="text-xs text-muted-foreground">{t("statements.doc.not_kept")}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {t("statements.doc.not_kept")}
+                    </span>
                   )}
                   <div className="ml-auto flex items-center gap-2">
                     <Label className="text-xs">{t("statements.field.window")}</Label>
@@ -516,9 +581,14 @@ function StatementsPage() {
                         setRematching(true);
                         try {
                           await rematchFn({
-                            data: { id: detail.import.id, window_days: detail.import.match_window_days },
+                            data: {
+                              id: detail.import.id,
+                              window_days: detail.import.match_window_days,
+                            },
                           });
-                          await qc.invalidateQueries({ queryKey: ["statement_import", detail.import.id] });
+                          await qc.invalidateQueries({
+                            queryKey: ["statement_import", detail.import.id],
+                          });
                           toast.success(t("statements.toast.rematched"));
                         } catch (err) {
                           toast.error(err instanceof Error ? err.message : String(err));
@@ -546,7 +616,10 @@ function StatementsPage() {
                 >
                   {openCount === 0
                     ? t("statements.progress.done", { total: String(detail.lines.length) })
-                    : t("statements.progress", { open: String(openCount), total: String(detail.lines.length) })}
+                    : t("statements.progress", {
+                        open: String(openCount),
+                        total: String(detail.lines.length),
+                      })}
                 </div>
 
                 {groups.missing.length > 0 && (
@@ -568,7 +641,11 @@ function StatementsPage() {
                                 {t("statements.action.create")}
                               </Link>
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => decide(l.id, "ignore")}>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => decide(l.id, "ignore")}
+                            >
                               <EyeOff className="h-3.5 w-3.5" />
                             </Button>
                           </>
@@ -588,7 +665,11 @@ function StatementsPage() {
                   <CheckCircle2 className="h-4 w-4 text-emerald-600" />,
                   groups.matched,
                 )}
-                {section(t("statements.group.ignored"), <EyeOff className="h-4 w-4" />, groups.ignored)}
+                {section(
+                  t("statements.group.ignored"),
+                  <EyeOff className="h-4 w-4" />,
+                  groups.ignored,
+                )}
 
                 <div className="rounded-md border">
                   <div className="flex items-center gap-2 border-b bg-muted/40 px-3 py-2 text-sm font-medium">
@@ -596,17 +677,24 @@ function StatementsPage() {
                     <Badge variant="secondary">{detail.unmatched_app.length}</Badge>
                   </div>
                   {detail.unmatched_app.length === 0 ? (
-                    <p className="px-3 py-2 text-xs text-muted-foreground">{t("statements.group.none")}</p>
+                    <p className="px-3 py-2 text-xs text-muted-foreground">
+                      {t("statements.group.none")}
+                    </p>
                   ) : (
                     <ul className="divide-y">
                       {detail.unmatched_app.map((e) => (
-                        <li key={e.key} className="flex items-center justify-between gap-2 px-3 py-2">
+                        <li
+                          key={e.key}
+                          className="flex items-center justify-between gap-2 px-3 py-2"
+                        >
                           <div className="min-w-0">
                             <div className="text-xs text-muted-foreground">{e.occurred_on}</div>
                             <div className="break-words text-sm">{e.description || "—"}</div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold">{fmtMoney(e.amount, symbol)}</span>
+                            <span className="text-sm font-semibold">
+                              {fmtMoney(e.amount, symbol)}
+                            </span>
                             <Button asChild size="sm" variant="outline">
                               <Link to="/edit/$id" params={{ id: e.transaction_id }}>
                                 {t("statements.action.open")}

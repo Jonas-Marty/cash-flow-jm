@@ -19,15 +19,16 @@ describe("clampLinkAmounts", () => {
   it("never claims more than the original still owes when overpaid", () => {
     // Beer: 19.50 lent, friend hands back 20.00. The extra 0.50 is windfall,
     // not part of the link.
-    expect(clampLinkAmounts([{ id: "a", amount: 19.5 }], 20)).toEqual([
-      { id: "a", amount: 19.5 },
-    ]);
+    expect(clampLinkAmounts([{ id: "a", amount: 19.5 }], 20)).toEqual([{ id: "a", amount: 19.5 }]);
   });
 
   it("spreads one refund across several originals in order", () => {
     expect(
       clampLinkAmounts(
-        [{ id: "a", amount: 417.4 }, { id: "b", amount: 9.95 }],
+        [
+          { id: "a", amount: 417.4 },
+          { id: "b", amount: 9.95 },
+        ],
         427.35,
       ),
     ).toEqual([
@@ -39,7 +40,11 @@ describe("clampLinkAmounts", () => {
   it("truncates the tail once the refund is used up", () => {
     expect(
       clampLinkAmounts(
-        [{ id: "a", amount: 100 }, { id: "b", amount: 50 }, { id: "c", amount: 25 }],
+        [
+          { id: "a", amount: 100 },
+          { id: "b", amount: 50 },
+          { id: "c", amount: 25 },
+        ],
         120,
       ),
     ).toEqual([
@@ -49,15 +54,26 @@ describe("clampLinkAmounts", () => {
   });
 
   it("drops non-positive and unusable selections", () => {
-    expect(clampLinkAmounts([{ id: "a", amount: 0 }, { id: "b", amount: 5 }], 10))
-      .toEqual([{ id: "b", amount: 5 }]);
+    expect(
+      clampLinkAmounts(
+        [
+          { id: "a", amount: 0 },
+          { id: "b", amount: 5 },
+        ],
+        10,
+      ),
+    ).toEqual([{ id: "b", amount: 5 }]);
     expect(clampLinkAmounts([{ id: "a", amount: 5 }], 0)).toEqual([]);
     expect(clampLinkAmounts([{ id: "a", amount: 5 }], Number.NaN)).toEqual([]);
   });
 
   it("rounds to cents so the sum never drifts past the refund", () => {
     const out = clampLinkAmounts(
-      [{ id: "a", amount: 33.333 }, { id: "b", amount: 33.333 }, { id: "c", amount: 33.333 }],
+      [
+        { id: "a", amount: 33.333 },
+        { id: "b", amount: 33.333 },
+        { id: "c", amount: 33.333 },
+      ],
       100,
     );
     const total = out.reduce((s, x) => s + x.amount, 0);

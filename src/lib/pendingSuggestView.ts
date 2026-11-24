@@ -70,8 +70,7 @@ export function suggestsPlace(p: SuggestedRow, d: SuggestionDraft): boolean {
   if (!p.suggested_location) return false;
   if (!d.location) return true;
   return (
-    sameLocation(d.location, locationFromRow(p)) &&
-    !sameLocation(d.location, p.suggested_location)
+    sameLocation(d.location, locationFromRow(p)) && !sameLocation(d.location, p.suggested_location)
   );
 }
 

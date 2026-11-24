@@ -4,7 +4,13 @@ import { Link as LinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { StringAutocomplete } from "@/components/StringAutocomplete";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n";
@@ -12,8 +18,14 @@ import { fmtMoney, type Transaction } from "@/lib/finance";
 import { formatAmountInput } from "@/lib/amountInput";
 import { findSubsetSumMatch, defaultTolerance, REIMB_MATCH_MAX_CANDIDATES } from "@/lib/reimbMatch";
 import {
-  defaultDecision, isMyShare, pickIssue, r2, rankRefundCandidates, restOf,
-  type RefundDecision, type RefundPicks,
+  defaultDecision,
+  isMyShare,
+  pickIssue,
+  r2,
+  rankRefundCandidates,
+  restOf,
+  type RefundDecision,
+  type RefundPicks,
 } from "@/lib/refundPlan";
 
 /** How many expenses the list shows besides the ticked ones. */
@@ -55,7 +67,11 @@ export interface RefundCardProps {
 const NONE = "__none__";
 
 function CategorySelect({
-  value, onChange, categories, placeholder, id,
+  value,
+  onChange,
+  categories,
+  placeholder,
+  id,
 }: {
   value: string | null;
   onChange: (v: string | null) => void;
@@ -69,9 +85,13 @@ function CategorySelect({
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value={NONE} className="text-xs text-muted-foreground">{placeholder}</SelectItem>
+        <SelectItem value={NONE} className="text-xs text-muted-foreground">
+          {placeholder}
+        </SelectItem>
         {categories.map((c) => (
-          <SelectItem key={c.id} value={c.id} className="text-xs">{c.name}</SelectItem>
+          <SelectItem key={c.id} value={c.id} className="text-xs">
+            {c.name}
+          </SelectItem>
         ))}
       </SelectContent>
     </Select>
@@ -79,7 +99,10 @@ function CategorySelect({
 }
 
 function Seg<T extends string>({
-  value, options, onChange, label,
+  value,
+  options,
+  onChange,
+  label,
 }: {
   value: T;
   options: Array<[T, string]>;
@@ -87,7 +110,11 @@ function Seg<T extends string>({
   label: string;
 }) {
   return (
-    <div role="radiogroup" aria-label={label} className="inline-flex flex-wrap overflow-hidden rounded-md border border-border">
+    <div
+      role="radiogroup"
+      aria-label={label}
+      className="inline-flex flex-wrap overflow-hidden rounded-md border border-border"
+    >
       {options.map(([v, text], i) => (
         <button
           key={v}
@@ -109,10 +136,22 @@ function Seg<T extends string>({
 }
 
 /** Amount typed freely, tidied to cents when left. */
-function AmountField({ value, onChange, label }: { value: number; onChange: (n: number) => void; label: string }) {
+function AmountField({
+  value,
+  onChange,
+  label,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  label: string;
+}) {
   const [text, setText] = React.useState(() => formatAmountInput(String(value)));
   React.useEffect(() => {
-    setText((cur) => (Math.abs((Number(cur.replace(",", ".")) || 0) - value) < 0.005 ? cur : formatAmountInput(String(value))));
+    setText((cur) =>
+      Math.abs((Number(cur.replace(",", ".")) || 0) - value) < 0.005
+        ? cur
+        : formatAmountInput(String(value)),
+    );
   }, [value]);
   return (
     <Input
@@ -133,9 +172,28 @@ function AmountField({ value, onChange, label }: { value: number; onChange: (n: 
 
 export function RefundCard(props: RefundCardProps) {
   const {
-    lineAmount, picks, onPicksChange, candidates, openById, existingIds, lockedIds, loading, query,
-    onQueryChange, otherCurrency, counterparty, onCounterpartyChange, counterpartyOptions, categories,
-    surplusCategoryId, onSurplusCategoryChange, onSplitSurplus, incomeDate, symbol, dateFmt, className,
+    lineAmount,
+    picks,
+    onPicksChange,
+    candidates,
+    openById,
+    existingIds,
+    lockedIds,
+    loading,
+    query,
+    onQueryChange,
+    otherCurrency,
+    counterparty,
+    onCounterpartyChange,
+    counterpartyOptions,
+    categories,
+    surplusCategoryId,
+    onSurplusCategoryChange,
+    onSplitSurplus,
+    incomeDate,
+    symbol,
+    dateFmt,
+    className,
   } = props;
   const { t: tr, locale } = useI18n();
   const money = (n: number) => fmtMoney(n, symbol);
@@ -167,7 +225,11 @@ export function RefundCard(props: RefundCardProps) {
   const suggestion = React.useMemo(() => {
     if (pickedIds.length > 0 || !(amount > 0)) return null;
     const pool = rest.slice(0, REIMB_MATCH_MAX_CANDIDATES);
-    const m = findSubsetSumMatch(pool.map((t) => t.open), amount, defaultTolerance(amount));
+    const m = findSubsetSumMatch(
+      pool.map((t) => t.open),
+      amount,
+      defaultTolerance(amount),
+    );
     if (!m) return null;
     return { items: m.indices.map((i) => pool[i]), total: m.total, exact: m.exact };
   }, [pickedIds.length, amount, rest]);
@@ -184,9 +246,17 @@ export function RefundCard(props: RefundCardProps) {
     setPick(id, { ...p, decision: { ...p.decision, ...patch } });
   };
   const toggle = (t: Transaction & { open: number }) => {
-    if (picks[t.id]) { setPick(t.id, null); return; }
+    if (picks[t.id]) {
+      setPick(t.id, null);
+      return;
+    }
     const amt = unassigned > 0.005 ? Math.min(t.open, unassigned) : t.open;
-    setPick(t.id, existingIds.has(t.id) ? { amount: r2(amt) } : { amount: r2(amt), decision: defaultDecision(t) });
+    setPick(
+      t.id,
+      existingIds.has(t.id)
+        ? { amount: r2(amt) }
+        : { amount: r2(amt), decision: defaultDecision(t) },
+    );
   };
   const takeSuggestion = () => {
     if (!suggestion) return;
@@ -195,12 +265,16 @@ export function RefundCard(props: RefundCardProps) {
     for (const t of suggestion.items) {
       const amt = r2(Math.min(t.open, Math.max(left, 0)) || t.open);
       left = r2(left - amt);
-      copy[t.id] = existingIds.has(t.id) ? { amount: amt } : { amount: amt, decision: defaultDecision(t) };
+      copy[t.id] = existingIds.has(t.id)
+        ? { amount: amt }
+        : { amount: amt, decision: defaultDecision(t) };
     }
     onPicksChange(copy);
   };
 
-  const needsCounterparty = picked.some((t) => picks[t.id]?.decision && !t.reimbursable_counterparty);
+  const needsCounterparty = picked.some(
+    (t) => picks[t.id]?.decision && !t.reimbursable_counterparty,
+  );
   const unticked = [...existingIds].filter((id) => !picks[id]);
 
   return (
@@ -211,8 +285,15 @@ export function RefundCard(props: RefundCardProps) {
             <LinkIcon className="h-4 w-4" aria-hidden />
             {tr("refund.title")}
           </div>
-          <span className={cn("rounded-full px-2 py-0.5 text-[11px]", pickedIds.length ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground")}>
-            {pickedIds.length ? tr("refund.selected", { n: pickedIds.length }) : tr("refund.optional")}
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-[11px]",
+              pickedIds.length ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+            )}
+          >
+            {pickedIds.length
+              ? tr("refund.selected", { n: pickedIds.length })
+              : tr("refund.optional")}
           </span>
         </div>
 
@@ -232,7 +313,13 @@ export function RefundCard(props: RefundCardProps) {
               })}
               {suggestion.exact && <> · {tr("refund.suggest.exact")}</>}
             </span>
-            <Button type="button" size="sm" variant="outline" className="h-7" onClick={takeSuggestion}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-7"
+              onClick={takeSuggestion}
+            >
               {tr("refund.suggest.take")}
             </Button>
           </div>
@@ -246,19 +333,52 @@ export function RefundCard(props: RefundCardProps) {
             const isNew = !!pick?.decision;
             const badges: React.ReactNode[] = [];
             if (t.is_reimbursable && t.reimbursable_counterparty) {
-              badges.push(<span key="r" className="rounded-full bg-warning/15 px-2 py-0.5 text-warning">{tr("refund.badge.reimb", { name: t.reimbursable_counterparty })}</span>);
+              badges.push(
+                <span key="r" className="rounded-full bg-warning/15 px-2 py-0.5 text-warning">
+                  {tr("refund.badge.reimb", { name: t.reimbursable_counterparty })}
+                </span>,
+              );
             } else if (on && isNew && !t.is_reimbursable) {
-              badges.push(<span key="b" className="rounded-full bg-primary/15 px-2 py-0.5 text-primary">{tr("refund.badge.becomes")}</span>);
+              badges.push(
+                <span key="b" className="rounded-full bg-primary/15 px-2 py-0.5 text-primary">
+                  {tr("refund.badge.becomes")}
+                </span>,
+              );
             }
             if (existingIds.has(t.id) && !on && t.reimbursable_flagged_by_link) {
-              badges.push(<span key="u" className="rounded-full bg-muted px-2 py-0.5">{tr("refund.badge.unflag")}</span>);
+              badges.push(
+                <span key="u" className="rounded-full bg-muted px-2 py-0.5">
+                  {tr("refund.badge.unflag")}
+                </span>,
+              );
             }
-            if (existingIds.has(t.id) && on) badges.push(<span key="c" className="rounded-full bg-muted px-2 py-0.5">{tr("add.reimb.link.covered_now")}</span>);
-            if (t.split_group_id) badges.push(<span key="s" className="rounded-full bg-muted px-2 py-0.5">{tr("refund.badge.split")}</span>);
+            if (existingIds.has(t.id) && on)
+              badges.push(
+                <span key="c" className="rounded-full bg-muted px-2 py-0.5">
+                  {tr("add.reimb.link.covered_now")}
+                </span>,
+              );
+            if (t.split_group_id)
+              badges.push(
+                <span key="s" className="rounded-full bg-muted px-2 py-0.5">
+                  {tr("refund.badge.split")}
+                </span>,
+              );
             const paidBefore = r2(Number(t.amount) - t.open);
             return (
-              <li key={t.id} className={cn("rounded-md border border-border/70 px-2.5 py-2", on && "border-primary/60 bg-primary/5")}>
-                <label className={cn("grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2.5", locked ? "cursor-not-allowed" : "cursor-pointer")}>
+              <li
+                key={t.id}
+                className={cn(
+                  "rounded-md border border-border/70 px-2.5 py-2",
+                  on && "border-primary/60 bg-primary/5",
+                )}
+              >
+                <label
+                  className={cn(
+                    "grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-2.5",
+                    locked ? "cursor-not-allowed" : "cursor-pointer",
+                  )}
+                >
                   <input
                     type="checkbox"
                     className="mt-1 h-4 w-4 accent-[hsl(var(--primary))]"
@@ -267,9 +387,13 @@ export function RefundCard(props: RefundCardProps) {
                     onChange={() => toggle(t)}
                   />
                   <span className="min-w-0">
-                    <span className="block break-words text-sm font-medium">{t.description || tr("add.expense")}</span>
+                    <span className="block break-words text-sm font-medium">
+                      {t.description || tr("add.expense")}
+                    </span>
                     <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-muted-foreground">
-                      <span className="tabular-nums">{format(new Date(t.occurred_on + "T00:00:00"), dateFmt)}</span>
+                      <span className="tabular-nums">
+                        {format(new Date(t.occurred_on + "T00:00:00"), dateFmt)}
+                      </span>
                       <span>· {catName(t.category_id)}</span>
                       {badges}
                     </span>
@@ -277,11 +401,21 @@ export function RefundCard(props: RefundCardProps) {
                   <span className="text-right text-sm font-semibold tabular-nums">
                     {money(Number(t.amount))}
                     {paidBefore > 0.005 && !on && (
-                      <span className="block text-[11px] font-normal text-muted-foreground">{tr("refund.open", { amount: money(t.open) })}</span>
+                      <span className="block text-[11px] font-normal text-muted-foreground">
+                        {tr("refund.open", { amount: money(t.open) })}
+                      </span>
                     )}
                   </span>
                 </label>
-                {locked && <p className="mt-1 pl-6 text-[11px] text-muted-foreground">{tr(t.reimbursable_status === "written_off" ? "add.reimb.link.locked_written_off" : "add.reimb.link.locked_cancelled")}</p>}
+                {locked && (
+                  <p className="mt-1 pl-6 text-[11px] text-muted-foreground">
+                    {tr(
+                      t.reimbursable_status === "written_off"
+                        ? "add.reimb.link.locked_written_off"
+                        : "add.reimb.link.locked_cancelled",
+                    )}
+                  </p>
+                )}
                 {on && !locked && pickDetails(t)}
               </li>
             );
@@ -289,7 +423,9 @@ export function RefundCard(props: RefundCardProps) {
         </ul>
 
         {loading && <p className="text-xs text-muted-foreground">{tr("refund.loading")}</p>}
-        {!loading && shown.length === 0 && <p className="text-xs text-muted-foreground">{tr("refund.none_found")}</p>}
+        {!loading && shown.length === 0 && (
+          <p className="text-xs text-muted-foreground">{tr("refund.none_found")}</p>
+        )}
         {(rest.length > SHOWN || otherCurrency > 0) && (
           <p className="text-[11px] text-muted-foreground">
             {rest.length > SHOWN && tr("refund.more", { n: rest.length - SHOWN })}{" "}
@@ -303,13 +439,20 @@ export function RefundCard(props: RefundCardProps) {
         {pickedIds.length > 0 && needsCounterparty && (
           <div>
             <label className="mb-1 block text-xs font-medium">{tr("refund.counterparty")}</label>
-            <StringAutocomplete value={counterparty} onChange={onCounterpartyChange} options={counterpartyOptions} />
-            <p className="mt-1 text-[11px] text-muted-foreground">{tr("refund.counterparty_hint")}</p>
+            <StringAutocomplete
+              value={counterparty}
+              onChange={onCounterpartyChange}
+              options={counterpartyOptions}
+            />
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {tr("refund.counterparty_hint")}
+            </p>
           </div>
         )}
 
-        {pickedIds.length > 0 && amount > 0 && (
-          unassigned < -0.005 ? (
+        {pickedIds.length > 0 &&
+          amount > 0 &&
+          (unassigned < -0.005 ? (
             <div className="flex flex-wrap justify-between gap-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
               <span>{tr("refund.bar.assigned", { sel: money(linked), inc: money(amount) })}</span>
               <span>{tr("refund.bar.over", { amount: money(-unassigned) })}</span>
@@ -322,18 +465,32 @@ export function RefundCard(props: RefundCardProps) {
               </div>
               {onSplitSurplus && (
                 <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <span className="min-w-[8rem] text-muted-foreground">{tr("refund.surplus", { amount: money(unassigned) })}</span>
+                  <span className="min-w-[8rem] text-muted-foreground">
+                    {tr("refund.surplus", { amount: money(unassigned) })}
+                  </span>
                   <Seg
                     label={tr("refund.surplus", { amount: money(unassigned) })}
                     value={"credit" as const}
-                    options={[["credit", tr("refund.surplus.credit")], ["split", tr("refund.surplus.split")]]}
-                    onChange={(v) => { if (v === "split") onSplitSurplus(); }}
+                    options={[
+                      ["credit", tr("refund.surplus.credit")],
+                      ["split", tr("refund.surplus.split")],
+                    ]}
+                    onChange={(v) => {
+                      if (v === "split") onSplitSurplus();
+                    }}
                   />
                 </div>
               )}
               <div className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="min-w-[8rem] text-muted-foreground">{tr("refund.surplus.cat")}</span>
-                <CategorySelect value={surplusCategoryId} onChange={onSurplusCategoryChange} categories={categories} placeholder={tr("refund.no_category")} />
+                <span className="min-w-[8rem] text-muted-foreground">
+                  {tr("refund.surplus.cat")}
+                </span>
+                <CategorySelect
+                  value={surplusCategoryId}
+                  onChange={onSurplusCategoryChange}
+                  categories={categories}
+                  placeholder={tr("refund.no_category")}
+                />
               </div>
             </div>
           ) : (
@@ -341,8 +498,7 @@ export function RefundCard(props: RefundCardProps) {
               <span>{tr("refund.bar.assigned", { sel: money(linked), inc: money(amount) })}</span>
               <span>{tr("refund.bar.exact")}</span>
             </div>
-          )
-        )}
+          ))}
       </CardContent>
     </Card>
   );
@@ -361,17 +517,28 @@ export function RefundCard(props: RefundCardProps) {
       <div className="mt-2 space-y-2 border-t border-dashed border-border pt-2 pl-6 text-xs">
         <div className="flex flex-wrap items-center gap-2">
           <span className="min-w-[8rem] text-muted-foreground">{tr("refund.amount_label")}</span>
-          <AmountField value={Number(pick.amount) || 0} onChange={(n) => setPick(t.id, { ...pick, amount: n })} label={tr("refund.amount_label")} />
-          <span className="text-muted-foreground">{tr("refund.of_open", { amount: money(t.open) })}</span>
+          <AmountField
+            value={Number(pick.amount) || 0}
+            onChange={(n) => setPick(t.id, { ...pick, amount: n })}
+            label={tr("refund.amount_label")}
+          />
+          <span className="text-muted-foreground">
+            {tr("refund.of_open", { amount: money(t.open) })}
+          </span>
         </div>
         {issue && <p className="text-destructive">{tr(issue)}</p>}
         {d && rest > 0.005 && (
           <div className="flex flex-wrap items-center gap-2">
-            <span className="min-w-[8rem] text-muted-foreground">{tr("refund.rest_is", { amount: money(rest) })}</span>
+            <span className="min-w-[8rem] text-muted-foreground">
+              {tr("refund.rest_is", { amount: money(rest) })}
+            </span>
             <Seg
               label={tr("refund.rest_is", { amount: money(rest) })}
               value={d.rest}
-              options={[["coming", tr("refund.rest.coming")], ["mine", tr("refund.rest.mine")]]}
+              options={[
+                ["coming", tr("refund.rest.coming")],
+                ["mine", tr("refund.rest.mine")],
+              ]}
               onChange={(v) => setDecision(t.id, { rest: v })}
             />
           </div>
@@ -383,61 +550,102 @@ export function RefundCard(props: RefundCardProps) {
               <Seg
                 label={tr("refund.share_as")}
                 value={d.how}
-                options={[["writeoff", tr("refund.how.writeoff")], ["split", tr("refund.how.split")]]}
+                options={[
+                  ["writeoff", tr("refund.how.writeoff")],
+                  ["split", tr("refund.how.split")],
+                ]}
                 onChange={(v) => setDecision(t.id, { how: v })}
               />
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <span className="min-w-[8rem] text-muted-foreground">{tr(d.how === "writeoff" ? "refund.cat.writeoff" : "refund.cat.split")}</span>
-              <CategorySelect value={d.mineCategoryId} onChange={(v) => setDecision(t.id, { mineCategoryId: v })} categories={categories} placeholder={tr("refund.cat.choose")} />
+              <span className="min-w-[8rem] text-muted-foreground">
+                {tr(d.how === "writeoff" ? "refund.cat.writeoff" : "refund.cat.split")}
+              </span>
+              <CategorySelect
+                value={d.mineCategoryId}
+                onChange={(v) => setDecision(t.id, { mineCategoryId: v })}
+                categories={categories}
+                placeholder={tr("refund.cat.choose")}
+              />
             </div>
             {d.mineCategoryId && (
               <p className="text-muted-foreground">
                 {d.how === "writeoff"
-                  ? tr("refund.effect.writeoff", { amount: money(Number(t.amount)), cat: catName(d.mineCategoryId), rest: money(rest) })
-                  : tr("refund.effect.split", { amount: money(Number(pick.amount) || 0), cat: catName(d.mineCategoryId), rest: money(rest) })}
+                  ? tr("refund.effect.writeoff", {
+                      amount: money(Number(t.amount)),
+                      cat: catName(d.mineCategoryId),
+                      rest: money(rest),
+                    })
+                  : tr("refund.effect.split", {
+                      amount: money(Number(pick.amount) || 0),
+                      cat: catName(d.mineCategoryId),
+                      rest: money(rest),
+                    })}
               </p>
             )}
           </>
         )}
         {d && !mine && rest > 0.005 && (
-          <p className="text-muted-foreground">{tr("refund.effect.coming", { rest: money(rest), name: t.reimbursable_counterparty || counterparty || "—" })}</p>
+          <p className="text-muted-foreground">
+            {tr("refund.effect.coming", {
+              rest: money(rest),
+              name: t.reimbursable_counterparty || counterparty || "—",
+            })}
+          </p>
         )}
-        {d && !mine && (
-          t.category_id ? (
+        {d &&
+          !mine &&
+          (t.category_id ? (
             <>
               <div className="flex flex-wrap items-center gap-2">
                 <span className="min-w-[8rem] text-muted-foreground">{tr("refund.budget")}</span>
                 <Seg
                   label={tr("refund.budget")}
                   value={d.budget === "credit" ? "credit" : "remove"}
-                  options={[["remove", tr("refund.budget.remove")], ["credit", tr("refund.budget.credit")]]}
+                  options={[
+                    ["remove", tr("refund.budget.remove")],
+                    ["credit", tr("refund.budget.credit")],
+                  ]}
                   onChange={(v) => setDecision(t.id, { budget: v })}
                 />
               </div>
               {d.budget === "credit" && (
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="min-w-[8rem] text-muted-foreground">{tr("refund.income_cat")}</span>
-                  <CategorySelect value={d.incomeCategoryId} onChange={(v) => setDecision(t.id, { incomeCategoryId: v })} categories={categories} placeholder={tr("refund.no_category")} />
+                  <span className="min-w-[8rem] text-muted-foreground">
+                    {tr("refund.income_cat")}
+                  </span>
+                  <CategorySelect
+                    value={d.incomeCategoryId}
+                    onChange={(v) => setDecision(t.id, { incomeCategoryId: v })}
+                    categories={categories}
+                    placeholder={tr("refund.no_category")}
+                  />
                   {d.incomeCategoryId !== t.category_id && (
-                    <span className="text-muted-foreground">{tr("refund.income_cat_differs", { cat: catName(t.category_id) })}</span>
+                    <span className="text-muted-foreground">
+                      {tr("refund.income_cat_differs", { cat: catName(t.category_id) })}
+                    </span>
                   )}
                 </div>
               )}
               <p className="text-muted-foreground">
                 {d.budget === "credit"
                   ? tr("refund.effect.credit", {
-                      cat: catName(t.category_id), expMonth: month(expDate), icat: catName(d.incomeCategoryId),
-                      incMonth: month(incomeDate), amount: money(Number(pick.amount) || 0),
+                      cat: catName(t.category_id),
+                      expMonth: month(expDate),
+                      icat: catName(d.incomeCategoryId),
+                      incMonth: month(incomeDate),
+                      amount: money(Number(pick.amount) || 0),
                     })
-                  : tr("refund.effect.remove", { cat: catName(t.category_id), month: month(expDate), amount: money(Number(t.amount)) })
-                    + (pastMonth ? tr("refund.effect.past_month") : "")}
+                  : tr("refund.effect.remove", {
+                      cat: catName(t.category_id),
+                      month: month(expDate),
+                      amount: money(Number(t.amount)),
+                    }) + (pastMonth ? tr("refund.effect.past_month") : "")}
               </p>
             </>
           ) : (
             <p className="text-muted-foreground">{tr("refund.effect.no_cat")}</p>
-          )
-        )}
+          ))}
       </div>
     );
   }

@@ -1,4 +1,9 @@
-import type { Category, CategoryGroup, CategoryMonthRow, PendingCategorySigned } from "@/lib/finance";
+import type {
+  Category,
+  CategoryGroup,
+  CategoryMonthRow,
+  PendingCategorySigned,
+} from "@/lib/finance";
 import { pendingDeltaForRow } from "@/lib/finance";
 import { effectiveKind } from "@/lib/budgetGrid";
 
@@ -25,8 +30,12 @@ export function computeMonthTotals(
   rows: CategoryMonthRow[],
   pendingMap: Map<string, PendingCategorySigned>,
 ): MonthBudgetTotals {
-  let incomeAllocated = 0, incomeReceived = 0, incomePending = 0;
-  let expenseAllocated = 0, expenseSpent = 0, expensePending = 0;
+  let incomeAllocated = 0,
+    incomeReceived = 0,
+    incomePending = 0;
+  let expenseAllocated = 0,
+    expenseSpent = 0,
+    expensePending = 0;
   let savingsTarget = 0;
 
   for (const r of rows) {
@@ -55,8 +64,14 @@ export function computeMonthTotals(
   const incomeProjected = incomeReceived + incomePending;
   const expenseProjected = expenseSpent + expensePending;
   return {
-    incomeAllocated, incomeReceived, incomePending, incomeProjected,
-    expenseAllocated, expenseSpent, expensePending, expenseProjected,
+    incomeAllocated,
+    incomeReceived,
+    incomePending,
+    incomeProjected,
+    expenseAllocated,
+    expenseSpent,
+    expensePending,
+    expenseProjected,
     savingsTarget,
     projectedNet: incomeProjected - expenseProjected - savingsTarget,
     plannedNet: incomeAllocated - expenseAllocated - savingsTarget,
@@ -120,7 +135,9 @@ export function computePlanTotals(
   const groupKindById = new Map<string, CategoryGroup["kind"]>();
   for (const g of groups) groupKindById.set(g.id, g.kind);
 
-  let income = 0, expense = 0, savings = 0;
+  let income = 0,
+    expense = 0,
+    savings = 0;
   for (const c of categories) {
     if (c.archived) continue;
     if (c.is_scope) continue;

@@ -47,4 +47,4 @@ export default defineConfig({
   theme: { accent: "teal", radius: "md", mode: "system" },
   search: { provider: "orama" },
   seo: { sitemap: true, robots: true, og: { enabled: true } },
-})
+});

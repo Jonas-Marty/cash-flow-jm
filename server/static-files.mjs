@@ -28,7 +28,16 @@ export const MIME = {
 };
 
 /** Extensions precompress.mjs writes variants for. */
-export const COMPRESSIBLE = new Set([".js", ".mjs", ".css", ".html", ".json", ".svg", ".map", ".txt"]);
+export const COMPRESSIBLE = new Set([
+  ".js",
+  ".mjs",
+  ".css",
+  ".html",
+  ".json",
+  ".svg",
+  ".map",
+  ".txt",
+]);
 
 /** Encodings in order of preference, with the file suffix of each variant. */
 const VARIANTS = [
@@ -87,7 +96,9 @@ export async function serveStatic(req, res, publicDir) {
   const headers = {
     "Content-Type": MIME[ext] ?? "application/octet-stream",
     "Cache-Control":
-      filePath.includes("/assets/") || filePath.includes("/_build/") ? "public, max-age=31536000, immutable" : "public, max-age=300",
+      filePath.includes("/assets/") || filePath.includes("/_build/")
+        ? "public, max-age=31536000, immutable"
+        : "public, max-age=300",
   };
 
   let body = null;

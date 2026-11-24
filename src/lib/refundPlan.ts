@@ -118,7 +118,11 @@ export function planIncomeParts(
     if (amount <= 0) continue;
     linked = r2(linked + amount);
     const cat = incomeCategoryFor(openById.get(id) ?? amount, pick);
-    const link: IncomePartLink = { original_id: id, amount, ...(pick.decision ? { decision: pick.decision } : {}) };
+    const link: IncomePartLink = {
+      original_id: id,
+      amount,
+      ...(pick.decision ? { decision: pick.decision } : {}),
+    };
     if (cat === undefined) add(lineCategoryId, amount, true, link);
     else add(cat, amount, false, link);
   }
@@ -201,8 +205,14 @@ export function refundPreviewOps(
   picks: RefundPicks,
   expenses: Map<string, PreviewExpense>,
   openById: Map<string, number>,
-): Array<{ op: "insert"; row: Record<string, unknown> } | { op: "update"; id: string; row: Record<string, unknown> }> {
-  const ops: Array<{ op: "insert"; row: Record<string, unknown> } | { op: "update"; id: string; row: Record<string, unknown> }> = [];
+): Array<
+  | { op: "insert"; row: Record<string, unknown> }
+  | { op: "update"; id: string; row: Record<string, unknown> }
+> {
+  const ops: Array<
+    | { op: "insert"; row: Record<string, unknown> }
+    | { op: "update"; id: string; row: Record<string, unknown> }
+  > = [];
   for (const [id, pick] of Object.entries(picks)) {
     const d = pick.decision;
     const e = expenses.get(id);
@@ -214,7 +224,11 @@ export function refundPreviewOps(
         ops.push({ op: "update", id, row: { category_id: d.mineCategoryId } });
       } else {
         const rest = restOf(open, pick);
-        ops.push({ op: "update", id, row: { amount: r2(Number(e.amount) - rest), category_id: null } });
+        ops.push({
+          op: "update",
+          id,
+          row: { amount: r2(Number(e.amount) - rest), category_id: null },
+        });
         ops.push({
           op: "insert",
           row: {

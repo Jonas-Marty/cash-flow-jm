@@ -232,7 +232,6 @@ describe("parseModelSuggestions", () => {
   });
 });
 
-
 describe("parseModelSuggestions — places", () => {
   const rows = new Set(["r1", "r2"]);
   const cats = new Set(["c1"]);
@@ -248,21 +247,25 @@ describe("parseModelSuggestions — places", () => {
   });
 
   it("drops a ref that is in no table at all", () => {
-    expect(parse({ pending_id: "r1", category_id: "c1", place_ref: "p99" }).get("r1")?.place_ref)
-      .toBeNull();
+    expect(
+      parse({ pending_id: "r1", category_id: "c1", place_ref: "p99" }).get("r1")?.place_ref,
+    ).toBeNull();
   });
 
   it("drops a ref that is real but was not offered to this row", () => {
     // p3 exists and r2 is a valid row, but r2 had no fix, so it was offered
     // nothing. A single global set of valid refs passes this silently — which
     // is the whole reason the allowed refs are held per row.
-    expect(parse({ pending_id: "r2", category_id: "c1", place_ref: "p3" }).get("r2")?.place_ref)
-      .toBeNull();
+    expect(
+      parse({ pending_id: "r2", category_id: "c1", place_ref: "p3" }).get("r2")?.place_ref,
+    ).toBeNull();
   });
 
   it("drops every ref when the caller offered none", () => {
-    expect(parse({ pending_id: "r1", category_id: "c1", place_ref: "p3" }, new Map()).get("r1")
-      ?.place_ref).toBeNull();
+    expect(
+      parse({ pending_id: "r1", category_id: "c1", place_ref: "p3" }, new Map()).get("r1")
+        ?.place_ref,
+    ).toBeNull();
   });
 
   it("refuses a place name where a ref belongs", () => {
@@ -275,8 +278,9 @@ describe("parseModelSuggestions — places", () => {
   });
 
   it("ignores a place_ref that is not a string", () => {
-    expect(parse({ pending_id: "r1", category_id: "c1", place_ref: 3 }).get("r1")?.place_ref)
-      .toBeNull();
+    expect(
+      parse({ pending_id: "r1", category_id: "c1", place_ref: 3 }).get("r1")?.place_ref,
+    ).toBeNull();
   });
 
   it("lets a place ref alone carry the whole suggestion", () => {

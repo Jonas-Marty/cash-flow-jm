@@ -49,14 +49,18 @@ function emit(level: LogLevel, fields: LogFields) {
   try {
     json = JSON.stringify(line);
   } catch {
-    json = JSON.stringify({ ts: line.ts, level, service: SERVICE, event: fields.event, _stringify_error: true });
+    json = JSON.stringify({
+      ts: line.ts,
+      level,
+      service: SERVICE,
+      event: fields.event,
+      _stringify_error: true,
+    });
   }
   // stdout for info/debug, stderr for warn/error so log shippers can split if desired.
   if (level === "warn" || level === "error") {
-    // eslint-disable-next-line no-console
     console.error(json);
   } else {
-    // eslint-disable-next-line no-console
     console.log(json);
   }
 }
@@ -71,7 +75,11 @@ export const log = {
 /** Generate a short request id (no external deps). */
 export function newRequestId(): string {
   // 12 hex chars is enough to correlate within a request lifetime
-  const a = Math.floor(Math.random() * 0xffffffff).toString(16).padStart(8, "0");
-  const b = Math.floor(Math.random() * 0xffff).toString(16).padStart(4, "0");
+  const a = Math.floor(Math.random() * 0xffffffff)
+    .toString(16)
+    .padStart(8, "0");
+  const b = Math.floor(Math.random() * 0xffff)
+    .toString(16)
+    .padStart(4, "0");
   return `${a}${b}`;
 }

@@ -101,7 +101,11 @@ export function BudgetGrid({
    * and extending backwards means moving it one month at a time.
    */
   const earliestStored = React.useMemo(
-    () => stored.reduce<string | null>((min, c) => (min === null || c.month < min ? c.month : min), null),
+    () =>
+      stored.reduce<string | null>(
+        (min, c) => (min === null || c.month < min ? c.month : min),
+        null,
+      ),
     [stored],
   );
 
@@ -342,175 +346,191 @@ export function BudgetGrid({
         </div>
       )}
       <div ref={scrollRef} className="overflow-x-auto rounded-md border">
-      <div ref={gridRef} className="min-w-max">
-        <div
-          className="sticky top-0 z-20 grid border-b bg-background"
-          style={{ gridTemplateColumns: template }}
-        >
-          <div className="sticky left-0 z-10 bg-background px-3 py-2 text-xs font-medium text-muted-foreground">
-            {t("budget.grid.envelope")}
-          </div>
-          {months.map((m, i) => {
-            const label = format(m, "MMMM yyyy", { locale });
-            return (
-              // A div, not a button: the actions below are buttons, and a button
-              // inside a button is invalid HTML that breaks hydration. The month
-              // label carries the selection instead.
-              <div
-                key={monthKeys[i]}
-                data-month-header={monthKeys[i]}
-                className={cn(
-                  "px-2 py-2 text-right text-xs transition-colors",
-                  i === selectedCol && "bg-accent/50 font-semibold text-foreground",
-                )}
-              >
-                <div className="flex items-center justify-end gap-0.5">
-                  {i > 0 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={busy}
-                      className="h-5 w-5 p-0 opacity-40 hover:opacity-100"
-                      title={t("budget.grid.copy_previous_tip", {
-                        month: label,
-                        prev: format(months[i - 1], "MMMM", { locale }),
-                      })}
-                      onMouseEnter={() => setPreview({ kind: "copy", fromCol: i })}
-                      onMouseLeave={() => setPreview(null)}
-                      onClick={() => { setPreview(null); copyColumn(i); }}
-                    >
-                      {/* Points right because the *data* moves right: the previous month's values
-                          land in this one. Rotated left, it read as "scroll back". */}
-                      <ChevronsRight className="h-3 w-3" />
-                    </Button>
+        <div ref={gridRef} className="min-w-max">
+          <div
+            className="sticky top-0 z-20 grid border-b bg-background"
+            style={{ gridTemplateColumns: template }}
+          >
+            <div className="sticky left-0 z-10 bg-background px-3 py-2 text-xs font-medium text-muted-foreground">
+              {t("budget.grid.envelope")}
+            </div>
+            {months.map((m, i) => {
+              const label = format(m, "MMMM yyyy", { locale });
+              return (
+                // A div, not a button: the actions below are buttons, and a button
+                // inside a button is invalid HTML that breaks hydration. The month
+                // label carries the selection instead.
+                <div
+                  key={monthKeys[i]}
+                  data-month-header={monthKeys[i]}
+                  className={cn(
+                    "px-2 py-2 text-right text-xs transition-colors",
+                    i === selectedCol && "bg-accent/50 font-semibold text-foreground",
                   )}
-                  {i < months.length - 1 && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={busy}
-                      className="h-5 w-5 p-0 opacity-40 hover:opacity-100"
-                      title={t("budget.grid.fill_month_tip", { month: label })}
-                      onMouseEnter={() => setPreview({ kind: "fill", fromCol: i })}
-                      onMouseLeave={() => setPreview(null)}
-                      onClick={() => { setPreview(null); fillColumnRight(i); }}
-                    >
-                      <ArrowRight className="h-3 w-3" />
-                    </Button>
-                  )}
-                  {/* Offered only where a deletion survives the next load: trimming
-                      the oldest months, or clearing a month that has not happened. */}
-                  {earliestStored !== null && monthKeys[i + 1] === earliestStored && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={busy}
-                      className="h-5 w-5 p-0 opacity-40 hover:opacity-100"
-                      title={t("budget.grid.extend_tip", {
-                        month: label,
-                        source: format(months[i + 1], "MMMM yyyy", { locale }),
-                      })}
-                      onMouseEnter={() => setPreview({ kind: "back", fromCol: i })}
-                      onMouseLeave={() => setPreview(null)}
-                      onClick={() => { setPreview(null); extendBack(i); }}
-                    >
-                      <ArrowLeftToLine className="h-3 w-3" />
-                    </Button>
-                  )}
-                  {(() => {
-                    const future = monthStatus(m) === "future";
-                    const through = !future;
-                    // Nothing to erase is worth showing rather than discovering by
-                    // clicking: a disabled button says so before you press it.
-                    const erasable = stored.some((cell) =>
-                      through ? cell.month <= monthKeys[i] : cell.month === monthKeys[i],
-                    );
-                    return (
+                >
+                  <div className="flex items-center justify-end gap-0.5">
+                    {i > 0 && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        disabled={busy || !erasable}
-                        className={cn(
-                          "h-5 w-5 p-0 opacity-40",
-                          erasable ? "hover:text-destructive hover:opacity-100" : "opacity-15",
-                        )}
-                        title={
-                          future
-                            ? t("budget.grid.clear_month_tip", { month: label })
-                            : t("budget.grid.trim_tip", { month: label })
-                        }
-                        onMouseEnter={() => setPreview({ kind: "clear", fromCol: i, through })}
+                        disabled={busy}
+                        className="h-5 w-5 p-0 opacity-40 hover:opacity-100"
+                        title={t("budget.grid.copy_previous_tip", {
+                          month: label,
+                          prev: format(months[i - 1], "MMMM", { locale }),
+                        })}
+                        onMouseEnter={() => setPreview({ kind: "copy", fromCol: i })}
                         onMouseLeave={() => setPreview(null)}
-                        onClick={() => { setPreview(null); clearMonths(i, through); }}
+                        onClick={() => {
+                          setPreview(null);
+                          copyColumn(i);
+                        }}
                       >
-                        <Eraser className="h-3 w-3" />
+                        {/* Points right because the *data* moves right: the previous month's values
+                          land in this one. Rotated left, it read as "scroll back". */}
+                        <ChevronsRight className="h-3 w-3" />
                       </Button>
-                    );
-                  })()}
-                  <button
-                    type="button"
-                    onClick={() => onSelectMonth(m)}
-                    aria-label={t("budget.grid.select_month", { month: label })}
-                    className="rounded px-1 hover:bg-accent/40"
-                  >
-                    {format(m, "MMM", { locale })}
-                  </button>
-                </div>
-                <div className="text-[10px] tabular-nums text-muted-foreground">
-                  {format(m, "yyyy")}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {gridGroups.map((g) => (
-          <div key={g.key}>
-            <div className="grid border-b bg-muted/40" style={{ gridTemplateColumns: template }}>
-              <div className="sticky left-0 z-10 bg-muted/40 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                {g.key.startsWith("__") ? t(`env.group.${g.kind}`) : g.name}
-              </div>
-              <div style={{ gridColumn: `span ${months.length}` }} />
-            </div>
-
-            {g.rows.map((c) => {
-              rowIndex += 1;
-              const r = rowIndex;
-              return (
-                <div
-                  key={c.id}
-                  className="grid border-b last:border-b-0 hover:bg-accent/20"
-                  style={{ gridTemplateColumns: template }}
-                >
-                  <div className="sticky left-0 z-10 truncate bg-background px-3 py-1 text-sm">
-                    {c.name}
+                    )}
+                    {i < months.length - 1 && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={busy}
+                        className="h-5 w-5 p-0 opacity-40 hover:opacity-100"
+                        title={t("budget.grid.fill_month_tip", { month: label })}
+                        onMouseEnter={() => setPreview({ kind: "fill", fromCol: i })}
+                        onMouseLeave={() => setPreview(null)}
+                        onClick={() => {
+                          setPreview(null);
+                          fillColumnRight(i);
+                        }}
+                      >
+                        <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    )}
+                    {/* Offered only where a deletion survives the next load: trimming
+                      the oldest months, or clearing a month that has not happened. */}
+                    {earliestStored !== null && monthKeys[i + 1] === earliestStored && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={busy}
+                        className="h-5 w-5 p-0 opacity-40 hover:opacity-100"
+                        title={t("budget.grid.extend_tip", {
+                          month: label,
+                          source: format(months[i + 1], "MMMM yyyy", { locale }),
+                        })}
+                        onMouseEnter={() => setPreview({ kind: "back", fromCol: i })}
+                        onMouseLeave={() => setPreview(null)}
+                        onClick={() => {
+                          setPreview(null);
+                          extendBack(i);
+                        }}
+                      >
+                        <ArrowLeftToLine className="h-3 w-3" />
+                      </Button>
+                    )}
+                    {(() => {
+                      const future = monthStatus(m) === "future";
+                      const through = !future;
+                      // Nothing to erase is worth showing rather than discovering by
+                      // clicking: a disabled button says so before you press it.
+                      const erasable = stored.some((cell) =>
+                        through ? cell.month <= monthKeys[i] : cell.month === monthKeys[i],
+                      );
+                      return (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          disabled={busy || !erasable}
+                          className={cn(
+                            "h-5 w-5 p-0 opacity-40",
+                            erasable ? "hover:text-destructive hover:opacity-100" : "opacity-15",
+                          )}
+                          title={
+                            future
+                              ? t("budget.grid.clear_month_tip", { month: label })
+                              : t("budget.grid.trim_tip", { month: label })
+                          }
+                          onMouseEnter={() => setPreview({ kind: "clear", fromCol: i, through })}
+                          onMouseLeave={() => setPreview(null)}
+                          onClick={() => {
+                            setPreview(null);
+                            clearMonths(i, through);
+                          }}
+                        >
+                          <Eraser className="h-3 w-3" />
+                        </Button>
+                      );
+                    })()}
+                    <button
+                      type="button"
+                      onClick={() => onSelectMonth(m)}
+                      aria-label={t("budget.grid.select_month", { month: label })}
+                      className="rounded px-1 hover:bg-accent/40"
+                    >
+                      {format(m, "MMM", { locale })}
+                    </button>
                   </div>
-                  {monthKeys.map((mk, col) => (
-                    <GridCell
-                      key={mk}
-                      row={r}
-                      col={col}
-                      cell={resolved.get(cellId(c.id, mk))}
-                      previewValue={previewValueFor(preview, c.id, col, monthKeys, resolved)}
-                      symbol={symbol}
-                      selected={col === selectedCol}
-                      disabled={busy}
-                      fillTip={t("budget.grid.fill_row_tip", {
-                        month: format(months[col], "MMMM", { locale }),
-                      })}
-                      onCommit={(raw) => commitCell(c.id, mk, raw)}
-                      onFillRight={(raw) => fillRight(c.id, mk, raw)}
-                      onPreviewFill={(v) =>
-                        setPreview(v === null ? null : { kind: "row", categoryId: c.id, fromCol: col, value: v })
-                      }
-                      onMove={moveFocus}
-                    />
-                  ))}
+                  <div className="text-[10px] tabular-nums text-muted-foreground">
+                    {format(m, "yyyy")}
+                  </div>
                 </div>
               );
             })}
           </div>
-        ))}
+
+          {gridGroups.map((g) => (
+            <div key={g.key}>
+              <div className="grid border-b bg-muted/40" style={{ gridTemplateColumns: template }}>
+                <div className="sticky left-0 z-10 bg-muted/40 px-3 py-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {g.key.startsWith("__") ? t(`env.group.${g.kind}`) : g.name}
+                </div>
+                <div style={{ gridColumn: `span ${months.length}` }} />
+              </div>
+
+              {g.rows.map((c) => {
+                rowIndex += 1;
+                const r = rowIndex;
+                return (
+                  <div
+                    key={c.id}
+                    className="grid border-b last:border-b-0 hover:bg-accent/20"
+                    style={{ gridTemplateColumns: template }}
+                  >
+                    <div className="sticky left-0 z-10 truncate bg-background px-3 py-1 text-sm">
+                      {c.name}
+                    </div>
+                    {monthKeys.map((mk, col) => (
+                      <GridCell
+                        key={mk}
+                        row={r}
+                        col={col}
+                        cell={resolved.get(cellId(c.id, mk))}
+                        previewValue={previewValueFor(preview, c.id, col, monthKeys, resolved)}
+                        symbol={symbol}
+                        selected={col === selectedCol}
+                        disabled={busy}
+                        fillTip={t("budget.grid.fill_row_tip", {
+                          month: format(months[col], "MMMM", { locale }),
+                        })}
+                        onCommit={(raw) => commitCell(c.id, mk, raw)}
+                        onFillRight={(raw) => fillRight(c.id, mk, raw)}
+                        onPreviewFill={(v) =>
+                          setPreview(
+                            v === null
+                              ? null
+                              : { kind: "row", categoryId: c.id, fromCol: col, value: v },
+                          )
+                        }
+                        onMove={moveFocus}
+                      />
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -563,8 +583,7 @@ function GridCell({
 
   const clearing = previewValue === "clear";
   const changes =
-    previewValue !== null &&
-    (clearing || Math.abs((previewValue as number) - amount) >= 0.005);
+    previewValue !== null && (clearing || Math.abs((previewValue as number) - amount) >= 0.005);
 
   return (
     <div
@@ -581,12 +600,18 @@ function GridCell({
         disabled={disabled}
         value={draft}
         title={fmtMoney(amount, symbol)}
-        onFocus={(e) => { setFocused(true); e.currentTarget.select(); }}
+        onFocus={(e) => {
+          setFocused(true);
+          e.currentTarget.select();
+        }}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => {
           setFocused(false);
           onPreviewFill(null);
-          if (filledRef.current) { filledRef.current = false; return; }
+          if (filledRef.current) {
+            filledRef.current = false;
+            return;
+          }
           if (!onCommit(draft)) setDraft(amountToInput(amount));
         }}
         onKeyDown={(e) => {
@@ -598,17 +623,35 @@ function GridCell({
             onFillRight(draft);
             return;
           }
-          if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); return; }
-          if (e.key === "Escape") { e.preventDefault(); setDraft(amountToInput(amount)); e.currentTarget.blur(); return; }
-          if (e.key === "ArrowUp") { e.preventDefault(); onMove(row - 1, col); return; }
-          if (e.key === "ArrowDown") { e.preventDefault(); onMove(row + 1, col); return; }
+          if (e.key === "Enter") {
+            e.preventDefault();
+            e.currentTarget.blur();
+            return;
+          }
+          if (e.key === "Escape") {
+            e.preventDefault();
+            setDraft(amountToInput(amount));
+            e.currentTarget.blur();
+            return;
+          }
+          if (e.key === "ArrowUp") {
+            e.preventDefault();
+            onMove(row - 1, col);
+            return;
+          }
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            onMove(row + 1, col);
+            return;
+          }
         }}
         className={cn(
           "w-full bg-transparent px-1 py-1 text-right text-sm tabular-nums outline-none",
           "focus:rounded-sm focus:ring-2 focus:ring-ring",
           // Undecided: nothing is stored for this month and the figure is what it would
           // inherit. Marked, not dimmed — the cell is as editable as any other.
-          inherited && "underline decoration-dotted decoration-muted-foreground/50 underline-offset-4",
+          inherited &&
+            "underline decoration-dotted decoration-muted-foreground/50 underline-offset-4",
         )}
       />
 
@@ -644,7 +687,12 @@ function GridCell({
             onPreviewFill(Number.isFinite(n) ? n : null);
           }}
           onMouseLeave={() => onPreviewFill(null)}
-          onMouseDown={(e) => { e.preventDefault(); onPreviewFill(null); filledRef.current = true; onFillRight(draft); }}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            onPreviewFill(null);
+            filledRef.current = true;
+            onFillRight(draft);
+          }}
         >
           <ArrowRight className="h-3 w-3" />
         </button>

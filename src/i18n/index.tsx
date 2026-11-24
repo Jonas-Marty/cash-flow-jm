@@ -28,16 +28,19 @@ const de: Dict = {
   "ai.conn.action.statement_extract": "Auszug auslesen (PDF/Bild)",
   "ai.conn.action.recurring_extract": "Wiederkehrende Regel aus Rechnung (✨)",
   "statements.title": "Auszug-Import",
-  "statements.subtitle": "Auszug als PDF, CSV oder Foto hochladen, Positionen auslesen und mit deinen erfassten Transaktionen vergleichen.",
+  "statements.subtitle":
+    "Auszug als PDF, CSV oder Foto hochladen, Positionen auslesen und mit deinen erfassten Transaktionen vergleichen.",
   "statements.import.title": "Auszug importieren",
-  "statements.import.hint": "PDF (mit Textebene), CSV aus dem E-Banking oder Foto. CSV wird ohne KI direkt gelesen. Die Datei wird nur zur Auswertung verarbeitet und nicht gespeichert.",
+  "statements.import.hint":
+    "PDF (mit Textebene), CSV aus dem E-Banking oder Foto. CSV wird ohne KI direkt gelesen. Die Datei wird nur zur Auswertung verarbeitet und nicht gespeichert.",
   "statements.import.run": "Auslesen & abgleichen",
   "statements.field.account": "Konto",
   "statements.field.file": "Datei (PDF, CSV, Bild)",
   "statements.nextcloud.pick": "Oder aus Nextcloud wählen",
   "statements.field.window": "Datumstoleranz (Tage)",
   "statements.field.invert": "Vorzeichen umkehren",
-  "statements.field.invert_hint": "Für Kreditkartenauszüge, bei denen Ausgaben positiv dargestellt sind.",
+  "statements.field.invert_hint":
+    "Für Kreditkartenauszüge, bei denen Ausgaben positiv dargestellt sind.",
   "statements.list.title": "Importe",
   "statements.list.empty": "Noch keine Importe.",
   "statements.detail.pick": "Wähle links einen Import aus.",
@@ -71,7 +74,8 @@ const de: Dict = {
   "statements.progress.done": "Alle {total} Positionen abgearbeitet.",
   "statements.toast.rematched": "Erneut abgeglichen.",
   "statements.toast.linked": "Transaktion mit der Auszugsposition verknüpft.",
-  "statements.linking_hint": "Diese Erfassung wird nach dem Speichern mit der Auszugsposition verknüpft.",
+  "statements.linking_hint":
+    "Diese Erfassung wird nach dem Speichern mit der Auszugsposition verknüpft.",
   "nav.help": "Hilfe",
   "help.redirecting": "Die Anleitung ist umgezogen. Du wirst weitergeleitet …",
   "nav.assistant": "Assistent",
@@ -89,32 +93,39 @@ const de: Dict = {
   "ai.attach.drop": "Dateien hier ablegen, um sie dem Chat anzuhängen",
   "ai.attach.analyse": "Auszug analysieren",
   "ai.attach.open": "Ergebnis öffnen",
-  "ai.attach.result": "Auszug gelesen: {total} Zeilen — {matched} zugeordnet, {probable} unsicher, {missing} fehlen in Cashflow, {extra} nur in Cashflow.",
+  "ai.attach.result":
+    "Auszug gelesen: {total} Zeilen — {matched} zugeordnet, {probable} unsicher, {missing} fehlen in Cashflow, {extra} nur in Cashflow.",
   "ai.usage.tokens": "{total} Tokens · {prompt} Eingabe / {completion} Ausgabe",
   "ai.usage.steps": "{n} Aufrufe",
   "ai.thinking": "Denkt nach…",
   "ai.input.placeholder": "Frag mich nach Ausgaben, IOUs, oder beschreibe einen Kauf…",
   "ai.input.placeholder_disabled": "KI in den Einstellungen aktivieren",
   "ai.empty.title": "Hi! Ich kann dir mit deinen Finanzen helfen.",
-  "ai.empty.body": "Ich kann Buchungen vorausfüllen, wiederkehrende Regeln aus Rechnungen erstellen, deine Daten zusammenfassen und Fragen zur App beantworten. Hänge eine Rechnung, einen Kontoauszug oder ein Foto an und sag mir, was ich damit tun soll – oder schick es ohne Text, dann schlage ich etwas vor. Daten zu anderen Themen behandle ich nicht.",
+  "ai.empty.body":
+    "Ich kann Buchungen vorausfüllen, wiederkehrende Regeln aus Rechnungen erstellen, deine Daten zusammenfassen und Fragen zur App beantworten. Hänge eine Rechnung, einen Kontoauszug oder ein Foto an und sag mir, was ich damit tun soll – oder schick es ohne Text, dann schlage ich etwas vor. Daten zu anderen Themen behandle ich nicht.",
   "ai.example.add": "Ich habe 50 CHF im Coop bezahlt mit Kreditkarte für Lebensmittel.",
   "ai.example.spend": "Wo habe ich letzten Monat am meisten ausgegeben?",
   "ai.example.help": "Wie funktionieren wiederkehrende Buchungen?",
   "ai.example.privacy": "Wo werden meine Daten gespeichert?",
-  "ai.error.disabled": "Der KI-Assistent ist nicht konfiguriert. Bitte in den Einstellungen Endpoint, Modell und Token hinterlegen.",
+  "ai.error.disabled":
+    "Der KI-Assistent ist nicht konfiguriert. Bitte in den Einstellungen Endpoint, Modell und Token hinterlegen.",
   "ai.settings.title": "KI-Assistent",
-  "ai.settings.intro": "Konfiguriere deinen eigenen OpenAI-kompatiblen Endpoint (z. B. OpenAI, Ollama, LM Studio, OpenRouter). Token wird serverseitig gespeichert.",
+  "ai.settings.intro":
+    "Konfiguriere deinen eigenen OpenAI-kompatiblen Endpoint (z. B. OpenAI, Ollama, LM Studio, OpenRouter). Token wird serverseitig gespeichert.",
   "ai.settings.enabled": "Aktiviert",
   "ai.settings.enabled_hint": "Wenn aus, ist der Assistent für alle Oberflächen deaktiviert.",
   "ai.settings.base_url": "API Base URL",
-  "ai.settings.base_url_hint": "Ohne trailing /chat/completions. Beispiel: https://api.openai.com/v1",
+  "ai.settings.base_url_hint":
+    "Ohne trailing /chat/completions. Beispiel: https://api.openai.com/v1",
   "ai.settings.model": "Standardmodell",
   "ai.settings.token": "API Token",
   "ai.settings.token_stored": "(gespeichert)",
-  "ai.settings.token_hint": "Wird nur serverseitig verwendet. Operator des Servers kann diesen Wert lesen — siehe Datenschutz.",
+  "ai.settings.token_hint":
+    "Wird nur serverseitig verwendet. Operator des Servers kann diesen Wert lesen — siehe Datenschutz.",
   "ai.settings.test": "Verbindung testen",
   "ai.conn.title": "KI-Verbindungen",
-  "ai.conn.intro": "Mehrere OpenAI-kompatible Endpoints (z. B. lokales Ollama plus kommerzielles Backup). Pro KI-Aktion wählst du, welche Verbindung genutzt wird.",
+  "ai.conn.intro":
+    "Mehrere OpenAI-kompatible Endpoints (z. B. lokales Ollama plus kommerzielles Backup). Pro KI-Aktion wählst du, welche Verbindung genutzt wird.",
   "ai.conn.add": "Verbindung hinzufügen",
   "ai.conn.name": "Name",
   "ai.conn.priority": "Priorität",
@@ -123,7 +134,8 @@ const de: Dict = {
   "ai.conn.context.off": "Aus – keine Daten mitschicken",
   "ai.conn.context.compact": "Kompakt – Konten, Kategorien, Kurzfassung (empfohlen)",
   "ai.conn.context.full": "Vollständig – mehr Tags, Beschreibungen, letzte Buchungen",
-  "statements.table.hint": "Zeilen prüfen, ankreuzen und gesammelt buchen. Für Splits o. Ä. stattdessen \"Erfassen\" nutzen.",
+  "statements.table.hint":
+    'Zeilen prüfen, ankreuzen und gesammelt buchen. Für Splits o. Ä. stattdessen "Erfassen" nutzen.',
   "statements.table.select_all": "Alle auswählen",
   "statements.table.commit": "Ausgewählte buchen ({n})",
   "statements.table.col.date": "Datum",
@@ -139,15 +151,18 @@ const de: Dict = {
   "statements.table.err.partial": "{n} Zeile(n) konnten nicht gebucht werden.",
   "statements.toast.committed": "{ok} von {total} Positionen gebucht.",
   "statements.suggested": "Vorschlag",
-  "ai.conn.context.xl": "Sehr gross – 180 Tage, viele vollständige Beispielbuchungen (für Cloud-Modelle)",
-  "ai.conn.context_hint": "Der Assistent bekommt deine Konten, Kategorien und eine Zusammenfassung der letzten 30 Tage direkt im Prompt. Für kleine lokale Modelle ggf. reduzieren.",
+  "ai.conn.context.xl":
+    "Sehr gross – 180 Tage, viele vollständige Beispielbuchungen (für Cloud-Modelle)",
+  "ai.conn.context_hint":
+    "Der Assistent bekommt deine Konten, Kategorien und eine Zusammenfassung der letzten 30 Tage direkt im Prompt. Für kleine lokale Modelle ggf. reduzieren.",
   "ai.conn.none": "Noch keine Verbindung konfiguriert.",
   "ai.conn.delete_confirm": "Diese Verbindung löschen?",
   "ai.conn.check": "Verfügbarkeit prüfen",
   "ai.conn.online": "Online",
   "ai.conn.offline": "Offline",
   "ai.conn.offline_title": "Verbindung nicht erreichbar",
-  "ai.conn.offline_body": "Die gewählte Verbindung \"{name}\" antwortet nicht. Auf einer anderen Verbindung wiederholen?",
+  "ai.conn.offline_body":
+    'Die gewählte Verbindung "{name}" antwortet nicht. Auf einer anderen Verbindung wiederholen?',
   "ai.conn.offline_pick": "Verbindung wählen",
   "ai.conn.offline_retry": "Anfrage wiederholen",
   "ai.conn.unknown": "Unbekannt",
@@ -176,7 +191,8 @@ const de: Dict = {
   "ai.conn.models_none": "Keine Modelle gefunden – Name manuell eingeben.",
   "ai.conn.models_failed": "Modelle konnten nicht geladen werden.",
   "ai.conn.transcribe_model": "Transkriptions-Modell (optional)",
-  "ai.conn.transcribe_model_hint": "Modell für /audio/transcriptions, z. B. whisper-1 oder Systran/faster-whisper-large-v3. Leer lassen, wenn diese Verbindung keine Spracheingabe unterstützt.",
+  "ai.conn.transcribe_model_hint":
+    "Modell für /audio/transcriptions, z. B. whisper-1 oder Systran/faster-whisper-large-v3. Leer lassen, wenn diese Verbindung keine Spracheingabe unterstützt.",
   "ai.voice.start": "Sprachnachricht aufnehmen",
   "ai.voice.stop": "Aufnahme beenden und umwandeln",
   "ai.voice.recording": "Nimmt auf… {time} — zum Beenden auf Stopp tippen",
@@ -187,9 +203,11 @@ const de: Dict = {
   "ai.conn.fallback": "Fallback auf andere Verbindung, wenn offline",
   "ai.conn.action_model": "Modell für diese Aktion",
   "ai.conn.action_model_default": "Standardmodell der Verbindung",
-  "ai.conn.action_model_hint": "Zur Auswahl stehen das Standardmodell und die weiteren Modelle der Verbindung, darunter die Modell-Liste des Anbieters. Die Verfügbarkeit wird nur einmal pro Verbindung geprüft.",
+  "ai.conn.action_model_hint":
+    "Zur Auswahl stehen das Standardmodell und die weiteren Modelle der Verbindung, darunter die Modell-Liste des Anbieters. Die Verfügbarkeit wird nur einmal pro Verbindung geprüft.",
   "ai.conn.extra_models": "Weitere Modelle",
-  "ai.conn.extra_models_hint": "Stehen unten bei den Aktionen zur Auswahl. Die Verfügbarkeitsprüfung nutzt nur das Standardmodell.",
+  "ai.conn.extra_models_hint":
+    "Stehen unten bei den Aktionen zur Auswahl. Die Verfügbarkeitsprüfung nutzt nur das Standardmodell.",
   "ai.conn.extra_models_placeholder": "Modellname eingeben oder aus der Liste wählen",
   "ai.conn.extra_models_add": "Modell hinzufügen",
   "ai.conn.models_from_provider": "Vom Anbieter gelistet",
@@ -198,19 +216,23 @@ const de: Dict = {
   "ai.test.ok": "Verbindung OK",
   "ai.test.fail": "Test fehlgeschlagen",
   "ai.audit.title": "KI-Aktivitätsprotokoll",
-  "ai.audit.intro": "Jede Anfrage an deinen KI-Provider und jedes Tool-Ergebnis wird hier protokolliert. Dein API-Token wird niemals gespeichert.",
+  "ai.audit.intro":
+    "Jede Anfrage an deinen KI-Provider und jedes Tool-Ergebnis wird hier protokolliert. Dein API-Token wird niemals gespeichert.",
   "ai.audit.empty": "Noch keine KI-Aktivität.",
   "ai.audit.clear": "Inhalte löschen",
   "ai.audit.cleared": "Protokoll geleert. Die Token-Zahlen für die KI-Nutzung bleiben erhalten.",
-  "ai.audit.clear_confirm": "Inhalte aller KI-Protokoll-Einträge löschen? Die Token-Zahlen für die KI-Nutzung bleiben erhalten.",
-  "ai.audit.footer_note": "API-Token werden niemals geloggt. Nachrichten- und Antwort-Vorschauen sind auf 1–2 KB pro Eintrag begrenzt.",
+  "ai.audit.clear_confirm":
+    "Inhalte aller KI-Protokoll-Einträge löschen? Die Token-Zahlen für die KI-Nutzung bleiben erhalten.",
+  "ai.audit.footer_note":
+    "API-Token werden niemals geloggt. Nachrichten- und Antwort-Vorschauen sind auf 1–2 KB pro Eintrag begrenzt.",
   "ai.audit.kind.all": "Alle",
   "ai.audit.kind.chat_request": "Provider-Anfragen",
   "ai.audit.kind.tool_call": "Tool-Aufrufe",
   "ai.audit.kind.document_extract": "Dokumentanalyse",
   "ai.audit.kind.transcribe": "Spracheingabe",
   "ai.usage.title": "KI-Nutzung",
-  "ai.usage.subtitle": "Wie viele Tokens deine KI-Verbindungen verbraucht haben, nach Verbindung, Modell oder Funktion.",
+  "ai.usage.subtitle":
+    "Wie viele Tokens deine KI-Verbindungen verbraucht haben, nach Verbindung, Modell oder Funktion.",
   "ai.usage.open": "KI-Nutzung anzeigen",
   "ai.usage.back": "Einstellungen",
   "ai.usage.period": "Zeitraum",
@@ -252,9 +274,12 @@ const de: Dict = {
   "ai.usage.card.requests": "{n} Anfragen",
   "ai.usage.card.in_out": "rein {a} · raus {b}",
   "ai.usage.card.errors": "{n} Fehler",
-  "ai.usage.note.tools": "Werkzeugaufrufe (z. B. „Im Formular öffnen“) sind keine Modellanfragen und zählen hier nicht. Fehlgeschlagene Anfragen zählen mit, weil der Anbieter sie meist trotzdem verrechnet.",
-  "ai.usage.note.without": "„Ohne Angabe“: Anfragen, bei denen der Anbieter keine Token-Zahl geliefert hat. Sie werden gezählt, nicht geschätzt.",
-  "ai.usage.note.history": "Ältere Einträge, bevor die Verbindung mitgespeichert wurde, sind über Host und Modell zugeordnet; bei ihnen ist kein Fallback erkennbar.",
+  "ai.usage.note.tools":
+    "Werkzeugaufrufe (z. B. „Im Formular öffnen“) sind keine Modellanfragen und zählen hier nicht. Fehlgeschlagene Anfragen zählen mit, weil der Anbieter sie meist trotzdem verrechnet.",
+  "ai.usage.note.without":
+    "„Ohne Angabe“: Anfragen, bei denen der Anbieter keine Token-Zahl geliefert hat. Sie werden gezählt, nicht geschätzt.",
+  "ai.usage.note.history":
+    "Ältere Einträge, bevor die Verbindung mitgespeichert wurde, sind über Host und Modell zugeordnet; bei ihnen ist kein Fallback erkennbar.",
   "ai.usage.kind.chat_request": "Chat",
   "ai.usage.kind.document_extract": "Auszug auslesen",
   "ai.usage.kind.statement_classify": "Zeilen kategorisieren",
@@ -280,10 +305,14 @@ const de: Dict = {
   "pending.tab.pending": "Offen",
   "pending.tab.rejected": "Abgelehnt",
   "pending.tab.confirmed": "Bestätigt",
-  "pending.tab.help.pending": "Vom externen System eingelesene Buchungen, die du noch prüfen und bestätigen (oder ablehnen) musst – sie sind noch nicht gebucht.",
-  "pending.tab.help.ious": "Bereits gebuchte Transaktionen, die du als erstattungsfähig markiert hast und die noch offen sind.",
-  "pending.tab.help.rejected": "Abgelehnte eingelesene Buchungen – zur Nachvollziehbarkeit aufbewahrt, lassen sich wiederherstellen.",
-  "pending.tab.help.confirmed": "Bereits bestätigte eingelesene Buchungen – die echte Transaktion findest du in Transaktionen.",
+  "pending.tab.help.pending":
+    "Vom externen System eingelesene Buchungen, die du noch prüfen und bestätigen (oder ablehnen) musst – sie sind noch nicht gebucht.",
+  "pending.tab.help.ious":
+    "Bereits gebuchte Transaktionen, die du als erstattungsfähig markiert hast und die noch offen sind.",
+  "pending.tab.help.rejected":
+    "Abgelehnte eingelesene Buchungen – zur Nachvollziehbarkeit aufbewahrt, lassen sich wiederherstellen.",
+  "pending.tab.help.confirmed":
+    "Bereits bestätigte eingelesene Buchungen – die echte Transaktion findest du in Transaktionen.",
   "pending.empty": "Nichts zu tun.",
   "pending.review": "Prüfen",
   "pending.row.untitled": "(ohne Beschreibung)",
@@ -328,7 +357,8 @@ const de: Dict = {
   "pending.suggest.source.ai": "KI-Vorschlag, {pct} % sicher",
   "pending.suggest.toast": "{rows} geprüft: {history} aus dem Verlauf, {ai} von der KI",
   "pending.suggest.toast.none": "Nichts Neues vorzuschlagen.",
-  "pending.suggest.ai_unavailable": "Keine KI-Verbindung erreichbar – der Rest wird nachgeholt, sobald eine online ist.",
+  "pending.suggest.ai_unavailable":
+    "Keine KI-Verbindung erreichbar – der Rest wird nachgeholt, sobald eine online ist.",
 
   // Common
   "common.all": "Alle",
@@ -342,12 +372,15 @@ const de: Dict = {
   "common.add": "Hinzufügen",
   "common.archive": "Archivieren",
   "archive_budget.title": "«{name}» archivieren?",
-  "archive_budget.usage_both": "Das Budget hat im {month} {n} Buchung(en) und einen Plan von {plan}.",
+  "archive_budget.usage_both":
+    "Das Budget hat im {month} {n} Buchung(en) und einen Plan von {plan}.",
   "archive_budget.usage_bookings": "Das Budget hat im {month} {n} Buchung(en).",
   "archive_budget.usage_plan": "Das Budget hat im {month} einen Plan von {plan}.",
   "archive_budget.hidden": "Es verschwindet aus der Budget-Übersicht und dem Monatseditor.",
-  "archive_budget.bookings_stay": "Die Buchungen bleiben und erscheinen in ihren Monaten als «archiviert», ohne Budget.",
-  "archive_budget.plan_stays": "Der Plan für {month} bleibt gespeichert: Was davon am Monatsende übrig ist, wird wie bisher abgerechnet.",
+  "archive_budget.bookings_stay":
+    "Die Buchungen bleiben und erscheinen in ihren Monaten als «archiviert», ohne Budget.",
+  "archive_budget.plan_stays":
+    "Der Plan für {month} bleibt gespeichert: Was davon am Monatsende übrig ist, wird wie bisher abgerechnet.",
   "common.unarchive": "Wiederherstellen",
   "common.from": "Von",
   "common.to": "Bis",
@@ -439,24 +472,30 @@ const de: Dict = {
   "add.no_accounts": "Keine Konten — in den Einstellungen anlegen",
   "add.create_first_account": "Erstes Konto anlegen →",
   "add.dest_amount.label": "Erhaltener Betrag ({sym})",
-  "add.dest_amount.hint_fx": "Vorschlag basiert auf Wechselkurs {from}→{to} vom {date}. Tatsächlich erhaltenen Betrag eingeben.",
+  "add.dest_amount.hint_fx":
+    "Vorschlag basiert auf Wechselkurs {from}→{to} vom {date}. Tatsächlich erhaltenen Betrag eingeben.",
   "add.dest_amount.hint_loading": "Wechselkurs wird geladen…",
   "add.dest_amount.hint_offline": "Kein Wechselkurs verfügbar — Betrag manuell eingeben.",
   "add.dest_amount.use_fx": "Auf Kurs zurücksetzen",
   "add.transfer.fee.add": "Gebühr hinzufügen (z. B. Bankomatgebühr)",
   "add.transfer.fee.label": "Gebühr ({sym})",
   "add.transfer.fee.category": "Gebühr-Kategorie",
-  "add.transfer.fee.help": "Erzeugt eine separate Ausgabe auf dem Quellkonto und verknüpft sie mit dieser Umbuchung.",
+  "add.transfer.fee.help":
+    "Erzeugt eine separate Ausgabe auf dem Quellkonto und verknüpft sie mit dieser Umbuchung.",
   "add.transfer.fee.remove": "Entfernen",
   "add.transfer.diff.add": "Mehr erhalten als bezahlt (z. B. Geschenkkarte mit Rabatt)",
   "add.transfer.diff.label": "Erhaltener Betrag ({sym})",
   "add.transfer.diff.gain": "Mehrwert",
   "add.transfer.diff.category": "Differenz geht an",
   "add.transfer.diff.none": "Kein Budget",
-  "add.transfer.diff.help": "Wird als Zuteilung in {name} verbucht und mit dieser Umbuchung verknüpft.",
-  "add.transfer.diff.help_none": "Ohne Budget bleibt der Mehrwert unter „Nicht zugeordnet“ und lässt sich auf der Budgets-Seite zuordnen.",
-  "add.transfer.diff.less": "Der erhaltene Betrag muss höher sein als der bezahlte. Weniger erhalten? Dann ist die Differenz eine Gebühr:",
-  "toast.received_must_exceed": "Der erhaltene Betrag muss höher sein als der bezahlte. Weniger erhalten? Als Gebühr erfassen.",
+  "add.transfer.diff.help":
+    "Wird als Zuteilung in {name} verbucht und mit dieser Umbuchung verknüpft.",
+  "add.transfer.diff.help_none":
+    "Ohne Budget bleibt der Mehrwert unter „Nicht zugeordnet“ und lässt sich auf der Budgets-Seite zuordnen.",
+  "add.transfer.diff.less":
+    "Der erhaltene Betrag muss höher sein als der bezahlte. Weniger erhalten? Dann ist die Differenz eine Gebühr:",
+  "toast.received_must_exceed":
+    "Der erhaltene Betrag muss höher sein als der bezahlte. Weniger erhalten? Als Gebühr erfassen.",
   "add.transfer.fee.tx_prefix": "Gebühr",
   "add.transfer.fee.tx_default": "Gebühr",
   "add.category": "Kategorie",
@@ -497,11 +536,14 @@ const de: Dict = {
   "add.impact.budgets_none_transfer": "keine, Überweisung",
   "add.impact.refusal.known_title": "So kann nicht gespeichert werden",
   "add.impact.refusal.unknown_title": "Auswirkung lässt sich nicht berechnen",
-  "add.impact.refusal.unknown_body": "Das liegt sehr wahrscheinlich an der App, nicht an deiner Eingabe. Du kannst trotzdem speichern; schlägt das auch fehl, steht dort der Grund.",
+  "add.impact.refusal.unknown_body":
+    "Das liegt sehr wahrscheinlich an der App, nicht an deiner Eingabe. Du kannst trotzdem speichern; schlägt das auch fehl, steht dort der Grund.",
   "add.impact.refusal.details": "Technische Details",
-  "add.impact.refusal.received_too_low": "Erhalten ist nicht mehr als gesendet. Weniger erhalten ist eine Gebühr: erfasse sie als Gebühr statt als Differenz.",
+  "add.impact.refusal.received_too_low":
+    "Erhalten ist nicht mehr als gesendet. Weniger erhalten ist eine Gebühr: erfasse sie als Gebühr statt als Differenz.",
   "add.impact.hint_fx": "Vermögensänderung mit aktuellem Wechselkurs umgerechnet.",
-  "add.duplicate.detail": "Es existieren bereits {count} Buchung(en) mit demselben Konto ({account}), Betrag ({amount}) und Datum ({date}).",
+  "add.duplicate.detail":
+    "Es existieren bereits {count} Buchung(en) mit demselben Konto ({account}), Betrag ({amount}) und Datum ({date}).",
   "add.income_badge": "Einnahme",
   // Reimbursable / will-be-paid-back transactions
   "add.reimb.section": "Rückerstattung / Auslage",
@@ -509,20 +551,25 @@ const de: Dict = {
   "add.preview.reimb": "Auslage",
   "add.preview.settles": "Erstattet: {list}",
   "add.preview.reimb_from": "Auslage · zurück von {name}",
-  "add.reimb.toggle.hint": "Markiert die Buchung als offene Auslage. Sie erscheint im Dashboard unter „Offene Rückerstattungen“, bis sie als beglichen markiert oder mit einer Rückzahlung verknüpft wird – die Buchung selbst bleibt natürlich erhalten.",
+  "add.reimb.toggle.hint":
+    "Markiert die Buchung als offene Auslage. Sie erscheint im Dashboard unter „Offene Rückerstattungen“, bis sie als beglichen markiert oder mit einer Rückzahlung verknüpft wird – die Buchung selbst bleibt natürlich erhalten.",
   "add.reimb.counterparty": "Von wem (z.B. Arbeitgeber, Anna)",
   "add.reimb.reason": "Grund (optional)",
-  "add.reimb.category_clear_warning": "Auslagen werden meist ohne Kategorie gebucht, damit sie nicht in deinem Budget erscheinen.",
+  "add.reimb.category_clear_warning":
+    "Auslagen werden meist ohne Kategorie gebucht, damit sie nicht in deinem Budget erscheinen.",
   "add.reimb.autolink.title": "Passt zu offener Auslage",
-  "add.reimb.autolink.detail": "Diese Einnahme passt zu {count} offenen Auslage(n) (Total {amount}). Verknüpfen?",
+  "add.reimb.autolink.detail":
+    "Diese Einnahme passt zu {count} offenen Auslage(n) (Total {amount}). Verknüpfen?",
   "add.reimb.autolink.link_all": "Alle verknüpfen",
   "add.reimb.autolink.from": "von {who}",
   "add.reimb.link.section_title": "Mit offenen Auslagen verknüpfen",
   "add.reimb.link.edit_title": "Erstattete Auslagen",
-  "add.reimb.link.edit_hint": "Häkchen und Beträge bestimmen, welche Auslagen diese Einnahme erstattet. Abgewählte Auslagen sind danach wieder offen.",
+  "add.reimb.link.edit_hint":
+    "Häkchen und Beträge bestimmen, welche Auslagen diese Einnahme erstattet. Abgewählte Auslagen sind danach wieder offen.",
   "add.reimb.link.covered_now": "durch diese erstattet",
   "add.reimb.link.assigned_count": "{n} zugeordnet",
-  "add.reimb.link.locked_written_off": "Abgeschrieben: bleibt so, die Abschreibung hat diese Einnahme schon verschoben.",
+  "add.reimb.link.locked_written_off":
+    "Abgeschrieben: bleibt so, die Abschreibung hat diese Einnahme schon verschoben.",
   "add.reimb.link.locked_cancelled": "Storniert: bleibt so.",
   "add.reimb.link.amount_for": "Betrag für {name}",
   "add.reimb.link.over_block": "Beträge reduzieren, dann speichern.",
@@ -534,16 +581,19 @@ const de: Dict = {
   "add.reimb.payments.open_tx": "öffnen",
   "add.reimb.payments.remove": "Aufheben",
   "add.reimb.payments.confirm_title": "Verknüpfung aufheben?",
-  "add.reimb.payments.confirm_body": "Die {x} zählen dann nicht mehr für diese Auslage. Sie ist danach mit {open} offen und erscheint auf dem Dashboard und unter „Offen“. Die Einnahme selbst bleibt unverändert.",
+  "add.reimb.payments.confirm_body":
+    "Die {x} zählen dann nicht mehr für diese Auslage. Sie ist danach mit {open} offen und erscheint auf dem Dashboard und unter „Offen“. Die Einnahme selbst bleibt unverändert.",
   "add.reimb.payments.confirm_remove": "Verknüpfung aufheben",
   "add.reimb.payments.removed": "Verknüpfung aufgehoben",
   "add.reimb.payments.assign_hint": "Neue Rückzahlungen ordnest du in der Einnahme zu.",
   "add.reimb.payments.locked": "Abgeschrieben: die Rückzahlungen bleiben so verknüpft.",
   "add.reimb.link.count_label": "{n} offen",
   "add.reimb.link.suggested_title": "Vorschlag: {n} Auslage(n), Total {amount}",
-  "add.reimb.link.no_match_hint": "Keine passende Summe gefunden. Du kannst trotzdem beliebige offene Auslagen manuell verknüpfen.",
+  "add.reimb.link.no_match_hint":
+    "Keine passende Summe gefunden. Du kannst trotzdem beliebige offene Auslagen manuell verknüpfen.",
   "add.reimb.link.selected_summary.exact": "Ausgewählt {sel} / Einnahme {inc} – exakter Treffer",
-  "add.reimb.link.selected_summary.under": "Ausgewählt {sel} / Einnahme {inc} – {diff} nicht verknüpft",
+  "add.reimb.link.selected_summary.under":
+    "Ausgewählt {sel} / Einnahme {inc} – {diff} nicht verknüpft",
   "add.reimb.link.selected_summary.over": "Ausgewählt {sel} / Einnahme {inc} – {diff} über",
   "add.reimb.link.link_suggested": "Vorschlag verknüpfen",
   "add.reimb.link.clear": "Auswahl löschen",
@@ -577,18 +627,23 @@ const de: Dict = {
   "refund.cat.writeoff": "Kategorie (Ausgabe + Einnahme)",
   "refund.cat.split": "Kategorie deines Anteils",
   "refund.cat.choose": "Kategorie wählen",
-  "refund.effect.writeoff": "Die Ausgabe bleibt eine Buchung über {amount}. {cat} trägt netto {rest}; Ausgabe und Einnahme laufen beide über {cat}.",
-  "refund.effect.split": "Die Ausgabe wird aufgeteilt: {rest} auf {cat} (dein Anteil) + {amount} Auslage ohne Kategorie, die diese Einnahme begleicht. Die Einnahme bleibt auch ohne Kategorie.",
+  "refund.effect.writeoff":
+    "Die Ausgabe bleibt eine Buchung über {amount}. {cat} trägt netto {rest}; Ausgabe und Einnahme laufen beide über {cat}.",
+  "refund.effect.split":
+    "Die Ausgabe wird aufgeteilt: {rest} auf {cat} (dein Anteil) + {amount} Auslage ohne Kategorie, die diese Einnahme begleicht. Die Einnahme bleibt auch ohne Kategorie.",
   "refund.effect.coming": "Bleibt unter Offen mit {rest} von {name}.",
   "refund.budget": "Budget",
   "refund.budget.remove": "Kategorie der Ausgabe entfernen",
   "refund.budget.credit": "Einnahme auf Kategorie buchen",
   "refund.income_cat": "Kategorie der Einnahme",
   "refund.income_cat_differs": "anders als die Ausgabe ({cat})",
-  "refund.effect.remove": "Ausgabe: Kategorie {cat} → ohne Kategorie, die Einnahme bleibt ohne Kategorie → {cat} {month} −{amount} Ausgaben.",
+  "refund.effect.remove":
+    "Ausgabe: Kategorie {cat} → ohne Kategorie, die Einnahme bleibt ohne Kategorie → {cat} {month} −{amount} Ausgaben.",
   "refund.effect.past_month": " Ändert einen vergangenen Monat.",
-  "refund.effect.credit": "Ausgabe bleibt auf {cat} ({expMonth}), die Einnahme wird auf {icat} gebucht → {icat} {incMonth} +{amount}.",
-  "refund.effect.no_cat": "Ausgabe ohne Kategorie: die Einnahme bleibt auch ohne, kein Budget betroffen.",
+  "refund.effect.credit":
+    "Ausgabe bleibt auf {cat} ({expMonth}), die Einnahme wird auf {icat} gebucht → {icat} {incMonth} +{amount}.",
+  "refund.effect.no_cat":
+    "Ausgabe ohne Kategorie: die Einnahme bleibt auch ohne, kein Budget betroffen.",
   "refund.bar.assigned": "Zugeordnet {sel} / Einnahme {inc}",
   "refund.bar.exact": "exakt",
   "refund.bar.over": "{amount} zu viel",
@@ -643,20 +698,25 @@ const de: Dict = {
   "iou.writeoff.tooltip.expense": "Als Verlust verbuchen (Kategorie zuweisen)",
   "iou.writeoff.tooltip.income": "Als Geschenk verbuchen (Kategorie zuweisen)",
   "iou.writeoff.dialog.title": "Auslage abschreiben",
-  "iou.writeoff.dialog.body.expense": "Die Auslage und alle bereits erfassten Rückzahlungen werden der gewählten Kategorie zugewiesen. Das Budget wird also mit dem tatsächlichen Rest belastet (Auslage minus Rückzahlungen). Es wird keine Buchung angelegt und es bewegt sich kein echtes Geld.",
-  "iou.writeoff.dialog.body.income": "Die Einnahme und alle bereits erfassten Rückzahlungen werden der gewählten Kategorie zugewiesen. Das Budget wird also mit dem tatsächlichen Rest verrechnet. Es wird keine Buchung angelegt und es bewegt sich kein echtes Geld.",
+  "iou.writeoff.dialog.body.expense":
+    "Die Auslage und alle bereits erfassten Rückzahlungen werden der gewählten Kategorie zugewiesen. Das Budget wird also mit dem tatsächlichen Rest belastet (Auslage minus Rückzahlungen). Es wird keine Buchung angelegt und es bewegt sich kein echtes Geld.",
+  "iou.writeoff.dialog.body.income":
+    "Die Einnahme und alle bereits erfassten Rückzahlungen werden der gewählten Kategorie zugewiesen. Das Budget wird also mit dem tatsächlichen Rest verrechnet. Es wird keine Buchung angelegt und es bewegt sich kein echtes Geld.",
   "iou.writeoff.category": "Kategorie",
   "iou.writeoff.note": "Notiz (optional)",
   "iou.writeoff.submit": "Abschreiben",
   "iou.writeoff.toast": "Abgeschrieben",
-  "iou.writeoff.toast.shared_skipped": "Abgeschrieben. {n} R\u00fcckzahlung(en) blieben unver\u00e4ndert, weil sie auch andere Auslagen begleichen \u2013 bitte manuell zuweisen.",
+  "iou.writeoff.toast.shared_skipped":
+    "Abgeschrieben. {n} R\u00fcckzahlung(en) blieben unver\u00e4ndert, weil sie auch andere Auslagen begleichen \u2013 bitte manuell zuweisen.",
   "iou.surplus.title": "Zu viel zur\u00fcckerhalten",
-  "iou.surplus.hint": "Vollst\u00e4ndig beglichen, aber es wurde mehr zur\u00fcckgezahlt als ausgelegt. Der Rest geh\u00f6rt noch in eine Kategorie.",
+  "iou.surplus.hint":
+    "Vollst\u00e4ndig beglichen, aber es wurde mehr zur\u00fcckgezahlt als ausgelegt. Der Rest geh\u00f6rt noch in eine Kategorie.",
   "iou.surplus.amount": "{amount} nicht zugewiesen",
   "iou.surplus.assign": "Zuweisen",
   "iou.add_repayment": "Rückzahlung erfassen",
   "iou.add_repayment_all": "Alles zurückgezahlt",
-  "iou.help.add_repayment_all": "Eine Rückzahlung für alle offenen Posten von {name}, mit dem offenen Total vorausgefüllt. Kam weniger, passe den Betrag an und verteile ihn auf die Posten.",
+  "iou.help.add_repayment_all":
+    "Eine Rückzahlung für alle offenen Posten von {name}, mit dem offenen Total vorausgefüllt. Kam weniger, passe den Betrag an und verteile ihn auf die Posten.",
   "iou.repayment.group_from": "Rückzahlung von {name}",
   "iou.repayment.group_to": "Rückzahlung an {name}",
   "iou.repayment.group_note": "Rückzahlung für:",
@@ -664,12 +724,17 @@ const de: Dict = {
   "iou.repayment.prefill_description": "Rückerstattung für {name}",
   "iou.repayment.prefill_note": "Rückerstattung für: {name}",
   "iou.help.title": "Was bedeuten die Aktionen?",
-  "iou.help.add_repayment": "Rückzahlung erfassen – wenn echtes Geld geflossen ist (jemand hat dich zurückgezahlt oder du hast zurückgezahlt). Es wird eine verlinkte Buchung erstellt; der Posten schliesst sich automatisch, sobald der Betrag gedeckt ist.",
-  "iou.help.writeoff": "Abschreiben – wenn du das Geld nicht mehr erwartest, oder wenn du mehr zurückbekommen hast als ausgelegt. Auslage und Rückzahlungen werden einer Kategorie zugewiesen, damit der Rest im Budget landet statt nirgends.",
-  "iou.help.cancel": "Verwerfen – wenn der Posten gar nicht erst als Schuldverhältnis erfasst werden sollte (Fehlmarkierung, Duplikat). Es wird keine Gegenbuchung angelegt.",
+  "iou.help.add_repayment":
+    "Rückzahlung erfassen – wenn echtes Geld geflossen ist (jemand hat dich zurückgezahlt oder du hast zurückgezahlt). Es wird eine verlinkte Buchung erstellt; der Posten schliesst sich automatisch, sobald der Betrag gedeckt ist.",
+  "iou.help.writeoff":
+    "Abschreiben – wenn du das Geld nicht mehr erwartest, oder wenn du mehr zurückbekommen hast als ausgelegt. Auslage und Rückzahlungen werden einer Kategorie zugewiesen, damit der Rest im Budget landet statt nirgends.",
+  "iou.help.cancel":
+    "Verwerfen – wenn der Posten gar nicht erst als Schuldverhältnis erfasst werden sollte (Fehlmarkierung, Duplikat). Es wird keine Gegenbuchung angelegt.",
   "common.confirm": "Bestätigen",
-  "add.reimbursement_hint": "Wird als Rückerstattung gebucht und reduziert die Ausgaben dieses Umschlags.",
-  "add.reimbursement_hint.savings": "Wird als Rückerstattung gebucht und erhöht das Guthaben dieses Rückstellungs-Umschlags.",
+  "add.reimbursement_hint":
+    "Wird als Rückerstattung gebucht und reduziert die Ausgaben dieses Umschlags.",
+  "add.reimbursement_hint.savings":
+    "Wird als Rückerstattung gebucht und erhöht das Guthaben dieses Rückstellungs-Umschlags.",
   "add.suggestions": "Vorschläge",
   "add.suggest.use_all": "Alle Felder übernehmen",
   "add.suggest.applied": "Aus früherer Buchung übernommen",
@@ -698,26 +763,34 @@ const de: Dict = {
   "add.split.total": "Summe",
   "add.split.target_total": "Belastung",
   "add.split.diff": "Differenz",
-  "add.split.hint": "Tipp: \u201eKeine Kategorie\u201c für Posten, die du z. B. von der Partnerin/dem Partner zurückbekommst — sie belasten kein Budget.",
+  "add.split.hint":
+    "Tipp: \u201eKeine Kategorie\u201c für Posten, die du z. B. von der Partnerin/dem Partner zurückbekommst — sie belasten kein Budget.",
   "add.split.toast.min": "Mindestens zwei Positionen erforderlich",
   "add.split.toast.amounts": "Alle Positionen brauchen einen Betrag > 0",
   "add.split.note": "Notiz / Tags",
   "add.split.note_placeholder": "Notiz für diese Position, z. B. #galaxus",
-  "add.split.confirm_remove_linked": "Eine entfernte Position ist mit einer Rückerstattung verknüpft. Trotzdem entfernen? Die Verknüpfung wird gelöscht.",
-  "add.split.cannot_ungroup": "Eine bestehende Aufteilung kann nicht zurückgesetzt werden. Entferne stattdessen einzelne Positionen.",
-  "add.split.cannot_split_settler": "Diese Buchung ist eine Rückzahlung – löse zuerst die Verknüpfung, um sie aufzuteilen.",
-  "add.reimb.cannot_unflag": "Diese Auslage hat verknüpfte Rückzahlungen oder einen Write-off. Löse zuerst die Verknüpfungen, bevor du den Auslage-Status entfernst.",
+  "add.split.confirm_remove_linked":
+    "Eine entfernte Position ist mit einer Rückerstattung verknüpft. Trotzdem entfernen? Die Verknüpfung wird gelöscht.",
+  "add.split.cannot_ungroup":
+    "Eine bestehende Aufteilung kann nicht zurückgesetzt werden. Entferne stattdessen einzelne Positionen.",
+  "add.split.cannot_split_settler":
+    "Diese Buchung ist eine Rückzahlung – löse zuerst die Verknüpfung, um sie aufzuteilen.",
+  "add.reimb.cannot_unflag":
+    "Diese Auslage hat verknüpfte Rückzahlungen oder einen Write-off. Löse zuerst die Verknüpfungen, bevor du den Auslage-Status entfernst.",
   "loc.title": "Ort",
   "loc.none": "kein Ort",
   "loc.source.device": "vom Gerät",
   "loc.source.manual": "manuell",
   "loc.source.search": "Suche",
-  "loc.drag_hint": "Marker verschieben oder in die Karte klicken, um den Ort zu setzen; orange Punkte sind frühere Orte. Die Adresse wird automatisch neu ermittelt und kann überschrieben werden.",
+  "loc.drag_hint":
+    "Marker verschieben oder in die Karte klicken, um den Ort zu setzen; orange Punkte sind frühere Orte. Die Adresse wird automatisch neu ermittelt und kann überschrieben werden.",
   "loc.address_label": "Adresse / Bezeichnung",
   "loc.address_ph": "z. B. Migros Zürich Enge",
   "loc.resolving": "Adresse wird ermittelt …",
-  "loc.empty_hint": "Noch kein Ort erfasst. Standort verwenden, suchen oder einen früheren Ort übernehmen.",
-  "loc.empty_hint_past": "Automatische Erfassung nur für heutige Buchungen. Ort suchen oder früheren Ort übernehmen.",
+  "loc.empty_hint":
+    "Noch kein Ort erfasst. Standort verwenden, suchen oder einen früheren Ort übernehmen.",
+  "loc.empty_hint_past":
+    "Automatische Erfassung nur für heutige Buchungen. Ort suchen oder früheren Ort übernehmen.",
   "loc.locating": "Standort wird ermittelt …",
   "loc.use_current": "Aktuellen Standort verwenden",
   "loc.reuse": "Früherer Ort",
@@ -735,10 +808,13 @@ const de: Dict = {
   "loc.error.timeout": "Zeitüberschreitung bei der Standortermittlung.",
   "loc.settings.title": "Ort erfassen",
   "loc.settings.toggle": "Standort bei neuen Buchungen erfassen",
-  "loc.settings.hint": "Standardmässig aus. Nur bei Buchungen mit heutigem Datum wird der Browser-Standort abgefragt; du kannst den Ort jederzeit manuell setzen oder korrigieren.",
-  "add.reimb.settler_amount_mismatch": "Hinweis: Diese Rückzahlung hat mehrere Verknüpfungen. Bitte verteile den neuen Betrag manuell.",
+  "loc.settings.hint":
+    "Standardmässig aus. Nur bei Buchungen mit heutigem Datum wird der Browser-Standort abgefragt; du kannst den Ort jederzeit manuell setzen oder korrigieren.",
+  "add.reimb.settler_amount_mismatch":
+    "Hinweis: Diese Rückzahlung hat mehrere Verknüpfungen. Bitte verteile den neuen Betrag manuell.",
   "add.note.shared": "Gemeinsame Notiz / Tags (für alle Positionen)",
-  "add.note.shared_hint": "Wird zur Notiz jeder Position hinzugefügt. Pro-Positions-Notizen sind oben möglich.",
+  "add.note.shared_hint":
+    "Wird zur Notiz jeder Position hinzugefügt. Pro-Positions-Notizen sind oben möglich.",
   "tx.split.label": "Aufteilung",
   "tx.split.expand": "{n} Positionen anzeigen",
   "tx.split.collapse": "Einklappen",
@@ -773,7 +849,8 @@ const de: Dict = {
   "tx.bulk.n_selected": "{n} ausgewählt",
   "tx.bulk.clear": "Auswahl aufheben",
   "tx.bulk.set_category": "Kategorie setzen",
-  "tx.bulk.set_category.help": "Wird auf {n} Buchungen angewendet. Umbuchungen werden übersprungen.",
+  "tx.bulk.set_category.help":
+    "Wird auf {n} Buchungen angewendet. Umbuchungen werden übersprungen.",
   "tx.bulk.add_tags": "Tags hinzufügen",
   "tx.bulk.add_tags.help": "Tags werden den Notizen von {n} Buchungen hinzugefügt.",
   "tx.bulk.remove_tags": "Tags entfernen",
@@ -846,18 +923,22 @@ const de: Dict = {
   "settings.prefs.appearance": "Darstellung",
   "settings.prefs.money": "Währung & Geld",
   "settings.heatmap_threshold": "Heatmap-Schwellenwert",
-  "settings.heatmap_threshold.hint": "Tage mit einem Saldo bis zu diesem Betrag werden hell, darüber kräftig eingefärbt.",
+  "settings.heatmap_threshold.hint":
+    "Tage mit einem Saldo bis zu diesem Betrag werden hell, darüber kräftig eingefärbt.",
   "settings.date_format": "Datumsformat",
   "settings.date_format.hint": "Wird in Listen, Eingabefeldern und der Buchungs-Maske verwendet.",
   "settings.format_locale": "Sprache für Datum-Platzhalter",
-  "settings.format_locale.hint": "Beeinflusst Monats- und Tagesnamen in Platzhaltern wiederkehrender Buchungen (z. B. MMMM → Mai vs. May). Unabhängig von der Anzeigesprache.",
+  "settings.format_locale.hint":
+    "Beeinflusst Monats- und Tagesnamen in Platzhaltern wiederkehrender Buchungen (z. B. MMMM → Mai vs. May). Unabhängig von der Anzeigesprache.",
   "settings.networth_convert": "Nettovermögen umrechnen",
-  "settings.networth_convert.hint": "Wenn aktiv, werden Salden in Fremdwährung mit aktuellem Wechselkurs in deine Hauptwährung umgerechnet und als ein Gesamtwert angezeigt. Sonst werden Fremdwährungen separat ausgewiesen.",
+  "settings.networth_convert.hint":
+    "Wenn aktiv, werden Salden in Fremdwährung mit aktuellem Wechselkurs in deine Hauptwährung umgerechnet und als ein Gesamtwert angezeigt. Sonst werden Fremdwährungen separat ausgewiesen.",
   "dashboard.networth_other": "Weitere Währungen",
   "dashboard.networth_converted_hint": "Umgerechnet zum aktuellen Kurs",
   "dashboard.networth_show_other": "Weitere Währungen anzeigen",
   "dashboard.networth_hide_other": "Weitere Währungen ausblenden",
-  "env.fx_converted_hint": "Beträge in anderen Währungen werden zum aktuellen Kurs in {cur} umgerechnet.",
+  "env.fx_converted_hint":
+    "Beträge in anderen Währungen werden zum aktuellen Kurs in {cur} umgerechnet.",
   "env.tx_count": "{n} Transaktionen",
   "env.entry_count": "{n} Einträge",
   "env.realloc_in": "Umschichtung erhalten",
@@ -876,7 +957,8 @@ const de: Dict = {
   "settings.account_asset": "Vermögen",
   "settings.account_liability": "Verbindlichkeit",
   "settings.edit_account": "Konto bearbeiten",
-  "settings.opening_balance.warning": "Achtung: Eine Änderung des Anfangssaldos verändert alle berechneten Salden dieses Kontos rückwirkend. Bestehende Buchungen werden nicht angepasst.",
+  "settings.opening_balance.warning":
+    "Achtung: Eine Änderung des Anfangssaldos verändert alle berechneten Salden dieses Kontos rückwirkend. Bestehende Buchungen werden nicht angepasst.",
   "settings.kind_income": "Einnahme",
   "settings.kind_expense": "Ausgabe",
   "settings.kind_savings": "Rückstellung",
@@ -891,7 +973,8 @@ const de: Dict = {
   "settings.balance.over": "Überplant um {x}",
   "settings.balance.over_segment": "Überplant",
   "settings.group_kind_label": "Standard-Verhalten",
-  "settings.group_kind_hint": "Neue Budgets in dieser Gruppe übernehmen dieses Verhalten. Pro Budget überschreibbar.",
+  "settings.group_kind_hint":
+    "Neue Budgets in dieser Gruppe übernehmen dieses Verhalten. Pro Budget überschreibbar.",
   "settings.behaviour_diverges": "Verhalten weicht von Gruppe ab",
   "settings.move_up": "Nach oben",
   "settings.move_down": "Nach unten",
@@ -899,7 +982,8 @@ const de: Dict = {
   "settings.no_envelopes_in_group": "Keine Budgets in dieser Gruppe.",
   "settings.no_accounts": "Noch keine Konten.",
   "settings.archive.title": "{name} archivieren",
-  "settings.archive.has_balance": "{name} hat noch {balance}. Damit Konten und Budgets weiter übereinstimmen, wird der Restbetrag zuerst ausgebucht.",
+  "settings.archive.has_balance":
+    "{name} hat noch {balance}. Damit Konten und Budgets weiter übereinstimmen, wird der Restbetrag zuerst ausgebucht.",
   "settings.archive.to_account_out": "Auf ein anderes Konto übertragen",
   "settings.archive.to_account_in": "Von einem anderen Konto ausgleichen",
   "settings.archive.to_account_none": "Kein anderes Konto in {cur}.",
@@ -913,9 +997,12 @@ const de: Dict = {
   "settings.archive.submit": "Ausbuchen und archivieren",
   "settings.archive.done": "{name} archiviert",
   "settings.no_envelopes": "Noch keine Budgets.",
-  "settings.no_groups": "Noch keine Gruppen. Lege z.B. „Fixkosten“, „Persönliche Ausgaben“, „Einnahmen“, „Rückstellungen“ an.",
-  "settings.accounts.asset_hint": "Tipp: Verwende ein Vermögenskonto für Geschenkkarten oder Guthaben (z.B. Coop Geschenkkarten).",
-  "settings.accounts.opening_balance_hint": "Hinweis zum Anfangssaldo: Positiv = Geld, das dir gehört (z.B. Bankguthaben). Negativ = Geld, das du schuldest. Bei einer neuen Kreditkarte mit bereits getätigten Ausgaben gibst du den Saldo daher negativ ein (z.B. -500).",
+  "settings.no_groups":
+    "Noch keine Gruppen. Lege z.B. „Fixkosten“, „Persönliche Ausgaben“, „Einnahmen“, „Rückstellungen“ an.",
+  "settings.accounts.asset_hint":
+    "Tipp: Verwende ein Vermögenskonto für Geschenkkarten oder Guthaben (z.B. Coop Geschenkkarten).",
+  "settings.accounts.opening_balance_hint":
+    "Hinweis zum Anfangssaldo: Positiv = Geld, das dir gehört (z.B. Bankguthaben). Negativ = Geld, das du schuldest. Bei einer neuen Kreditkarte mit bereits getätigten Ausgaben gibst du den Saldo daher negativ ein (z.B. -500).",
   "settings.footer": "",
 
   // Recurring
@@ -944,19 +1031,22 @@ const de: Dict = {
   "recurring.interval.item": "Alle {n} Monate",
   "recurring.section.execution": "Ausführung",
   "recurring.section.period": "Berichtsperiode",
-  "recurring.dropped_tokens.warning": "Diese Vorlage nutzt Tokens, die die neue Wiederkehr-Engine nicht mehr kennt und leer rendert: {list}. Bitte ersetzen durch ${date}, ${dueDate}, ${periodFrom}, ${periodTo} oder ${runNumber} (mit Q/S/T/ww/w Formatierern).",
+  "recurring.dropped_tokens.warning":
+    "Diese Vorlage nutzt Tokens, die die neue Wiederkehr-Engine nicht mehr kennt und leer rendert: {list}. Bitte ersetzen durch ${date}, ${dueDate}, ${periodFrom}, ${periodTo} oder ${runNumber} (mit Q/S/T/ww/w Formatierern).",
   "recurring.field.period_day_rule": "Perioden-Tagesregel",
   "recurring.field.first_period": "Erste abgerechnete Periode",
   "recurring.first_period.same": "(Startmonat)",
   "recurring.first_period.before": "({n} Mt. vor Start)",
   "recurring.first_period.after": "({n} Mt. nach Start)",
-  "recurring.first_period.hint": "Welche Monate die erste Zahlung abrechnet (z. B. Quartalsrechnung für Juli–September, bezahlt im November). Jede weitere Zahlung rückt um das Intervall weiter; ${periodFrom}/${periodTo} zeigen die Periode.",
+  "recurring.first_period.hint":
+    "Welche Monate die erste Zahlung abrechnet (z. B. Quartalsrechnung für Juli–September, bezahlt im November). Jede weitere Zahlung rückt um das Intervall weiter; ${periodFrom}/${periodTo} zeigen die Periode.",
   "recurring.sched.every_n_months": "Alle {n} Monate",
   "recurring.field.reports_on": "Berichtsperiode",
   "recurring.reports_on.this": "Diese Periode",
   "recurring.reports_on.previous": "Vorherige Periode",
   "recurring.reports_on.two_back": "Vorletzte Periode",
-  "recurring.reports_on.hint": "Bestimmt, welche Periode mit ${periodFrom}, ${periodTo}, ${periodLabel} usw. gemeint ist – unabhängig vom Buchungsdatum.",
+  "recurring.reports_on.hint":
+    "Bestimmt, welche Periode mit ${periodFrom}, ${periodTo}, ${periodLabel} usw. gemeint ist – unabhängig vom Buchungsdatum.",
   "recurring.anchor.quarterly": "Bucht in: {months}",
   "recurring.anchor.yearly": "Bucht jährlich im {month}",
   "recurring.anchor.use_calendar_quarter": "Auf Kalenderquartal setzen",
@@ -976,30 +1066,39 @@ const de: Dict = {
   "recurring.sched.weekend_before": "Wochenende → vorher",
   "recurring.sched.weekend_after": "Wochenende → danach",
   "recurring.toast.saved": "Regel gespeichert",
-  "recurring.toast.backfill_failed": "Regel gespeichert, aber die vergangenen Einträge konnten nicht angelegt werden: {msg}",
+  "recurring.toast.backfill_failed":
+    "Regel gespeichert, aber die vergangenen Einträge konnten nicht angelegt werden: {msg}",
   "recurring.toast.posted": "Gebucht",
   "recurring.toast.skipped": "Übersprungen",
-  "recurring.confirm_delete": "Regel löschen? Bereits gebuchte Transaktionen bleiben erhalten. Geplante, noch nicht gebuchte Einträge werden entfernt.",
-  "recurring.confirm_delete_full": "Diese Regel vollständig löschen? Es sind keine gebuchten Transaktionen verknüpft.",
-  "recurring.cannot_delete_has_tx": "Vollständiges Löschen nicht möglich: {n} gebuchte Transaktion(en) sind mit dieser Regel verknüpft. Die Regel bleibt archiviert, damit die historischen Buchungen erhalten bleiben.",
-  "recurring.archive_instead": "Diese Regel hat {n} verknüpfte gebuchte Transaktion(en) und kann nicht vollständig gelöscht werden. Stattdessen archivieren? Geplante, noch nicht gebuchte Einträge werden entfernt.",
+  "recurring.confirm_delete":
+    "Regel löschen? Bereits gebuchte Transaktionen bleiben erhalten. Geplante, noch nicht gebuchte Einträge werden entfernt.",
+  "recurring.confirm_delete_full":
+    "Diese Regel vollständig löschen? Es sind keine gebuchten Transaktionen verknüpft.",
+  "recurring.cannot_delete_has_tx":
+    "Vollständiges Löschen nicht möglich: {n} gebuchte Transaktion(en) sind mit dieser Regel verknüpft. Die Regel bleibt archiviert, damit die historischen Buchungen erhalten bleiben.",
+  "recurring.archive_instead":
+    "Diese Regel hat {n} verknüpfte gebuchte Transaktion(en) und kann nicht vollständig gelöscht werden. Stattdessen archivieren? Geplante, noch nicht gebuchte Einträge werden entfernt.",
   "toast.archived": "Archiviert",
   "recurring.preview.title": "Vorschau",
   "recurring.preview.past": "Vergangenheit",
   "recurring.preview.future": "Geplant",
   "recurring.preview.empty": "Keine Termine im Vorschauzeitraum.",
-  "recurring.preview.note_past": "Startdatum liegt in der Vergangenheit. Wähle unten, ob vergangene Buchungen erstellt werden sollen.",
+  "recurring.preview.note_past":
+    "Startdatum liegt in der Vergangenheit. Wähle unten, ob vergangene Buchungen erstellt werden sollen.",
   "recurring.preview.posted": "Gebucht",
   "recurring.preview.pending": "Offen",
   "recurring.preview.missing": "Fehlt",
   "recurring.preview.open_tx": "Buchung bearbeiten",
   "recurring.preview.post_now": "Jetzt buchen",
   "recurring.preview.create_entry": "Eintrag erstellen",
-  "recurring.preview.save_first": "Speichere die Regel, um einzelne Einträge hier zu erstellen oder zu bearbeiten.",
+  "recurring.preview.save_first":
+    "Speichere die Regel, um einzelne Einträge hier zu erstellen oder zu bearbeiten.",
   "recurring.placeholders.title": "Platzhalter (klicken zum Einfügen)",
-  "recurring.placeholders.hint": "Verwende {token} oder {token:Format} mit Dollarzeichen-Klammern. Beispiel: Stromrechnung {periodStart:dd.MM.yyyy} – {periodEnd:dd.MM.yyyy} (mit $ vor jeder Klammer).",
+  "recurring.placeholders.hint":
+    "Verwende {token} oder {token:Format} mit Dollarzeichen-Klammern. Beispiel: Stromrechnung {periodStart:dd.MM.yyyy} – {periodEnd:dd.MM.yyyy} (mit $ vor jeder Klammer).",
   "recurring.placeholders.format_help.title": "Datumsformat-Optionen",
-  "recurring.placeholders.format_help.body": "Bausteine, die du im Format-Teil eines Datum-Platzhalters kombinieren kannst (z. B. ${date:dd.MM.yyyy}):\n• yyyy = vierstelliges Jahr (2026), yy = zweistellig (26)\n• MM = Monat zweistellig (01–12), M = ohne führende Null\n• MMM = kurzer Monatsname (Jan, Feb), MMMM = langer Name (Januar)\n• dd = Tag zweistellig, d = ohne führende Null\n• ddd = kurzer Wochentag (Mo), dddd = langer Wochentag (Montag)\n• HH = Stunde 00–23, mm = Minuten, ss = Sekunden\n• Q = Quartal (1–4), S = Semester (1–2), T = Trimester (1–3)\n• ww = Kalenderwoche zweistellig (ISO), w = ohne führende Null\n• Text in eckigen Klammern bleibt unverändert: [KW] ww",
+  "recurring.placeholders.format_help.body":
+    "Bausteine, die du im Format-Teil eines Datum-Platzhalters kombinieren kannst (z. B. ${date:dd.MM.yyyy}):\n• yyyy = vierstelliges Jahr (2026), yy = zweistellig (26)\n• MM = Monat zweistellig (01–12), M = ohne führende Null\n• MMM = kurzer Monatsname (Jan, Feb), MMMM = langer Name (Januar)\n• dd = Tag zweistellig, d = ohne führende Null\n• ddd = kurzer Wochentag (Mo), dddd = langer Wochentag (Montag)\n• HH = Stunde 00–23, mm = Minuten, ss = Sekunden\n• Q = Quartal (1–4), S = Semester (1–2), T = Trimester (1–3)\n• ww = Kalenderwoche zweistellig (ISO), w = ohne führende Null\n• Text in eckigen Klammern bleibt unverändert: [KW] ww",
   "recurring.preview.resolved": "Beschreibung",
   "recurring.post_dialog.title": "Buchung erstellen",
   "recurring.post_dialog.date": "Datum",
@@ -1012,38 +1111,48 @@ const de: Dict = {
   "recurring.backfill.title": "Startdatum liegt in der Vergangenheit",
   "recurring.backfill.none": "Keine vergangenen Buchungen erstellen",
   "recurring.backfill.post": "Vergangene Buchungen jetzt erstellen",
-  "recurring.backfill.pending": "Vergangene Buchungen als ausstehend anlegen (manuell ausfüllen & buchen)",
+  "recurring.backfill.pending":
+    "Vergangene Buchungen als ausstehend anlegen (manuell ausfüllen & buchen)",
   "recurring.backfill.gap_title": "Lücke zwischen letzter Buchung und heute",
   "recurring.backfill.gap_none": "Lücke nicht füllen",
   "recurring.backfill.gap_pending": "Lücke als ausstehende Einträge anlegen",
   "recurring.impact.title": "Was passiert beim Speichern",
-  "recurring.impact.auto_post_past": "⚠ {n} vergangene Buchung(en) werden jetzt automatisch erstellt (Summe {sum}).",
+  "recurring.impact.auto_post_past":
+    "⚠ {n} vergangene Buchung(en) werden jetzt automatisch erstellt (Summe {sum}).",
   "recurring.impact.pending_past": "{n} vergangene Einträge als ausstehend angelegt.",
   "recurring.impact.skipped_past": "{n} vergangene Termine übersprungen (keine Buchung).",
   "recurring.impact.future": "{n} zukünftige geplante Einträge (Vorschauzeitraum).",
-  "recurring.impact.regenerated": "{pending} ausstehende Einträge werden neu erzeugt, {posted} bereits gebuchte bleiben unverändert.",
+  "recurring.impact.regenerated":
+    "{pending} ausstehende Einträge werden neu erzeugt, {posted} bereits gebuchte bleiben unverändert.",
   "recurring.impact.split_note": "Jede Fälligkeit wird in {k} verlinkte Buchungen aufgeteilt.",
-  "recurring.impact.variable_note": "Jede Fälligkeit muss vor dem Buchen manuell bestätigt werden (variabler Betrag/Datum).",
+  "recurring.impact.variable_note":
+    "Jede Fälligkeit muss vor dem Buchen manuell bestätigt werden (variabler Betrag/Datum).",
   "recurring.impact.no_change": "Keine vergangenen Einträge werden erstellt.",
   "recurring.confirm_post_past.title": "Vergangene Buchungen jetzt erstellen?",
-  "recurring.confirm_post_past.body": "Dadurch werden {n} reale Transaktion(en) mit einer Gesamtsumme von {sum} sofort erstellt. Dies kannst du danach nur manuell rückgängig machen.",
+  "recurring.confirm_post_past.body":
+    "Dadurch werden {n} reale Transaktion(en) mit einer Gesamtsumme von {sum} sofort erstellt. Dies kannst du danach nur manuell rückgängig machen.",
   "recurring.confirm_post_past.confirm": "Ja, jetzt erstellen",
   "recurring.variable_amount": "Variabler Betrag",
-  "recurring.variable_amount.help": "Betrag ändert sich jedes Mal. Du wirst beim Buchen nach dem tatsächlichen Wert gefragt.",
+  "recurring.variable_amount.help":
+    "Betrag ändert sich jedes Mal. Du wirst beim Buchen nach dem tatsächlichen Wert gefragt.",
   "recurring.estimated_amount": "Geschätzter Betrag (für Prognose)",
   "recurring.variable_no_autopost": "Regeln mit variablem Betrag können nicht automatisch buchen.",
   "recurring.variable_badge": "Variabel",
   "recurring.proposal.badge": "von {source}",
   "recurring.proposal.line": "Rechnung {date} · {amount} von {source}",
-  "recurring.proposal.provided": "Betrag {amount} und Datum {date} wurden von {source} übermittelt ({at}). Prüfen und dann buchen.",
+  "recurring.proposal.provided":
+    "Betrag {amount} und Datum {date} wurden von {source} übermittelt ({at}). Prüfen und dann buchen.",
   "recurring.proposal.raw": "Originaltext",
-  "recurring.proposal.deviates": "Weicht stark von der Schätzung ({estimate}) ab — stimmt der Betrag?",
+  "recurring.proposal.deviates":
+    "Weicht stark von der Schätzung ({estimate}) ab — stimmt der Betrag?",
   "recurring.proposal.discard": "Vorschlag verwerfen",
   "recurring.proposal.discarded": "Vorschlag verworfen",
   "recurring.variable_date": "Variables Datum",
-  "recurring.variable_date.help": "Datum ändert sich jedes Mal. Du wirst beim Buchen nach dem tatsächlichen Datum gefragt.",
+  "recurring.variable_date.help":
+    "Datum ändert sich jedes Mal. Du wirst beim Buchen nach dem tatsächlichen Datum gefragt.",
   "recurring.split.toggle": "In mehrere Buchungen aufteilen",
-  "recurring.split.help": "Erzeugt mehrere verlinkte Buchungen (z. B. eine als rückforderbar markieren).",
+  "recurring.split.help":
+    "Erzeugt mehrere verlinkte Buchungen (z. B. eine als rückforderbar markieren).",
   "recurring.split.slices": "Aufteilungen",
   "recurring.split.add_slice": "Aufteilung hinzufügen",
   "recurring.split.remove_slice": "Aufteilung entfernen",
@@ -1140,7 +1249,8 @@ const de: Dict = {
   "settings.about.server": "Server",
   "settings.about.built_at": "Gebaut am",
   "settings.about.copy": "Version kopieren",
-  "settings.about.hint": "Version und Commit stammen aus dem Build. Stimmen Browser- und Server-Version nicht überein, lade die Seite neu.",
+  "settings.about.hint":
+    "Version und Commit stammen aus dem Build. Stimmen Browser- und Server-Version nicht überein, lade die Seite neu.",
   "toast.copied": "Kopiert",
   "settings.you": "Angemeldet als",
   "settings.role.admin": "Administrator",
@@ -1149,26 +1259,31 @@ const de: Dict = {
   "settings.integrations.admin_only": "Nur Administratoren können OAuth-Anbieter bearbeiten.",
   "settings.integrations.enabled": "Aktiviert",
   "settings.integrations.display_name": "Anzeigename",
-  "settings.integrations.display_name_hint": "Erscheint auf der Anmeldeseite, z. B. «Wiwo's Authentik».",
+  "settings.integrations.display_name_hint":
+    "Erscheint auf der Anmeldeseite, z. B. «Wiwo's Authentik».",
   "settings.integrations.client_id": "Client ID",
   "settings.integrations.discovery": "Issuer- oder Discovery-URL",
   "settings.integrations.redirect_uri_hint": "Redirect-URI beim OIDC-Provider: {uri}",
   "settings.integrations.client_secret": "Client Secret",
-  "settings.integrations.builtin_missing": "Im Auth-Dienst sind keine {p}-Zugangsdaten hinterlegt – dafür braucht es die GOTRUE_EXTERNAL_*-Variablen.",
+  "settings.integrations.builtin_missing":
+    "Im Auth-Dienst sind keine {p}-Zugangsdaten hinterlegt – dafür braucht es die GOTRUE_EXTERNAL_*-Variablen.",
   "settings.integrations.oidc.configured": "Im Auth-Dienst eingerichtet",
   "settings.integrations.oidc.not_configured": "Noch nicht eingerichtet",
   "settings.integrations.oidc.save": "Im Auth-Dienst speichern",
   "settings.integrations.oidc.saved": "Anbieter gespeichert",
   "settings.integrations.oidc.remove": "Entfernen",
-  "settings.integrations.oidc.remove_confirm": "Anbieter aus dem Auth-Dienst entfernen? Wer sich nur so anmeldet, kommt danach nicht mehr ins Konto.",
+  "settings.integrations.oidc.remove_confirm":
+    "Anbieter aus dem Auth-Dienst entfernen? Wer sich nur so anmeldet, kommt danach nicht mehr ins Konto.",
   "settings.integrations.oidc.secret_kept": "Gespeichert – leer lassen, um es zu behalten",
-  "settings.integrations.oidc.hint": "Beim Anbieter einen Confidential Client anlegen. Speichern schreibt alles direkt in den Auth-Dienst; das Secret landet nur dort, nie in der App-Datenbank.",
+  "settings.integrations.oidc.hint":
+    "Beim Anbieter einen Confidential Client anlegen. Speichern schreibt alles direkt in den Auth-Dienst; das Secret landet nur dort, nie in der App-Datenbank.",
   "settings.integrations.secret_help_link": "Setup ansehen (Public vs. Confidential)",
   "settings.integrations.test": "Testen",
   "settings.integrations.test.ok": "Verbindung erfolgreich",
   "settings.integrations.test.failed": "Test fehlgeschlagen",
   "linked.title": "Verknüpfte Anmeldemethoden",
-  "linked.intro": "Diese Anmeldemethoden führen zum selben Konto. Verknüpfe weitere Methoden, statt ein zweites Konto anzulegen.",
+  "linked.intro":
+    "Diese Anmeldemethoden führen zum selben Konto. Verknüpfe weitere Methoden, statt ein zweites Konto anzulegen.",
   "linked.none": "Keine Anmeldemethoden gefunden.",
   "linked.add": "Weitere Methode verknüpfen",
   "linked.link_with": "Mit {p} verknüpfen",
@@ -1177,10 +1292,13 @@ const de: Dict = {
   "linked.link_failed": "Verknüpfen fehlgeschlagen",
   "linked.unlink_failed": "Trennen fehlgeschlagen",
   "linked.last_method": "Die letzte verbleibende Anmeldemethode kann nicht getrennt werden.",
-  "linked.hint": "Verknüpfen geht nur, während du angemeldet bist. Danach öffnet jede der Methoden dieses Konto.",
-  "linked.manual_disabled": "Manuelles Verknüpfen ist im Auth-Backend deaktiviert. Setze GOTRUE_SECURITY_MANUAL_LINKING_ENABLED=true und starte den Auth-Container neu — Details in der Hilfe.",
+  "linked.hint":
+    "Verknüpfen geht nur, während du angemeldet bist. Danach öffnet jede der Methoden dieses Konto.",
+  "linked.manual_disabled":
+    "Manuelles Verknüpfen ist im Auth-Backend deaktiviert. Setze GOTRUE_SECURITY_MANUAL_LINKING_ENABLED=true und starte den Auth-Container neu — Details in der Hilfe.",
   "linked.prompt.title": "Anmeldemethode verknüpfen?",
-  "linked.prompt.body": "Du bist als {email} angemeldet. Du kannst weitere Anmeldemethoden mit diesem Konto verknüpfen, damit du dich künftig auf beiden Wegen anmelden kannst — ohne ein zweites Konto.",
+  "linked.prompt.body":
+    "Du bist als {email} angemeldet. Du kannst weitere Anmeldemethoden mit diesem Konto verknüpfen, damit du dich künftig auf beiden Wegen anmelden kannst — ohne ein zweites Konto.",
   "linked.prompt.later": "Später",
   "linked.prompt.never": "Nicht mehr fragen",
   "common.close": "Schließen",
@@ -1212,9 +1330,11 @@ const de: Dict = {
   "attachments.preview.close": "Vorschau schliessen",
   "attachments.preview.choose": "Diese Datei wählen",
   "attachments.preview.open_nextcloud": "In Nextcloud öffnen",
-  "attachments.preview.unavailable": "Für diese Datei gibt es keine Vorschau. Öffne sie in Nextcloud.",
+  "attachments.preview.unavailable":
+    "Für diese Datei gibt es keine Vorschau. Öffne sie in Nextcloud.",
   "attachments.preview.page": "Seite {n}",
-  "attachments.preview.more_pages": "Die ersten {shown} von {total} Seiten. Den Rest zeigt Nextcloud.",
+  "attachments.preview.more_pages":
+    "Die ersten {shown} von {total} Seiten. Den Rest zeigt Nextcloud.",
   "nextcloud.title": "Nextcloud",
   "nextcloud.intro": "Verbinde dein Nextcloud, um Dateien direkt an Buchungen zu hängen.",
   "nextcloud.base_url": "Server-URL",
@@ -1227,15 +1347,21 @@ const de: Dict = {
   "nextcloud.disconnect": "Trennen",
   "nextcloud.confirm_disconnect": "Nextcloud trennen und die gespeicherten Zugangsdaten löschen?",
   "nextcloud.connected_as": "Verbunden als {user}",
-  "nextcloud.saved_not_connected": "Konfiguration gespeichert. Klicke auf Verbinden, um die OAuth-Autorisierung zu starten.",
-  "nextcloud.saved_reconnect": "Gespeichert. Server oder Client haben sich geändert – bitte neu verbinden.",
-  "nextcloud.lost": "Die Verbindung als {user} ist abgelaufen oder wurde in Nextcloud widerrufen. Klicke auf Verbinden, um sie zu erneuern.",
-  "nextcloud.reconnect_needed": "Die Verbindung zu Nextcloud ist abgelaufen. Bitte in den Einstellungen neu verbinden.",
+  "nextcloud.saved_not_connected":
+    "Konfiguration gespeichert. Klicke auf Verbinden, um die OAuth-Autorisierung zu starten.",
+  "nextcloud.saved_reconnect":
+    "Gespeichert. Server oder Client haben sich geändert – bitte neu verbinden.",
+  "nextcloud.lost":
+    "Die Verbindung als {user} ist abgelaufen oder wurde in Nextcloud widerrufen. Klicke auf Verbinden, um sie zu erneuern.",
+  "nextcloud.reconnect_needed":
+    "Die Verbindung zu Nextcloud ist abgelaufen. Bitte in den Einstellungen neu verbinden.",
   "nextcloud.open_settings": "Zu den Einstellungen",
-  "nextcloud.privilege_hint": "Tipp: Lege in Nextcloud einen eigenen Benutzer mit Lese-Zugriff auf die relevanten Ordner an, um die Rechte minimal zu halten.",
+  "nextcloud.privilege_hint":
+    "Tipp: Lege in Nextcloud einen eigenen Benutzer mit Lese-Zugriff auf die relevanten Ordner an, um die Rechte minimal zu halten.",
   "nextcloud.redirect_uri_hint": "Weiterleitungs-URI in Nextcloud: {uri}",
   "apitokens.title": "API-Tokens",
-  "apitokens.intro": "Erzeuge Tokens, damit ein externer Dienst per API Anhänge zu Buchungen hinzufügen kann.",
+  "apitokens.intro":
+    "Erzeuge Tokens, damit ein externer Dienst per API Anhänge zu Buchungen hinzufügen kann.",
   "apitokens.name": "Name",
   "apitokens.create": "Erzeugen",
   "apitokens.shown_once": "Token nur dieses eine Mal sichtbar – jetzt kopieren!",
@@ -1244,11 +1370,13 @@ const de: Dict = {
   "apitokens.revoke": "Widerrufen",
   "apitokens.revoked": "widerrufen",
   "apitokens.confirm_delete": "Token endgültig löschen?",
-  "apitokens.endpoint_hint": "POST /api/public/attachments mit Header 'Authorization: Bearer <token>' und JSON {transaction_id, link_url, display_name, source?}.",
+  "apitokens.endpoint_hint":
+    "POST /api/public/attachments mit Header 'Authorization: Bearer <token>' und JSON {transaction_id, link_url, display_name, source?}.",
 
   // Webhooks
   "webhooks.title": "Webhooks",
-  "webhooks.intro": "Rufe eine URL auf, wenn eine Buchung manuell hinzugefügt, von einer wiederkehrenden Regel automatisch gebucht oder per API erstellt wird. Praktisch für n8n / Flatastic-Bridges.",
+  "webhooks.intro":
+    "Rufe eine URL auf, wenn eine Buchung manuell hinzugefügt, von einer wiederkehrenden Regel automatisch gebucht oder per API erstellt wird. Praktisch für n8n / Flatastic-Bridges.",
   "webhooks.name": "Name",
   "webhooks.url": "URL",
   "webhooks.header_name": "Auth-Header-Name (optional)",
@@ -1260,7 +1388,8 @@ const de: Dict = {
   "webhooks.test": "Testereignis senden",
   "webhooks.test_sent": "Testereignis ausgelöst",
   "webhooks.confirm_delete": "Webhook löschen?",
-  "webhooks.payload_hint": "Sendet POST mit JSON {event, delivery_id, delivered_at, transaction:{…, tags:[…]}}. Bis zu 3 Versuche (1s/4s Backoff), Zustellungen werden im Aktivitätsprotokoll erfasst.",
+  "webhooks.payload_hint":
+    "Sendet POST mit JSON {event, delivery_id, delivered_at, transaction:{…, tags:[…]}}. Bis zu 3 Versuche (1s/4s Backoff), Zustellungen werden im Aktivitätsprotokoll erfasst.",
 
   // Audit log
   "audit.title": "Aktivitätsprotokoll",
@@ -1280,7 +1409,8 @@ const de: Dict = {
   // Reallocations & sweeps
   "envelopes.reallocate": "Umschichten",
   "envelopes.reallocate.title": "Zwischen Sparkategorien umschichten",
-  "envelopes.reallocate.description": "Verschiebe reservierte Beträge zwischen Sparkategorien. Es wird kein realer Geldfluss gebucht.",
+  "envelopes.reallocate.description":
+    "Verschiebe reservierte Beträge zwischen Sparkategorien. Es wird kein realer Geldfluss gebucht.",
   "envelopes.reallocate.from": "Von",
   "envelopes.reallocate.to": "Nach",
   "envelopes.reallocate.amount": "Betrag",
@@ -1299,7 +1429,8 @@ const de: Dict = {
   "env.asof.total_saved": "Total in Umschlägen",
   "env.asof.follow_month": "Monat folgen",
   "env.asof.projected": "Prognose",
-  "env.asof.projected_hint": "Zukünftiger Monat: Beträge sind geplant, nicht gebucht. Monate, die angefangen, aber noch nicht geendet haben, fliessen mit ihrer vollen ungenutzten Zuteilung in den Übertrag ein.",
+  "env.asof.projected_hint":
+    "Zukünftiger Monat: Beträge sind geplant, nicht gebucht. Monate, die angefangen, aber noch nicht geendet haben, fliessen mit ihrer vollen ungenutzten Zuteilung in den Übertrag ein.",
   "env.month.prev": "Vorheriger Monat",
   "env.month.next": "Nächster Monat",
   "env.month.prev_year": "Vorheriges Jahr",
@@ -1309,7 +1440,8 @@ const de: Dict = {
   "budget.edit.scope": "Gilt für",
   "budget.edit.scope.month": "Nur {month}",
   "budget.edit.scope.forward": "Ab diesem Monat",
-  "budget.edit.past_warning": "Dieser Monat ist abgeschlossen. Sein Übertrag und alle Rückstellungssaldi seither werden neu berechnet, und die Änderung wird im Änderungsprotokoll festgehalten.",
+  "budget.edit.past_warning":
+    "Dieser Monat ist abgeschlossen. Sein Übertrag und alle Rückstellungssaldi seither werden neu berechnet, und die Änderung wird im Änderungsprotokoll festgehalten.",
   "budget.edit.invalid": "Bitte einen gültigen Betrag eingeben.",
   "budget.grid.envelope": "Umschlag",
   "budget.grid.saved": "Budget gespeichert.",
@@ -1317,19 +1449,25 @@ const de: Dict = {
   "budget.grid.copied": "{n} Umschläge aus dem Vormonat übernommen.",
   "budget.grid.copy_nothing": "Nichts zu übernehmen — die Spalte stimmt bereits.",
   "budget.grid.copy_previous": "{month} aus dem Vormonat übernehmen",
-  "budget.grid.copy_previous_tip": "{month} mit den Werten aus {prev} überschreiben — nur dieser Monat.",
-  "budget.grid.fill_month_tip": "Alle Umschläge aus {month} in jeden folgenden Monat übertragen. So legst du z. B. im Dezember den Januar und die Monate danach an.",
+  "budget.grid.copy_previous_tip":
+    "{month} mit den Werten aus {prev} überschreiben — nur dieser Monat.",
+  "budget.grid.fill_month_tip":
+    "Alle Umschläge aus {month} in jeden folgenden Monat übertragen. So legst du z. B. im Dezember den Januar und die Monate danach an.",
   "budget.grid.fill_row_tip": "Diesen Wert ab {month} in jeden folgenden Monat übertragen.",
   "budget.grid.filled_month": "{n} Zellen gesetzt.",
   "budget.grid.select_month": "{month} auswählen",
   "budget.grid.undo_last": "Rückgängig: {what}",
   "budget.grid.cleared": "{n} Zellen entfernt.",
   "budget.grid.extended": "{n} Zellen angelegt.",
-  "budget.grid.extend_tip": "{month} anlegen, mit den Werten aus {source}. Achtung: {month} ist bereits vorbei — der Übertrag dieses Monats wird berechnet, und alle Rückstellungssaldi seither verschieben sich entsprechend. Rückgängig machbar.",
+  "budget.grid.extend_tip":
+    "{month} anlegen, mit den Werten aus {source}. Achtung: {month} ist bereits vorbei — der Übertrag dieses Monats wird berechnet, und alle Rückstellungssaldi seither verschieben sich entsprechend. Rückgängig machbar.",
   "budget.grid.clear_nothing": "Hier ist nichts gespeichert.",
-  "budget.grid.clear_month_tip": "{month} entfernen — der Monat gilt danach wieder als nicht festgelegt.",
-  "budget.grid.trim_tip": "{month} und alle früheren Monate entfernen. Dafür gedacht, versehentlich zu früh angelegte Budgets loszuwerden. Einen einzelnen Monat dazwischen kann man nicht entfernen: er würde beim nächsten Laden wieder aufgefüllt, weil ein Monat ohne Betrag weder zählt noch gekehrt wird.",
-  "budget.grid.hint": "Auf eine Zahl tippen zum Ändern. Enter speichert diesen Monat, ⌘/Strg + Enter überträgt den Wert bis zum rechten Rand. Ein Klick auf den Monatsnamen wählt den Monat aus. Gepunktet unterstrichene Werte sind noch nicht festgelegt — sie zeigen, was der Monat erben würde.",
+  "budget.grid.clear_month_tip":
+    "{month} entfernen — der Monat gilt danach wieder als nicht festgelegt.",
+  "budget.grid.trim_tip":
+    "{month} und alle früheren Monate entfernen. Dafür gedacht, versehentlich zu früh angelegte Budgets loszuwerden. Einen einzelnen Monat dazwischen kann man nicht entfernen: er würde beim nächsten Laden wieder aufgefüllt, weil ein Monat ohne Betrag weder zählt noch gekehrt wird.",
+  "budget.grid.hint":
+    "Auf eine Zahl tippen zum Ändern. Enter speichert diesen Monat, ⌘/Strg + Enter überträgt den Wert bis zum rechten Rand. Ein Klick auf den Monatsnamen wählt den Monat aus. Gepunktet unterstrichene Werte sind noch nicht festgelegt — sie zeigen, was der Monat erben würde.",
   "env.view.grid": "Tabelle",
   "env.view.allocations": "Zuteilungen",
   "env.moves.plan": "Monatsplan",
@@ -1358,7 +1496,8 @@ const de: Dict = {
   "env.moves.col.amount": "Betrag",
   "env.moves.col.note": "Notiz",
   "env.moves.empty": "Keine Bewegungen zwischen Budgets in diesem Monat.",
-  "env.moves.hint": "Alle Bewegungen zwischen Budgets in diesem Monat. Wählst du ein Budget, zeigen die Beträge + und − aus dessen Sicht.",
+  "env.moves.hint":
+    "Alle Bewegungen zwischen Budgets in diesem Monat. Wählst du ein Budget, zeigen die Beträge + und − aus dessen Sicht.",
   "env.view.cards": "Karten",
   "env.group.income": "Einnahmen",
   "env.group.expense": "Ohne Gruppe",
@@ -1372,8 +1511,10 @@ const de: Dict = {
   "env.ov.legend_spent": "ausgegeben {x}",
   "env.ov.legend_pending": "offen {x}",
   "env.ov.legend_left": "übrig {x}",
-  "env.ov.plan_gap_under": "Plan nicht ausgeglichen: {x} der Einnahmen sind keinem Budget zugeteilt und landen in «Nicht zugeordnet».",
-  "env.ov.plan_gap_over": "Plan nicht ausgeglichen: Die Budgets verteilen {x} mehr als das Einnahmenziel; das fehlt in «Nicht zugeordnet».",
+  "env.ov.plan_gap_under":
+    "Plan nicht ausgeglichen: {x} der Einnahmen sind keinem Budget zugeteilt und landen in «Nicht zugeordnet».",
+  "env.ov.plan_gap_over":
+    "Plan nicht ausgeglichen: Die Budgets verteilen {x} mehr als das Einnahmenziel; das fehlt in «Nicht zugeordnet».",
   "env.ov.income_done": "✓ alles erhalten",
   "env.ov.group_done": "✓ erledigt",
   "env.ov.received_of": "{a} / {b} erhalten",
@@ -1472,18 +1613,23 @@ const de: Dict = {
   "env.ledger.open_tx": "Buchung öffnen",
   "env.ledger.transfer_gain": "Mehrwert aus Umbuchung",
   "env.realloc_edit.title": "Umschichtung bearbeiten",
-  "env.realloc_edit.description": "Betrag, Datum und Notiz lassen sich ändern. Für andere Budgets löschen und neu umschichten.",
-  "env.realloc_edit.scope_hint": "Beim Abschluss von {name} erstellt. Ohne diese Umschichtung ist der Scope nicht mehr gedeckt.",
+  "env.realloc_edit.description":
+    "Betrag, Datum und Notiz lassen sich ändern. Für andere Budgets löschen und neu umschichten.",
+  "env.realloc_edit.scope_hint":
+    "Beim Abschluss von {name} erstellt. Ohne diese Umschichtung ist der Scope nicht mehr gedeckt.",
   "env.realloc_edit.delete_confirm": "Wirklich löschen?",
   "env.realloc_edit.deleted": "Umschichtung gelöscht",
   "env.realloc_edit.missing": "Diese Umschichtung gibt es nicht mehr.",
-  "env.realloc_edit.linked_description": "Kommt aus einer Umbuchung, die mehr erhalten als bezahlt hat. Betrag und Budget änderst du in der Umbuchung.",
+  "env.realloc_edit.linked_description":
+    "Kommt aus einer Umbuchung, die mehr erhalten als bezahlt hat. Betrag und Budget änderst du in der Umbuchung.",
   "env.realloc_edit.open_transfer": "Umbuchung öffnen",
   "env.realloc_edit.scope_title": "Abschluss von {name}",
-  "env.realloc_edit.scope_closed": "Mit dieser Umschichtung wurde {name} abgeschlossen. Um sie zu ändern, öffne den Scope wieder: die Umschichtung wird entfernt, und beim erneuten Abschliessen wird er genau mit seinem neuen Total finanziert.",
+  "env.realloc_edit.scope_closed":
+    "Mit dieser Umschichtung wurde {name} abgeschlossen. Um sie zu ändern, öffne den Scope wieder: die Umschichtung wird entfernt, und beim erneuten Abschliessen wird er genau mit seinem neuen Total finanziert.",
   "env.realloc_edit.reopen_scope": "Scope wieder öffnen",
   "env.realloc_edit.reopened": "Scope wieder geöffnet",
-  "toast.scope_reopened": "{name} wurde wieder geöffnet, weil sich sein Betrag geändert hat. Bitte neu abschliessen.",
+  "toast.scope_reopened":
+    "{name} wurde wieder geöffnet, weil sich sein Betrag geändert hat. Bitte neu abschliessen.",
   "env.history.title": "Sparverlauf",
   "env.history.months": "{n} Mt.",
   "env.history.all": "Alle",
@@ -1509,7 +1655,8 @@ const de: Dict = {
   "env.recon.part.assigned": "Schon Budgets zugeordnet",
   "env.recon.part.unswept": "Restbeträge ohne Ziel",
   "env.recon.part.unswept_link": "Ziel für Restbeträge festlegen",
-  "env.recon.gap": "Konten und Budgets weichen um {amount} voneinander ab. Das sollte nicht vorkommen; bitte melden.",
+  "env.recon.gap":
+    "Konten und Budgets weichen um {amount} voneinander ab. Das sollte nicht vorkommen; bitte melden.",
   "env.recon.assign": "Einem Budget zuordnen…",
   "env.recon.details": "Woraus sich das zusammensetzt",
   "envelopes.savings.from_sweeps": "aus Restbeträgen",
@@ -1521,32 +1668,39 @@ const de: Dict = {
   "envelopes.sweep.use_default": "Standard verwenden",
   "settings.savings.title": "Sparen & Restbeträge",
   "settings.savings.default_target": "Standard-Sammelkategorie",
-  "settings.savings.default_target_hint": "Restbeträge (oder Überschreitungen) von Ausgaben-Kategorien fließen am Monatsende hierher, sofern keine spezifische Kategorie überschreibt.",
+  "settings.savings.default_target_hint":
+    "Restbeträge (oder Überschreitungen) von Ausgaben-Kategorien fließen am Monatsende hierher, sofern keine spezifische Kategorie überschreibt.",
   "settings.savings.reconciliation": "Abgleich",
   "settings.savings.accounts_total": "Konten gesamt",
   "settings.opening_balance.invalid": "Bitte eine Zahl eingeben",
   "opening.title_distribute": "Anfangsbestände verteilen",
   "opening.title_edit": "Anfangsbestände bearbeiten",
-  "opening.description": "Das Geld, das schon vor der ersten Buchung auf deinen Konten lag. Es zählt ab Beginn, vor allen Buchungen. Nur Budgets, die übertragen werden, können es halten: ein Monatsbudget gibt seinen Rest jeden Monat ab.",
+  "opening.description":
+    "Das Geld, das schon vor der ersten Buchung auf deinen Konten lag. Es zählt ab Beginn, vor allen Buchungen. Nur Budgets, die übertragen werden, können es halten: ein Monatsbudget gibt seinen Rest jeden Monat ab.",
   "opening.on_accounts": "Auf den Konten",
   "opening.distributed": "Verteilt",
   "opening.left": "Noch zu verteilen",
   "opening.over": "Zu viel verteilt",
-  "opening.over_hint": "Du hast mehr verteilt, als auf den Konten lag. Reduziere einen Betrag, um zu speichern.",
+  "opening.over_hint":
+    "Du hast mehr verteilt, als auf den Konten lag. Reduziere einen Betrag, um zu speichern.",
   "opening.today": "heute {today}",
   "opening.today_to": "heute {today} → {after}",
   "opening.amount_for": "Anfangssaldo von {name}",
   "opening.archived_section": "Archiviert · {n} mit Anfangssaldo",
-  "opening.archived_warning": "{name} ist archiviert. Beim Speichern wird es wieder aktiv, und die Umschichtung vom Archivieren wird entfernt. Danach kannst du es erneut archivieren.",
+  "opening.archived_warning":
+    "{name} ist archiviert. Beim Speichern wird es wieder aktiv, und die Umschichtung vom Archivieren wird entfernt. Danach kannst du es erneut archivieren.",
   "opening.rest_to": "Rest an {name}",
-  "opening.none": "Kein Budget kann einen Anfangssaldo halten. Schalte bei einem Budget „Rückstellungs-Budget“ ein.",
+  "opening.none":
+    "Kein Budget kann einen Anfangssaldo halten. Schalte bei einem Budget „Rückstellungs-Budget“ ein.",
   "opening.saved": "Anfangsbestände gespeichert",
   "opening.reopened": "{name} ist wieder aktiv",
   "opening.distribute_button": "Verteilen…",
   "opening.edit_button": "Bearbeiten…",
   "opening.all_distributed": "Anfangsbestände: {total} verteilt ✓",
-  "opening.settings_left": "Anfangsbestände: {assigned} von {total} verteilt · {left} gehören noch keinem Budget.",
-  "opening.settings_over": "Anfangsbestände: {assigned} verteilt, {left} mehr als die {total} auf den Konten.",
+  "opening.settings_left":
+    "Anfangsbestände: {assigned} von {total} verteilt · {left} gehören noch keinem Budget.",
+  "opening.settings_over":
+    "Anfangsbestände: {assigned} verteilt, {left} mehr als die {total} auf den Konten.",
   "env.recon.part.openings_action": "Anfangsbestände verteilen…",
   "settings.savings.held_in": "davon in Umschlägen",
   "settings.savings.rollover_total": "Übertragende Umschläge",
@@ -1556,7 +1710,8 @@ const de: Dict = {
   "settings.savings.unallocated": "Nicht zugeordnet",
   "settings.savings.residual": "Nicht erklärt",
   "settings.savings.residual_ok": "Geht auf",
-  "settings.savings.residual_help": "Solange die Anfangssalden der Konten noch keinem Umschlag zugeordnet sind und Einnahme-Abweichungen nicht übertragen werden, bleibt hier ein Rest stehen.",
+  "settings.savings.residual_help":
+    "Solange die Anfangssalden der Konten noch keinem Umschlag zugeordnet sind und Einnahme-Abweichungen nicht übertragen werden, bleibt hier ein Rest stehen.",
   "dashboard.reserved.title": "Reservierte Sparbeträge",
   "dashboard.reserved.empty": "Noch keine Sparkategorien.",
 
@@ -1620,14 +1775,16 @@ const de: Dict = {
   "insights.projection.avg": "Ø Sparquote",
   "insights.projection.recurring": "Nur Daueraufträge",
   "insights.projection.band": "Unsicherheit (±1σ)",
-  "insights.projection.summary": "Beim aktuellen Verlauf erreichst du ca. {trend} bis {date} (±{band}).",
+  "insights.projection.summary":
+    "Beim aktuellen Verlauf erreichst du ca. {trend} bis {date} (±{band}).",
   "insights.projection.whatif.title": "Was-wäre-wenn",
   "insights.projection.whatif.label": "Ausgaben kürzen um",
   "insights.projection.whatif.hint": "Verschiebt die Ø-Linie. Hilft, Sparziele zu testen.",
   "insights.projection.preset.eoy": "Ende {year}",
   "insights.projection.preset.ten_years": "10 Jahre",
   "insights.detector.title": "Wiederkehrende Ausgaben erkennen",
-  "insights.detector.hint": "Findet Ausgaben mit stabilen Beträgen über mehrere Monate, die noch keine Regel haben.",
+  "insights.detector.hint":
+    "Findet Ausgaben mit stabilen Beträgen über mehrere Monate, die noch keine Regel haben.",
   "insights.detector.min_occ": "Min. Vorkommen",
   "insights.detector.min_months": "Min. Monate",
   "insights.detector.max_cv": "Max. Schwankung",
@@ -1638,7 +1795,8 @@ const de: Dict = {
 
   // Reconcile
   "reconcile.title": "Konto-Abgleich",
-  "reconcile.subtitle": "Kontostand laut Bank/Auszug erfassen und mit dem berechneten Wert abgleichen.",
+  "reconcile.subtitle":
+    "Kontostand laut Bank/Auszug erfassen und mit dem berechneten Wert abgleichen.",
   "reconcile.add": "Auszug erfassen",
   "reconcile.filter.account": "Konto",
   "reconcile.list.title": "Auszüge",
@@ -1660,13 +1818,15 @@ const de: Dict = {
   "reconcile.add.note": "Notiz",
   "reconcile.add.invalid_amount": "Ungültiger Betrag",
   "reconcile.comp.title": "Ausgleichsbuchung erstellen?",
-  "reconcile.comp.body": "Es wird eine {type} über {amount} am {date} in der Kategorie ‚Reconciliation adjustment‘ angelegt.",
+  "reconcile.comp.body":
+    "Es wird eine {type} über {amount} am {date} in der Kategorie ‚Reconciliation adjustment‘ angelegt.",
   "reconcile.comp.income": "Einnahme",
   "reconcile.comp.expense": "Ausgabe",
   "reconcile.comp.confirm": "Buchen",
   "reconcile.delete.title": "Auszug löschen?",
   "reconcile.delete.confirm": "Der Auszug wird entfernt.",
-  "reconcile.delete.with_comp": "Es gibt eine verknüpfte Ausgleichsbuchung. Möchtest du sie behalten oder ebenfalls löschen?",
+  "reconcile.delete.with_comp":
+    "Es gibt eine verknüpfte Ausgleichsbuchung. Möchtest du sie behalten oder ebenfalls löschen?",
   "reconcile.delete.keep_comp_action": "Nur Auszug löschen",
   "reconcile.delete.with_comp_action": "Auszug + Buchung löschen",
   "reconcile.toast.saved": "Auszug gespeichert",
@@ -1675,10 +1835,12 @@ const de: Dict = {
   "reconcile.toast.deleted": "Auszug gelöscht",
   "scopes.title": "Scopes",
   "scopes.close_note": "Scope abgeschlossen",
-  "scopes.subtitle": "Temporäre Sammelkategorien für Reisen oder Events. Wenn aktiv, wird die Kategorie beim Erfassen vorausgefüllt. Beim Schließen wird die Gesamtsumme aus der Finanzierungs-Kategorie umgebucht.",
+  "scopes.subtitle":
+    "Temporäre Sammelkategorien für Reisen oder Events. Wenn aktiv, wird die Kategorie beim Erfassen vorausgefüllt. Beim Schließen wird die Gesamtsumme aus der Finanzierungs-Kategorie umgebucht.",
   "scopes.create": "Neuen Scope anlegen",
   "scopes.create_action": "Anlegen",
-  "scopes.create_hint": "Tipp: Wähle z.B. „Allgemeine Ersparnisse“ oder „Taschengeld“ als Finanzierungs-Kategorie.",
+  "scopes.create_hint":
+    "Tipp: Wähle z.B. „Allgemeine Ersparnisse“ oder „Taschengeld“ als Finanzierungs-Kategorie.",
   "scopes.name_placeholder": "z.B. Italien 2026",
   "scopes.funding_from": "Finanzierung aus",
   "scopes.no_funding": "Keine — nur sammeln",
@@ -1697,7 +1859,8 @@ const de: Dict = {
   "scopes.reopen": "Wieder öffnen",
   "scopes.close_confirm_title": "„{name}“ abschließen?",
   "scopes.close_confirm": "{amount} werden in einer Umbuchung aus „{from}“ abgezogen.",
-  "scopes.close_confirm_no_funding": "{amount} gesammelt. Es wird keine Umbuchung erstellt (keine Finanzierungs-Kategorie).",
+  "scopes.close_confirm_no_funding":
+    "{amount} gesammelt. Es wird keine Umbuchung erstellt (keine Finanzierungs-Kategorie).",
   "scopes.delete_confirm": "Scope löschen?",
   "scopes.toast.name_required": "Name erforderlich",
   "scopes.toast.created": "Scope angelegt",
@@ -1710,7 +1873,8 @@ const de: Dict = {
   "scopes.chip.disable": "Deaktivieren",
   "settings.scopes.link": "Scopes verwalten",
   "add.scope.banner_active": "Scope aktiv: {name}",
-  "add.scope.banner_active_hint": "Die Kategorie wird automatisch vorausgewählt. Du kannst sie für diese Buchung überschreiben.",
+  "add.scope.banner_active_hint":
+    "Die Kategorie wird automatisch vorausgewählt. Du kannst sie für diese Buchung überschreiben.",
   "add.scope.banner_skipped": "Scope übersprungen: {name}",
   "add.scope.banner_skipped_hint": "Diese Buchung wird ohne Scope gespeichert.",
   "add.scope.use": "Verwenden",
@@ -1722,7 +1886,8 @@ const de: Dict = {
   // Transaction links
   "nav.links": "Verknüpfungen",
   "links.page.title": "Buchungs-Verknüpfungen",
-  "links.page.subtitle": "Mehrere Buchungen zu einem realen Einkauf bündeln. Die einzelnen Buchungen zählen weiter wie bisher.",
+  "links.page.subtitle":
+    "Mehrere Buchungen zu einem realen Einkauf bündeln. Die einzelnen Buchungen zählen weiter wie bisher.",
   "links.page.new": "Anlegen",
   "links.page.new_placeholder": "Neue Verknüpfung benennen…",
   "links.page.empty": "Noch keine Verknüpfungen.",
@@ -1750,14 +1915,15 @@ const de: Dict = {
   "links.picker.existing": "Vorhandene",
   "links.picker.empty": "Tippe einen Titel, um neu anzulegen.",
   "links.picker.create_heading": "Neu",
-  "links.picker.create": "„{title}\" anlegen",
+  "links.picker.create": '„{title}" anlegen',
   "links.picker.actions": "Aktionen",
   "links.picker.detach": "Aus Verknüpfung entfernen",
-  "links.confirm_move": "Von „{from}\" zu „{to}\" verschieben?",
-  "links.confirm_delete": "„{title}\" wirklich löschen?",
-  "links.confirm_remove_last": "Das ist die letzte Buchung in „{title}\". Verknüpfung damit löschen?",
-  "links.toast.attached": "An „{title}\" angehängt",
-  "links.toast.created_and_attached": "„{title}\" angelegt und verknüpft",
+  "links.confirm_move": 'Von „{from}" zu „{to}" verschieben?',
+  "links.confirm_delete": '„{title}" wirklich löschen?',
+  "links.confirm_remove_last":
+    'Das ist die letzte Buchung in „{title}". Verknüpfung damit löschen?',
+  "links.toast.attached": 'An „{title}" angehängt',
+  "links.toast.created_and_attached": '„{title}" angelegt und verknüpft',
   "links.toast.detached": "Aus Verknüpfung entfernt",
   "links.toast.added": "Buchung hinzugefügt",
   "links.toast.removed": "Buchung entfernt",
@@ -1767,19 +1933,28 @@ const de: Dict = {
   "ai.example.rule": "Richte Netflix als monatliche Regel ein: 15.90 am 5. vom Privatkonto.",
   "ai.attach.unsupported": "„{name}“ kann nicht angehängt werden (PDF, CSV, Text oder Bild).",
   "ai.attach.too_big": "„{name}“ ist grösser als 15 MB.",
-  "ai.attach.no_vision": "Das gewählte Modell kann keine Bilder sehen. Wähle eine Verbindung mit Bild-Unterstützung (Einstellungen → KI).",
-  "ai.attach.no_tools": "Das gewählte Modell kann keine Werkzeuge aufrufen, darum sind Anhänge deaktiviert. Wähle ein Modell mit Tool-Unterstützung (Einstellungen → KI).",
+  "ai.attach.no_vision":
+    "Das gewählte Modell kann keine Bilder sehen. Wähle eine Verbindung mit Bild-Unterstützung (Einstellungen → KI).",
+  "ai.attach.no_tools":
+    "Das gewählte Modell kann keine Werkzeuge aufrufen, darum sind Anhänge deaktiviert. Wähle ein Modell mit Tool-Unterstützung (Einstellungen → KI).",
   "ai.attach.max": "Höchstens {n} Dateien pro Nachricht.",
-  "ai.attach.staged_hint": "Wird mit der nächsten Nachricht gesendet – sag, was ich damit tun soll.",
+  "ai.attach.staged_hint":
+    "Wird mit der nächsten Nachricht gesendet – sag, was ich damit tun soll.",
   "ai.action.open_rule": "Im Regel-Editor öffnen",
-  "ai.notice.tools_unsupported": "Dieses Modell kann keine Werkzeuge aufrufen; die Antwort beruht nur auf dem Kontext, ohne Aktionen.",
-  "ai.notice.vision_unsupported": "Dieses Modell kann keine Bilder sehen; angehängte Bilder wurden ihm nicht gezeigt.",
-  "ai.notice.model_unreliable": "Dieses Modell hat keine verwertbare Antwort geliefert (statt Text oder einem echten Werkzeug-Aufruf kam JSON). Es wurde nichts gespeichert. Wähle ein stärkeres Modell (Einstellungen → KI).",
+  "ai.notice.tools_unsupported":
+    "Dieses Modell kann keine Werkzeuge aufrufen; die Antwort beruht nur auf dem Kontext, ohne Aktionen.",
+  "ai.notice.vision_unsupported":
+    "Dieses Modell kann keine Bilder sehen; angehängte Bilder wurden ihm nicht gezeigt.",
+  "ai.notice.model_unreliable":
+    "Dieses Modell hat keine verwertbare Antwort geliefert (statt Text oder einem echten Werkzeug-Aufruf kam JSON). Es wurde nichts gespeichert. Wähle ein stärkeres Modell (Einstellungen → KI).",
   "recurring.ai.button": "Mit KI",
-  "recurring.ai.button_hint": "Rechnung hochladen – die KI füllt eine neue Regel vor, du prüfst und speicherst.",
-  "recurring.ai.disabled_hint": "Richte zuerst eine KI-Verbindung ein (Einstellungen → KI-Assistent).",
+  "recurring.ai.button_hint":
+    "Rechnung hochladen – die KI füllt eine neue Regel vor, du prüfst und speicherst.",
+  "recurring.ai.disabled_hint":
+    "Richte zuerst eine KI-Verbindung ein (Einstellungen → KI-Assistent).",
   "recurring.ai.title": "Regel aus Rechnung erstellen",
-  "recurring.ai.body": "Lade eine Rechnung, Prämie oder einen Vertrag hoch (PDF oder Foto). Die KI erkennt Betrag, Intervall (monatlich, alle 2 Monate, quartalsweise …) und Abrechnungszeitraum, übernimmt den Stil deiner bestehenden Regeln und öffnet den Editor. Gespeichert wird erst, wenn du speicherst.",
+  "recurring.ai.body":
+    "Lade eine Rechnung, Prämie oder einen Vertrag hoch (PDF oder Foto). Die KI erkennt Betrag, Intervall (monatlich, alle 2 Monate, quartalsweise …) und Abrechnungszeitraum, übernimmt den Stil deiner bestehenden Regeln und öffnet den Editor. Gespeichert wird erst, wenn du speicherst.",
   "recurring.ai.drop": "Rechnung hierher ziehen",
   "recurring.ai.choose": "Datei wählen",
   "recurring.ai.hint": "Hinweis für die KI (optional)",
@@ -1790,13 +1965,16 @@ const de: Dict = {
   "recurring.ai.to_statements": "Zu den Auszügen",
   "recurring.ai.not_invoice": "In diesem Dokument wurde keine wiederkehrende Zahlung gefunden.",
   "recurring.ai.banner": "Von der KI vorausgefüllt – bitte prüfen, bevor du speicherst.",
-  "recurring.ai.banner_file": "Von der KI aus „{file}“ vorausgefüllt – bitte prüfen, bevor du speicherst.",
+  "recurring.ai.banner_file":
+    "Von der KI aus „{file}“ vorausgefüllt – bitte prüfen, bevor du speicherst.",
   "recurring.ai.similar": "Sieht aus wie deine Regel „{name}“.",
   "recurring.ai.similar_edit": "Stattdessen bearbeiten",
   "recurring.ai.similar_duplicate": "Duplizieren",
   "recurring.ai.warn.amount_missing": "Kein Betrag gefunden.",
-  "recurring.ai.warn.starts_in_past": "Das Startdatum liegt in der Vergangenheit – beim Speichern wirst du gefragt, ob vergangene Termine gebucht werden sollen.",
-  "recurring.ai.warn.offset_clamped": "Die erste Periode lag mehr als drei Jahre vom Start entfernt und wurde begrenzt.",
+  "recurring.ai.warn.starts_in_past":
+    "Das Startdatum liegt in der Vergangenheit – beim Speichern wirst du gefragt, ob vergangene Termine gebucht werden sollen.",
+  "recurring.ai.warn.offset_clamped":
+    "Die erste Periode lag mehr als drei Jahre vom Start entfernt und wurde begrenzt.",
   "recurring.ai.warn.account_unknown": "Konto „{value}“ gibt es nicht – bitte wählen.",
   "recurring.ai.warn.category_unknown": "Kategorie „{value}“ gibt es nicht – bitte wählen.",
   "recurring.ai.warn.token_removed": "Unbekannter Platzhalter {value} wurde entfernt.",
@@ -1805,7 +1983,8 @@ const de: Dict = {
   "ai.conn.caps.unknown": "ungeprüft",
   "ai.conn.caps.check": "Fähigkeiten prüfen",
   "ai.conn.caps.checking": "Prüfe…",
-  "ai.conn.caps.hint": "Werkzeuge braucht der Chat für Aktionen (Buchung/Regel vorbereiten, Auszug importieren, Anhänge). Bilder braucht er für Fotos. Geprüft mit zwei Mini-Anfragen.",
+  "ai.conn.caps.hint":
+    "Werkzeuge braucht der Chat für Aktionen (Buchung/Regel vorbereiten, Auszug importieren, Anhänge). Bilder braucht er für Fotos. Geprüft mit zwei Mini-Anfragen.",
   "ai.conn.caps.inconclusive": "Keine eindeutige Antwort: {error}",
 };
 
@@ -1825,16 +2004,19 @@ const en: Dict = {
   "ai.conn.action.statement_extract": "Statement extraction (PDF/image)",
   "ai.conn.action.recurring_extract": "Recurring rule from invoice (✨)",
   "statements.title": "Statement import",
-  "statements.subtitle": "Upload a statement as PDF, CSV or photo, read the rows and compare them with your recorded transactions.",
+  "statements.subtitle":
+    "Upload a statement as PDF, CSV or photo, read the rows and compare them with your recorded transactions.",
   "statements.import.title": "Import a statement",
-  "statements.import.hint": "PDF (with a text layer), an e-banking CSV export, or a photo. CSV is parsed directly without AI. The file is processed for the comparison and not stored.",
+  "statements.import.hint":
+    "PDF (with a text layer), an e-banking CSV export, or a photo. CSV is parsed directly without AI. The file is processed for the comparison and not stored.",
   "statements.import.run": "Extract & match",
   "statements.field.account": "Account",
   "statements.field.file": "File (PDF, CSV, image)",
   "statements.nextcloud.pick": "Or choose from Nextcloud",
   "statements.field.window": "Date tolerance (days)",
   "statements.field.invert": "Invert signs",
-  "statements.field.invert_hint": "For credit-card statements that show charges as positive amounts.",
+  "statements.field.invert_hint":
+    "For credit-card statements that show charges as positive amounts.",
   "statements.list.title": "Imports",
   "statements.list.empty": "No imports yet.",
   "statements.detail.pick": "Pick an import on the left.",
@@ -1875,8 +2057,8 @@ const en: Dict = {
   "ai.title": "AI Assistant",
   "ai.bubble.label": "Open AI assistant",
   "ai.open_full": "Full view",
-  "ai.action.use_proposed": "Use \"{name}\"",
-  "ai.action.use_scope": "Use scope \"{name}\"",
+  "ai.action.use_proposed": 'Use "{name}"',
+  "ai.action.use_scope": 'Use scope "{name}"',
   "ai.new_chat": "New chat",
   "ai.no_chats": "No saved chats yet.",
   "ai.delete_confirm": "Delete this chat?",
@@ -1886,32 +2068,39 @@ const en: Dict = {
   "ai.attach.drop": "Drop files here to attach them to the chat",
   "ai.attach.analyse": "Analyse statement",
   "ai.attach.open": "Open result",
-  "ai.attach.result": "Statement read: {total} rows — {matched} matched, {probable} unsure, {missing} missing in Cashflow, {extra} only in Cashflow.",
+  "ai.attach.result":
+    "Statement read: {total} rows — {matched} matched, {probable} unsure, {missing} missing in Cashflow, {extra} only in Cashflow.",
   "ai.usage.tokens": "{total} tokens · {prompt} in / {completion} out",
   "ai.usage.steps": "{n} calls",
   "ai.thinking": "Thinking…",
   "ai.input.placeholder": "Ask about your spending, IOUs, or describe a purchase…",
   "ai.input.placeholder_disabled": "Enable the AI in Settings",
   "ai.empty.title": "Hi! I can help you with your finances.",
-  "ai.empty.body": "I can prefill transactions, set up recurring rules from invoices, summarise your data, and explain the app. Attach an invoice, a statement or a photo and tell me what to do with it — or send it without text and I'll suggest something. I won't help with anything off-topic.",
+  "ai.empty.body":
+    "I can prefill transactions, set up recurring rules from invoices, summarise your data, and explain the app. Attach an invoice, a statement or a photo and tell me what to do with it — or send it without text and I'll suggest something. I won't help with anything off-topic.",
   "ai.example.add": "I spent 50 at Coop on groceries, paid by credit card.",
   "ai.example.spend": "Where did I spend most last month?",
   "ai.example.help": "How do recurring transactions work?",
   "ai.example.privacy": "Where is my data stored?",
-  "ai.error.disabled": "The AI assistant is not configured. Set the endpoint, model and token in Settings.",
+  "ai.error.disabled":
+    "The AI assistant is not configured. Set the endpoint, model and token in Settings.",
   "ai.settings.title": "AI Assistant",
-  "ai.settings.intro": "Configure your own OpenAI-compatible endpoint (OpenAI, Ollama, LM Studio, OpenRouter, …). The token is stored server-side.",
+  "ai.settings.intro":
+    "Configure your own OpenAI-compatible endpoint (OpenAI, Ollama, LM Studio, OpenRouter, …). The token is stored server-side.",
   "ai.settings.enabled": "Enabled",
   "ai.settings.enabled_hint": "When off, the assistant is hidden in every surface.",
   "ai.settings.base_url": "API base URL",
-  "ai.settings.base_url_hint": "Without trailing /chat/completions. Example: https://api.openai.com/v1",
+  "ai.settings.base_url_hint":
+    "Without trailing /chat/completions. Example: https://api.openai.com/v1",
   "ai.settings.model": "Default model",
   "ai.settings.token": "API token",
   "ai.settings.token_stored": "(stored)",
-  "ai.settings.token_hint": "Used server-side only. The server operator can read this value — see the privacy page.",
+  "ai.settings.token_hint":
+    "Used server-side only. The server operator can read this value — see the privacy page.",
   "ai.settings.test": "Test connection",
   "ai.conn.title": "AI connections",
-  "ai.conn.intro": "Store multiple OpenAI-compatible endpoints (e.g. a local Ollama plus a commercial backup). Each AI action picks which connection to use.",
+  "ai.conn.intro":
+    "Store multiple OpenAI-compatible endpoints (e.g. a local Ollama plus a commercial backup). Each AI action picks which connection to use.",
   "ai.conn.add": "Add connection",
   "ai.conn.name": "Name",
   "ai.conn.priority": "Priority",
@@ -1920,7 +2109,8 @@ const en: Dict = {
   "ai.conn.context.off": "Off – send no data",
   "ai.conn.context.compact": "Compact – accounts, categories, short summary (recommended)",
   "ai.conn.context.full": "Full – more tags, descriptions and recent entries",
-  "statements.table.hint": "Review the rows, tick them and book them in one go. Use \"Create\" for splits and special cases.",
+  "statements.table.hint":
+    'Review the rows, tick them and book them in one go. Use "Create" for splits and special cases.',
   "statements.table.select_all": "Select all",
   "statements.table.commit": "Book selected ({n})",
   "statements.table.col.date": "Date",
@@ -1937,14 +2127,16 @@ const en: Dict = {
   "statements.toast.committed": "Booked {ok} of {total} rows.",
   "statements.suggested": "Suggested",
   "ai.conn.context.xl": "X-large – 180 days, many complete example transactions (for cloud models)",
-  "ai.conn.context_hint": "The assistant receives your accounts, categories and a summary of the last 30 days directly in the prompt. Reduce it for small local models.",
+  "ai.conn.context_hint":
+    "The assistant receives your accounts, categories and a summary of the last 30 days directly in the prompt. Reduce it for small local models.",
   "ai.conn.none": "No connection configured yet.",
   "ai.conn.delete_confirm": "Delete this connection?",
   "ai.conn.check": "Check availability",
   "ai.conn.online": "Online",
   "ai.conn.offline": "Offline",
   "ai.conn.offline_title": "Connection unavailable",
-  "ai.conn.offline_body": "The selected connection \"{name}\" is not responding. Retry on another connection?",
+  "ai.conn.offline_body":
+    'The selected connection "{name}" is not responding. Retry on another connection?',
   "ai.conn.offline_pick": "Choose a connection",
   "ai.conn.offline_retry": "Retry request",
   "ai.conn.unknown": "Unknown",
@@ -1961,7 +2153,7 @@ const en: Dict = {
   "ai.conn.health_mode.model_listed": "Model listed – model must appear in the list",
   "ai.conn.health_mode.real": "Real request – recommended",
   "ai.conn.health_mode_hint":
-    "A proxy (e.g. LiteLLM) answers even when the model behind it is offline. \"Real request\" sends a tiny request to the model (or asks /health), so a downed backend is detected — it costs a negligible amount of tokens on commercial providers.",
+    'A proxy (e.g. LiteLLM) answers even when the model behind it is offline. "Real request" sends a tiny request to the model (or asks /health), so a downed backend is detected — it costs a negligible amount of tokens on commercial providers.',
   "ai.conn.actions_title": "AI action assignment",
   "ai.conn.action.chat": "Assistant chat",
   "ai.conn.action.transcribe": "Voice input (speech to text)",
@@ -1973,7 +2165,8 @@ const en: Dict = {
   "ai.conn.models_none": "No models found – type the name manually.",
   "ai.conn.models_failed": "Could not load models.",
   "ai.conn.transcribe_model": "Transcription model (optional)",
-  "ai.conn.transcribe_model_hint": "Model for /audio/transcriptions, e.g. whisper-1 or Systran/faster-whisper-large-v3. Leave empty if this connection does not support voice input.",
+  "ai.conn.transcribe_model_hint":
+    "Model for /audio/transcriptions, e.g. whisper-1 or Systran/faster-whisper-large-v3. Leave empty if this connection does not support voice input.",
   "ai.voice.start": "Record a voice message",
   "ai.voice.stop": "Stop recording and transcribe",
   "ai.voice.recording": "Recording… {time} — tap stop when done",
@@ -1984,9 +2177,11 @@ const en: Dict = {
   "ai.conn.fallback": "Fall back to another connection when offline",
   "ai.conn.action_model": "Model for this action",
   "ai.conn.action_model_default": "Connection's default model",
-  "ai.conn.action_model_hint": "Choose the connection's default model or one of its additional models; the provider's own model list follows below them. Availability is still probed once per connection.",
+  "ai.conn.action_model_hint":
+    "Choose the connection's default model or one of its additional models; the provider's own model list follows below them. Availability is still probed once per connection.",
   "ai.conn.extra_models": "Additional models",
-  "ai.conn.extra_models_hint": "Offered in the per-action model picker below. Only the default model is used for the availability check.",
+  "ai.conn.extra_models_hint":
+    "Offered in the per-action model picker below. Only the default model is used for the availability check.",
   "ai.conn.extra_models_placeholder": "Type a model name or pick from the list",
   "ai.conn.extra_models_add": "Add model",
   "ai.conn.models_from_provider": "Listed by the provider",
@@ -1995,12 +2190,15 @@ const en: Dict = {
   "ai.test.ok": "Connection OK",
   "ai.test.fail": "Test failed",
   "ai.audit.title": "AI Activity Log",
-  "ai.audit.intro": "Every request to your AI provider and every tool-call result is logged here. Your API token is never recorded.",
+  "ai.audit.intro":
+    "Every request to your AI provider and every tool-call result is logged here. Your API token is never recorded.",
   "ai.audit.empty": "No AI activity yet.",
   "ai.audit.clear": "Clear contents",
   "ai.audit.cleared": "Log cleared. Token counts stay for AI usage.",
-  "ai.audit.clear_confirm": "Clear the contents of every AI log entry? Token counts stay for AI usage.",
-  "ai.audit.footer_note": "API tokens are never logged. Message and response previews are truncated to ~1–2 KB per entry.",
+  "ai.audit.clear_confirm":
+    "Clear the contents of every AI log entry? Token counts stay for AI usage.",
+  "ai.audit.footer_note":
+    "API tokens are never logged. Message and response previews are truncated to ~1–2 KB per entry.",
   "ai.audit.kind.all": "All",
   "ai.audit.kind.chat_request": "Provider requests",
   "ai.audit.kind.tool_call": "Tool calls",
@@ -2049,9 +2247,12 @@ const en: Dict = {
   "ai.usage.card.requests": "{n} requests",
   "ai.usage.card.in_out": "in {a} · out {b}",
   "ai.usage.card.errors": "{n} errors",
-  "ai.usage.note.tools": "Tool calls (such as “Open in form”) are not model requests and are not counted here. Failed requests are counted, because providers usually bill them anyway.",
-  "ai.usage.note.without": "“Not reported”: requests for which the provider sent no token count. They are counted, never estimated.",
-  "ai.usage.note.history": "Older entries, from before the connection was recorded, are matched by host and model; for them a fallback cannot be told.",
+  "ai.usage.note.tools":
+    "Tool calls (such as “Open in form”) are not model requests and are not counted here. Failed requests are counted, because providers usually bill them anyway.",
+  "ai.usage.note.without":
+    "“Not reported”: requests for which the provider sent no token count. They are counted, never estimated.",
+  "ai.usage.note.history":
+    "Older entries, from before the connection was recorded, are matched by host and model; for them a fallback cannot be told.",
   "ai.usage.kind.chat_request": "Chat",
   "ai.usage.kind.document_extract": "Read statement",
   "ai.usage.kind.statement_classify": "Categorise lines",
@@ -2077,10 +2278,14 @@ const en: Dict = {
   "pending.tab.pending": "Pending",
   "pending.tab.rejected": "Rejected",
   "pending.tab.confirmed": "Confirmed",
-  "pending.tab.help.pending": "Transactions imported from an external system that you still need to review and confirm (or reject) — they are not booked yet.",
-  "pending.tab.help.ious": "Already-booked transactions you flagged as reimbursable that haven't been settled yet.",
-  "pending.tab.help.rejected": "Imported entries you rejected — kept for audit and can be restored.",
-  "pending.tab.help.confirmed": "Imported entries you already confirmed — the real transaction lives in Transactions.",
+  "pending.tab.help.pending":
+    "Transactions imported from an external system that you still need to review and confirm (or reject) — they are not booked yet.",
+  "pending.tab.help.ious":
+    "Already-booked transactions you flagged as reimbursable that haven't been settled yet.",
+  "pending.tab.help.rejected":
+    "Imported entries you rejected — kept for audit and can be restored.",
+  "pending.tab.help.confirmed":
+    "Imported entries you already confirmed — the real transaction lives in Transactions.",
   "pending.empty": "Nothing to do.",
   "pending.review": "Review",
   "pending.row.untitled": "(no description)",
@@ -2112,7 +2317,8 @@ const en: Dict = {
   "pending.table.confirm": "Confirm ({n})",
   "pending.table.reject": "Reject ({n})",
   "pending.table.err.amount": "Please enter a valid amount.",
-  "pending.table.err.transfer": "Transfer without a destination account — edit it in the card view.",
+  "pending.table.err.transfer":
+    "Transfer without a destination account — edit it in the card view.",
   "pending.table.err.partial": "{n} row(s) could not be confirmed.",
   "pending.table.toast.confirmed": "Booked {ok} of {total}",
   "pending.table.toast.rejected": "Rejected {n}",
@@ -2125,7 +2331,8 @@ const en: Dict = {
   "pending.suggest.source.ai": "AI guess, {pct}% confident",
   "pending.suggest.toast": "Checked {rows}: {history} from history, {ai} from AI",
   "pending.suggest.toast.none": "Nothing new to suggest.",
-  "pending.suggest.ai_unavailable": "No AI connection reachable — the rest is picked up once one is online.",
+  "pending.suggest.ai_unavailable":
+    "No AI connection reachable — the rest is picked up once one is online.",
 
   "common.all": "All",
   "common.none": "— None —",
@@ -2142,8 +2349,10 @@ const en: Dict = {
   "archive_budget.usage_bookings": "This budget has {n} booking(s) in {month}.",
   "archive_budget.usage_plan": "This budget has a plan of {plan} in {month}.",
   "archive_budget.hidden": "It disappears from the budget overview and the month editor.",
-  "archive_budget.bookings_stay": "Its bookings stay and show in their months as “archived”, without a budget.",
-  "archive_budget.plan_stays": "The {month} plan stays stored: whatever is left of it at month end is settled as before.",
+  "archive_budget.bookings_stay":
+    "Its bookings stay and show in their months as “archived”, without a budget.",
+  "archive_budget.plan_stays":
+    "The {month} plan stays stored: whatever is left of it at month end is settled as before.",
   "common.unarchive": "Unarchive",
   "common.from": "From",
   "common.to": "To",
@@ -2231,14 +2440,16 @@ const en: Dict = {
   "add.no_accounts": "No accounts — add one in Settings",
   "add.create_first_account": "Create your first account →",
   "add.dest_amount.label": "Amount received ({sym})",
-  "add.dest_amount.hint_fx": "Suggested using FX rate {from}→{to} from {date}. Enter the actual amount received.",
+  "add.dest_amount.hint_fx":
+    "Suggested using FX rate {from}→{to} from {date}. Enter the actual amount received.",
   "add.dest_amount.hint_loading": "Loading FX rate…",
   "add.dest_amount.hint_offline": "FX rate unavailable — enter amount manually.",
   "add.dest_amount.use_fx": "Reset to FX rate",
   "add.transfer.fee.add": "Add fee (e.g. ATM fee)",
   "add.transfer.fee.label": "Fee ({sym})",
   "add.transfer.fee.category": "Fee category",
-  "add.transfer.fee.help": "Creates a separate expense on the source account and links it to this transfer.",
+  "add.transfer.fee.help":
+    "Creates a separate expense on the source account and links it to this transfer.",
   "add.transfer.fee.remove": "Remove",
   "add.transfer.diff.add": "Received more than paid (e.g. discounted gift card)",
   "add.transfer.diff.label": "Amount received ({sym})",
@@ -2246,16 +2457,19 @@ const en: Dict = {
   "add.transfer.diff.category": "Difference goes to",
   "add.transfer.diff.none": "No budget",
   "add.transfer.diff.help": "Booked as an allocation to {name} and linked to this transfer.",
-  "add.transfer.diff.help_none": "Without a budget the gain stays under “Unallocated” and can be assigned on the Budgets page.",
-  "add.transfer.diff.less": "The amount received must be more than the amount paid. Received less? Then the difference is a fee:",
-  "toast.received_must_exceed": "The amount received must be more than the amount paid. Received less? Record it as a fee.",
+  "add.transfer.diff.help_none":
+    "Without a budget the gain stays under “Unallocated” and can be assigned on the Budgets page.",
+  "add.transfer.diff.less":
+    "The amount received must be more than the amount paid. Received less? Then the difference is a fee:",
+  "toast.received_must_exceed":
+    "The amount received must be more than the amount paid. Received less? Record it as a fee.",
   "add.transfer.fee.tx_prefix": "Fee",
   "add.transfer.fee.tx_default": "Fee",
   "add.category": "Category",
   "add.category_optional_reimb": "(optional — assign for reimbursement)",
   "add.select_category": "Select category",
   "add.description": "Description",
-  "add.description_placeholder": "What was it? e.g. \"Coffee Quadra\", \"Dinner with Anna\"",
+  "add.description_placeholder": 'What was it? e.g. "Coffee Quadra", "Dinner with Anna"',
   "add.note": "Note · use #tags to filter later",
   "add.note_placeholder": "e.g. dinner with friends #twint #paris",
   "common.markdown_hint": "Markdown supported",
@@ -2289,11 +2503,14 @@ const en: Dict = {
   "add.impact.budgets_none_transfer": "none, transfer",
   "add.impact.refusal.known_title": "Can't be saved like this",
   "add.impact.refusal.unknown_title": "Can't calculate the impact",
-  "add.impact.refusal.unknown_body": "This is most likely a problem in the app, not in what you entered. You can still save; if saving fails too, the message says why.",
+  "add.impact.refusal.unknown_body":
+    "This is most likely a problem in the app, not in what you entered. You can still save; if saving fails too, the message says why.",
   "add.impact.refusal.details": "Technical detail",
-  "add.impact.refusal.received_too_low": "Received is not more than sent. Receiving less is a fee: record it as a fee rather than a difference.",
+  "add.impact.refusal.received_too_low":
+    "Received is not more than sent. Receiving less is a fee: record it as a fee rather than a difference.",
   "add.impact.hint_fx": "Net-worth change converted at today's FX rate.",
-  "add.duplicate.detail": "{count} transaction(s) already exist with the same account ({account}), amount ({amount}) and date ({date}).",
+  "add.duplicate.detail":
+    "{count} transaction(s) already exist with the same account ({account}), amount ({amount}) and date ({date}).",
   "add.income_badge": "Income",
   // Reimbursable / will-be-paid-back transactions
   "add.reimb.section": "Reimbursable / lent out",
@@ -2301,20 +2518,25 @@ const en: Dict = {
   "add.preview.reimb": "Reimbursable",
   "add.preview.settles": "Repays: {list}",
   "add.preview.reimb_from": "Reimbursable · back from {name}",
-  "add.reimb.toggle.hint": "Marks the transaction as an open expense. It shows up in the dashboard's \"Open reimbursements\" list until you mark it settled or link a refund to it — the transaction itself always stays in your history.",
+  "add.reimb.toggle.hint":
+    'Marks the transaction as an open expense. It shows up in the dashboard\'s "Open reimbursements" list until you mark it settled or link a refund to it — the transaction itself always stays in your history.',
   "add.reimb.counterparty": "From whom (e.g. Employer, Anna)",
   "add.reimb.reason": "Reason (optional)",
-  "add.reimb.category_clear_warning": "Reimbursables are usually booked without a category so they don't show up in your budget.",
+  "add.reimb.category_clear_warning":
+    "Reimbursables are usually booked without a category so they don't show up in your budget.",
   "add.reimb.autolink.title": "Matches an open reimbursable",
-  "add.reimb.autolink.detail": "This income matches {count} open reimbursable(s) totalling {amount}. Link them?",
+  "add.reimb.autolink.detail":
+    "This income matches {count} open reimbursable(s) totalling {amount}. Link them?",
   "add.reimb.autolink.link_all": "Link all",
   "add.reimb.autolink.from": "from {who}",
   "add.reimb.link.section_title": "Link to open reimbursables",
   "add.reimb.link.edit_title": "Reimbursables covered",
-  "add.reimb.link.edit_hint": "Ticks and amounts decide which reimbursables this income repays. Unticked ones are open again afterwards.",
+  "add.reimb.link.edit_hint":
+    "Ticks and amounts decide which reimbursables this income repays. Unticked ones are open again afterwards.",
   "add.reimb.link.covered_now": "covered by this one",
   "add.reimb.link.assigned_count": "{n} assigned",
-  "add.reimb.link.locked_written_off": "Written off: stays as it is, the write-off already moved this income.",
+  "add.reimb.link.locked_written_off":
+    "Written off: stays as it is, the write-off already moved this income.",
   "add.reimb.link.locked_cancelled": "Cancelled: stays as it is.",
   "add.reimb.link.amount_for": "Amount for {name}",
   "add.reimb.link.over_block": "Reduce the amounts, then save.",
@@ -2326,16 +2548,19 @@ const en: Dict = {
   "add.reimb.payments.open_tx": "open",
   "add.reimb.payments.remove": "Unlink",
   "add.reimb.payments.confirm_title": "Unlink this repayment?",
-  "add.reimb.payments.confirm_body": "The {x} no longer count for this reimbursable. It is then open with {open} and shows on the dashboard and under “Pending”. The income itself stays as it is.",
+  "add.reimb.payments.confirm_body":
+    "The {x} no longer count for this reimbursable. It is then open with {open} and shows on the dashboard and under “Pending”. The income itself stays as it is.",
   "add.reimb.payments.confirm_remove": "Unlink",
   "add.reimb.payments.removed": "Repayment unlinked",
   "add.reimb.payments.assign_hint": "Assign new repayments on the income.",
   "add.reimb.payments.locked": "Written off: the repayments stay linked as they are.",
   "add.reimb.link.count_label": "{n} open",
   "add.reimb.link.suggested_title": "Suggested match: {n} reimbursable(s) totalling {amount}",
-  "add.reimb.link.no_match_hint": "No matching sum found. You can still link any open reimbursable manually.",
+  "add.reimb.link.no_match_hint":
+    "No matching sum found. You can still link any open reimbursable manually.",
   "add.reimb.link.selected_summary.exact": "Selected {sel} / income {inc} — exact match",
-  "add.reimb.link.selected_summary.under": "Selected {sel} / income {inc} — {diff} remaining unlinked",
+  "add.reimb.link.selected_summary.under":
+    "Selected {sel} / income {inc} — {diff} remaining unlinked",
   "add.reimb.link.selected_summary.over": "Selected {sel} / income {inc} — {diff} over",
   "add.reimb.link.link_suggested": "Link suggested",
   "add.reimb.link.clear": "Clear selection",
@@ -2369,18 +2594,23 @@ const en: Dict = {
   "refund.cat.writeoff": "Category (expense + income)",
   "refund.cat.split": "Category of your share",
   "refund.cat.choose": "Choose a category",
-  "refund.effect.writeoff": "The expense stays one booking of {amount}. {cat} carries {rest} net; expense and income both go to {cat}.",
-  "refund.effect.split": "The expense is split: {rest} to {cat} (your share) + {amount} reimbursable without a category, repaid by this income. The income has no category either.",
+  "refund.effect.writeoff":
+    "The expense stays one booking of {amount}. {cat} carries {rest} net; expense and income both go to {cat}.",
+  "refund.effect.split":
+    "The expense is split: {rest} to {cat} (your share) + {amount} reimbursable without a category, repaid by this income. The income has no category either.",
   "refund.effect.coming": "Stays under Open with {rest} from {name}.",
   "refund.budget": "Budget",
   "refund.budget.remove": "Remove the expense's category",
   "refund.budget.credit": "Book the income to a category",
   "refund.income_cat": "Income category",
   "refund.income_cat_differs": "differs from the expense ({cat})",
-  "refund.effect.remove": "Expense: category {cat} → none, the income has none either → {cat} {month} −{amount} spent.",
+  "refund.effect.remove":
+    "Expense: category {cat} → none, the income has none either → {cat} {month} −{amount} spent.",
   "refund.effect.past_month": " Changes a past month.",
-  "refund.effect.credit": "The expense stays in {cat} ({expMonth}); the income is booked to {icat} → {icat} {incMonth} +{amount}.",
-  "refund.effect.no_cat": "Expense without a category: the income has none either, no budget affected.",
+  "refund.effect.credit":
+    "The expense stays in {cat} ({expMonth}); the income is booked to {icat} → {icat} {incMonth} +{amount}.",
+  "refund.effect.no_cat":
+    "Expense without a category: the income has none either, no budget affected.",
   "refund.bar.assigned": "Assigned {sel} / income {inc}",
   "refund.bar.exact": "exact",
   "refund.bar.over": "{amount} too much",
@@ -2435,20 +2665,25 @@ const en: Dict = {
   "iou.writeoff.tooltip.expense": "Book as a loss (assigns an envelope)",
   "iou.writeoff.tooltip.income": "Book as a gift (assigns an envelope)",
   "iou.writeoff.dialog.title": "Write off",
-  "iou.writeoff.dialog.body.expense": "Assigns the expense and every repayment already recorded to the chosen envelope, so the budget is charged what it actually cost you (expense minus repayments). No transaction is created and no real money moves.",
-  "iou.writeoff.dialog.body.income": "Assigns the income and every repayment already recorded to the chosen envelope, so the budget is netted by what actually stayed with you. No transaction is created and no real money moves.",
+  "iou.writeoff.dialog.body.expense":
+    "Assigns the expense and every repayment already recorded to the chosen envelope, so the budget is charged what it actually cost you (expense minus repayments). No transaction is created and no real money moves.",
+  "iou.writeoff.dialog.body.income":
+    "Assigns the income and every repayment already recorded to the chosen envelope, so the budget is netted by what actually stayed with you. No transaction is created and no real money moves.",
   "iou.writeoff.category": "Envelope",
   "iou.writeoff.note": "Note (optional)",
   "iou.writeoff.submit": "Write off",
   "iou.writeoff.toast": "Written off",
-  "iou.writeoff.toast.shared_skipped": "Written off. {n} repayment(s) were left as they are because they also settle other items \u2014 please assign those by hand.",
+  "iou.writeoff.toast.shared_skipped":
+    "Written off. {n} repayment(s) were left as they are because they also settle other items \u2014 please assign those by hand.",
   "iou.surplus.title": "Repaid more than owed",
-  "iou.surplus.hint": "Fully settled, but more came back than you laid out. The surplus still needs an envelope.",
+  "iou.surplus.hint":
+    "Fully settled, but more came back than you laid out. The surplus still needs an envelope.",
   "iou.surplus.amount": "{amount} unassigned",
   "iou.surplus.assign": "Assign",
   "iou.add_repayment": "Add repayment",
   "iou.add_repayment_all": "All paid back",
-  "iou.help.add_repayment_all": "One repayment for all of {name}'s open entries, prefilled with the open total. If less came back, change the amount and spread it over the entries.",
+  "iou.help.add_repayment_all":
+    "One repayment for all of {name}'s open entries, prefilled with the open total. If less came back, change the amount and spread it over the entries.",
   "iou.repayment.group_from": "Repayment from {name}",
   "iou.repayment.group_to": "Repayment to {name}",
   "iou.repayment.group_note": "Repayment for:",
@@ -2456,12 +2691,16 @@ const en: Dict = {
   "iou.repayment.prefill_description": "Reimbursement for {name}",
   "iou.repayment.prefill_note": "Reimbursement for: {name}",
   "iou.help.title": "What do the actions mean?",
-  "iou.help.add_repayment": "Add repayment — when real money actually moved (someone paid you back or you repaid them). Creates a linked transaction; the IOU auto-closes once the amount is covered.",
-  "iou.help.writeoff": "Write off — when you've given up on being repaid, or you got back more than you laid out. Assigns the expense and its repayments to an envelope so the remainder lands in the budget instead of nowhere.",
-  "iou.help.cancel": "Cancel — when the entry shouldn't have been an IOU in the first place (mis-flagged, duplicate). No offsetting entry is created.",
+  "iou.help.add_repayment":
+    "Add repayment — when real money actually moved (someone paid you back or you repaid them). Creates a linked transaction; the IOU auto-closes once the amount is covered.",
+  "iou.help.writeoff":
+    "Write off — when you've given up on being repaid, or you got back more than you laid out. Assigns the expense and its repayments to an envelope so the remainder lands in the budget instead of nowhere.",
+  "iou.help.cancel":
+    "Cancel — when the entry shouldn't have been an IOU in the first place (mis-flagged, duplicate). No offsetting entry is created.",
   "common.confirm": "Confirm",
   "add.reimbursement_hint": "Booked as a reimbursement; reduces this envelope's spending.",
-  "add.reimbursement_hint.savings": "Booked as a reimbursement; increases this savings envelope's balance.",
+  "add.reimbursement_hint.savings":
+    "Booked as a reimbursement; increases this savings envelope's balance.",
   "add.suggestions": "Suggestions",
   "add.suggest.use_all": "Use all fields",
   "add.suggest.applied": "Filled from past transaction",
@@ -2490,26 +2729,34 @@ const en: Dict = {
   "add.split.total": "Total",
   "add.split.target_total": "Charge",
   "add.split.diff": "Difference",
-  "add.split.hint": "Tip: use \"No category\" for items you'll get reimbursed for (e.g. by your partner) — they won't hit any budget.",
+  "add.split.hint":
+    "Tip: use \"No category\" for items you'll get reimbursed for (e.g. by your partner) — they won't hit any budget.",
   "add.split.toast.min": "At least two items are required",
   "add.split.toast.amounts": "Every item needs an amount > 0",
   "add.split.note": "Note / Tags",
   "add.split.note_placeholder": "Note for this item, e.g. #galaxus",
-  "add.split.confirm_remove_linked": "A removed item is linked to a reimbursement. Remove anyway? The link will be deleted.",
-  "add.split.cannot_ungroup": "An existing split can't be ungrouped. Remove individual items instead.",
-  "add.split.cannot_split_settler": "This transaction is a repayment — unlink it first to split it.",
-  "add.reimb.cannot_unflag": "This reimbursable has linked repayments or a write-off. Unlink them first before turning off the reimbursable flag.",
+  "add.split.confirm_remove_linked":
+    "A removed item is linked to a reimbursement. Remove anyway? The link will be deleted.",
+  "add.split.cannot_ungroup":
+    "An existing split can't be ungrouped. Remove individual items instead.",
+  "add.split.cannot_split_settler":
+    "This transaction is a repayment — unlink it first to split it.",
+  "add.reimb.cannot_unflag":
+    "This reimbursable has linked repayments or a write-off. Unlink them first before turning off the reimbursable flag.",
   "loc.title": "Location",
   "loc.none": "no location",
   "loc.source.device": "from device",
   "loc.source.manual": "manual",
   "loc.source.search": "search",
-  "loc.drag_hint": "Drag the marker or click the map to set the position; orange dots are earlier locations. The address is looked up again automatically and can be overwritten.",
+  "loc.drag_hint":
+    "Drag the marker or click the map to set the position; orange dots are earlier locations. The address is looked up again automatically and can be overwritten.",
   "loc.address_label": "Address / label",
   "loc.address_ph": "e.g. Migros Zurich Enge",
   "loc.resolving": "Looking up address …",
-  "loc.empty_hint": "No location yet. Use your current position, search a place or reuse an earlier one.",
-  "loc.empty_hint_past": "Auto-capture only runs for today's transactions. Search a place or reuse an earlier one.",
+  "loc.empty_hint":
+    "No location yet. Use your current position, search a place or reuse an earlier one.",
+  "loc.empty_hint_past":
+    "Auto-capture only runs for today's transactions. Search a place or reuse an earlier one.",
   "loc.locating": "Locating …",
   "loc.use_current": "Use my current location",
   "loc.reuse": "Earlier location",
@@ -2527,8 +2774,10 @@ const en: Dict = {
   "loc.error.timeout": "Timed out while determining your location.",
   "loc.settings.title": "Capture location",
   "loc.settings.toggle": "Capture location for new transactions",
-  "loc.settings.hint": "Off by default. The browser location is only requested for transactions dated today; you can always set or correct it manually.",
-  "add.reimb.settler_amount_mismatch": "Note: this repayment has multiple links. Please redistribute the new amount manually.",
+  "loc.settings.hint":
+    "Off by default. The browser location is only requested for transactions dated today; you can always set or correct it manually.",
+  "add.reimb.settler_amount_mismatch":
+    "Note: this repayment has multiple links. Please redistribute the new amount manually.",
   "add.note.shared": "Shared note / tags (applied to all items)",
   "add.note.shared_hint": "Added to every item's note. Per-item notes can be set above.",
   "tx.split.label": "Split",
@@ -2583,7 +2832,7 @@ const en: Dict = {
   "tx.show_more": "Show more ({n} left)",
   "tx.filters": "Filters",
   "tx.view.label": "View",
-  "tx.link.marker": "Linked to \"{title}\"",
+  "tx.link.marker": 'Linked to "{title}"',
   "tx.link.count": "{n} linked transactions",
   "tx.link.count_one": "1 linked transaction",
   "tx.link.open_hint": "Click to open",
@@ -2635,18 +2884,22 @@ const en: Dict = {
   "settings.prefs.appearance": "Appearance",
   "settings.prefs.money": "Currency & money",
   "settings.heatmap_threshold": "Heatmap threshold",
-  "settings.heatmap_threshold.hint": "Days with a net flow up to this amount get a light tint; above it, a deeper tint.",
+  "settings.heatmap_threshold.hint":
+    "Days with a net flow up to this amount get a light tint; above it, a deeper tint.",
   "settings.date_format": "Date format",
   "settings.date_format.hint": "Used across lists, inputs, and the add-transaction screen.",
   "settings.format_locale": "Locale for date placeholders",
-  "settings.format_locale.hint": "Affects month and day names in recurring-rule placeholders (e.g. MMMM → May vs. Mai). Independent of UI language.",
+  "settings.format_locale.hint":
+    "Affects month and day names in recurring-rule placeholders (e.g. MMMM → May vs. Mai). Independent of UI language.",
   "settings.networth_convert": "Convert net worth",
-  "settings.networth_convert.hint": "When on, foreign-currency balances are converted to your main currency at the current FX rate and shown as a single total. Otherwise, each currency is shown separately.",
+  "settings.networth_convert.hint":
+    "When on, foreign-currency balances are converted to your main currency at the current FX rate and shown as a single total. Otherwise, each currency is shown separately.",
   "dashboard.networth_other": "Other currencies",
   "dashboard.networth_converted_hint": "Converted at current FX rate",
   "dashboard.networth_show_other": "Show other currencies",
   "dashboard.networth_hide_other": "Hide other currencies",
-  "env.fx_converted_hint": "Foreign-currency amounts are converted to {cur} at the current FX rate.",
+  "env.fx_converted_hint":
+    "Foreign-currency amounts are converted to {cur} at the current FX rate.",
   "env.tx_count": "{n} transactions",
   "env.entry_count": "{n} entries",
   "env.realloc_in": "Reallocation in",
@@ -2665,7 +2918,8 @@ const en: Dict = {
   "settings.account_asset": "Asset",
   "settings.account_liability": "Liability",
   "settings.edit_account": "Edit account",
-  "settings.opening_balance.warning": "Heads up: changing the opening balance retroactively shifts all computed balances on this account. Existing transactions are not modified.",
+  "settings.opening_balance.warning":
+    "Heads up: changing the opening balance retroactively shifts all computed balances on this account. Existing transactions are not modified.",
   "settings.kind_income": "Income",
   "settings.kind_expense": "Expense",
   "settings.kind_savings": "Savings (Reserve)",
@@ -2680,7 +2934,8 @@ const en: Dict = {
   "settings.balance.over": "Over-allocated by {x}",
   "settings.balance.over_segment": "Over-allocated",
   "settings.group_kind_label": "Default behaviour",
-  "settings.group_kind_hint": "New envelopes added to this group default to this behaviour. You can override per envelope.",
+  "settings.group_kind_hint":
+    "New envelopes added to this group default to this behaviour. You can override per envelope.",
   "settings.behaviour_diverges": "Behaviour differs from group",
   "settings.move_up": "Move up",
   "settings.move_down": "Move down",
@@ -2688,7 +2943,8 @@ const en: Dict = {
   "settings.no_envelopes_in_group": "No envelopes in this group.",
   "settings.no_accounts": "No accounts yet.",
   "settings.archive.title": "Archive {name}",
-  "settings.archive.has_balance": "{name} still holds {balance}. So accounts and budgets keep matching, the remainder is booked out first.",
+  "settings.archive.has_balance":
+    "{name} still holds {balance}. So accounts and budgets keep matching, the remainder is booked out first.",
   "settings.archive.to_account_out": "Move it to another account",
   "settings.archive.to_account_in": "Settle it from another account",
   "settings.archive.to_account_none": "No other account in {cur}.",
@@ -2702,9 +2958,12 @@ const en: Dict = {
   "settings.archive.submit": "Book out and archive",
   "settings.archive.done": "{name} archived",
   "settings.no_envelopes": "No envelopes yet.",
-  "settings.no_groups": "No groups yet. Create groups like \"Fixed costs\", \"Personal\", \"Income\", \"Reserves\".",
-  "settings.accounts.asset_hint": "Tip: Use an asset account for gift cards or stored-value (e.g. Coop Geschenkkarten).",
-  "settings.accounts.opening_balance_hint": "Opening balance sign: Positive = money you own (e.g. bank balance). Negative = money you owe. For a new credit card with already-spent money, enter the balance as negative (e.g. -500).",
+  "settings.no_groups":
+    'No groups yet. Create groups like "Fixed costs", "Personal", "Income", "Reserves".',
+  "settings.accounts.asset_hint":
+    "Tip: Use an asset account for gift cards or stored-value (e.g. Coop Geschenkkarten).",
+  "settings.accounts.opening_balance_hint":
+    "Opening balance sign: Positive = money you own (e.g. bank balance). Negative = money you owe. For a new credit card with already-spent money, enter the balance as negative (e.g. -500).",
   "settings.footer": "",
 
   "recurring.title": "Recurring transactions",
@@ -2732,19 +2991,22 @@ const en: Dict = {
   "recurring.interval.item": "Every {n} months",
   "recurring.section.execution": "Execution",
   "recurring.section.period": "Reporting period",
-  "recurring.dropped_tokens.warning": "This template uses tokens the new recurrence engine no longer supports and will render as empty: {list}. Replace with ${date}, ${dueDate}, ${periodFrom}, ${periodTo} or ${runNumber} (with Q/S/T/ww/w formatters).",
+  "recurring.dropped_tokens.warning":
+    "This template uses tokens the new recurrence engine no longer supports and will render as empty: {list}. Replace with ${date}, ${dueDate}, ${periodFrom}, ${periodTo} or ${runNumber} (with Q/S/T/ww/w formatters).",
   "recurring.field.period_day_rule": "Period day rule",
   "recurring.field.first_period": "First period covered",
   "recurring.first_period.same": "(start month)",
   "recurring.first_period.before": "({n} mo. before start)",
   "recurring.first_period.after": "({n} mo. after start)",
-  "recurring.first_period.hint": "Which months the first payment reports (e.g. a quarterly bill for July–September paid in November). Each later payment moves on by the interval; ${periodFrom}/${periodTo} show the period.",
+  "recurring.first_period.hint":
+    "Which months the first payment reports (e.g. a quarterly bill for July–September paid in November). Each later payment moves on by the interval; ${periodFrom}/${periodTo} show the period.",
   "recurring.sched.every_n_months": "Every {n} months",
   "recurring.field.reports_on": "Reports on",
   "recurring.reports_on.this": "This period",
   "recurring.reports_on.previous": "Previous period",
   "recurring.reports_on.two_back": "Two periods back",
-  "recurring.reports_on.hint": "Which period ${periodFrom}, ${periodTo}, ${periodLabel} etc. refer to — independent of the transaction date.",
+  "recurring.reports_on.hint":
+    "Which period ${periodFrom}, ${periodTo}, ${periodLabel} etc. refer to — independent of the transaction date.",
   "recurring.anchor.quarterly": "Posts in: {months}",
   "recurring.anchor.yearly": "Posts every {month}",
   "recurring.anchor.use_calendar_quarter": "Use calendar quarter",
@@ -2767,16 +3029,21 @@ const en: Dict = {
   "recurring.toast.backfill_failed": "Rule saved, but the past entries could not be created: {msg}",
   "recurring.toast.posted": "Posted",
   "recurring.toast.skipped": "Skipped",
-  "recurring.confirm_delete": "Delete this rule? Already-posted transactions remain. Pending future entries will be removed.",
-  "recurring.confirm_delete_full": "Delete this rule completely? No posted transactions are linked.",
-  "recurring.cannot_delete_has_tx": "Cannot delete completely: {n} posted transaction(s) are linked to this rule. The rule stays archived so the historical entries are preserved.",
-  "recurring.archive_instead": "This rule has {n} linked posted transaction(s) and cannot be deleted completely. Archive it instead? Pending future entries will be removed.",
+  "recurring.confirm_delete":
+    "Delete this rule? Already-posted transactions remain. Pending future entries will be removed.",
+  "recurring.confirm_delete_full":
+    "Delete this rule completely? No posted transactions are linked.",
+  "recurring.cannot_delete_has_tx":
+    "Cannot delete completely: {n} posted transaction(s) are linked to this rule. The rule stays archived so the historical entries are preserved.",
+  "recurring.archive_instead":
+    "This rule has {n} linked posted transaction(s) and cannot be deleted completely. Archive it instead? Pending future entries will be removed.",
   "toast.archived": "Archived",
   "recurring.preview.title": "Preview",
   "recurring.preview.past": "Past",
   "recurring.preview.future": "Scheduled",
   "recurring.preview.empty": "No occurrences in the preview window.",
-  "recurring.preview.note_past": "Start date is in the past. Choose below whether to create the past entries.",
+  "recurring.preview.note_past":
+    "Start date is in the past. Choose below whether to create the past entries.",
   "recurring.preview.posted": "Posted",
   "recurring.preview.pending": "Pending",
   "recurring.preview.missing": "Missing",
@@ -2785,9 +3052,11 @@ const en: Dict = {
   "recurring.preview.create_entry": "Create entry",
   "recurring.preview.save_first": "Save the rule to create or edit individual entries here.",
   "recurring.placeholders.title": "Placeholders (click to insert)",
-  "recurring.placeholders.hint": "Use {token} or {token:format} prefixed with a dollar sign. Example: Electricity {periodStart:dd.MM.yyyy} – {periodEnd:dd.MM.yyyy} (each brace prefixed by $).",
+  "recurring.placeholders.hint":
+    "Use {token} or {token:format} prefixed with a dollar sign. Example: Electricity {periodStart:dd.MM.yyyy} – {periodEnd:dd.MM.yyyy} (each brace prefixed by $).",
   "recurring.placeholders.format_help.title": "Date format options",
-  "recurring.placeholders.format_help.body": "Building blocks for the format part of a date placeholder (e.g. ${date:dd.MM.yyyy}):\n• yyyy = 4-digit year (2026), yy = 2-digit (26)\n• MM = month padded (01–12), M = no leading zero\n• MMM = short month name (Jan, Feb), MMMM = long name (January)\n• dd = day padded, d = no leading zero\n• ddd = short weekday (Mon), dddd = long weekday (Monday)\n• HH = hour 00–23, mm = minutes, ss = seconds\n• Q = quarter (1–4), S = half-year (1–2), T = trimester (1–3)\n• ww = ISO week padded, w = no leading zero\n• Text in square brackets is kept literal: [W] ww",
+  "recurring.placeholders.format_help.body":
+    "Building blocks for the format part of a date placeholder (e.g. ${date:dd.MM.yyyy}):\n• yyyy = 4-digit year (2026), yy = 2-digit (26)\n• MM = month padded (01–12), M = no leading zero\n• MMM = short month name (Jan, Feb), MMMM = long name (January)\n• dd = day padded, d = no leading zero\n• ddd = short weekday (Mon), dddd = long weekday (Monday)\n• HH = hour 00–23, mm = minutes, ss = seconds\n• Q = quarter (1–4), S = half-year (1–2), T = trimester (1–3)\n• ww = ISO week padded, w = no leading zero\n• Text in square brackets is kept literal: [W] ww",
   "recurring.preview.resolved": "Description",
   "recurring.post_dialog.title": "Post transaction",
   "recurring.post_dialog.date": "Date",
@@ -2805,31 +3074,38 @@ const en: Dict = {
   "recurring.backfill.gap_none": "Don't fill the gap",
   "recurring.backfill.gap_pending": "Create gap entries as pending",
   "recurring.impact.title": "What will happen on save",
-  "recurring.impact.auto_post_past": "⚠ {n} past transaction(s) will be auto-created now (total {sum}).",
+  "recurring.impact.auto_post_past":
+    "⚠ {n} past transaction(s) will be auto-created now (total {sum}).",
   "recurring.impact.pending_past": "{n} past entries will be created as pending.",
   "recurring.impact.skipped_past": "{n} past dates skipped (no transaction).",
   "recurring.impact.future": "{n} future pending entries scheduled (preview window).",
-  "recurring.impact.regenerated": "{pending} pending entries will be regenerated, {posted} already-posted transactions stay untouched.",
+  "recurring.impact.regenerated":
+    "{pending} pending entries will be regenerated, {posted} already-posted transactions stay untouched.",
   "recurring.impact.split_note": "Each occurrence will be split into {k} linked transactions.",
-  "recurring.impact.variable_note": "Each occurrence requires manual confirmation before posting (variable amount/date).",
+  "recurring.impact.variable_note":
+    "Each occurrence requires manual confirmation before posting (variable amount/date).",
   "recurring.impact.no_change": "No past entries will be created.",
   "recurring.confirm_post_past.title": "Create past transactions now?",
-  "recurring.confirm_post_past.body": "This will create {n} real transaction(s) totaling {sum} immediately. You can only undo this manually afterwards.",
+  "recurring.confirm_post_past.body":
+    "This will create {n} real transaction(s) totaling {sum} immediately. You can only undo this manually afterwards.",
   "recurring.confirm_post_past.confirm": "Yes, create them",
   "recurring.variable_amount": "Variable amount",
-  "recurring.variable_amount.help": "Amount changes each time. You'll be asked to enter the actual value when posting.",
+  "recurring.variable_amount.help":
+    "Amount changes each time. You'll be asked to enter the actual value when posting.",
   "recurring.estimated_amount": "Estimated amount (for projections)",
   "recurring.variable_no_autopost": "Variable rules can't auto-post.",
   "recurring.variable_badge": "Variable",
   "recurring.proposal.badge": "from {source}",
   "recurring.proposal.line": "Bill {date} · {amount} from {source}",
-  "recurring.proposal.provided": "Amount {amount} and date {date} were provided by {source} ({at}). Check them, then post.",
+  "recurring.proposal.provided":
+    "Amount {amount} and date {date} were provided by {source} ({at}). Check them, then post.",
   "recurring.proposal.raw": "Original text",
   "recurring.proposal.deviates": "Far from the estimate ({estimate}) — is the amount right?",
   "recurring.proposal.discard": "Discard suggestion",
   "recurring.proposal.discarded": "Suggestion discarded",
   "recurring.variable_date": "Variable date",
-  "recurring.variable_date.help": "Date varies each time. You'll be asked to confirm the actual date when posting.",
+  "recurring.variable_date.help":
+    "Date varies each time. You'll be asked to confirm the actual date when posting.",
   "recurring.split.toggle": "Split into multiple transactions",
   "recurring.split.help": "Creates several linked transactions (e.g. mark one as reimbursable).",
   "recurring.split.slices": "Slices",
@@ -2926,7 +3202,8 @@ const en: Dict = {
   "settings.about.server": "Server",
   "settings.about.built_at": "Built at",
   "settings.about.copy": "Copy version",
-  "settings.about.hint": "Version and commit come from the build. If browser and server versions differ, reload the page.",
+  "settings.about.hint":
+    "Version and commit come from the build. If browser and server versions differ, reload the page.",
   "toast.copied": "Copied",
   "settings.you": "Signed in as",
   "settings.role.admin": "Administrator",
@@ -2935,26 +3212,31 @@ const en: Dict = {
   "settings.integrations.admin_only": "Only administrators can edit OAuth providers.",
   "settings.integrations.enabled": "Enabled",
   "settings.integrations.display_name": "Display name",
-  "settings.integrations.display_name_hint": "Shown on the sign-in page, e.g. \u201cWiwo's Authentik\u201d.",
+  "settings.integrations.display_name_hint":
+    "Shown on the sign-in page, e.g. \u201cWiwo's Authentik\u201d.",
   "settings.integrations.client_id": "Client ID",
   "settings.integrations.discovery": "Issuer or discovery URL",
   "settings.integrations.redirect_uri_hint": "Redirect URI at OIDC provider: {uri}",
   "settings.integrations.client_secret": "Client secret",
-  "settings.integrations.builtin_missing": "The auth service has no {p} credentials; that needs the GOTRUE_EXTERNAL_* variables.",
+  "settings.integrations.builtin_missing":
+    "The auth service has no {p} credentials; that needs the GOTRUE_EXTERNAL_* variables.",
   "settings.integrations.oidc.configured": "Set up in the auth service",
   "settings.integrations.oidc.not_configured": "Not set up yet",
   "settings.integrations.oidc.save": "Save to auth service",
   "settings.integrations.oidc.saved": "Provider saved",
   "settings.integrations.oidc.remove": "Remove",
-  "settings.integrations.oidc.remove_confirm": "Remove the provider from the auth service? Anyone who only signs in this way can no longer reach their account.",
+  "settings.integrations.oidc.remove_confirm":
+    "Remove the provider from the auth service? Anyone who only signs in this way can no longer reach their account.",
   "settings.integrations.oidc.secret_kept": "Stored — leave empty to keep it",
-  "settings.integrations.oidc.hint": "Create a confidential client at the provider. Saving writes everything straight to the auth service; the secret is kept only there, never in the app's database.",
+  "settings.integrations.oidc.hint":
+    "Create a confidential client at the provider. Saving writes everything straight to the auth service; the secret is kept only there, never in the app's database.",
   "settings.integrations.secret_help_link": "See setup guide (public vs. confidential)",
   "settings.integrations.test": "Test",
   "settings.integrations.test.ok": "Connection successful",
   "settings.integrations.test.failed": "Test failed",
   "linked.title": "Linked sign-in methods",
-  "linked.intro": "These sign-in methods all lead to the same account. Link another method instead of creating a second account.",
+  "linked.intro":
+    "These sign-in methods all lead to the same account. Link another method instead of creating a second account.",
   "linked.none": "No sign-in methods found.",
   "linked.add": "Link another method",
   "linked.link_with": "Link with {p}",
@@ -2964,9 +3246,11 @@ const en: Dict = {
   "linked.unlink_failed": "Unlinking failed",
   "linked.last_method": "You cannot unlink your last remaining sign-in method.",
   "linked.hint": "You can only link while signed in. Afterwards either method opens this account.",
-  "linked.manual_disabled": "Manual linking is disabled in the auth backend. Set GOTRUE_SECURITY_MANUAL_LINKING_ENABLED=true and restart the auth container — see Help for details.",
+  "linked.manual_disabled":
+    "Manual linking is disabled in the auth backend. Set GOTRUE_SECURITY_MANUAL_LINKING_ENABLED=true and restart the auth container — see Help for details.",
   "linked.prompt.title": "Link a sign-in method?",
-  "linked.prompt.body": "You are signed in as {email}. You can link additional sign-in methods to this account so you can use either one later — without creating a second account.",
+  "linked.prompt.body":
+    "You are signed in as {email}. You can link additional sign-in methods to this account so you can use either one later — without creating a second account.",
   "linked.prompt.later": "Later",
   "linked.prompt.never": "Don't ask again",
   "common.close": "Close",
@@ -3015,13 +3299,17 @@ const en: Dict = {
   "nextcloud.connected_as": "Connected as {user}",
   "nextcloud.saved_not_connected": "Configuration saved. Click Connect to start the OAuth flow.",
   "nextcloud.saved_reconnect": "Saved. The server or client changed – please connect again.",
-  "nextcloud.lost": "The connection as {user} expired or was revoked in Nextcloud. Click Connect to renew it.",
-  "nextcloud.reconnect_needed": "The Nextcloud connection has expired. Please reconnect in Settings.",
+  "nextcloud.lost":
+    "The connection as {user} expired or was revoked in Nextcloud. Click Connect to renew it.",
+  "nextcloud.reconnect_needed":
+    "The Nextcloud connection has expired. Please reconnect in Settings.",
   "nextcloud.open_settings": "Open settings",
-  "nextcloud.privilege_hint": "Tip: create a dedicated Nextcloud user with read-only access to the relevant folders and connect with that account to keep privileges minimal.",
+  "nextcloud.privilege_hint":
+    "Tip: create a dedicated Nextcloud user with read-only access to the relevant folders and connect with that account to keep privileges minimal.",
   "nextcloud.redirect_uri_hint": "Redirect URI in Nextcloud: {uri}",
   "apitokens.title": "API tokens",
-  "apitokens.intro": "Create tokens so an external service can add attachments to transactions via the API.",
+  "apitokens.intro":
+    "Create tokens so an external service can add attachments to transactions via the API.",
   "apitokens.name": "Name",
   "apitokens.create": "Create",
   "apitokens.shown_once": "Shown only once – copy it now!",
@@ -3030,11 +3318,13 @@ const en: Dict = {
   "apitokens.revoke": "Revoke",
   "apitokens.revoked": "revoked",
   "apitokens.confirm_delete": "Permanently delete token?",
-  "apitokens.endpoint_hint": "POST /api/public/attachments with header 'Authorization: Bearer <token>' and JSON {transaction_id, link_url, display_name, source?}.",
+  "apitokens.endpoint_hint":
+    "POST /api/public/attachments with header 'Authorization: Bearer <token>' and JSON {transaction_id, link_url, display_name, source?}.",
 
   // Webhooks
   "webhooks.title": "Webhooks",
-  "webhooks.intro": "Call a URL whenever a transaction is added manually, auto-posted by a recurring rule, or created via the API. Useful for n8n / Flatastic bridges.",
+  "webhooks.intro":
+    "Call a URL whenever a transaction is added manually, auto-posted by a recurring rule, or created via the API. Useful for n8n / Flatastic bridges.",
   "webhooks.name": "Name",
   "webhooks.url": "URL",
   "webhooks.header_name": "Auth header name (optional)",
@@ -3046,7 +3336,8 @@ const en: Dict = {
   "webhooks.test": "Send test event",
   "webhooks.test_sent": "Test event dispatched",
   "webhooks.confirm_delete": "Delete webhook?",
-  "webhooks.payload_hint": "Sends POST with JSON {event, delivery_id, delivered_at, transaction:{…, tags:[…]}}. Up to 3 attempts (1s/4s backoff); deliveries are recorded in the audit log.",
+  "webhooks.payload_hint":
+    "Sends POST with JSON {event, delivery_id, delivered_at, transaction:{…, tags:[…]}}. Up to 3 attempts (1s/4s backoff); deliveries are recorded in the audit log.",
 
   // Audit log
   "audit.title": "Audit log",
@@ -3066,7 +3357,8 @@ const en: Dict = {
   // Reallocations & sweeps
   "envelopes.reallocate": "Reallocate",
   "envelopes.reallocate.title": "Reallocate between savings envelopes",
-  "envelopes.reallocate.description": "Move reserved money between savings envelopes. No real-money transaction is created.",
+  "envelopes.reallocate.description":
+    "Move reserved money between savings envelopes. No real-money transaction is created.",
   "envelopes.reallocate.from": "From",
   "envelopes.reallocate.to": "To",
   "envelopes.reallocate.amount": "Amount",
@@ -3085,7 +3377,8 @@ const en: Dict = {
   "env.asof.total_saved": "Total in envelopes",
   "env.asof.follow_month": "Follow month",
   "env.asof.projected": "Projected",
-  "env.asof.projected_hint": "A future month: these amounts are planned, not booked. Months that have started but not finished contribute their full unspent allocation to sweeps.",
+  "env.asof.projected_hint":
+    "A future month: these amounts are planned, not booked. Months that have started but not finished contribute their full unspent allocation to sweeps.",
   "env.month.prev": "Previous month",
   "env.month.next": "Next month",
   "env.month.prev_year": "Previous year",
@@ -3095,7 +3388,8 @@ const en: Dict = {
   "budget.edit.scope": "Applies to",
   "budget.edit.scope.month": "Only {month}",
   "budget.edit.scope.forward": "This month and later",
-  "budget.edit.past_warning": "This month has closed. Its sweep and every savings balance since are recomputed, and the change is recorded in the audit log.",
+  "budget.edit.past_warning":
+    "This month has closed. Its sweep and every savings balance since are recomputed, and the change is recorded in the audit log.",
   "budget.edit.invalid": "Enter a valid amount.",
   "budget.grid.envelope": "Envelope",
   "budget.grid.saved": "Budget saved.",
@@ -3103,19 +3397,24 @@ const en: Dict = {
   "budget.grid.copied": "Copied {n} envelopes from the previous month.",
   "budget.grid.copy_nothing": "Nothing to copy — the column already matches.",
   "budget.grid.copy_previous": "Copy {month} from the previous month",
-  "budget.grid.copy_previous_tip": "Overwrite {month} with the values from {prev} — that month only.",
-  "budget.grid.fill_month_tip": "Carry every envelope in {month} into all later months. This is how you set up January and beyond while it is still December.",
+  "budget.grid.copy_previous_tip":
+    "Overwrite {month} with the values from {prev} — that month only.",
+  "budget.grid.fill_month_tip":
+    "Carry every envelope in {month} into all later months. This is how you set up January and beyond while it is still December.",
   "budget.grid.fill_row_tip": "Carry this value from {month} into every later month.",
   "budget.grid.filled_month": "Set {n} cells.",
   "budget.grid.select_month": "Select {month}",
   "budget.grid.undo_last": "Undo: {what}",
   "budget.grid.cleared": "Removed {n} cells.",
   "budget.grid.extended": "Created {n} cells.",
-  "budget.grid.extend_tip": "Create {month} from the values in {source}. Note that {month} has already ended — its sweep will be computed and every savings balance since will shift accordingly. This can be undone.",
+  "budget.grid.extend_tip":
+    "Create {month} from the values in {source}. Note that {month} has already ended — its sweep will be computed and every savings balance since will shift accordingly. This can be undone.",
   "budget.grid.clear_nothing": "Nothing is stored here.",
   "budget.grid.clear_month_tip": "Remove {month} — it goes back to being undecided.",
-  "budget.grid.trim_tip": "Remove {month} and every earlier month. This is how you get rid of budgets created too early by accident. A single month in the middle cannot be removed: the next load refills it, because a month with no amount counts as neither an allocation nor towards sweeping.",
-  "budget.grid.hint": "Tap a figure to change it. Enter saves that month, ⌘/Ctrl + Enter carries the value to the right edge. Clicking a month name selects it. Dotted-underlined figures are not decided yet — they show what the month would inherit.",
+  "budget.grid.trim_tip":
+    "Remove {month} and every earlier month. This is how you get rid of budgets created too early by accident. A single month in the middle cannot be removed: the next load refills it, because a month with no amount counts as neither an allocation nor towards sweeping.",
+  "budget.grid.hint":
+    "Tap a figure to change it. Enter saves that month, ⌘/Ctrl + Enter carries the value to the right edge. Clicking a month name selects it. Dotted-underlined figures are not decided yet — they show what the month would inherit.",
   "env.view.grid": "Table",
   "env.view.allocations": "Allocations",
   "env.moves.plan": "Monthly plan",
@@ -3144,7 +3443,8 @@ const en: Dict = {
   "env.moves.col.amount": "Amount",
   "env.moves.col.note": "Note",
   "env.moves.empty": "No movements between budgets this month.",
-  "env.moves.hint": "Every movement between budgets this month. Pick a budget to see + and − from its side.",
+  "env.moves.hint":
+    "Every movement between budgets this month. Pick a budget to see + and − from its side.",
   "env.view.cards": "Cards",
   "env.group.income": "Income",
   "env.group.expense": "Ungrouped",
@@ -3158,8 +3458,10 @@ const en: Dict = {
   "env.ov.legend_spent": "spent {x}",
   "env.ov.legend_pending": "pending {x}",
   "env.ov.legend_left": "left {x}",
-  "env.ov.plan_gap_under": "The plan doesn't balance: {x} of income goes to no budget and ends up in “Unassigned”.",
-  "env.ov.plan_gap_over": "The plan doesn't balance: the budgets hand out {x} more than the income target; it is missing from “Unassigned”.",
+  "env.ov.plan_gap_under":
+    "The plan doesn't balance: {x} of income goes to no budget and ends up in “Unassigned”.",
+  "env.ov.plan_gap_over":
+    "The plan doesn't balance: the budgets hand out {x} more than the income target; it is missing from “Unassigned”.",
   "env.ov.income_done": "✓ all received",
   "env.ov.group_done": "✓ done",
   "env.ov.received_of": "{a} / {b} received",
@@ -3258,15 +3560,19 @@ const en: Dict = {
   "env.ledger.open_tx": "Open transaction",
   "env.ledger.transfer_gain": "Gain from a transfer",
   "env.realloc_edit.title": "Edit reallocation",
-  "env.realloc_edit.description": "You can change the amount, date and note. For other budgets, delete it and reallocate again.",
-  "env.realloc_edit.scope_hint": "Created when {name} was closed. Without it, the scope is no longer funded.",
+  "env.realloc_edit.description":
+    "You can change the amount, date and note. For other budgets, delete it and reallocate again.",
+  "env.realloc_edit.scope_hint":
+    "Created when {name} was closed. Without it, the scope is no longer funded.",
   "env.realloc_edit.delete_confirm": "Delete for good?",
   "env.realloc_edit.deleted": "Reallocation deleted",
   "env.realloc_edit.missing": "This reallocation no longer exists.",
-  "env.realloc_edit.linked_description": "Comes from a transfer that received more than it paid. Change the amount and budget on the transfer.",
+  "env.realloc_edit.linked_description":
+    "Comes from a transfer that received more than it paid. Change the amount and budget on the transfer.",
   "env.realloc_edit.open_transfer": "Open transfer",
   "env.realloc_edit.scope_title": "Closing of {name}",
-  "env.realloc_edit.scope_closed": "This reallocation closed {name}. To change it, reopen the scope: the reallocation is removed, and closing it again funds exactly its new total.",
+  "env.realloc_edit.scope_closed":
+    "This reallocation closed {name}. To change it, reopen the scope: the reallocation is removed, and closing it again funds exactly its new total.",
   "env.realloc_edit.reopen_scope": "Reopen scope",
   "env.realloc_edit.reopened": "Scope reopened",
   "toast.scope_reopened": "{name} was reopened because its amount changed. Please close it again.",
@@ -3295,7 +3601,8 @@ const en: Dict = {
   "env.recon.part.assigned": "Already assigned to budgets",
   "env.recon.part.unswept": "Leftovers with no target",
   "env.recon.part.unswept_link": "Set a target for leftovers",
-  "env.recon.gap": "Accounts and budgets differ by {amount}. This should not happen; please report it.",
+  "env.recon.gap":
+    "Accounts and budgets differ by {amount}. This should not happen; please report it.",
   "env.recon.assign": "Assign to a budget…",
   "env.recon.details": "What this is made of",
   "envelopes.savings.from_sweeps": "from leftovers",
@@ -3307,13 +3614,15 @@ const en: Dict = {
   "envelopes.sweep.use_default": "Use default",
   "settings.savings.title": "Savings & sweeps",
   "settings.savings.default_target": "Default sweep target",
-  "settings.savings.default_target_hint": "Leftover (or overspend) from expense envelopes flows here at month end, unless a category overrides it.",
+  "settings.savings.default_target_hint":
+    "Leftover (or overspend) from expense envelopes flows here at month end, unless a category overrides it.",
   "settings.savings.reconciliation": "Reconciliation",
   "settings.savings.accounts_total": "Accounts total",
   "settings.opening_balance.invalid": "Please enter a number",
   "opening.title_distribute": "Distribute opening balances",
   "opening.title_edit": "Edit opening balances",
-  "opening.description": "The money your accounts held before the first booking. It counts from the start, before every booking. Only budgets that roll over can hold it: a monthly budget hands its rest on every month.",
+  "opening.description":
+    "The money your accounts held before the first booking. It counts from the start, before every booking. Only budgets that roll over can hold it: a monthly budget hands its rest on every month.",
   "opening.on_accounts": "On the accounts",
   "opening.distributed": "Distributed",
   "opening.left": "Left to distribute",
@@ -3323,16 +3632,19 @@ const en: Dict = {
   "opening.today_to": "today {today} → {after}",
   "opening.amount_for": "Opening balance of {name}",
   "opening.archived_section": "Archived · {n} with an opening balance",
-  "opening.archived_warning": "{name} is archived. Saving makes it active again and removes the reallocation from archiving. You can archive it again afterwards.",
+  "opening.archived_warning":
+    "{name} is archived. Saving makes it active again and removes the reallocation from archiving. You can archive it again afterwards.",
   "opening.rest_to": "Rest to {name}",
-  "opening.none": "No budget can hold an opening balance. Turn on \"Savings envelope\" for a budget.",
+  "opening.none": 'No budget can hold an opening balance. Turn on "Savings envelope" for a budget.',
   "opening.saved": "Opening balances saved",
   "opening.reopened": "{name} is active again",
   "opening.distribute_button": "Distribute…",
   "opening.edit_button": "Edit…",
   "opening.all_distributed": "Opening balances: {total} distributed ✓",
-  "opening.settings_left": "Opening balances: {assigned} of {total} distributed · {left} belongs to no budget yet.",
-  "opening.settings_over": "Opening balances: {assigned} distributed, {left} more than the {total} on the accounts.",
+  "opening.settings_left":
+    "Opening balances: {assigned} of {total} distributed · {left} belongs to no budget yet.",
+  "opening.settings_over":
+    "Opening balances: {assigned} distributed, {left} more than the {total} on the accounts.",
   "env.recon.part.openings_action": "Distribute opening balances…",
   "settings.savings.held_in": "held in envelopes",
   "settings.savings.rollover_total": "Rolling envelopes",
@@ -3342,7 +3654,8 @@ const en: Dict = {
   "settings.savings.unallocated": "Unallocated",
   "settings.savings.residual": "Unexplained",
   "settings.savings.residual_ok": "Balances",
-  "settings.savings.residual_help": "A remainder stays here until account opening balances are assigned to envelopes and income variance is swept.",
+  "settings.savings.residual_help":
+    "A remainder stays here until account opening balances are assigned to envelopes and income variance is swept.",
   "dashboard.reserved.title": "Reserved (savings)",
   "dashboard.reserved.empty": "No savings envelopes yet.",
 
@@ -3409,11 +3722,13 @@ const en: Dict = {
   "insights.projection.summary": "At your current pace, you'll reach ~{trend} by {date} (±{band}).",
   "insights.projection.whatif.title": "What if",
   "insights.projection.whatif.label": "Cut expenses by",
-  "insights.projection.whatif.hint": "Shifts the average projection — handy to test savings targets.",
+  "insights.projection.whatif.hint":
+    "Shifts the average projection — handy to test savings targets.",
   "insights.projection.preset.eoy": "End of {year}",
   "insights.projection.preset.ten_years": "10 years",
   "insights.detector.title": "Recurring expense detector",
-  "insights.detector.hint": "Finds expenses with stable amounts repeating over months that aren't yet a rule.",
+  "insights.detector.hint":
+    "Finds expenses with stable amounts repeating over months that aren't yet a rule.",
   "insights.detector.min_occ": "Min occurrences",
   "insights.detector.min_months": "Min months",
   "insights.detector.max_cv": "Max variation",
@@ -3424,7 +3739,8 @@ const en: Dict = {
 
   // Reconcile
   "reconcile.title": "Account reconciliation",
-  "reconcile.subtitle": "Record what your bank/statement says and compare it to the computed balance.",
+  "reconcile.subtitle":
+    "Record what your bank/statement says and compare it to the computed balance.",
   "reconcile.add": "Add statement",
   "reconcile.filter.account": "Account",
   "reconcile.list.title": "Statements",
@@ -3446,13 +3762,15 @@ const en: Dict = {
   "reconcile.add.note": "Note",
   "reconcile.add.invalid_amount": "Invalid amount",
   "reconcile.comp.title": "Post compensation transaction?",
-  "reconcile.comp.body": "Will create an {type} of {amount} on {date} in the ‘Reconciliation adjustment’ category.",
+  "reconcile.comp.body":
+    "Will create an {type} of {amount} on {date} in the ‘Reconciliation adjustment’ category.",
   "reconcile.comp.income": "income",
   "reconcile.comp.expense": "expense",
   "reconcile.comp.confirm": "Post",
   "reconcile.delete.title": "Delete statement?",
   "reconcile.delete.confirm": "The statement will be removed.",
-  "reconcile.delete.with_comp": "A compensation transaction is linked. Keep it or delete it as well?",
+  "reconcile.delete.with_comp":
+    "A compensation transaction is linked. Keep it or delete it as well?",
   "reconcile.delete.keep_comp_action": "Delete statement only",
   "reconcile.delete.with_comp_action": "Delete statement + transaction",
   "reconcile.toast.saved": "Statement saved",
@@ -3461,10 +3779,12 @@ const en: Dict = {
   "reconcile.toast.deleted": "Statement deleted",
   "scopes.title": "Scopes",
   "scopes.close_note": "Scope closed",
-  "scopes.subtitle": "Temporary buckets for trips or events. While active, the category auto-fills when you add a transaction. On close, the total is reallocated from the funding category.",
+  "scopes.subtitle":
+    "Temporary buckets for trips or events. While active, the category auto-fills when you add a transaction. On close, the total is reallocated from the funding category.",
   "scopes.create": "Create scope",
   "scopes.create_action": "Create",
-  "scopes.create_hint": "Tip: pick e.g. 'General Savings' or 'Pocket Money' as the funding category.",
+  "scopes.create_hint":
+    "Tip: pick e.g. 'General Savings' or 'Pocket Money' as the funding category.",
   "scopes.name_placeholder": "e.g. Italy 2026",
   "scopes.funding_from": "Funding from",
   "scopes.no_funding": "None — just track",
@@ -3483,7 +3803,8 @@ const en: Dict = {
   "scopes.reopen": "Reopen",
   "scopes.close_confirm_title": "Close '{name}'?",
   "scopes.close_confirm": "{amount} will be reallocated from '{from}' in one entry.",
-  "scopes.close_confirm_no_funding": "{amount} tracked. No reallocation will be created (no funding category).",
+  "scopes.close_confirm_no_funding":
+    "{amount} tracked. No reallocation will be created (no funding category).",
   "scopes.delete_confirm": "Delete scope?",
   "scopes.toast.name_required": "Name required",
   "scopes.toast.created": "Scope created",
@@ -3496,7 +3817,8 @@ const en: Dict = {
   "scopes.chip.disable": "Disable",
   "settings.scopes.link": "Manage scopes",
   "add.scope.banner_active": "Scope active: {name}",
-  "add.scope.banner_active_hint": "Category will be pre-filled. You can override it for this transaction.",
+  "add.scope.banner_active_hint":
+    "Category will be pre-filled. You can override it for this transaction.",
   "add.scope.banner_skipped": "Scope skipped: {name}",
   "add.scope.banner_skipped_hint": "This transaction will be saved without the scope.",
   "add.scope.use": "Use",
@@ -3508,7 +3830,8 @@ const en: Dict = {
   // Transaction links
   "nav.links": "Links",
   "links.page.title": "Transaction links",
-  "links.page.subtitle": "Bundle several transactions that belong to the same real-world purchase. Individual transactions keep counting as before.",
+  "links.page.subtitle":
+    "Bundle several transactions that belong to the same real-world purchase. Individual transactions keep counting as before.",
   "links.page.new": "Create",
   "links.page.new_placeholder": "Name a new link…",
   "links.page.empty": "No links yet.",
@@ -3536,14 +3859,14 @@ const en: Dict = {
   "links.picker.existing": "Existing",
   "links.picker.empty": "Type a title to create one.",
   "links.picker.create_heading": "New",
-  "links.picker.create": "Create \"{title}\"",
+  "links.picker.create": 'Create "{title}"',
   "links.picker.actions": "Actions",
   "links.picker.detach": "Remove from link",
-  "links.confirm_move": "Move from \"{from}\" to \"{to}\"?",
-  "links.confirm_delete": "Delete \"{title}\"?",
-  "links.confirm_remove_last": "This is the last transaction in \"{title}\". Delete the link too?",
-  "links.toast.attached": "Attached to \"{title}\"",
-  "links.toast.created_and_attached": "Created and attached \"{title}\"",
+  "links.confirm_move": 'Move from "{from}" to "{to}"?',
+  "links.confirm_delete": 'Delete "{title}"?',
+  "links.confirm_remove_last": 'This is the last transaction in "{title}". Delete the link too?',
+  "links.toast.attached": 'Attached to "{title}"',
+  "links.toast.created_and_attached": 'Created and attached "{title}"',
   "links.toast.detached": "Removed from link",
   "links.toast.added": "Transaction added",
   "links.toast.removed": "Transaction removed",
@@ -3551,21 +3874,27 @@ const en: Dict = {
   "links.toast.deleted": "Link deleted",
   "common.remove": "Remove",
   "ai.example.rule": "Set up Netflix as a monthly rule: 15.90 on the 5th from my main account.",
-  "ai.attach.unsupported": "\"{name}\" can't be attached (PDF, CSV, text or image).",
-  "ai.attach.too_big": "\"{name}\" is larger than 15 MB.",
-  "ai.attach.no_vision": "The selected model can't see images. Pick a connection with image support (Settings → AI).",
-  "ai.attach.no_tools": "The selected model can't call tools, so attachments are disabled. Pick a model with tool support (Settings → AI).",
+  "ai.attach.unsupported": '"{name}" can\'t be attached (PDF, CSV, text or image).',
+  "ai.attach.too_big": '"{name}" is larger than 15 MB.',
+  "ai.attach.no_vision":
+    "The selected model can't see images. Pick a connection with image support (Settings → AI).",
+  "ai.attach.no_tools":
+    "The selected model can't call tools, so attachments are disabled. Pick a model with tool support (Settings → AI).",
   "ai.attach.max": "At most {n} files per message.",
   "ai.attach.staged_hint": "Sent with your next message — say what to do with it.",
   "ai.action.open_rule": "Open in rule editor",
-  "ai.notice.tools_unsupported": "This model can't call tools; the answer is based on the context only, without actions.",
-  "ai.notice.vision_unsupported": "This model can't see images; attached images were not shown to it.",
-  "ai.notice.model_unreliable": "This model gave no usable reply (JSON instead of text or a real tool call). Nothing was saved. Pick a stronger model (Settings \u2192 AI).",
+  "ai.notice.tools_unsupported":
+    "This model can't call tools; the answer is based on the context only, without actions.",
+  "ai.notice.vision_unsupported":
+    "This model can't see images; attached images were not shown to it.",
+  "ai.notice.model_unreliable":
+    "This model gave no usable reply (JSON instead of text or a real tool call). Nothing was saved. Pick a stronger model (Settings \u2192 AI).",
   "recurring.ai.button": "With AI",
   "recurring.ai.button_hint": "Upload an invoice — the AI prefills a new rule, you check and save.",
   "recurring.ai.disabled_hint": "Set up an AI connection first (Settings → AI assistant).",
   "recurring.ai.title": "Create a rule from an invoice",
-  "recurring.ai.body": "Upload an invoice, premium notice or contract (PDF or photo). The AI works out the amount, interval (monthly, every 2 months, quarterly …) and billing period, follows the style of your existing rules and opens the editor. Nothing is saved until you save.",
+  "recurring.ai.body":
+    "Upload an invoice, premium notice or contract (PDF or photo). The AI works out the amount, interval (monthly, every 2 months, quarterly …) and billing period, follows the style of your existing rules and opens the editor. Nothing is saved until you save.",
   "recurring.ai.drop": "Drop the invoice here",
   "recurring.ai.choose": "Choose file",
   "recurring.ai.hint": "Hint for the AI (optional)",
@@ -3576,56 +3905,42 @@ const en: Dict = {
   "recurring.ai.to_statements": "Go to Statements",
   "recurring.ai.not_invoice": "No recurring payment was found in this document.",
   "recurring.ai.banner": "Prefilled by AI — please check before saving.",
-  "recurring.ai.banner_file": "Prefilled by AI from \"{file}\" — please check before saving.",
-  "recurring.ai.similar": "Looks like your rule \"{name}\".",
+  "recurring.ai.banner_file": 'Prefilled by AI from "{file}" — please check before saving.',
+  "recurring.ai.similar": 'Looks like your rule "{name}".',
   "recurring.ai.similar_edit": "Edit that instead",
   "recurring.ai.similar_duplicate": "Duplicate it",
   "recurring.ai.warn.amount_missing": "No amount found.",
-  "recurring.ai.warn.starts_in_past": "The start date is in the past — saving will ask whether past occurrences should be posted.",
-  "recurring.ai.warn.offset_clamped": "The first period was more than three years from the start and has been limited.",
-  "recurring.ai.warn.account_unknown": "There is no account \"{value}\" — please pick one.",
-  "recurring.ai.warn.category_unknown": "There is no category \"{value}\" — please pick one.",
+  "recurring.ai.warn.starts_in_past":
+    "The start date is in the past — saving will ask whether past occurrences should be posted.",
+  "recurring.ai.warn.offset_clamped":
+    "The first period was more than three years from the start and has been limited.",
+  "recurring.ai.warn.account_unknown": 'There is no account "{value}" — please pick one.',
+  "recurring.ai.warn.category_unknown": 'There is no category "{value}" — please pick one.',
   "recurring.ai.warn.token_removed": "Unknown placeholder {value} was removed.",
   "ai.conn.caps.tools": "Tools",
   "ai.conn.caps.vision": "Images",
   "ai.conn.caps.unknown": "unchecked",
   "ai.conn.caps.check": "Check capabilities",
   "ai.conn.caps.checking": "Checking…",
-  "ai.conn.caps.hint": "The chat needs tools for actions (prepare a transaction or rule, import a statement, attachments) and images for photos. Checked with two tiny requests.",
+  "ai.conn.caps.hint":
+    "The chat needs tools for actions (prepare a transaction or rule, import a statement, attachments) and images for photos. Checked with two tiny requests.",
   "ai.conn.caps.inconclusive": "No clear answer: {error}",
 };
 
-const dicts: Record<Lang, Dict> = { de, en };
+export const dicts: Record<Lang, Dict> = { de, en };
 
-const localeMap: Record<Lang, Locale> = { de: deLocale, en: enLocale };
+export const localeMap: Record<Lang, Locale> = { de: deLocale, en: enLocale };
 
-type Ctx = {
+export type I18nCtx = {
   lang: Lang;
   setLang: (l: Lang) => void;
   t: (key: string, vars?: Record<string, string | number>) => string;
   locale: Locale;
 };
 
-const I18nContext = React.createContext<Ctx | null>(null);
+export const I18nContext = React.createContext<I18nCtx | null>(null);
 
-export function I18nProvider({ lang, setLang, children }: { lang: Lang; setLang: (l: Lang) => void; children: React.ReactNode }) {
-  const t = React.useCallback(
-    (key: string, vars?: Record<string, string | number>) => {
-      const dict = dicts[lang] ?? dicts.de;
-      let s = dict[key] ?? dicts.de[key] ?? key;
-      if (vars) for (const k of Object.keys(vars)) s = s.replaceAll(`{${k}}`, String(vars[k]));
-      return s;
-    },
-    [lang],
-  );
-  const value = React.useMemo<Ctx>(
-    () => ({ lang, setLang, t, locale: localeMap[lang] ?? deLocale }),
-    [lang, setLang, t],
-  );
-  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
-}
-
-export function useI18n(): Ctx {
+export function useI18n(): I18nCtx {
   const ctx = React.useContext(I18nContext);
   if (!ctx) throw new Error("useI18n must be used inside I18nProvider");
   return ctx;

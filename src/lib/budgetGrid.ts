@@ -1,5 +1,11 @@
 import { addMonths, startOfMonth } from "date-fns";
-import { monthKey, type Category, type CategoryBudgetCell, type CategoryGroup, type GroupKind } from "@/lib/finance";
+import {
+  monthKey,
+  type Category,
+  type CategoryBudgetCell,
+  type CategoryGroup,
+  type GroupKind,
+} from "@/lib/finance";
 
 /**
  * The flavour an envelope actually behaves as.
@@ -56,7 +62,8 @@ export function buildGridGroups(categories: Category[], groups: CategoryGroup[])
     g.key.startsWith("__") ? Number.MAX_SAFE_INTEGER : (groupById.get(g.key)?.sort_order ?? 0);
 
   const out = [...map.values()];
-  for (const g of out) g.rows.sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
+  for (const g of out)
+    g.rows.sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name));
   out.sort((a, b) => groupOrder(a) - groupOrder(b) || a.name.localeCompare(b.name));
   return out;
 }

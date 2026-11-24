@@ -23,7 +23,12 @@ export interface StackedBudgetBarProps {
  * Scale: 0 .. max(allocated, projected). When over, the bar fills 100%
  * and the destructive segment marks the overshoot.
  */
-export function StackedBudgetBar({ allocated, committed, pending, className }: StackedBudgetBarProps) {
+export function StackedBudgetBar({
+  allocated,
+  committed,
+  pending,
+  className,
+}: StackedBudgetBarProps) {
   const safeCommitted = Math.max(0, committed);
   const safePending = Math.max(0, pending);
   const projected = safeCommitted + safePending;
@@ -58,10 +63,16 @@ export function StackedBudgetBar({ allocated, committed, pending, className }: S
   return (
     <div className={cn("h-2 w-full overflow-hidden rounded-full bg-muted flex", className)}>
       {committedW > 0 && (
-        <div className={cn("h-full transition-all", committedTone)} style={{ width: `${committedW}%` }} />
+        <div
+          className={cn("h-full transition-all", committedTone)}
+          style={{ width: `${committedW}%` }}
+        />
       )}
       {pendingW > 0 && (
-        <div className={cn("h-full transition-all", pendingTone)} style={{ width: `${pendingW}%` }} />
+        <div
+          className={cn("h-full transition-all", pendingTone)}
+          style={{ width: `${pendingW}%` }}
+        />
       )}
       {overW > 0 && (
         <div className="h-full bg-destructive transition-all" style={{ width: `${overW}%` }} />

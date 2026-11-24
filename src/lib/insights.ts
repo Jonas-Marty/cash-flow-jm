@@ -8,22 +8,22 @@ export type GroupKey = "category" | "group" | "tag" | "account" | "type";
 export type TxFilter = "expense" | "income" | "both";
 
 export interface BreakdownSlice {
-  key: string;        // stable key (id or tag/account name)
-  label: string;      // display label
-  value: number;      // positive sum
-  count: number;      // number of contributing tx
+  key: string; // stable key (id or tag/account name)
+  label: string; // display label
+  value: number; // positive sum
+  count: number; // number of contributing tx
   color?: string;
 }
 
 export interface MonthPoint {
-  month: string;       // "YYYY-MM"
+  month: string; // "YYYY-MM"
   income: number;
   expense: number;
-  net: number;         // income - expense
+  net: number; // income - expense
 }
 
 export interface NetWorthPoint {
-  date: string;        // ISO end-of-month
+  date: string; // ISO end-of-month
   netWorth: number;
   assets: number;
   liabilities: number;
@@ -46,8 +46,7 @@ export function cv(values: number[]): number {
   if (values.length === 0) return Infinity;
   const mean = values.reduce((a, b) => a + b, 0) / values.length;
   if (Math.abs(mean) < 1e-6) return Infinity;
-  const variance =
-    values.reduce((a, b) => a + (b - mean) * (b - mean), 0) / values.length;
+  const variance = values.reduce((a, b) => a + (b - mean) * (b - mean), 0) / values.length;
   return Math.sqrt(variance) / Math.abs(mean);
 }
 
@@ -73,9 +72,7 @@ export function linearRegression(points: { x: number; y: number }[]): {
 export function stddev(values: number[]): number {
   if (values.length === 0) return 0;
   const mean = values.reduce((a, b) => a + b, 0) / values.length;
-  return Math.sqrt(
-    values.reduce((a, b) => a + (b - mean) * (b - mean), 0) / values.length,
-  );
+  return Math.sqrt(values.reduce((a, b) => a + (b - mean) * (b - mean), 0) / values.length);
 }
 
 const TX_PALETTE = [
@@ -136,11 +133,7 @@ export function monthRange(fromISO: string, toISO: string): string[] {
  * Aggregate transactions into monthly income/expense buckets.
  * Transfers are excluded (they net to zero).
  */
-export function aggregateMonthly(
-  tx: Transaction[],
-  fromISO: string,
-  toISO: string,
-): MonthPoint[] {
+export function aggregateMonthly(tx: Transaction[], fromISO: string, toISO: string): MonthPoint[] {
   const buckets = new Map<string, MonthPoint>();
   for (const k of monthRange(fromISO, toISO)) {
     buckets.set(k, { month: k, income: 0, expense: 0, net: 0 });
@@ -162,7 +155,7 @@ export function aggregateMonthly(
  * Returns combined actual + three projection series.
  */
 export interface ProjectionPoint {
-  date: string;            // ISO month-end
+  date: string; // ISO month-end
   actual?: number;
   trend?: number;
   avg?: number;
@@ -175,7 +168,17 @@ export function buildProjection(
   history: NetWorthPoint[],
   monthsAhead: number,
   recurringMonthlyNet: number,
-): { points: ProjectionPoint[]; summary: { trendEnd: number; avgEnd: number; recurringEnd: number; band: number; avgMonthlyNet: number; trendSlope: number } } {
+): {
+  points: ProjectionPoint[];
+  summary: {
+    trendEnd: number;
+    avgEnd: number;
+    recurringEnd: number;
+    band: number;
+    avgMonthlyNet: number;
+    trendSlope: number;
+  };
+} {
   const points: ProjectionPoint[] = history.map((p) => ({
     date: p.date,
     actual: p.netWorth,
@@ -183,7 +186,14 @@ export function buildProjection(
   if (history.length === 0) {
     return {
       points,
-      summary: { trendEnd: 0, avgEnd: 0, recurringEnd: 0, band: 0, avgMonthlyNet: 0, trendSlope: 0 },
+      summary: {
+        trendEnd: 0,
+        avgEnd: 0,
+        recurringEnd: 0,
+        band: 0,
+        avgMonthlyNet: 0,
+        trendSlope: 0,
+      },
     };
   }
 
@@ -192,9 +202,7 @@ export function buildProjection(
   for (let i = 1; i < history.length; i++) {
     deltas.push(history[i].netWorth - history[i - 1].netWorth);
   }
-  const avgMonthlyNet = deltas.length
-    ? deltas.reduce((a, b) => a + b, 0) / deltas.length
-    : 0;
+  const avgMonthlyNet = deltas.length ? deltas.reduce((a, b) => a + b, 0) / deltas.length : 0;
   const band = stddev(deltas);
 
   // Linear regression on history (x = month index, y = net worth)
@@ -259,9 +267,7 @@ export function detectRecurringCandidates(
 
   // Names that already have a rule — skip.
   const ruledNames = new Set(
-    rules
-      .filter((r) => !r.archived)
-      .map((r) => normalizeMerchant(r.description ?? r.name)),
+    rules.filter((r) => !r.archived).map((r) => normalizeMerchant(r.description ?? r.name)),
   );
 
   const groups = new Map<

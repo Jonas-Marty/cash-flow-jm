@@ -5,11 +5,7 @@ import { format, parseISO } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  fetchPendingTransactions,
-  fetchAccounts,
-  fmtMoney,
-} from "@/lib/finance";
+import { fetchPendingTransactions, fetchAccounts, fmtMoney } from "@/lib/finance";
 import { useI18n } from "@/i18n";
 import { Inbox } from "lucide-react";
 

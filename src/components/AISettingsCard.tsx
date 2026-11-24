@@ -19,7 +19,14 @@ import {
 } from "@/components/ui/select";
 import { Sparkles, Plus, Trash2, RefreshCw, Loader2, ChevronsUpDown, Check, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   listAIEndpoints,
   saveAIEndpoint,
@@ -30,7 +37,13 @@ import {
   listAIModels,
   probeAIEndpointCapabilities,
 } from "@/utils/ai.functions";
-import type { AIContextLevel, AIEndpoint, AIEndpointHealth, AIHealthMode, AIModelCapabilities } from "@/lib/ai/types";
+import type {
+  AIContextLevel,
+  AIEndpoint,
+  AIEndpointHealth,
+  AIHealthMode,
+  AIModelCapabilities,
+} from "@/lib/ai/types";
 import { AI_ACTIONS } from "@/lib/ai/types";
 import { useI18n } from "@/i18n";
 import { cn } from "@/lib/utils";
@@ -81,7 +94,10 @@ const toDraft = (e: AIEndpoint): Draft => ({
 });
 
 /** "checked 12s ago" style label. */
-function useRelativeTime(iso: string | undefined, t: (k: string, p?: Record<string, string | number>) => string) {
+function useRelativeTime(
+  iso: string | undefined,
+  t: (k: string, p?: Record<string, string | number>) => string,
+) {
   const [, force] = React.useReducer((x: number) => x + 1, 0);
   React.useEffect(() => {
     if (!iso) return;
@@ -155,7 +171,11 @@ function ModelField({
               if (options.length === 0) onLoad();
             }}
           >
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ChevronsUpDown className="h-4 w-4" />}
+            {loading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <ChevronsUpDown className="h-4 w-4" />
+            )}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[280px] p-0" align="end">
@@ -182,8 +202,18 @@ function ModelField({
             </CommandList>
           </Command>
           <div className="border-t p-1">
-            <Button variant="ghost" size="sm" className="w-full justify-start" disabled={loading} onClick={onLoad}>
-              {loading ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1 h-3 w-3" />}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full justify-start"
+              disabled={loading}
+              onClick={onLoad}
+            >
+              {loading ? (
+                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-1 h-3 w-3" />
+              )}
               {t("ai.conn.models_reload")}
             </Button>
           </div>
@@ -319,7 +349,8 @@ function AISettingsCardInner() {
     try {
       const r = await probeFn({ data: { id } });
       const e = r.endpoints.find((x) => x.id === id);
-      if (e?.capabilities[e.model]) setCapsSeen((prev) => ({ ...prev, [id]: e.capabilities[e.model] }));
+      if (e?.capabilities[e.model])
+        setCapsSeen((prev) => ({ ...prev, [id]: e.capabilities[e.model] }));
       if (r.errors.length) toast.info(t("ai.conn.caps.inconclusive", { error: r.errors[0] }));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : String(err));
@@ -341,7 +372,11 @@ function AISettingsCardInner() {
           v === false && "border-destructive/40 text-destructive",
         )}
       >
-        {v === true ? <Check className="h-3 w-3" /> : v === false ? <X className="h-3 w-3" /> : null}
+        {v === true ? (
+          <Check className="h-3 w-3" />
+        ) : v === false ? (
+          <X className="h-3 w-3" />
+        ) : null}
         {label}
         {v == null && <span className="text-muted-foreground">· {t("ai.conn.caps.unknown")}</span>}
       </Badge>
@@ -358,16 +393,21 @@ function AISettingsCardInner() {
           disabled={probing === id}
           onClick={() => void probeCaps(id)}
         >
-          {probing === id ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1 h-3 w-3" />}
+          {probing === id ? (
+            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+          ) : (
+            <RefreshCw className="mr-1 h-3 w-3" />
+          )}
           {probing === id ? t("ai.conn.caps.checking") : t("ai.conn.caps.check")}
         </Button>
       </div>
     );
   };
 
+  const loadedEndpoints = q.data?.endpoints;
   React.useEffect(() => {
-    setDrafts(Object.fromEntries(endpoints.map((e) => [e.id, toDraft(e)])));
-  }, [q.data?.endpoints]);
+    setDrafts(Object.fromEntries((loadedEndpoints ?? []).map((e) => [e.id, toDraft(e)])));
+  }, [loadedEndpoints]);
 
   const patch = (id: string, p: Partial<Draft>) =>
     setDrafts((prev) => ({ ...prev, [id]: { ...prev[id], ...p } }));
@@ -445,7 +485,12 @@ function AISettingsCardInner() {
     setBusy(true);
     try {
       const r = await testFn({
-        data: { id: d.id, base_url: d.base_url.trim(), model: d.model.trim(), api_token: d.token || undefined },
+        data: {
+          id: d.id,
+          base_url: d.base_url.trim(),
+          model: d.model.trim(),
+          api_token: d.token || undefined,
+        },
       });
       if (r.ok) toast.success(t("ai.test.ok"));
       else toast.error(r.error || t("ai.test.fail"));
@@ -490,11 +535,19 @@ function AISettingsCardInner() {
         ? "border-amber-500/50 text-amber-600"
         : "border-destructive/50 text-destructive";
     const dot = h.ok ? "bg-emerald-500" : degraded ? "bg-amber-500" : "bg-destructive";
-    const label = h.ok ? `${t("ai.conn.online")} · ${h.latency_ms}ms` : degraded ? t("ai.conn.degraded") : t("ai.conn.offline");
+    const label = h.ok
+      ? `${t("ai.conn.online")} · ${h.latency_ms}ms`
+      : degraded
+        ? t("ai.conn.degraded")
+        : t("ai.conn.offline");
     const probe = h.probe ? t(`ai.conn.probe.${h.probe}`) : "";
     return (
       <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="outline" className={cn(tone)} title={[probe, h.error ?? ""].filter(Boolean).join(" · ")}>
+        <Badge
+          variant="outline"
+          className={cn(tone)}
+          title={[probe, h.error ?? ""].filter(Boolean).join(" · ")}
+        >
           <span className={cn("mr-1 inline-block h-2 w-2 rounded-full", dot)} />
           {label}
         </Badge>
@@ -504,19 +557,25 @@ function AISettingsCardInner() {
   };
 
   const row = (d: Draft, isNew = false) => (
-    // eslint-disable-next-line
     <div key={d.id ?? "new"} className="space-y-3 rounded-md border p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <StatusBadge d={d} />
           <Switch
             checked={d.enabled}
-            onCheckedChange={(v) => (isNew ? setNewDraft({ ...d, enabled: v }) : patch(d.id!, { enabled: v }))}
+            onCheckedChange={(v) =>
+              isNew ? setNewDraft({ ...d, enabled: v }) : patch(d.id!, { enabled: v })
+            }
           />
           {!isNew && d.id && <CapsBadges id={d.id} />}
         </div>
         {!isNew && (
-          <Button variant="ghost" size="icon" onClick={() => remove(d.id!)} aria-label={t("common.remove")}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => remove(d.id!)}
+            aria-label={t("common.remove")}
+          >
             <Trash2 className="h-4 w-4" />
           </Button>
         )}
@@ -527,7 +586,11 @@ function AISettingsCardInner() {
           <Label className="text-sm">{t("ai.conn.name")}</Label>
           <Input
             value={d.name}
-            onChange={(e) => (isNew ? setNewDraft({ ...d, name: e.target.value }) : patch(d.id!, { name: e.target.value }))}
+            onChange={(e) =>
+              isNew
+                ? setNewDraft({ ...d, name: e.target.value })
+                : patch(d.id!, { name: e.target.value })
+            }
             placeholder="Local Ollama"
             className="mt-1"
           />
@@ -554,7 +617,9 @@ function AISettingsCardInner() {
             loading={loadingModels === draftKey(d)}
             disabled={!d.base_url.trim()}
             onLoad={() => loadModels(d)}
-            onChange={(v) => (isNew ? setNewDraft({ ...d, extra_models: v }) : patch(d.id!, { extra_models: v }))}
+            onChange={(v) =>
+              isNew ? setNewDraft({ ...d, extra_models: v }) : patch(d.id!, { extra_models: v })
+            }
             t={t}
           />
           <p className="mt-1 text-xs text-muted-foreground">{t("ai.conn.extra_models_hint")}</p>
@@ -564,7 +629,9 @@ function AISettingsCardInner() {
           <Input
             value={d.base_url}
             onChange={(e) =>
-              isNew ? setNewDraft({ ...d, base_url: e.target.value }) : patch(d.id!, { base_url: e.target.value })
+              isNew
+                ? setNewDraft({ ...d, base_url: e.target.value })
+                : patch(d.id!, { base_url: e.target.value })
             }
             placeholder="https://api.openai.com/v1"
             className="mt-1"
@@ -577,7 +644,11 @@ function AISettingsCardInner() {
             type="password"
             autoComplete="off"
             value={d.token}
-            onChange={(e) => (isNew ? setNewDraft({ ...d, token: e.target.value }) : patch(d.id!, { token: e.target.value }))}
+            onChange={(e) =>
+              isNew
+                ? setNewDraft({ ...d, token: e.target.value })
+                : patch(d.id!, { token: e.target.value })
+            }
             placeholder={d.has_token ? "••••••••  " + t("ai.settings.token_stored") : ""}
             className="mt-1"
           />
@@ -589,7 +660,8 @@ function AISettingsCardInner() {
             value={d.priority}
             onChange={(e) => {
               const v = Number(e.target.value) || 0;
-              isNew ? setNewDraft({ ...d, priority: v }) : patch(d.id!, { priority: v });
+              if (isNew) setNewDraft({ ...d, priority: v });
+              else patch(d.id!, { priority: v });
             }}
             className="mt-1"
           />
@@ -648,7 +720,9 @@ function AISettingsCardInner() {
             disabled={!d.base_url.trim()}
             onLoad={() => loadModels(d)}
             onChange={(v) =>
-              isNew ? setNewDraft({ ...d, transcribe_model: v }) : patch(d.id!, { transcribe_model: v })
+              isNew
+                ? setNewDraft({ ...d, transcribe_model: v })
+                : patch(d.id!, { transcribe_model: v })
             }
             t={t}
           />
@@ -657,10 +731,19 @@ function AISettingsCardInner() {
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" onClick={() => save(d)} disabled={busy || !d.name || !d.base_url || !d.model}>
+        <Button
+          size="sm"
+          onClick={() => save(d)}
+          disabled={busy || !d.name || !d.base_url || !d.model}
+        >
           {t("common.save")}
         </Button>
-        <Button size="sm" variant="outline" onClick={() => test(d)} disabled={busy || !d.base_url || !d.model}>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => test(d)}
+          disabled={busy || !d.base_url || !d.model}
+        >
           {t("ai.settings.test")}
         </Button>
         {isNew && (
@@ -684,8 +767,17 @@ function AISettingsCardInner() {
         <p className="text-xs text-muted-foreground">{t("ai.settings.token_hint")}</p>
 
         <div className="flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={checkAll} disabled={checking || endpoints.length === 0}>
-            {checking ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1 h-3 w-3" />}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={checkAll}
+            disabled={checking || endpoints.length === 0}
+          >
+            {checking ? (
+              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+            ) : (
+              <RefreshCw className="mr-1 h-3 w-3" />
+            )}
             {t("ai.conn.check")}
           </Button>
           <Button
@@ -699,7 +791,9 @@ function AISettingsCardInner() {
         </div>
 
         {endpoints.length === 0 && !newDraft && (
-          <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">{t("ai.conn.none")}</p>
+          <p className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+            {t("ai.conn.none")}
+          </p>
         )}
 
         <div className="space-y-3">
@@ -732,7 +826,9 @@ function AISettingsCardInner() {
               );
               return (
                 <div key={action} className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">{t(`ai.conn.action.${action}`)}</Label>
+                  <Label className="text-xs text-muted-foreground">
+                    {t(`ai.conn.action.${action}`)}
+                  </Label>
                   <Select
                     value={b?.endpoint_id ?? "auto"}
                     onValueChange={(v) =>

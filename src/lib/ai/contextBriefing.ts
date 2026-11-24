@@ -100,7 +100,7 @@ export function buildContextBriefing(input: BriefingInput): string {
   // --- Categories ---
   out.push(`\n### Categories (id | name | group | kind | budget | this month)`);
   for (const c of categories) {
-    const kind = c.rolls_over ? "savings" : (c.kind || "expense");
+    const kind = c.rolls_over ? "savings" : c.kind || "expense";
     const budget = c.budget != null ? round(c.budget) : "-";
     const actual = c.actual != null ? round(c.actual) : "-";
     out.push(`${c.id} | ${c.name} | ${c.group || "-"} | ${kind} | ${budget} | ${actual}`);
@@ -113,24 +113,44 @@ export function buildContextBriefing(input: BriefingInput): string {
 
   // --- Aggregations ---
   const tagCounts = new Map<string, number>();
-  const perAccount = new Map<string, { count: number; cats: Map<string, number>; amounts: number[] }>();
-  const perCategory = new Map<string, { count: number; amounts: number[]; tags: Map<string, number> }>();
+  const perAccount = new Map<
+    string,
+    { count: number; cats: Map<string, number>; amounts: number[] }
+  >();
+  const perCategory = new Map<
+    string,
+    { count: number; amounts: number[]; tags: Map<string, number> }
+  >();
   const perDesc = new Map<
     string,
-    { count: number; amounts: number[]; cats: Map<string, number>; accs: Map<string, number>; tags: Map<string, number> }
+    {
+      count: number;
+      amounts: number[];
+      cats: Map<string, number>;
+      accs: Map<string, number>;
+      tags: Map<string, number>;
+    }
   >();
 
   for (const t of transactions) {
     for (const tag of t.tags) bump(tagCounts, tag);
 
-    const a = perAccount.get(t.account_id) ?? { count: 0, cats: new Map<string, number>(), amounts: [] as number[] };
+    const a = perAccount.get(t.account_id) ?? {
+      count: 0,
+      cats: new Map<string, number>(),
+      amounts: [] as number[],
+    };
     a.count += 1;
     a.amounts.push(Math.abs(t.amount));
     if (t.category_id) bump(a.cats, t.category_id);
     perAccount.set(t.account_id, a);
 
     if (t.category_id) {
-      const c = perCategory.get(t.category_id) ?? { count: 0, amounts: [] as number[], tags: new Map<string, number>() };
+      const c = perCategory.get(t.category_id) ?? {
+        count: 0,
+        amounts: [] as number[],
+        tags: new Map<string, number>(),
+      };
       c.count += 1;
       c.amounts.push(Math.abs(t.amount));
       for (const tag of t.tags) bump(c.tags, tag);
@@ -139,7 +159,13 @@ export function buildContextBriefing(input: BriefingInput): string {
 
     const key = normDesc(t.description).toLowerCase();
     if (key) {
-      const d = perDesc.get(key) ?? { count: 0, amounts: [] as number[], cats: new Map<string, number>(), accs: new Map<string, number>(), tags: new Map<string, number>() };
+      const d = perDesc.get(key) ?? {
+        count: 0,
+        amounts: [] as number[],
+        cats: new Map<string, number>(),
+        accs: new Map<string, number>(),
+        tags: new Map<string, number>(),
+      };
       d.count += 1;
       d.amounts.push(Math.abs(t.amount));
       if (t.category_id) bump(d.cats, t.category_id);
@@ -175,14 +201,21 @@ export function buildContextBriefing(input: BriefingInput): string {
     out.push(`\n### Habits per category (count | median amount | usual tags)`);
     for (const [catId, c] of [...perCategory.entries()].sort((x, y) => y[1].count - x[1].count)) {
       const tg = topN(c.tags, 3).map((t) => `#${t}`);
-      out.push(`${catName(catId)}: ${c.count} | ${round(median(c.amounts))} | ${tg.join(" ") || "-"}`);
+      out.push(
+        `${catName(catId)}: ${c.count} | ${round(median(c.amounts))} | ${tg.join(" ") || "-"}`,
+      );
     }
   }
 
   // --- Frequent descriptions ---
-  const descs = [...perDesc.entries()].filter(([, d]) => d.count > 1).sort((a, b) => b[1].count - a[1].count).slice(0, caps.descriptions);
+  const descs = [...perDesc.entries()]
+    .filter(([, d]) => d.count > 1)
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, caps.descriptions);
   if (descs.length) {
-    out.push(`\n### Frequent descriptions (text | count | usual category | usual account | usual tags | median)`);
+    out.push(
+      `\n### Frequent descriptions (text | count | usual category | usual account | usual tags | median)`,
+    );
     for (const [key, d] of descs) {
       const cat = topN(d.cats, 1)[0];
       const acc = topN(d.accs, 1)[0];
@@ -203,7 +236,9 @@ export function buildContextBriefing(input: BriefingInput): string {
   }
 
   // --- Most recent raw rows ---
-  const recent = [...transactions].sort((a, b) => (a.occurred_on < b.occurred_on ? 1 : -1)).slice(0, caps.recent);
+  const recent = [...transactions]
+    .sort((a, b) => (a.occurred_on < b.occurred_on ? 1 : -1))
+    .slice(0, caps.recent);
   out.push(
     `\n### Most recent transactions, complete rows (date | description | amount | type | account | category | tags)`,
   );

@@ -40,8 +40,8 @@ export type Draft = {
 
 export type SliceDraft = {
   id?: string;
-  amount: string;        // used when !is_variable_amount
-  amount_ratio: string;  // used when is_variable_amount (decimal, e.g. "0.5")
+  amount: string; // used when !is_variable_amount
+  amount_ratio: string; // used when is_variable_amount (decimal, e.g. "0.5")
   category_id: string;
   description: string;
   note: string;
@@ -67,16 +67,25 @@ export const todayStr = () => new Date().toISOString().slice(0, 10);
 
 export function emptyDraft(): Draft {
   return {
-    name: "", type: "expense", amount: "0.00",
-    is_variable_amount: false, estimated_amount: "",
-    source_account_id: "", destination_account_id: "", category_id: "",
-    description: "", note: "",
+    name: "",
+    type: "expense",
+    amount: "0.00",
+    is_variable_amount: false,
+    estimated_amount: "",
+    source_account_id: "",
+    destination_account_id: "",
+    category_id: "",
+    description: "",
+    note: "",
     recurrence_interval: 1,
-    execution_day_rule: "FixedDay", execution_day_of_month: "1",
+    execution_day_rule: "FixedDay",
+    execution_day_of_month: "1",
     execution_weekend_adjustment: "None",
-    period_day_rule: "FixedDay", period_day_of_month: "1",
+    period_day_rule: "FixedDay",
+    period_day_of_month: "1",
     period_offset_months: 0,
-    starts_on: todayStr(), ends_on: "",
+    starts_on: todayStr(),
+    ends_on: "",
     auto_post: true,
     backfill: "none",
     is_variable_date: false,
@@ -87,39 +96,45 @@ export function emptyDraft(): Draft {
 
 export function ruleToDraft(r: RecurringRule): Draft {
   return {
-    id: r.id, name: r.name, type: r.type,
+    id: r.id,
+    name: r.name,
+    type: r.type,
     amount: r.amount != null ? amountToInput(r.amount) : "0.00",
     is_variable_amount: !!r.is_variable_amount,
     estimated_amount: amountToInput(r.estimated_amount),
     source_account_id: r.source_account_id,
     destination_account_id: r.destination_account_id ?? "",
     category_id: r.category_id ?? "",
-    description: r.description ?? "", note: r.note ?? "",
+    description: r.description ?? "",
+    note: r.note ?? "",
     recurrence_interval: r.recurrence_interval ?? 1,
     execution_day_rule: r.execution_day_rule,
     execution_day_of_month: String(r.execution_day_of_month ?? 1),
     execution_weekend_adjustment: r.execution_weekend_adjustment,
     period_day_rule: r.period_day_rule,
     period_day_of_month: String(r.period_day_of_month ?? 1),
-    period_offset_months: r.period_offset_months ?? (r.period_offset ?? 0) * (r.recurrence_interval ?? 1),
-    starts_on: r.starts_on, ends_on: r.ends_on ?? "",
+    period_offset_months:
+      r.period_offset_months ?? (r.period_offset ?? 0) * (r.recurrence_interval ?? 1),
+    starts_on: r.starts_on,
+    ends_on: r.ends_on ?? "",
     auto_post: r.auto_post,
     backfill: "none",
     is_variable_date: !!r.is_variable_date,
     is_split: !!r.is_split,
-    slices: r.slices && r.slices.length >= 2
-      ? r.slices.map((s) => ({
-          id: s.id,
-          amount: amountToInput(s.amount),
-          amount_ratio: s.amount_ratio != null ? String(s.amount_ratio) : "",
-          category_id: s.category_id ?? "",
-          description: s.description ?? "",
-          note: s.note ?? "",
-          is_reimbursable: !!s.is_reimbursable,
-          reimbursable_counterparty: s.reimbursable_counterparty ?? "",
-          reimbursable_reason: s.reimbursable_reason ?? "",
-        }))
-      : [emptySlice(), emptySlice()],
+    slices:
+      r.slices && r.slices.length >= 2
+        ? r.slices.map((s) => ({
+            id: s.id,
+            amount: amountToInput(s.amount),
+            amount_ratio: s.amount_ratio != null ? String(s.amount_ratio) : "",
+            category_id: s.category_id ?? "",
+            description: s.description ?? "",
+            note: s.note ?? "",
+            is_reimbursable: !!s.is_reimbursable,
+            reimbursable_counterparty: s.reimbursable_counterparty ?? "",
+            reimbursable_reason: s.reimbursable_reason ?? "",
+          }))
+        : [emptySlice(), emptySlice()],
   };
 }
 

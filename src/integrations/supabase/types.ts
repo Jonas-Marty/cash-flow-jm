@@ -1,2291 +1,2283 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[]
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
 export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
-  }
+    PostgrestVersion: "14.5";
+  };
   public: {
     Tables: {
       account_statements: {
         Row: {
-          account_id: string
-          as_of: string
-          compensation_transaction_id: string | null
-          created_at: string
-          external_ref: string | null
-          id: string
-          note: string | null
-          source: string
-          statement_balance: number
-          status: string
-          updated_at: string
-          user_id: string
-        }
+          account_id: string;
+          as_of: string;
+          compensation_transaction_id: string | null;
+          created_at: string;
+          external_ref: string | null;
+          id: string;
+          note: string | null;
+          source: string;
+          statement_balance: number;
+          status: string;
+          updated_at: string;
+          user_id: string;
+        };
         Insert: {
-          account_id: string
-          as_of: string
-          compensation_transaction_id?: string | null
-          created_at?: string
-          external_ref?: string | null
-          id?: string
-          note?: string | null
-          source?: string
-          statement_balance: number
-          status?: string
-          updated_at?: string
-          user_id?: string
-        }
+          account_id: string;
+          as_of: string;
+          compensation_transaction_id?: string | null;
+          created_at?: string;
+          external_ref?: string | null;
+          id?: string;
+          note?: string | null;
+          source?: string;
+          statement_balance: number;
+          status?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
         Update: {
-          account_id?: string
-          as_of?: string
-          compensation_transaction_id?: string | null
-          created_at?: string
-          external_ref?: string | null
-          id?: string
-          note?: string | null
-          source?: string
-          statement_balance?: number
-          status?: string
-          updated_at?: string
-          user_id?: string
-        }
+          account_id?: string;
+          as_of?: string;
+          compensation_transaction_id?: string | null;
+          created_at?: string;
+          external_ref?: string | null;
+          id?: string;
+          note?: string | null;
+          source?: string;
+          statement_balance?: number;
+          status?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "account_statements_compensation_transaction_id_fkey"
-            columns: ["compensation_transaction_id"]
-            isOneToOne: false
-            referencedRelation: "transactions"
-            referencedColumns: ["id"]
+            foreignKeyName: "account_statements_compensation_transaction_id_fkey";
+            columns: ["compensation_transaction_id"];
+            isOneToOne: false;
+            referencedRelation: "transactions";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       accounts: {
         Row: {
-          archived: boolean
-          color: string | null
-          created_at: string
-          currency_code: string
-          currency_symbol: string
-          emoji: string | null
-          icon: string | null
-          id: string
-          image_url: string | null
-          name: string
-          opening_balance: number
-          pin_order: number | null
-          pinned: boolean
-          type: Database["public"]["Enums"]["account_type"]
-          updated_at: string
-          user_id: string | null
-        }
+          archived: boolean;
+          color: string | null;
+          created_at: string;
+          currency_code: string;
+          currency_symbol: string;
+          emoji: string | null;
+          icon: string | null;
+          id: string;
+          image_url: string | null;
+          name: string;
+          opening_balance: number;
+          pin_order: number | null;
+          pinned: boolean;
+          type: Database["public"]["Enums"]["account_type"];
+          updated_at: string;
+          user_id: string | null;
+        };
         Insert: {
-          archived?: boolean
-          color?: string | null
-          created_at?: string
-          currency_code?: string
-          currency_symbol?: string
-          emoji?: string | null
-          icon?: string | null
-          id?: string
-          image_url?: string | null
-          name: string
-          opening_balance?: number
-          pin_order?: number | null
-          pinned?: boolean
-          type: Database["public"]["Enums"]["account_type"]
-          updated_at?: string
-          user_id?: string | null
-        }
+          archived?: boolean;
+          color?: string | null;
+          created_at?: string;
+          currency_code?: string;
+          currency_symbol?: string;
+          emoji?: string | null;
+          icon?: string | null;
+          id?: string;
+          image_url?: string | null;
+          name: string;
+          opening_balance?: number;
+          pin_order?: number | null;
+          pinned?: boolean;
+          type: Database["public"]["Enums"]["account_type"];
+          updated_at?: string;
+          user_id?: string | null;
+        };
         Update: {
-          archived?: boolean
-          color?: string | null
-          created_at?: string
-          currency_code?: string
-          currency_symbol?: string
-          emoji?: string | null
-          icon?: string | null
-          id?: string
-          image_url?: string | null
-          name?: string
-          opening_balance?: number
-          pin_order?: number | null
-          pinned?: boolean
-          type?: Database["public"]["Enums"]["account_type"]
-          updated_at?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
+          archived?: boolean;
+          color?: string | null;
+          created_at?: string;
+          currency_code?: string;
+          currency_symbol?: string;
+          emoji?: string | null;
+          icon?: string | null;
+          id?: string;
+          image_url?: string | null;
+          name?: string;
+          opening_balance?: number;
+          pin_order?: number | null;
+          pinned?: boolean;
+          type?: Database["public"]["Enums"]["account_type"];
+          updated_at?: string;
+          user_id?: string | null;
+        };
+        Relationships: [];
+      };
       ai_action_endpoints: {
         Row: {
-          action: string
-          allow_fallback: boolean
-          endpoint_id: string | null
-          model: string | null
-          updated_at: string
-          user_id: string
-        }
+          action: string;
+          allow_fallback: boolean;
+          endpoint_id: string | null;
+          model: string | null;
+          updated_at: string;
+          user_id: string;
+        };
         Insert: {
-          action: string
-          allow_fallback?: boolean
-          endpoint_id?: string | null
-          model?: string | null
-          updated_at?: string
-          user_id: string
-        }
+          action: string;
+          allow_fallback?: boolean;
+          endpoint_id?: string | null;
+          model?: string | null;
+          updated_at?: string;
+          user_id: string;
+        };
         Update: {
-          action?: string
-          allow_fallback?: boolean
-          endpoint_id?: string | null
-          model?: string | null
-          updated_at?: string
-          user_id?: string
-        }
+          action?: string;
+          allow_fallback?: boolean;
+          endpoint_id?: string | null;
+          model?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "ai_action_endpoints_endpoint_id_fkey"
-            columns: ["endpoint_id"]
-            isOneToOne: false
-            referencedRelation: "ai_endpoints"
-            referencedColumns: ["id"]
+            foreignKeyName: "ai_action_endpoints_endpoint_id_fkey";
+            columns: ["endpoint_id"];
+            isOneToOne: false;
+            referencedRelation: "ai_endpoints";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       ai_audit_logs: {
         Row: {
-          cached_tokens: number | null
-          cleared_at: string | null
-          completion_tokens: number | null
-          conversation_id: string | null
-          duration_ms: number | null
-          endpoint_id: string | null
-          endpoint_name: string | null
-          error_message: string | null
-          id: string
-          intended_endpoint_id: string | null
-          kind: string
-          model: string | null
-          occurred_at: string
-          ok: boolean | null
-          payload: Json
-          prompt_tokens: number | null
-          provider_host: string | null
-          tool_name: string | null
-          total_tokens: number | null
-          user_id: string
-        }
+          cached_tokens: number | null;
+          cleared_at: string | null;
+          completion_tokens: number | null;
+          conversation_id: string | null;
+          duration_ms: number | null;
+          endpoint_id: string | null;
+          endpoint_name: string | null;
+          error_message: string | null;
+          id: string;
+          intended_endpoint_id: string | null;
+          kind: string;
+          model: string | null;
+          occurred_at: string;
+          ok: boolean | null;
+          payload: Json;
+          prompt_tokens: number | null;
+          provider_host: string | null;
+          tool_name: string | null;
+          total_tokens: number | null;
+          user_id: string;
+        };
         Insert: {
-          cached_tokens?: number | null
-          cleared_at?: string | null
-          completion_tokens?: number | null
-          conversation_id?: string | null
-          duration_ms?: number | null
-          endpoint_id?: string | null
-          endpoint_name?: string | null
-          error_message?: string | null
-          id?: string
-          intended_endpoint_id?: string | null
-          kind: string
-          model?: string | null
-          occurred_at?: string
-          ok?: boolean | null
-          payload?: Json
-          prompt_tokens?: number | null
-          provider_host?: string | null
-          tool_name?: string | null
-          total_tokens?: number | null
-          user_id: string
-        }
+          cached_tokens?: number | null;
+          cleared_at?: string | null;
+          completion_tokens?: number | null;
+          conversation_id?: string | null;
+          duration_ms?: number | null;
+          endpoint_id?: string | null;
+          endpoint_name?: string | null;
+          error_message?: string | null;
+          id?: string;
+          intended_endpoint_id?: string | null;
+          kind: string;
+          model?: string | null;
+          occurred_at?: string;
+          ok?: boolean | null;
+          payload?: Json;
+          prompt_tokens?: number | null;
+          provider_host?: string | null;
+          tool_name?: string | null;
+          total_tokens?: number | null;
+          user_id: string;
+        };
         Update: {
-          cached_tokens?: number | null
-          cleared_at?: string | null
-          completion_tokens?: number | null
-          conversation_id?: string | null
-          duration_ms?: number | null
-          endpoint_id?: string | null
-          endpoint_name?: string | null
-          error_message?: string | null
-          id?: string
-          intended_endpoint_id?: string | null
-          kind?: string
-          model?: string | null
-          occurred_at?: string
-          ok?: boolean | null
-          payload?: Json
-          prompt_tokens?: number | null
-          provider_host?: string | null
-          tool_name?: string | null
-          total_tokens?: number | null
-          user_id?: string
-        }
-        Relationships: []
-      }
+          cached_tokens?: number | null;
+          cleared_at?: string | null;
+          completion_tokens?: number | null;
+          conversation_id?: string | null;
+          duration_ms?: number | null;
+          endpoint_id?: string | null;
+          endpoint_name?: string | null;
+          error_message?: string | null;
+          id?: string;
+          intended_endpoint_id?: string | null;
+          kind?: string;
+          model?: string | null;
+          occurred_at?: string;
+          ok?: boolean | null;
+          payload?: Json;
+          prompt_tokens?: number | null;
+          provider_host?: string | null;
+          tool_name?: string | null;
+          total_tokens?: number | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       ai_attachments: {
         Row: {
-          conversation_id: string | null
-          created_at: string
-          extracted_text: string | null
-          file_name: string
-          id: string
-          mime: string
-          page_count: number | null
-          size_bytes: number
-          storage_path: string
-          user_id: string
-        }
+          conversation_id: string | null;
+          created_at: string;
+          extracted_text: string | null;
+          file_name: string;
+          id: string;
+          mime: string;
+          page_count: number | null;
+          size_bytes: number;
+          storage_path: string;
+          user_id: string;
+        };
         Insert: {
-          conversation_id?: string | null
-          created_at?: string
-          extracted_text?: string | null
-          file_name: string
-          id?: string
-          mime: string
-          page_count?: number | null
-          size_bytes: number
-          storage_path: string
-          user_id: string
-        }
+          conversation_id?: string | null;
+          created_at?: string;
+          extracted_text?: string | null;
+          file_name: string;
+          id?: string;
+          mime: string;
+          page_count?: number | null;
+          size_bytes: number;
+          storage_path: string;
+          user_id: string;
+        };
         Update: {
-          conversation_id?: string | null
-          created_at?: string
-          extracted_text?: string | null
-          file_name?: string
-          id?: string
-          mime?: string
-          page_count?: number | null
-          size_bytes?: number
-          storage_path?: string
-          user_id?: string
-        }
+          conversation_id?: string | null;
+          created_at?: string;
+          extracted_text?: string | null;
+          file_name?: string;
+          id?: string;
+          mime?: string;
+          page_count?: number | null;
+          size_bytes?: number;
+          storage_path?: string;
+          user_id?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "ai_attachments_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "ai_conversations"
-            referencedColumns: ["id"]
+            foreignKeyName: "ai_attachments_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "ai_conversations";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       ai_conversations: {
         Row: {
-          created_at: string
-          id: string
-          title: string
-          updated_at: string
-          user_id: string
-        }
+          created_at: string;
+          id: string;
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
         Insert: {
-          created_at?: string
-          id?: string
-          title?: string
-          updated_at?: string
-          user_id: string
-        }
+          created_at?: string;
+          id?: string;
+          title?: string;
+          updated_at?: string;
+          user_id: string;
+        };
         Update: {
-          created_at?: string
-          id?: string
-          title?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
+          created_at?: string;
+          id?: string;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       ai_credentials: {
         Row: {
-          api_token: string | null
-          base_url: string | null
-          created_at: string
-          enabled: boolean
-          model: string | null
-          updated_at: string
-          user_id: string
-        }
+          api_token: string | null;
+          base_url: string | null;
+          created_at: string;
+          enabled: boolean;
+          model: string | null;
+          updated_at: string;
+          user_id: string;
+        };
         Insert: {
-          api_token?: string | null
-          base_url?: string | null
-          created_at?: string
-          enabled?: boolean
-          model?: string | null
-          updated_at?: string
-          user_id: string
-        }
+          api_token?: string | null;
+          base_url?: string | null;
+          created_at?: string;
+          enabled?: boolean;
+          model?: string | null;
+          updated_at?: string;
+          user_id: string;
+        };
         Update: {
-          api_token?: string | null
-          base_url?: string | null
-          created_at?: string
-          enabled?: boolean
-          model?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
+          api_token?: string | null;
+          base_url?: string | null;
+          created_at?: string;
+          enabled?: boolean;
+          model?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       ai_endpoints: {
         Row: {
-          api_token: string | null
-          base_url: string
-          capabilities: Json
-          context_level: string
-          created_at: string
-          enabled: boolean
-          extra_models: string[]
-          health_mode: string
-          id: string
-          model: string
-          name: string
-          priority: number
-          transcribe_model: string | null
-          updated_at: string
-          user_id: string
-        }
+          api_token: string | null;
+          base_url: string;
+          capabilities: Json;
+          context_level: string;
+          created_at: string;
+          enabled: boolean;
+          extra_models: string[];
+          health_mode: string;
+          id: string;
+          model: string;
+          name: string;
+          priority: number;
+          transcribe_model: string | null;
+          updated_at: string;
+          user_id: string;
+        };
         Insert: {
-          api_token?: string | null
-          base_url: string
-          capabilities?: Json
-          context_level?: string
-          created_at?: string
-          enabled?: boolean
-          extra_models?: string[]
-          health_mode?: string
-          id?: string
-          model: string
-          name: string
-          priority?: number
-          transcribe_model?: string | null
-          updated_at?: string
-          user_id: string
-        }
+          api_token?: string | null;
+          base_url: string;
+          capabilities?: Json;
+          context_level?: string;
+          created_at?: string;
+          enabled?: boolean;
+          extra_models?: string[];
+          health_mode?: string;
+          id?: string;
+          model: string;
+          name: string;
+          priority?: number;
+          transcribe_model?: string | null;
+          updated_at?: string;
+          user_id: string;
+        };
         Update: {
-          api_token?: string | null
-          base_url?: string
-          capabilities?: Json
-          context_level?: string
-          created_at?: string
-          enabled?: boolean
-          extra_models?: string[]
-          health_mode?: string
-          id?: string
-          model?: string
-          name?: string
-          priority?: number
-          transcribe_model?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
+          api_token?: string | null;
+          base_url?: string;
+          capabilities?: Json;
+          context_level?: string;
+          created_at?: string;
+          enabled?: boolean;
+          extra_models?: string[];
+          health_mode?: string;
+          id?: string;
+          model?: string;
+          name?: string;
+          priority?: number;
+          transcribe_model?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       ai_messages: {
         Row: {
-          content: Json
-          conversation_id: string
-          created_at: string
-          id: string
-          role: string
-          tool_calls: Json | null
-          user_id: string
-        }
+          content: Json;
+          conversation_id: string;
+          created_at: string;
+          id: string;
+          role: string;
+          tool_calls: Json | null;
+          user_id: string;
+        };
         Insert: {
-          content?: Json
-          conversation_id: string
-          created_at?: string
-          id?: string
-          role: string
-          tool_calls?: Json | null
-          user_id: string
-        }
+          content?: Json;
+          conversation_id: string;
+          created_at?: string;
+          id?: string;
+          role: string;
+          tool_calls?: Json | null;
+          user_id: string;
+        };
         Update: {
-          content?: Json
-          conversation_id?: string
-          created_at?: string
-          id?: string
-          role?: string
-          tool_calls?: Json | null
-          user_id?: string
-        }
+          content?: Json;
+          conversation_id?: string;
+          created_at?: string;
+          id?: string;
+          role?: string;
+          tool_calls?: Json | null;
+          user_id?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "ai_messages_conversation_id_fkey"
-            columns: ["conversation_id"]
-            isOneToOne: false
-            referencedRelation: "ai_conversations"
-            referencedColumns: ["id"]
+            foreignKeyName: "ai_messages_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "ai_conversations";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       api_tokens: {
         Row: {
-          created_at: string
-          id: string
-          last_used_at: string | null
-          name: string
-          revoked_at: string | null
-          token_hash: string
-          user_id: string
-        }
+          created_at: string;
+          id: string;
+          last_used_at: string | null;
+          name: string;
+          revoked_at: string | null;
+          token_hash: string;
+          user_id: string;
+        };
         Insert: {
-          created_at?: string
-          id?: string
-          last_used_at?: string | null
-          name: string
-          revoked_at?: string | null
-          token_hash: string
-          user_id?: string
-        }
+          created_at?: string;
+          id?: string;
+          last_used_at?: string | null;
+          name: string;
+          revoked_at?: string | null;
+          token_hash: string;
+          user_id?: string;
+        };
         Update: {
-          created_at?: string
-          id?: string
-          last_used_at?: string | null
-          name?: string
-          revoked_at?: string | null
-          token_hash?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
+          created_at?: string;
+          id?: string;
+          last_used_at?: string | null;
+          name?: string;
+          revoked_at?: string | null;
+          token_hash?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       audit_logs: {
         Row: {
-          action: string
-          diff: Json | null
-          id: number
-          metadata: Json | null
-          occurred_at: string
-          row_id: string | null
-          table_name: string | null
-          user_id: string | null
-        }
+          action: string;
+          diff: Json | null;
+          id: number;
+          metadata: Json | null;
+          occurred_at: string;
+          row_id: string | null;
+          table_name: string | null;
+          user_id: string | null;
+        };
         Insert: {
-          action: string
-          diff?: Json | null
-          id?: number
-          metadata?: Json | null
-          occurred_at?: string
-          row_id?: string | null
-          table_name?: string | null
-          user_id?: string | null
-        }
+          action: string;
+          diff?: Json | null;
+          id?: number;
+          metadata?: Json | null;
+          occurred_at?: string;
+          row_id?: string | null;
+          table_name?: string | null;
+          user_id?: string | null;
+        };
         Update: {
-          action?: string
-          diff?: Json | null
-          id?: number
-          metadata?: Json | null
-          occurred_at?: string
-          row_id?: string | null
-          table_name?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
+          action?: string;
+          diff?: Json | null;
+          id?: number;
+          metadata?: Json | null;
+          occurred_at?: string;
+          row_id?: string | null;
+          table_name?: string | null;
+          user_id?: string | null;
+        };
+        Relationships: [];
+      };
       auth_providers: {
         Row: {
-          client_id: string | null
-          created_at: string
-          discovery_url: string | null
-          display_name: string | null
-          enabled: boolean
-          id: string
-          metadata: Json
-          provider: string
-          updated_at: string
-        }
+          client_id: string | null;
+          created_at: string;
+          discovery_url: string | null;
+          display_name: string | null;
+          enabled: boolean;
+          id: string;
+          metadata: Json;
+          provider: string;
+          updated_at: string;
+        };
         Insert: {
-          client_id?: string | null
-          created_at?: string
-          discovery_url?: string | null
-          display_name?: string | null
-          enabled?: boolean
-          id?: string
-          metadata?: Json
-          provider: string
-          updated_at?: string
-        }
+          client_id?: string | null;
+          created_at?: string;
+          discovery_url?: string | null;
+          display_name?: string | null;
+          enabled?: boolean;
+          id?: string;
+          metadata?: Json;
+          provider: string;
+          updated_at?: string;
+        };
         Update: {
-          client_id?: string | null
-          created_at?: string
-          discovery_url?: string | null
-          display_name?: string | null
-          enabled?: boolean
-          id?: string
-          metadata?: Json
-          provider?: string
-          updated_at?: string
-        }
-        Relationships: []
-      }
+          client_id?: string | null;
+          created_at?: string;
+          discovery_url?: string | null;
+          display_name?: string | null;
+          enabled?: boolean;
+          id?: string;
+          metadata?: Json;
+          provider?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       categories: {
         Row: {
-          allocated_budget: number
-          archived: boolean
-          closed_at: string | null
-          color: string | null
-          created_at: string
-          emoji: string | null
-          funding_category_id: string | null
-          group_id: string | null
-          icon: string | null
-          id: string
-          image_url: string | null
-          rolls_over: boolean
-          is_scope: boolean
-          opening_balance: number
-          name: string
-          pin_order: number | null
-          pinned: boolean
-          sort_order: number
-          sweep_target_category_id: string | null
-          updated_at: string
-          user_id: string | null
-        }
+          allocated_budget: number;
+          archived: boolean;
+          closed_at: string | null;
+          color: string | null;
+          created_at: string;
+          emoji: string | null;
+          funding_category_id: string | null;
+          group_id: string | null;
+          icon: string | null;
+          id: string;
+          image_url: string | null;
+          rolls_over: boolean;
+          is_scope: boolean;
+          opening_balance: number;
+          name: string;
+          pin_order: number | null;
+          pinned: boolean;
+          sort_order: number;
+          sweep_target_category_id: string | null;
+          updated_at: string;
+          user_id: string | null;
+        };
         Insert: {
-          allocated_budget?: number
-          archived?: boolean
-          closed_at?: string | null
-          color?: string | null
-          created_at?: string
-          emoji?: string | null
-          funding_category_id?: string | null
-          group_id?: string | null
-          icon?: string | null
-          id?: string
-          image_url?: string | null
-          rolls_over?: boolean
-          is_scope?: boolean
-          opening_balance?: number
-          name: string
-          pin_order?: number | null
-          pinned?: boolean
-          sort_order?: number
-          sweep_target_category_id?: string | null
-          updated_at?: string
-          user_id?: string | null
-        }
+          allocated_budget?: number;
+          archived?: boolean;
+          closed_at?: string | null;
+          color?: string | null;
+          created_at?: string;
+          emoji?: string | null;
+          funding_category_id?: string | null;
+          group_id?: string | null;
+          icon?: string | null;
+          id?: string;
+          image_url?: string | null;
+          rolls_over?: boolean;
+          is_scope?: boolean;
+          opening_balance?: number;
+          name: string;
+          pin_order?: number | null;
+          pinned?: boolean;
+          sort_order?: number;
+          sweep_target_category_id?: string | null;
+          updated_at?: string;
+          user_id?: string | null;
+        };
         Update: {
-          allocated_budget?: number
-          archived?: boolean
-          closed_at?: string | null
-          color?: string | null
-          created_at?: string
-          emoji?: string | null
-          funding_category_id?: string | null
-          group_id?: string | null
-          icon?: string | null
-          id?: string
-          image_url?: string | null
-          rolls_over?: boolean
-          is_scope?: boolean
-          opening_balance?: number
-          name?: string
-          pin_order?: number | null
-          pinned?: boolean
-          sort_order?: number
-          sweep_target_category_id?: string | null
-          updated_at?: string
-          user_id?: string | null
-        }
+          allocated_budget?: number;
+          archived?: boolean;
+          closed_at?: string | null;
+          color?: string | null;
+          created_at?: string;
+          emoji?: string | null;
+          funding_category_id?: string | null;
+          group_id?: string | null;
+          icon?: string | null;
+          id?: string;
+          image_url?: string | null;
+          rolls_over?: boolean;
+          is_scope?: boolean;
+          opening_balance?: number;
+          name?: string;
+          pin_order?: number | null;
+          pinned?: boolean;
+          sort_order?: number;
+          sweep_target_category_id?: string | null;
+          updated_at?: string;
+          user_id?: string | null;
+        };
         Relationships: [
           {
-            foreignKeyName: "categories_funding_category_id_fkey"
-            columns: ["funding_category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
+            foreignKeyName: "categories_funding_category_id_fkey";
+            columns: ["funding_category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "categories_funding_category_id_fkey"
-            columns: ["funding_category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["category_id"]
+            foreignKeyName: "categories_funding_category_id_fkey";
+            columns: ["funding_category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["category_id"];
           },
           {
-            foreignKeyName: "categories_group_id_fkey"
-            columns: ["group_id"]
-            isOneToOne: false
-            referencedRelation: "category_groups"
-            referencedColumns: ["id"]
+            foreignKeyName: "categories_group_id_fkey";
+            columns: ["group_id"];
+            isOneToOne: false;
+            referencedRelation: "category_groups";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       category_budgets: {
         Row: {
-          amount: number
-          category_id: string
-          created_at: string
-          month: string
-          updated_at: string
-        }
+          amount: number;
+          category_id: string;
+          created_at: string;
+          month: string;
+          updated_at: string;
+        };
         Insert: {
-          amount?: number
-          category_id: string
-          created_at?: string
-          month: string
-          updated_at?: string
-        }
+          amount?: number;
+          category_id: string;
+          created_at?: string;
+          month: string;
+          updated_at?: string;
+        };
         Update: {
-          amount?: number
-          category_id?: string
-          created_at?: string
-          month?: string
-          updated_at?: string
-        }
+          amount?: number;
+          category_id?: string;
+          created_at?: string;
+          month?: string;
+          updated_at?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "category_budgets_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
+            foreignKeyName: "category_budgets_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "category_budgets_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["category_id"]
+            foreignKeyName: "category_budgets_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["category_id"];
           },
-        ]
-      }
+        ];
+      };
       category_groups: {
         Row: {
-          archived: boolean
-          created_at: string
-          id: string
-          kind: Database["public"]["Enums"]["category_group_kind"]
-          name: string
-          sort_order: number
-          sweep_target_category_id: string | null
-          updated_at: string
-          user_id: string | null
-        }
+          archived: boolean;
+          created_at: string;
+          id: string;
+          kind: Database["public"]["Enums"]["category_group_kind"];
+          name: string;
+          sort_order: number;
+          sweep_target_category_id: string | null;
+          updated_at: string;
+          user_id: string | null;
+        };
         Insert: {
-          archived?: boolean
-          created_at?: string
-          id?: string
-          kind: Database["public"]["Enums"]["category_group_kind"]
-          name: string
-          sort_order?: number
-          sweep_target_category_id?: string | null
-          updated_at?: string
-          user_id?: string | null
-        }
+          archived?: boolean;
+          created_at?: string;
+          id?: string;
+          kind: Database["public"]["Enums"]["category_group_kind"];
+          name: string;
+          sort_order?: number;
+          sweep_target_category_id?: string | null;
+          updated_at?: string;
+          user_id?: string | null;
+        };
         Update: {
-          archived?: boolean
-          created_at?: string
-          id?: string
-          kind?: Database["public"]["Enums"]["category_group_kind"]
-          name?: string
-          sort_order?: number
-          sweep_target_category_id?: string | null
-          updated_at?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
+          archived?: boolean;
+          created_at?: string;
+          id?: string;
+          kind?: Database["public"]["Enums"]["category_group_kind"];
+          name?: string;
+          sort_order?: number;
+          sweep_target_category_id?: string | null;
+          updated_at?: string;
+          user_id?: string | null;
+        };
+        Relationships: [];
+      };
       category_reallocations: {
         Row: {
-          amount: number
-          closes_scope: boolean
-          created_at: string
-          from_category_id: string | null
-          id: string
-          note: string | null
-          occurred_on: string
-          to_category_id: string | null
-          transaction_id: string | null
-          updated_at: string
-          user_id: string
-        }
+          amount: number;
+          closes_scope: boolean;
+          created_at: string;
+          from_category_id: string | null;
+          id: string;
+          note: string | null;
+          occurred_on: string;
+          to_category_id: string | null;
+          transaction_id: string | null;
+          updated_at: string;
+          user_id: string;
+        };
         Insert: {
-          amount: number
-          closes_scope?: boolean
-          created_at?: string
-          from_category_id?: string | null
-          id?: string
-          note?: string | null
-          occurred_on?: string
-          to_category_id?: string | null
-          transaction_id?: string | null
-          updated_at?: string
-          user_id?: string
-        }
+          amount: number;
+          closes_scope?: boolean;
+          created_at?: string;
+          from_category_id?: string | null;
+          id?: string;
+          note?: string | null;
+          occurred_on?: string;
+          to_category_id?: string | null;
+          transaction_id?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
         Update: {
-          amount?: number
-          closes_scope?: boolean
-          created_at?: string
-          from_category_id?: string | null
-          id?: string
-          note?: string | null
-          occurred_on?: string
-          to_category_id?: string | null
-          transaction_id?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
+          amount?: number;
+          closes_scope?: boolean;
+          created_at?: string;
+          from_category_id?: string | null;
+          id?: string;
+          note?: string | null;
+          occurred_on?: string;
+          to_category_id?: string | null;
+          transaction_id?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       nextcloud_connections: {
         Row: {
-          access_token: string | null
-          base_url: string
-          client_id: string
-          client_secret: string
-          created_at: string
-          nextcloud_user: string | null
-          oauth_state: string | null
-          oauth_state_created_at: string | null
-          refresh_token: string | null
-          scope: string | null
-          token_expires_at: string | null
-          updated_at: string
-          user_id: string
-        }
+          access_token: string | null;
+          base_url: string;
+          client_id: string;
+          client_secret: string;
+          created_at: string;
+          nextcloud_user: string | null;
+          oauth_state: string | null;
+          oauth_state_created_at: string | null;
+          refresh_token: string | null;
+          scope: string | null;
+          token_expires_at: string | null;
+          updated_at: string;
+          user_id: string;
+        };
         Insert: {
-          access_token?: string | null
-          base_url: string
-          client_id: string
-          client_secret: string
-          created_at?: string
-          nextcloud_user?: string | null
-          oauth_state?: string | null
-          oauth_state_created_at?: string | null
-          refresh_token?: string | null
-          scope?: string | null
-          token_expires_at?: string | null
-          updated_at?: string
-          user_id?: string
-        }
+          access_token?: string | null;
+          base_url: string;
+          client_id: string;
+          client_secret: string;
+          created_at?: string;
+          nextcloud_user?: string | null;
+          oauth_state?: string | null;
+          oauth_state_created_at?: string | null;
+          refresh_token?: string | null;
+          scope?: string | null;
+          token_expires_at?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
         Update: {
-          access_token?: string | null
-          base_url?: string
-          client_id?: string
-          client_secret?: string
-          created_at?: string
-          nextcloud_user?: string | null
-          oauth_state?: string | null
-          oauth_state_created_at?: string | null
-          refresh_token?: string | null
-          scope?: string | null
-          token_expires_at?: string | null
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
+          access_token?: string | null;
+          base_url?: string;
+          client_id?: string;
+          client_secret?: string;
+          created_at?: string;
+          nextcloud_user?: string | null;
+          oauth_state?: string | null;
+          oauth_state_created_at?: string | null;
+          refresh_token?: string | null;
+          scope?: string | null;
+          token_expires_at?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       pending_transactions: {
         Row: {
-          amount: number
-          category_id: string | null
-          confirmed_at: string | null
-          confirmed_transaction_id: string | null
-          created_at: string
-          description: string | null
-          destination_account_id: string | null
-          destination_amount: number | null
-          external_info: string | null
-          external_ref: string | null
-          external_source: string | null
-          id: string
-          latitude: number | null
-          location_accuracy_m: number | null
-          location_label: string | null
-          location_source: string | null
-          longitude: number | null
-          note: string | null
-          occurred_on: string
-          original: Json | null
-          reject_reason: string | null
-          rejected_at: string | null
-          source_account_id: string
-          status: Database["public"]["Enums"]["pending_transaction_status"]
-          suggested_at: string | null
-          suggested_category_id: string | null
-          suggested_description: string | null
-          suggested_location: Json | null
-          suggested_note: string | null
-          suggested_tags: string[]
-          suggestion_confidence: number | null
-          suggestion_source: string | null
-          type: Database["public"]["Enums"]["transaction_type"]
-          updated_at: string
-          user_id: string
-        }
+          amount: number;
+          category_id: string | null;
+          confirmed_at: string | null;
+          confirmed_transaction_id: string | null;
+          created_at: string;
+          description: string | null;
+          destination_account_id: string | null;
+          destination_amount: number | null;
+          external_info: string | null;
+          external_ref: string | null;
+          external_source: string | null;
+          id: string;
+          latitude: number | null;
+          location_accuracy_m: number | null;
+          location_label: string | null;
+          location_source: string | null;
+          longitude: number | null;
+          note: string | null;
+          occurred_on: string;
+          original: Json | null;
+          reject_reason: string | null;
+          rejected_at: string | null;
+          source_account_id: string;
+          status: Database["public"]["Enums"]["pending_transaction_status"];
+          suggested_at: string | null;
+          suggested_category_id: string | null;
+          suggested_description: string | null;
+          suggested_location: Json | null;
+          suggested_note: string | null;
+          suggested_tags: string[];
+          suggestion_confidence: number | null;
+          suggestion_source: string | null;
+          type: Database["public"]["Enums"]["transaction_type"];
+          updated_at: string;
+          user_id: string;
+        };
         Insert: {
-          amount: number
-          category_id?: string | null
-          confirmed_at?: string | null
-          confirmed_transaction_id?: string | null
-          created_at?: string
-          description?: string | null
-          destination_account_id?: string | null
-          destination_amount?: number | null
-          external_info?: string | null
-          external_ref?: string | null
-          external_source?: string | null
-          id?: string
-          latitude?: number | null
-          location_accuracy_m?: number | null
-          location_label?: string | null
-          location_source?: string | null
-          longitude?: number | null
-          note?: string | null
-          occurred_on?: string
-          original?: Json | null
-          reject_reason?: string | null
-          rejected_at?: string | null
-          source_account_id: string
-          status?: Database["public"]["Enums"]["pending_transaction_status"]
-          suggested_at?: string | null
-          suggested_category_id?: string | null
-          suggested_description?: string | null
-          suggested_location?: Json | null
-          suggested_note?: string | null
-          suggested_tags?: string[]
-          suggestion_confidence?: number | null
-          suggestion_source?: string | null
-          type?: Database["public"]["Enums"]["transaction_type"]
-          updated_at?: string
-          user_id?: string
-        }
+          amount: number;
+          category_id?: string | null;
+          confirmed_at?: string | null;
+          confirmed_transaction_id?: string | null;
+          created_at?: string;
+          description?: string | null;
+          destination_account_id?: string | null;
+          destination_amount?: number | null;
+          external_info?: string | null;
+          external_ref?: string | null;
+          external_source?: string | null;
+          id?: string;
+          latitude?: number | null;
+          location_accuracy_m?: number | null;
+          location_label?: string | null;
+          location_source?: string | null;
+          longitude?: number | null;
+          note?: string | null;
+          occurred_on?: string;
+          original?: Json | null;
+          reject_reason?: string | null;
+          rejected_at?: string | null;
+          source_account_id: string;
+          status?: Database["public"]["Enums"]["pending_transaction_status"];
+          suggested_at?: string | null;
+          suggested_category_id?: string | null;
+          suggested_description?: string | null;
+          suggested_location?: Json | null;
+          suggested_note?: string | null;
+          suggested_tags?: string[];
+          suggestion_confidence?: number | null;
+          suggestion_source?: string | null;
+          type?: Database["public"]["Enums"]["transaction_type"];
+          updated_at?: string;
+          user_id?: string;
+        };
         Update: {
-          amount?: number
-          category_id?: string | null
-          confirmed_at?: string | null
-          confirmed_transaction_id?: string | null
-          created_at?: string
-          description?: string | null
-          destination_account_id?: string | null
-          destination_amount?: number | null
-          external_info?: string | null
-          external_ref?: string | null
-          external_source?: string | null
-          id?: string
-          latitude?: number | null
-          location_accuracy_m?: number | null
-          location_label?: string | null
-          location_source?: string | null
-          longitude?: number | null
-          note?: string | null
-          occurred_on?: string
-          original?: Json | null
-          reject_reason?: string | null
-          rejected_at?: string | null
-          source_account_id?: string
-          status?: Database["public"]["Enums"]["pending_transaction_status"]
-          suggested_at?: string | null
-          suggested_category_id?: string | null
-          suggested_description?: string | null
-          suggested_location?: Json | null
-          suggested_note?: string | null
-          suggested_tags?: string[]
-          suggestion_confidence?: number | null
-          suggestion_source?: string | null
-          type?: Database["public"]["Enums"]["transaction_type"]
-          updated_at?: string
-          user_id?: string
-        }
+          amount?: number;
+          category_id?: string | null;
+          confirmed_at?: string | null;
+          confirmed_transaction_id?: string | null;
+          created_at?: string;
+          description?: string | null;
+          destination_account_id?: string | null;
+          destination_amount?: number | null;
+          external_info?: string | null;
+          external_ref?: string | null;
+          external_source?: string | null;
+          id?: string;
+          latitude?: number | null;
+          location_accuracy_m?: number | null;
+          location_label?: string | null;
+          location_source?: string | null;
+          longitude?: number | null;
+          note?: string | null;
+          occurred_on?: string;
+          original?: Json | null;
+          reject_reason?: string | null;
+          rejected_at?: string | null;
+          source_account_id?: string;
+          status?: Database["public"]["Enums"]["pending_transaction_status"];
+          suggested_at?: string | null;
+          suggested_category_id?: string | null;
+          suggested_description?: string | null;
+          suggested_location?: Json | null;
+          suggested_note?: string | null;
+          suggested_tags?: string[];
+          suggestion_confidence?: number | null;
+          suggestion_source?: string | null;
+          type?: Database["public"]["Enums"]["transaction_type"];
+          updated_at?: string;
+          user_id?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "pending_transactions_confirmed_transaction_id_fkey"
-            columns: ["confirmed_transaction_id"]
-            isOneToOne: false
-            referencedRelation: "transactions"
-            referencedColumns: ["id"]
+            foreignKeyName: "pending_transactions_confirmed_transaction_id_fkey";
+            columns: ["confirmed_transaction_id"];
+            isOneToOne: false;
+            referencedRelation: "transactions";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "pending_transactions_suggested_category_id_fkey"
-            columns: ["suggested_category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
+            foreignKeyName: "pending_transactions_suggested_category_id_fkey";
+            columns: ["suggested_category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "pending_transactions_suggested_category_id_fkey"
-            columns: ["suggested_category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["category_id"]
+            foreignKeyName: "pending_transactions_suggested_category_id_fkey";
+            columns: ["suggested_category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["category_id"];
           },
-        ]
-      }
+        ];
+      };
       recurring_occurrences: {
         Row: {
-          created_at: string
-          due_on: string
-          effective_on: string
-          id: string
-          posted_at: string | null
-          proposal_info: string | null
-          proposal_ref: string | null
-          proposal_source: string | null
-          proposed_amount: number | null
-          proposed_at: string | null
-          proposed_occurred_on: string | null
-          rule_id: string
-          status: Database["public"]["Enums"]["occurrence_status"]
-          transaction_id: string | null
-          updated_at: string
-        }
+          created_at: string;
+          due_on: string;
+          effective_on: string;
+          id: string;
+          posted_at: string | null;
+          proposal_info: string | null;
+          proposal_ref: string | null;
+          proposal_source: string | null;
+          proposed_amount: number | null;
+          proposed_at: string | null;
+          proposed_occurred_on: string | null;
+          rule_id: string;
+          status: Database["public"]["Enums"]["occurrence_status"];
+          transaction_id: string | null;
+          updated_at: string;
+        };
         Insert: {
-          created_at?: string
-          due_on: string
-          effective_on: string
-          id?: string
-          posted_at?: string | null
-          proposal_info?: string | null
-          proposal_ref?: string | null
-          proposal_source?: string | null
-          proposed_amount?: number | null
-          proposed_at?: string | null
-          proposed_occurred_on?: string | null
-          rule_id: string
-          status?: Database["public"]["Enums"]["occurrence_status"]
-          transaction_id?: string | null
-          updated_at?: string
-        }
+          created_at?: string;
+          due_on: string;
+          effective_on: string;
+          id?: string;
+          posted_at?: string | null;
+          proposal_info?: string | null;
+          proposal_ref?: string | null;
+          proposal_source?: string | null;
+          proposed_amount?: number | null;
+          proposed_at?: string | null;
+          proposed_occurred_on?: string | null;
+          rule_id: string;
+          status?: Database["public"]["Enums"]["occurrence_status"];
+          transaction_id?: string | null;
+          updated_at?: string;
+        };
         Update: {
-          created_at?: string
-          due_on?: string
-          effective_on?: string
-          id?: string
-          posted_at?: string | null
-          proposal_info?: string | null
-          proposal_ref?: string | null
-          proposal_source?: string | null
-          proposed_amount?: number | null
-          proposed_at?: string | null
-          proposed_occurred_on?: string | null
-          rule_id?: string
-          status?: Database["public"]["Enums"]["occurrence_status"]
-          transaction_id?: string | null
-          updated_at?: string
-        }
+          created_at?: string;
+          due_on?: string;
+          effective_on?: string;
+          id?: string;
+          posted_at?: string | null;
+          proposal_info?: string | null;
+          proposal_ref?: string | null;
+          proposal_source?: string | null;
+          proposed_amount?: number | null;
+          proposed_at?: string | null;
+          proposed_occurred_on?: string | null;
+          rule_id?: string;
+          status?: Database["public"]["Enums"]["occurrence_status"];
+          transaction_id?: string | null;
+          updated_at?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "recurring_occurrences_rule_id_fkey"
-            columns: ["rule_id"]
-            isOneToOne: false
-            referencedRelation: "recurring_rules"
-            referencedColumns: ["id"]
+            foreignKeyName: "recurring_occurrences_rule_id_fkey";
+            columns: ["rule_id"];
+            isOneToOne: false;
+            referencedRelation: "recurring_rules";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "recurring_occurrences_transaction_id_fkey"
-            columns: ["transaction_id"]
-            isOneToOne: false
-            referencedRelation: "transactions"
-            referencedColumns: ["id"]
+            foreignKeyName: "recurring_occurrences_transaction_id_fkey";
+            columns: ["transaction_id"];
+            isOneToOne: false;
+            referencedRelation: "transactions";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       recurring_rule_slices: {
         Row: {
-          amount: number | null
-          amount_ratio: number | null
-          category_id: string | null
-          created_at: string
-          description: string | null
-          id: string
-          is_reimbursable: boolean
-          note: string | null
-          reimbursable_counterparty: string | null
-          reimbursable_reason: string | null
-          rule_id: string
-          sort_order: number
-          updated_at: string
-        }
+          amount: number | null;
+          amount_ratio: number | null;
+          category_id: string | null;
+          created_at: string;
+          description: string | null;
+          id: string;
+          is_reimbursable: boolean;
+          note: string | null;
+          reimbursable_counterparty: string | null;
+          reimbursable_reason: string | null;
+          rule_id: string;
+          sort_order: number;
+          updated_at: string;
+        };
         Insert: {
-          amount?: number | null
-          amount_ratio?: number | null
-          category_id?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_reimbursable?: boolean
-          note?: string | null
-          reimbursable_counterparty?: string | null
-          reimbursable_reason?: string | null
-          rule_id: string
-          sort_order?: number
-          updated_at?: string
-        }
+          amount?: number | null;
+          amount_ratio?: number | null;
+          category_id?: string | null;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          is_reimbursable?: boolean;
+          note?: string | null;
+          reimbursable_counterparty?: string | null;
+          reimbursable_reason?: string | null;
+          rule_id: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
         Update: {
-          amount?: number | null
-          amount_ratio?: number | null
-          category_id?: string | null
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_reimbursable?: boolean
-          note?: string | null
-          reimbursable_counterparty?: string | null
-          reimbursable_reason?: string | null
-          rule_id?: string
-          sort_order?: number
-          updated_at?: string
-        }
+          amount?: number | null;
+          amount_ratio?: number | null;
+          category_id?: string | null;
+          created_at?: string;
+          description?: string | null;
+          id?: string;
+          is_reimbursable?: boolean;
+          note?: string | null;
+          reimbursable_counterparty?: string | null;
+          reimbursable_reason?: string | null;
+          rule_id?: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "recurring_rule_slices_rule_id_fkey"
-            columns: ["rule_id"]
-            isOneToOne: false
-            referencedRelation: "recurring_rules"
-            referencedColumns: ["id"]
+            foreignKeyName: "recurring_rule_slices_rule_id_fkey";
+            columns: ["rule_id"];
+            isOneToOne: false;
+            referencedRelation: "recurring_rules";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       recurring_rules: {
         Row: {
-          amount: number | null
-          archived: boolean
-          auto_post: boolean
-          category_id: string | null
-          created_at: string
-          description: string | null
-          destination_account_id: string | null
-          ends_on: string | null
-          estimated_amount: number | null
-          execution_day_of_month: number | null
-          execution_day_rule: Database["public"]["Enums"]["day_rule"]
-          execution_weekend_adjustment: Database["public"]["Enums"]["weekend_adjust"]
-          id: string
-          is_split: boolean
-          is_variable_amount: boolean
-          is_variable_date: boolean
-          name: string
-          note: string | null
-          period_day_of_month: number | null
-          period_day_rule: Database["public"]["Enums"]["day_rule"]
-          period_offset: number
-          period_offset_months: number
-          recurrence_interval: number
-          source_account_id: string
-          starts_on: string
-          type: Database["public"]["Enums"]["transaction_type"]
-          updated_at: string
-          user_id: string | null
-        }
+          amount: number | null;
+          archived: boolean;
+          auto_post: boolean;
+          category_id: string | null;
+          created_at: string;
+          description: string | null;
+          destination_account_id: string | null;
+          ends_on: string | null;
+          estimated_amount: number | null;
+          execution_day_of_month: number | null;
+          execution_day_rule: Database["public"]["Enums"]["day_rule"];
+          execution_weekend_adjustment: Database["public"]["Enums"]["weekend_adjust"];
+          id: string;
+          is_split: boolean;
+          is_variable_amount: boolean;
+          is_variable_date: boolean;
+          name: string;
+          note: string | null;
+          period_day_of_month: number | null;
+          period_day_rule: Database["public"]["Enums"]["day_rule"];
+          period_offset: number;
+          period_offset_months: number;
+          recurrence_interval: number;
+          source_account_id: string;
+          starts_on: string;
+          type: Database["public"]["Enums"]["transaction_type"];
+          updated_at: string;
+          user_id: string | null;
+        };
         Insert: {
-          amount?: number | null
-          archived?: boolean
-          auto_post?: boolean
-          category_id?: string | null
-          created_at?: string
-          description?: string | null
-          destination_account_id?: string | null
-          ends_on?: string | null
-          estimated_amount?: number | null
-          execution_day_of_month?: number | null
-          execution_day_rule: Database["public"]["Enums"]["day_rule"]
-          execution_weekend_adjustment?: Database["public"]["Enums"]["weekend_adjust"]
-          id?: string
-          is_split?: boolean
-          is_variable_amount?: boolean
-          is_variable_date?: boolean
-          name: string
-          note?: string | null
-          period_day_of_month?: number | null
-          period_day_rule: Database["public"]["Enums"]["day_rule"]
-          period_offset?: number
-          period_offset_months?: number
-          recurrence_interval: number
-          source_account_id: string
-          starts_on: string
-          type: Database["public"]["Enums"]["transaction_type"]
-          updated_at?: string
-          user_id?: string | null
-        }
+          amount?: number | null;
+          archived?: boolean;
+          auto_post?: boolean;
+          category_id?: string | null;
+          created_at?: string;
+          description?: string | null;
+          destination_account_id?: string | null;
+          ends_on?: string | null;
+          estimated_amount?: number | null;
+          execution_day_of_month?: number | null;
+          execution_day_rule: Database["public"]["Enums"]["day_rule"];
+          execution_weekend_adjustment?: Database["public"]["Enums"]["weekend_adjust"];
+          id?: string;
+          is_split?: boolean;
+          is_variable_amount?: boolean;
+          is_variable_date?: boolean;
+          name: string;
+          note?: string | null;
+          period_day_of_month?: number | null;
+          period_day_rule: Database["public"]["Enums"]["day_rule"];
+          period_offset?: number;
+          period_offset_months?: number;
+          recurrence_interval: number;
+          source_account_id: string;
+          starts_on: string;
+          type: Database["public"]["Enums"]["transaction_type"];
+          updated_at?: string;
+          user_id?: string | null;
+        };
         Update: {
-          amount?: number | null
-          archived?: boolean
-          auto_post?: boolean
-          category_id?: string | null
-          created_at?: string
-          description?: string | null
-          destination_account_id?: string | null
-          ends_on?: string | null
-          estimated_amount?: number | null
-          execution_day_of_month?: number | null
-          execution_day_rule?: Database["public"]["Enums"]["day_rule"]
-          execution_weekend_adjustment?: Database["public"]["Enums"]["weekend_adjust"]
-          id?: string
-          is_split?: boolean
-          is_variable_amount?: boolean
-          is_variable_date?: boolean
-          name?: string
-          note?: string | null
-          period_day_of_month?: number | null
-          period_day_rule?: Database["public"]["Enums"]["day_rule"]
-          period_offset?: number
-          period_offset_months?: number
-          recurrence_interval?: number
-          source_account_id?: string
-          starts_on?: string
-          type?: Database["public"]["Enums"]["transaction_type"]
-          updated_at?: string
-          user_id?: string | null
-        }
-        Relationships: []
-      }
+          amount?: number | null;
+          archived?: boolean;
+          auto_post?: boolean;
+          category_id?: string | null;
+          created_at?: string;
+          description?: string | null;
+          destination_account_id?: string | null;
+          ends_on?: string | null;
+          estimated_amount?: number | null;
+          execution_day_of_month?: number | null;
+          execution_day_rule?: Database["public"]["Enums"]["day_rule"];
+          execution_weekend_adjustment?: Database["public"]["Enums"]["weekend_adjust"];
+          id?: string;
+          is_split?: boolean;
+          is_variable_amount?: boolean;
+          is_variable_date?: boolean;
+          name?: string;
+          note?: string | null;
+          period_day_of_month?: number | null;
+          period_day_rule?: Database["public"]["Enums"]["day_rule"];
+          period_offset?: number;
+          period_offset_months?: number;
+          recurrence_interval?: number;
+          source_account_id?: string;
+          starts_on?: string;
+          type?: Database["public"]["Enums"]["transaction_type"];
+          updated_at?: string;
+          user_id?: string | null;
+        };
+        Relationships: [];
+      };
       settings: {
         Row: {
-          active_scope_id: string | null
-          capture_location: boolean
-          created_at: string
-          currency_code: string
-          currency_symbol: string
-          date_format: string
-          day_heatmap_threshold: number
-          default_sweep_category_id: string | null
-          format_locale: string
-          id: string
-          language: string
-          last_recurring_sweep_on: string | null
-          net_worth_show_converted: boolean
-          theme: string
-          updated_at: string
-          user_id: string | null
-        }
+          active_scope_id: string | null;
+          capture_location: boolean;
+          created_at: string;
+          currency_code: string;
+          currency_symbol: string;
+          date_format: string;
+          day_heatmap_threshold: number;
+          default_sweep_category_id: string | null;
+          format_locale: string;
+          id: string;
+          language: string;
+          last_recurring_sweep_on: string | null;
+          net_worth_show_converted: boolean;
+          theme: string;
+          updated_at: string;
+          user_id: string | null;
+        };
         Insert: {
-          active_scope_id?: string | null
-          capture_location?: boolean
-          created_at?: string
-          currency_code?: string
-          currency_symbol?: string
-          date_format?: string
-          day_heatmap_threshold?: number
-          default_sweep_category_id?: string | null
-          format_locale?: string
-          id?: string
-          language?: string
-          last_recurring_sweep_on?: string | null
-          net_worth_show_converted?: boolean
-          theme?: string
-          updated_at?: string
-          user_id?: string | null
-        }
+          active_scope_id?: string | null;
+          capture_location?: boolean;
+          created_at?: string;
+          currency_code?: string;
+          currency_symbol?: string;
+          date_format?: string;
+          day_heatmap_threshold?: number;
+          default_sweep_category_id?: string | null;
+          format_locale?: string;
+          id?: string;
+          language?: string;
+          last_recurring_sweep_on?: string | null;
+          net_worth_show_converted?: boolean;
+          theme?: string;
+          updated_at?: string;
+          user_id?: string | null;
+        };
         Update: {
-          active_scope_id?: string | null
-          capture_location?: boolean
-          created_at?: string
-          currency_code?: string
-          currency_symbol?: string
-          date_format?: string
-          day_heatmap_threshold?: number
-          default_sweep_category_id?: string | null
-          format_locale?: string
-          id?: string
-          language?: string
-          last_recurring_sweep_on?: string | null
-          net_worth_show_converted?: boolean
-          theme?: string
-          updated_at?: string
-          user_id?: string | null
-        }
+          active_scope_id?: string | null;
+          capture_location?: boolean;
+          created_at?: string;
+          currency_code?: string;
+          currency_symbol?: string;
+          date_format?: string;
+          day_heatmap_threshold?: number;
+          default_sweep_category_id?: string | null;
+          format_locale?: string;
+          id?: string;
+          language?: string;
+          last_recurring_sweep_on?: string | null;
+          net_worth_show_converted?: boolean;
+          theme?: string;
+          updated_at?: string;
+          user_id?: string | null;
+        };
         Relationships: [
           {
-            foreignKeyName: "settings_active_scope_id_fkey"
-            columns: ["active_scope_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
+            foreignKeyName: "settings_active_scope_id_fkey";
+            columns: ["active_scope_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "settings_active_scope_id_fkey"
-            columns: ["active_scope_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["category_id"]
+            foreignKeyName: "settings_active_scope_id_fkey";
+            columns: ["active_scope_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["category_id"];
           },
-        ]
-      }
+        ];
+      };
       statement_import_lines: {
         Row: {
-          amount: number
-          booking_date: string | null
-          created_at: string
-          decision: string | null
-          description: string
-          id: string
-          import_id: string
-          line_no: number
-          match_score: number | null
-          match_status: string
-          matched_transaction_id: string | null
-          raw_text: string | null
-          suggested_category_id: string | null
-          suggested_description: string | null
-          suggested_tags: string[]
-          updated_at: string
-          user_id: string
-          value_date: string | null
-        }
+          amount: number;
+          booking_date: string | null;
+          created_at: string;
+          decision: string | null;
+          description: string;
+          id: string;
+          import_id: string;
+          line_no: number;
+          match_score: number | null;
+          match_status: string;
+          matched_transaction_id: string | null;
+          raw_text: string | null;
+          suggested_category_id: string | null;
+          suggested_description: string | null;
+          suggested_tags: string[];
+          updated_at: string;
+          user_id: string;
+          value_date: string | null;
+        };
         Insert: {
-          amount: number
-          booking_date?: string | null
-          created_at?: string
-          decision?: string | null
-          description?: string
-          id?: string
-          import_id: string
-          line_no?: number
-          match_score?: number | null
-          match_status?: string
-          matched_transaction_id?: string | null
-          raw_text?: string | null
-          suggested_category_id?: string | null
-          suggested_description?: string | null
-          suggested_tags?: string[]
-          updated_at?: string
-          user_id: string
-          value_date?: string | null
-        }
+          amount: number;
+          booking_date?: string | null;
+          created_at?: string;
+          decision?: string | null;
+          description?: string;
+          id?: string;
+          import_id: string;
+          line_no?: number;
+          match_score?: number | null;
+          match_status?: string;
+          matched_transaction_id?: string | null;
+          raw_text?: string | null;
+          suggested_category_id?: string | null;
+          suggested_description?: string | null;
+          suggested_tags?: string[];
+          updated_at?: string;
+          user_id: string;
+          value_date?: string | null;
+        };
         Update: {
-          amount?: number
-          booking_date?: string | null
-          created_at?: string
-          decision?: string | null
-          description?: string
-          id?: string
-          import_id?: string
-          line_no?: number
-          match_score?: number | null
-          match_status?: string
-          matched_transaction_id?: string | null
-          raw_text?: string | null
-          suggested_category_id?: string | null
-          suggested_description?: string | null
-          suggested_tags?: string[]
-          updated_at?: string
-          user_id?: string
-          value_date?: string | null
-        }
+          amount?: number;
+          booking_date?: string | null;
+          created_at?: string;
+          decision?: string | null;
+          description?: string;
+          id?: string;
+          import_id?: string;
+          line_no?: number;
+          match_score?: number | null;
+          match_status?: string;
+          matched_transaction_id?: string | null;
+          raw_text?: string | null;
+          suggested_category_id?: string | null;
+          suggested_description?: string | null;
+          suggested_tags?: string[];
+          updated_at?: string;
+          user_id?: string;
+          value_date?: string | null;
+        };
         Relationships: [
           {
-            foreignKeyName: "statement_import_lines_import_id_fkey"
-            columns: ["import_id"]
-            isOneToOne: false
-            referencedRelation: "statement_imports"
-            referencedColumns: ["id"]
+            foreignKeyName: "statement_import_lines_import_id_fkey";
+            columns: ["import_id"];
+            isOneToOne: false;
+            referencedRelation: "statement_imports";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "statement_import_lines_matched_transaction_id_fkey"
-            columns: ["matched_transaction_id"]
-            isOneToOne: false
-            referencedRelation: "transactions"
-            referencedColumns: ["id"]
+            foreignKeyName: "statement_import_lines_matched_transaction_id_fkey";
+            columns: ["matched_transaction_id"];
+            isOneToOne: false;
+            referencedRelation: "transactions";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "statement_import_lines_suggested_category_id_fkey"
-            columns: ["suggested_category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
+            foreignKeyName: "statement_import_lines_suggested_category_id_fkey";
+            columns: ["suggested_category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "statement_import_lines_suggested_category_id_fkey"
-            columns: ["suggested_category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["category_id"]
+            foreignKeyName: "statement_import_lines_suggested_category_id_fkey";
+            columns: ["suggested_category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["category_id"];
           },
-        ]
-      }
+        ];
+      };
       statement_imports: {
         Row: {
-          account_id: string
-          closing_balance: number | null
-          created_at: string
-          currency_code: string | null
-          external_url: string | null
-          file_name: string
-          file_source: string
-          file_type: string | null
-          id: string
-          match_window_days: number
-          model: string | null
-          period_from: string | null
-          period_to: string | null
-          status: string
-          storage_path: string | null
-          updated_at: string
-          user_id: string
-        }
+          account_id: string;
+          closing_balance: number | null;
+          created_at: string;
+          currency_code: string | null;
+          external_url: string | null;
+          file_name: string;
+          file_source: string;
+          file_type: string | null;
+          id: string;
+          match_window_days: number;
+          model: string | null;
+          period_from: string | null;
+          period_to: string | null;
+          status: string;
+          storage_path: string | null;
+          updated_at: string;
+          user_id: string;
+        };
         Insert: {
-          account_id: string
-          closing_balance?: number | null
-          created_at?: string
-          currency_code?: string | null
-          external_url?: string | null
-          file_name?: string
-          file_source?: string
-          file_type?: string | null
-          id?: string
-          match_window_days?: number
-          model?: string | null
-          period_from?: string | null
-          period_to?: string | null
-          status?: string
-          storage_path?: string | null
-          updated_at?: string
-          user_id: string
-        }
+          account_id: string;
+          closing_balance?: number | null;
+          created_at?: string;
+          currency_code?: string | null;
+          external_url?: string | null;
+          file_name?: string;
+          file_source?: string;
+          file_type?: string | null;
+          id?: string;
+          match_window_days?: number;
+          model?: string | null;
+          period_from?: string | null;
+          period_to?: string | null;
+          status?: string;
+          storage_path?: string | null;
+          updated_at?: string;
+          user_id: string;
+        };
         Update: {
-          account_id?: string
-          closing_balance?: number | null
-          created_at?: string
-          currency_code?: string | null
-          external_url?: string | null
-          file_name?: string
-          file_source?: string
-          file_type?: string | null
-          id?: string
-          match_window_days?: number
-          model?: string | null
-          period_from?: string | null
-          period_to?: string | null
-          status?: string
-          storage_path?: string | null
-          updated_at?: string
-          user_id?: string
-        }
+          account_id?: string;
+          closing_balance?: number | null;
+          created_at?: string;
+          currency_code?: string | null;
+          external_url?: string | null;
+          file_name?: string;
+          file_source?: string;
+          file_type?: string | null;
+          id?: string;
+          match_window_days?: number;
+          model?: string | null;
+          period_from?: string | null;
+          period_to?: string | null;
+          status?: string;
+          storage_path?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "statement_imports_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "account_balances"
-            referencedColumns: ["id"]
+            foreignKeyName: "statement_imports_account_id_fkey";
+            columns: ["account_id"];
+            isOneToOne: false;
+            referencedRelation: "account_balances";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "statement_imports_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "accounts"
-            referencedColumns: ["id"]
+            foreignKeyName: "statement_imports_account_id_fkey";
+            columns: ["account_id"];
+            isOneToOne: false;
+            referencedRelation: "accounts";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       transaction_attachments: {
         Row: {
-          added_at: string
-          created_at: string
-          display_name: string
-          external_id: string | null
-          external_path: string | null
-          id: string
-          link_url: string
-          source: string
-          statement_id: string | null
-          transaction_id: string | null
-          updated_at: string
-          user_id: string
-        }
+          added_at: string;
+          created_at: string;
+          display_name: string;
+          external_id: string | null;
+          external_path: string | null;
+          id: string;
+          link_url: string;
+          source: string;
+          statement_id: string | null;
+          transaction_id: string | null;
+          updated_at: string;
+          user_id: string;
+        };
         Insert: {
-          added_at?: string
-          created_at?: string
-          display_name: string
-          external_id?: string | null
-          external_path?: string | null
-          id?: string
-          link_url: string
-          source?: string
-          statement_id?: string | null
-          transaction_id?: string | null
-          updated_at?: string
-          user_id?: string
-        }
+          added_at?: string;
+          created_at?: string;
+          display_name: string;
+          external_id?: string | null;
+          external_path?: string | null;
+          id?: string;
+          link_url: string;
+          source?: string;
+          statement_id?: string | null;
+          transaction_id?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
         Update: {
-          added_at?: string
-          created_at?: string
-          display_name?: string
-          external_id?: string | null
-          external_path?: string | null
-          id?: string
-          link_url?: string
-          source?: string
-          statement_id?: string | null
-          transaction_id?: string | null
-          updated_at?: string
-          user_id?: string
-        }
+          added_at?: string;
+          created_at?: string;
+          display_name?: string;
+          external_id?: string | null;
+          external_path?: string | null;
+          id?: string;
+          link_url?: string;
+          source?: string;
+          statement_id?: string | null;
+          transaction_id?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "transaction_attachments_transaction_id_fkey"
-            columns: ["transaction_id"]
-            isOneToOne: false
-            referencedRelation: "transactions"
-            referencedColumns: ["id"]
+            foreignKeyName: "transaction_attachments_transaction_id_fkey";
+            columns: ["transaction_id"];
+            isOneToOne: false;
+            referencedRelation: "transactions";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       transaction_link_members: {
         Row: {
-          added_at: string
-          link_id: string
-          transaction_id: string
-        }
+          added_at: string;
+          link_id: string;
+          transaction_id: string;
+        };
         Insert: {
-          added_at?: string
-          link_id: string
-          transaction_id: string
-        }
+          added_at?: string;
+          link_id: string;
+          transaction_id: string;
+        };
         Update: {
-          added_at?: string
-          link_id?: string
-          transaction_id?: string
-        }
+          added_at?: string;
+          link_id?: string;
+          transaction_id?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "transaction_link_members_link_id_fkey"
-            columns: ["link_id"]
-            isOneToOne: false
-            referencedRelation: "transaction_links"
-            referencedColumns: ["id"]
+            foreignKeyName: "transaction_link_members_link_id_fkey";
+            columns: ["link_id"];
+            isOneToOne: false;
+            referencedRelation: "transaction_links";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "transaction_link_members_transaction_id_fkey"
-            columns: ["transaction_id"]
-            isOneToOne: true
-            referencedRelation: "transactions"
-            referencedColumns: ["id"]
+            foreignKeyName: "transaction_link_members_transaction_id_fkey";
+            columns: ["transaction_id"];
+            isOneToOne: true;
+            referencedRelation: "transactions";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       transaction_links: {
         Row: {
-          created_at: string
-          id: string
-          kind: Database["public"]["Enums"]["transaction_link_kind"]
-          note: string | null
-          planned_on: string | null
-          title: string
-          updated_at: string
-          user_id: string
-        }
+          created_at: string;
+          id: string;
+          kind: Database["public"]["Enums"]["transaction_link_kind"];
+          note: string | null;
+          planned_on: string | null;
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
         Insert: {
-          created_at?: string
-          id?: string
-          kind?: Database["public"]["Enums"]["transaction_link_kind"]
-          note?: string | null
-          planned_on?: string | null
-          title: string
-          updated_at?: string
-          user_id: string
-        }
+          created_at?: string;
+          id?: string;
+          kind?: Database["public"]["Enums"]["transaction_link_kind"];
+          note?: string | null;
+          planned_on?: string | null;
+          title: string;
+          updated_at?: string;
+          user_id: string;
+        };
         Update: {
-          created_at?: string
-          id?: string
-          kind?: Database["public"]["Enums"]["transaction_link_kind"]
-          note?: string | null
-          planned_on?: string | null
-          title?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
+          created_at?: string;
+          id?: string;
+          kind?: Database["public"]["Enums"]["transaction_link_kind"];
+          note?: string | null;
+          planned_on?: string | null;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       transaction_reimbursements: {
         Row: {
-          amount: number
-          created_at: string
-          id: string
-          original_transaction_id: string
-          settling_transaction_id: string
-          user_id: string
-        }
+          amount: number;
+          created_at: string;
+          id: string;
+          original_transaction_id: string;
+          settling_transaction_id: string;
+          user_id: string;
+        };
         Insert: {
-          amount: number
-          created_at?: string
-          id?: string
-          original_transaction_id: string
-          settling_transaction_id: string
-          user_id?: string
-        }
+          amount: number;
+          created_at?: string;
+          id?: string;
+          original_transaction_id: string;
+          settling_transaction_id: string;
+          user_id?: string;
+        };
         Update: {
-          amount?: number
-          created_at?: string
-          id?: string
-          original_transaction_id?: string
-          settling_transaction_id?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
+          amount?: number;
+          created_at?: string;
+          id?: string;
+          original_transaction_id?: string;
+          settling_transaction_id?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       transaction_tags: {
         Row: {
-          tag: string
-          transaction_id: string
-        }
+          tag: string;
+          transaction_id: string;
+        };
         Insert: {
-          tag: string
-          transaction_id: string
-        }
+          tag: string;
+          transaction_id: string;
+        };
         Update: {
-          tag?: string
-          transaction_id?: string
-        }
+          tag?: string;
+          transaction_id?: string;
+        };
         Relationships: [
           {
-            foreignKeyName: "transaction_tags_transaction_id_fkey"
-            columns: ["transaction_id"]
-            isOneToOne: false
-            referencedRelation: "transactions"
-            referencedColumns: ["id"]
+            foreignKeyName: "transaction_tags_transaction_id_fkey";
+            columns: ["transaction_id"];
+            isOneToOne: false;
+            referencedRelation: "transactions";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       transactions: {
         Row: {
-          amount: number
-          category_id: string | null
-          created_at: string
-          description: string | null
-          destination_account_id: string | null
-          destination_amount: number | null
-          fee_amount: number | null
-          difference_category_id: string | null
-          fee_category_id: string | null
-          fee_transaction_id: string | null
-          id: string
-          is_reimbursable: boolean
-          latitude: number | null
-          location_accuracy_m: number | null
-          location_label: string | null
-          location_source: string | null
-          longitude: number | null
-          note: string | null
-          occurred_on: string
-          recurring_rule_id: string | null
-          reimbursable_cancel_reason: string | null
-          reimbursable_counterparty: string | null
-          reimbursable_flagged_by_link: boolean
-          reimbursable_prior_category_id: string | null
-          reimbursable_reason: string | null
-          reimbursable_status: string | null
-          reimbursable_writeoff_category_id: string | null
-          reimbursable_writeoff_transaction_id: string | null
-          source_account_id: string
-          split_group_id: string | null
-          type: Database["public"]["Enums"]["transaction_type"]
-          updated_at: string
-          user_id: string | null
-        }
+          amount: number;
+          category_id: string | null;
+          created_at: string;
+          description: string | null;
+          destination_account_id: string | null;
+          destination_amount: number | null;
+          fee_amount: number | null;
+          difference_category_id: string | null;
+          fee_category_id: string | null;
+          fee_transaction_id: string | null;
+          id: string;
+          is_reimbursable: boolean;
+          latitude: number | null;
+          location_accuracy_m: number | null;
+          location_label: string | null;
+          location_source: string | null;
+          longitude: number | null;
+          note: string | null;
+          occurred_on: string;
+          recurring_rule_id: string | null;
+          reimbursable_cancel_reason: string | null;
+          reimbursable_counterparty: string | null;
+          reimbursable_flagged_by_link: boolean;
+          reimbursable_prior_category_id: string | null;
+          reimbursable_reason: string | null;
+          reimbursable_status: string | null;
+          reimbursable_writeoff_category_id: string | null;
+          reimbursable_writeoff_transaction_id: string | null;
+          source_account_id: string;
+          split_group_id: string | null;
+          type: Database["public"]["Enums"]["transaction_type"];
+          updated_at: string;
+          user_id: string | null;
+        };
         Insert: {
-          amount: number
-          category_id?: string | null
-          created_at?: string
-          description?: string | null
-          destination_account_id?: string | null
-          destination_amount?: number | null
-          fee_amount?: number | null
-          difference_category_id?: string | null
-          fee_category_id?: string | null
-          fee_transaction_id?: string | null
-          id?: string
-          is_reimbursable?: boolean
-          latitude?: number | null
-          location_accuracy_m?: number | null
-          location_label?: string | null
-          location_source?: string | null
-          longitude?: number | null
-          note?: string | null
-          occurred_on?: string
-          recurring_rule_id?: string | null
-          reimbursable_cancel_reason?: string | null
-          reimbursable_counterparty?: string | null
-          reimbursable_flagged_by_link?: boolean
-          reimbursable_prior_category_id?: string | null
-          reimbursable_reason?: string | null
-          reimbursable_status?: string | null
-          reimbursable_writeoff_category_id?: string | null
-          reimbursable_writeoff_transaction_id?: string | null
-          source_account_id: string
-          split_group_id?: string | null
-          type: Database["public"]["Enums"]["transaction_type"]
-          updated_at?: string
-          user_id?: string | null
-        }
+          amount: number;
+          category_id?: string | null;
+          created_at?: string;
+          description?: string | null;
+          destination_account_id?: string | null;
+          destination_amount?: number | null;
+          fee_amount?: number | null;
+          difference_category_id?: string | null;
+          fee_category_id?: string | null;
+          fee_transaction_id?: string | null;
+          id?: string;
+          is_reimbursable?: boolean;
+          latitude?: number | null;
+          location_accuracy_m?: number | null;
+          location_label?: string | null;
+          location_source?: string | null;
+          longitude?: number | null;
+          note?: string | null;
+          occurred_on?: string;
+          recurring_rule_id?: string | null;
+          reimbursable_cancel_reason?: string | null;
+          reimbursable_counterparty?: string | null;
+          reimbursable_flagged_by_link?: boolean;
+          reimbursable_prior_category_id?: string | null;
+          reimbursable_reason?: string | null;
+          reimbursable_status?: string | null;
+          reimbursable_writeoff_category_id?: string | null;
+          reimbursable_writeoff_transaction_id?: string | null;
+          source_account_id: string;
+          split_group_id?: string | null;
+          type: Database["public"]["Enums"]["transaction_type"];
+          updated_at?: string;
+          user_id?: string | null;
+        };
         Update: {
-          amount?: number
-          category_id?: string | null
-          created_at?: string
-          description?: string | null
-          destination_account_id?: string | null
-          destination_amount?: number | null
-          fee_amount?: number | null
-          difference_category_id?: string | null
-          fee_category_id?: string | null
-          fee_transaction_id?: string | null
-          id?: string
-          is_reimbursable?: boolean
-          latitude?: number | null
-          location_accuracy_m?: number | null
-          location_label?: string | null
-          location_source?: string | null
-          longitude?: number | null
-          note?: string | null
-          occurred_on?: string
-          recurring_rule_id?: string | null
-          reimbursable_cancel_reason?: string | null
-          reimbursable_counterparty?: string | null
-          reimbursable_flagged_by_link?: boolean
-          reimbursable_prior_category_id?: string | null
-          reimbursable_reason?: string | null
-          reimbursable_status?: string | null
-          reimbursable_writeoff_category_id?: string | null
-          reimbursable_writeoff_transaction_id?: string | null
-          source_account_id?: string
-          split_group_id?: string | null
-          type?: Database["public"]["Enums"]["transaction_type"]
-          updated_at?: string
-          user_id?: string | null
-        }
+          amount?: number;
+          category_id?: string | null;
+          created_at?: string;
+          description?: string | null;
+          destination_account_id?: string | null;
+          destination_amount?: number | null;
+          fee_amount?: number | null;
+          difference_category_id?: string | null;
+          fee_category_id?: string | null;
+          fee_transaction_id?: string | null;
+          id?: string;
+          is_reimbursable?: boolean;
+          latitude?: number | null;
+          location_accuracy_m?: number | null;
+          location_label?: string | null;
+          location_source?: string | null;
+          longitude?: number | null;
+          note?: string | null;
+          occurred_on?: string;
+          recurring_rule_id?: string | null;
+          reimbursable_cancel_reason?: string | null;
+          reimbursable_counterparty?: string | null;
+          reimbursable_flagged_by_link?: boolean;
+          reimbursable_prior_category_id?: string | null;
+          reimbursable_reason?: string | null;
+          reimbursable_status?: string | null;
+          reimbursable_writeoff_category_id?: string | null;
+          reimbursable_writeoff_transaction_id?: string | null;
+          source_account_id?: string;
+          split_group_id?: string | null;
+          type?: Database["public"]["Enums"]["transaction_type"];
+          updated_at?: string;
+          user_id?: string | null;
+        };
         Relationships: [
           {
-            foreignKeyName: "transactions_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
+            foreignKeyName: "transactions_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "transactions_category_id_fkey"
-            columns: ["category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["category_id"]
+            foreignKeyName: "transactions_category_id_fkey";
+            columns: ["category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["category_id"];
           },
           {
-            foreignKeyName: "transactions_destination_account_id_fkey"
-            columns: ["destination_account_id"]
-            isOneToOne: false
-            referencedRelation: "account_balances"
-            referencedColumns: ["id"]
+            foreignKeyName: "transactions_destination_account_id_fkey";
+            columns: ["destination_account_id"];
+            isOneToOne: false;
+            referencedRelation: "account_balances";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "transactions_destination_account_id_fkey"
-            columns: ["destination_account_id"]
-            isOneToOne: false
-            referencedRelation: "accounts"
-            referencedColumns: ["id"]
+            foreignKeyName: "transactions_destination_account_id_fkey";
+            columns: ["destination_account_id"];
+            isOneToOne: false;
+            referencedRelation: "accounts";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "transactions_fee_category_id_fkey"
-            columns: ["fee_category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["id"]
+            foreignKeyName: "transactions_fee_category_id_fkey";
+            columns: ["fee_category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "transactions_fee_category_id_fkey"
-            columns: ["fee_category_id"]
-            isOneToOne: false
-            referencedRelation: "categories"
-            referencedColumns: ["category_id"]
+            foreignKeyName: "transactions_fee_category_id_fkey";
+            columns: ["fee_category_id"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["category_id"];
           },
           {
-            foreignKeyName: "transactions_fee_transaction_id_fkey"
-            columns: ["fee_transaction_id"]
-            isOneToOne: false
-            referencedRelation: "transactions"
-            referencedColumns: ["id"]
+            foreignKeyName: "transactions_fee_transaction_id_fkey";
+            columns: ["fee_transaction_id"];
+            isOneToOne: false;
+            referencedRelation: "transactions";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "transactions_source_account_id_fkey"
-            columns: ["source_account_id"]
-            isOneToOne: false
-            referencedRelation: "account_balances"
-            referencedColumns: ["id"]
+            foreignKeyName: "transactions_source_account_id_fkey";
+            columns: ["source_account_id"];
+            isOneToOne: false;
+            referencedRelation: "account_balances";
+            referencedColumns: ["id"];
           },
           {
-            foreignKeyName: "transactions_source_account_id_fkey"
-            columns: ["source_account_id"]
-            isOneToOne: false
-            referencedRelation: "accounts"
-            referencedColumns: ["id"]
+            foreignKeyName: "transactions_source_account_id_fkey";
+            columns: ["source_account_id"];
+            isOneToOne: false;
+            referencedRelation: "accounts";
+            referencedColumns: ["id"];
           },
-        ]
-      }
+        ];
+      };
       user_roles: {
         Row: {
-          created_at: string
-          id: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
+          created_at: string;
+          id: string;
+          role: Database["public"]["Enums"]["app_role"];
+          user_id: string;
+        };
         Insert: {
-          created_at?: string
-          id?: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
+          created_at?: string;
+          id?: string;
+          role: Database["public"]["Enums"]["app_role"];
+          user_id: string;
+        };
         Update: {
-          created_at?: string
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
-        }
-        Relationships: []
-      }
+          created_at?: string;
+          id?: string;
+          role?: Database["public"]["Enums"]["app_role"];
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       webhooks: {
         Row: {
-          active: boolean
-          auth_header_name: string | null
-          auth_header_value: string | null
-          created_at: string
-          events: string[]
-          id: string
-          name: string
-          updated_at: string
-          url: string
-          user_id: string
-        }
+          active: boolean;
+          auth_header_name: string | null;
+          auth_header_value: string | null;
+          created_at: string;
+          events: string[];
+          id: string;
+          name: string;
+          updated_at: string;
+          url: string;
+          user_id: string;
+        };
         Insert: {
-          active?: boolean
-          auth_header_name?: string | null
-          auth_header_value?: string | null
-          created_at?: string
-          events?: string[]
-          id?: string
-          name: string
-          updated_at?: string
-          url: string
-          user_id: string
-        }
+          active?: boolean;
+          auth_header_name?: string | null;
+          auth_header_value?: string | null;
+          created_at?: string;
+          events?: string[];
+          id?: string;
+          name: string;
+          updated_at?: string;
+          url: string;
+          user_id: string;
+        };
         Update: {
-          active?: boolean
-          auth_header_name?: string | null
-          auth_header_value?: string | null
-          created_at?: string
-          events?: string[]
-          id?: string
-          name?: string
-          updated_at?: string
-          url?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-    }
+          active?: boolean;
+          auth_header_name?: string | null;
+          auth_header_value?: string | null;
+          created_at?: string;
+          events?: string[];
+          id?: string;
+          name?: string;
+          updated_at?: string;
+          url?: string;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
+    };
     Views: {
       account_balances: {
         Row: {
-          archived: boolean | null
-          balance: number | null
-          currency_code: string | null
-          currency_symbol: string | null
-          id: string | null
-          name: string | null
-          opening_balance: number | null
-          type: Database["public"]["Enums"]["account_type"] | null
-        }
+          archived: boolean | null;
+          balance: number | null;
+          currency_code: string | null;
+          currency_symbol: string | null;
+          id: string | null;
+          name: string | null;
+          opening_balance: number | null;
+          type: Database["public"]["Enums"]["account_type"] | null;
+        };
         Insert: {
-          archived?: boolean | null
-          balance?: never
-          currency_code?: string | null
-          currency_symbol?: string | null
-          id?: string | null
-          name?: string | null
-          opening_balance?: number | null
-          type?: Database["public"]["Enums"]["account_type"] | null
-        }
+          archived?: boolean | null;
+          balance?: never;
+          currency_code?: string | null;
+          currency_symbol?: string | null;
+          id?: string | null;
+          name?: string | null;
+          opening_balance?: number | null;
+          type?: Database["public"]["Enums"]["account_type"] | null;
+        };
         Update: {
-          archived?: boolean | null
-          balance?: never
-          currency_code?: string | null
-          currency_symbol?: string | null
-          id?: string | null
-          name?: string | null
-          opening_balance?: number | null
-          type?: Database["public"]["Enums"]["account_type"] | null
-        }
-        Relationships: []
-      }
-    }
+          archived?: boolean | null;
+          balance?: never;
+          currency_code?: string | null;
+          currency_symbol?: string | null;
+          id?: string | null;
+          name?: string | null;
+          opening_balance?: number | null;
+          type?: Database["public"]["Enums"]["account_type"] | null;
+        };
+        Relationships: [];
+      };
+    };
     Functions: {
       ai_usage: {
-        Args: { p_from: string; p_tz?: string; p_to: string }
+        Args: { p_from: string; p_tz?: string; p_to: string };
         Returns: {
-          cached_tokens: number
-          completion_tokens: number
-          connection: string
-          connection_exists: boolean
-          day: string
-          duration_ms: number
-          endpoint_id: string | null
-          failed: number
-          fallback: number
-          kind: string
-          model: string
-          model_configured: boolean
-          prompt_tokens: number
-          requests: number
-          timed: number
-          without_usage: number
-        }[]
-      }
-      ai_usage_chats: { Args: { p_from: string; p_to: string; p_tz?: string }; Returns: number }
-      clear_ai_audit_log: { Args: never; Returns: number }
+          cached_tokens: number;
+          completion_tokens: number;
+          connection: string;
+          connection_exists: boolean;
+          day: string;
+          duration_ms: number;
+          endpoint_id: string | null;
+          failed: number;
+          fallback: number;
+          kind: string;
+          model: string;
+          model_configured: boolean;
+          prompt_tokens: number;
+          requests: number;
+          timed: number;
+          without_usage: number;
+        }[];
+      };
+      ai_usage_chats: { Args: { p_from: string; p_to: string; p_tz?: string }; Returns: number };
+      clear_ai_audit_log: { Args: never; Returns: number };
       account_balances_as_of: {
-        Args: { p_date: string }
+        Args: { p_date: string };
         Returns: {
-          archived: boolean
-          balance: number
-          currency_code: string
-          currency_symbol: string
-          id: string
-          name: string
-          opening_balance: number
-          type: Database["public"]["Enums"]["account_type"]
-        }[]
-      }
+          archived: boolean;
+          balance: number;
+          currency_code: string;
+          currency_symbol: string;
+          id: string;
+          name: string;
+          opening_balance: number;
+          type: Database["public"]["Enums"]["account_type"];
+        }[];
+      };
       apply_recurring_rule_backfill: {
-        Args: { p_mode: string; p_rule_id: string; p_today: string }
-        Returns: undefined
-      }
+        Args: { p_mode: string; p_rule_id: string; p_today: string };
+        Returns: undefined;
+      };
       archive_recurring_rule: {
-        Args: { p_delete_pending?: boolean; p_id: string }
-        Returns: undefined
-      }
-      account_balance: { Args: { p_account_id: string }; Returns: number }
+        Args: { p_delete_pending?: boolean; p_id: string };
+        Returns: undefined;
+      };
+      account_balance: { Args: { p_account_id: string }; Returns: number };
       archive_account: {
         Args: {
-          p_account_id: string
-          p_category_id?: string | null
-          p_counter_account_id?: string | null
-          p_description?: string | null
-          p_on?: string
-        }
-        Returns: string | null
-      }
+          p_account_id: string;
+          p_category_id?: string | null;
+          p_counter_account_id?: string | null;
+          p_description?: string | null;
+          p_on?: string;
+        };
+        Returns: string | null;
+      };
       close_scope: {
-        Args: { p_note?: string | null; p_scope_id: string }
-        Returns: { amount: number; reallocation_id: string | null }[]
-      }
-      reopen_scope: { Args: { p_scope_id: string }; Returns: undefined }
+        Args: { p_note?: string | null; p_scope_id: string };
+        Returns: { amount: number; reallocation_id: string | null }[];
+      };
+      reopen_scope: { Args: { p_scope_id: string }; Returns: undefined };
       apply_refund_links: {
-        Args: { p_counterparty?: string; p_links: Json; p_settling_id: string }
-        Returns: undefined
-      }
+        Args: { p_counterparty?: string; p_links: Json; p_settling_id: string };
+        Returns: undefined;
+      };
       set_reimbursement_links: {
-        Args: { p_links: Json; p_settling_id: string }
-        Returns: undefined
-      }
+        Args: { p_links: Json; p_settling_id: string };
+        Returns: undefined;
+      };
       preview_transaction_change: {
-        Args: { p_ops: Json }
+        Args: { p_ops: Json };
         Returns: {
-          after: number
-          allocated: number | null
-          before: number
-          error: string | null
-          income: boolean | null
-          kind: string
-          month: string | null
-          ref_id: string | null
-        }[]
-      }
+          after: number;
+          allocated: number | null;
+          before: number;
+          error: string | null;
+          income: boolean | null;
+          kind: string;
+          month: string | null;
+          ref_id: string | null;
+        }[];
+      };
       preview_transaction_impact: {
-        Args: { p_ops: Json; p_entry_ids?: string[] }
+        Args: { p_ops: Json; p_entry_ids?: string[] };
         Returns: {
-          after: number
-          allocated: number | null
-          closed: boolean | null
-          error: string | null
-          income: boolean | null
-          kind: string
-          label: string | null
-          month: string | null
-          now: number
-          ref_id: string | null
-          sweep_target: string | null
-          without: number
-        }[]
-      }
+          after: number;
+          allocated: number | null;
+          closed: boolean | null;
+          error: string | null;
+          income: boolean | null;
+          kind: string;
+          label: string | null;
+          month: string | null;
+          now: number;
+          ref_id: string | null;
+          sweep_target: string | null;
+          without: number;
+        }[];
+      };
       archive_savings_envelope: {
-        Args: { p_id: string; p_move_remaining_to: string }
-        Returns: undefined
-      }
+        Args: { p_id: string; p_move_remaining_to: string };
+        Returns: undefined;
+      };
       category_ledger: {
-        Args: { p_category_id: string; p_from: string | null; p_to: string }
+        Args: { p_category_id: string; p_from: string | null; p_to: string };
         Returns: {
-          account_id: string | null
-          amount: number
-          counterpart_category_id: string | null
-          description: string | null
-          entry_key: string
-          kind: string
-          meta: Json | null
-          occurred_on: string | null
-          reallocation_id: string | null
-          running_balance: number
-          transaction_id: string | null
-        }[]
-      }
+          account_id: string | null;
+          amount: number;
+          counterpart_category_id: string | null;
+          description: string | null;
+          entry_key: string;
+          kind: string;
+          meta: Json | null;
+          occurred_on: string | null;
+          reallocation_id: string | null;
+          running_balance: number;
+          transaction_id: string | null;
+        }[];
+      };
       category_ledger_month: {
-        Args: { p_month: string }
+        Args: { p_month: string };
         Returns: {
-          account_id: string | null
-          amount: number
-          category_id: string
-          counterpart_category_id: string | null
-          description: string | null
-          entry_key: string
-          kind: string
-          meta: Json | null
-          occurred_on: string | null
-          reallocation_id: string | null
-          running_balance: number
-          transaction_id: string | null
-        }[]
-      }
+          account_id: string | null;
+          amount: number;
+          category_id: string;
+          counterpart_category_id: string | null;
+          description: string | null;
+          entry_key: string;
+          kind: string;
+          meta: Json | null;
+          occurred_on: string | null;
+          reallocation_id: string | null;
+          running_balance: number;
+          transaction_id: string | null;
+        }[];
+      };
       category_month_spending: {
-        Args: { p_month: string }
+        Args: { p_month: string };
         Returns: {
-          allocated: number
-          category_id: string
-          group_id: string
-          group_name: string
-          group_sort_order: number
-          is_scope: boolean
-          rolls_over: boolean
-          kind: Database["public"]["Enums"]["category_group_kind"]
-          name: string
-          sort_order: number
-          spent_or_received: number
-          variance: number
-        }[]
-      }
+          allocated: number;
+          category_id: string;
+          group_id: string;
+          group_name: string;
+          group_sort_order: number;
+          is_scope: boolean;
+          rolls_over: boolean;
+          kind: Database["public"]["Enums"]["category_group_kind"];
+          name: string;
+          sort_order: number;
+          spent_or_received: number;
+          variance: number;
+        }[];
+      };
       category_savings_balance_series: {
-        Args: { p_from: string; p_to: string }
+        Args: { p_from: string; p_to: string };
         Returns: {
-          archived: boolean
-          as_of: string
-          category_id: string
-          cumulative_balance: number
-          name: string
-        }[]
-      }
+          archived: boolean;
+          as_of: string;
+          category_id: string;
+          cumulative_balance: number;
+          name: string;
+        }[];
+      };
       category_savings_balance: {
-        Args: { p_as_of: string }
+        Args: { p_as_of: string };
         Returns: {
-          archived: boolean
-          category_id: string
-          cumulative_balance: number
-          from_allocations: number
-          from_reallocations: number
-          from_sweeps: number
-          from_transactions: number
-          month_activity: number
-          name: string
-        }[]
-      }
-      ensure_month_budgets: { Args: { p_month: string }; Returns: undefined }
+          archived: boolean;
+          category_id: string;
+          cumulative_balance: number;
+          from_allocations: number;
+          from_reallocations: number;
+          from_sweeps: number;
+          from_transactions: number;
+          month_activity: number;
+          name: string;
+        }[];
+      };
+      ensure_month_budgets: { Args: { p_month: string }; Returns: undefined };
       exec_index_for_due: {
         Args: {
-          p_due: string
-          p_ends_on: string
-          p_exec_dom: number
-          p_exec_rule: Database["public"]["Enums"]["day_rule"]
-          p_interval_months: number
-          p_starts_on: string
-        }
-        Returns: number
-      }
+          p_due: string;
+          p_ends_on: string;
+          p_exec_dom: number;
+          p_exec_rule: Database["public"]["Enums"]["day_rule"];
+          p_interval_months: number;
+          p_starts_on: string;
+        };
+        Returns: number;
+      };
       format_date_token: {
-        Args: { p_date: string; p_fmt: string; p_locale: string }
-        Returns: string
-      }
+        Args: { p_date: string; p_fmt: string; p_locale: string };
+        Returns: string;
+      };
       has_role: {
         Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
+          _role: Database["public"]["Enums"]["app_role"];
+          _user_id: string;
+        };
+        Returns: boolean;
+      };
       interpolate_template: {
         Args: {
-          p_date: string
-          p_due: string
-          p_locale: string
-          p_period_from: string
-          p_period_to: string
-          p_run: number
-          p_template: string
-        }
-        Returns: string
-      }
+          p_date: string;
+          p_due: string;
+          p_locale: string;
+          p_period_from: string;
+          p_period_to: string;
+          p_run: number;
+          p_template: string;
+        };
+        Returns: string;
+      };
       log_audit_event: {
-        Args: { p_action: string; p_metadata?: Json }
-        Returns: number
-      }
+        Args: { p_action: string; p_metadata?: Json };
+        Returns: number;
+      };
       period_bounds_for_due_months: {
         Args: {
-          p_due: string
-          p_ends_on: string
-          p_exec_dom: number
-          p_exec_rule: Database["public"]["Enums"]["day_rule"]
-          p_interval_months: number
-          p_offset_months: number
-          p_period_dom: number
-          p_period_rule: Database["public"]["Enums"]["day_rule"]
-          p_starts_on: string
-        }
-        Returns: Record<string, unknown>
-      }
+          p_due: string;
+          p_ends_on: string;
+          p_exec_dom: number;
+          p_exec_rule: Database["public"]["Enums"]["day_rule"];
+          p_interval_months: number;
+          p_offset_months: number;
+          p_period_dom: number;
+          p_period_rule: Database["public"]["Enums"]["day_rule"];
+          p_starts_on: string;
+        };
+        Returns: Record<string, unknown>;
+      };
       period_bounds_for_due: {
         Args: {
-          p_due: string
-          p_ends_on: string
-          p_exec_dom: number
-          p_exec_rule: Database["public"]["Enums"]["day_rule"]
-          p_interval_months: number
-          p_period_dom: number
-          p_period_offset: number
-          p_period_rule: Database["public"]["Enums"]["day_rule"]
-          p_starts_on: string
-        }
-        Returns: Record<string, unknown>
-      }
+          p_due: string;
+          p_ends_on: string;
+          p_exec_dom: number;
+          p_exec_rule: Database["public"]["Enums"]["day_rule"];
+          p_interval_months: number;
+          p_period_dom: number;
+          p_period_offset: number;
+          p_period_rule: Database["public"]["Enums"]["day_rule"];
+          p_starts_on: string;
+        };
+        Returns: Record<string, unknown>;
+      };
       preview_recurring_rule: {
         Args: {
-          p_ends_on: string
-          p_execution_day_of_month: number
-          p_execution_day_rule: Database["public"]["Enums"]["day_rule"]
-          p_execution_weekend_adjustment: Database["public"]["Enums"]["weekend_adjust"]
-          p_from: string
-          p_period_day_of_month: number
-          p_period_day_rule: Database["public"]["Enums"]["day_rule"]
-          p_period_offset_months: number
-          p_recurrence_interval: number
-          p_starts_on: string
-          p_to: string
-        }
+          p_ends_on: string;
+          p_execution_day_of_month: number;
+          p_execution_day_rule: Database["public"]["Enums"]["day_rule"];
+          p_execution_weekend_adjustment: Database["public"]["Enums"]["weekend_adjust"];
+          p_from: string;
+          p_period_day_of_month: number;
+          p_period_day_rule: Database["public"]["Enums"]["day_rule"];
+          p_period_offset_months: number;
+          p_recurrence_interval: number;
+          p_starts_on: string;
+          p_to: string;
+        };
         Returns: {
-          due_on: string
-          effective_on: string
-          in_past: boolean
-          period_from: string
-          period_to: string
-        }[]
-      }
-      process_recurring_rules: { Args: { p_today: string }; Returns: undefined }
+          due_on: string;
+          effective_on: string;
+          in_past: boolean;
+          period_from: string;
+          period_to: string;
+        }[];
+      };
+      process_recurring_rules: { Args: { p_today: string }; Returns: undefined };
       process_recurring_rules_for_all_users: {
-        Args: { p_today: string }
-        Returns: number
-      }
+        Args: { p_today: string };
+        Returns: number;
+      };
       process_recurring_rules_if_stale: {
-        Args: { p_today: string }
-        Returns: boolean
-      }
-      prune_audit_logs: { Args: { p_keep_days: number }; Returns: number }
+        Args: { p_today: string };
+        Returns: boolean;
+      };
+      prune_audit_logs: { Args: { p_keep_days: number }; Returns: number };
       recompute_reimbursable_status: {
-        Args: { p_orig: string }
-        Returns: undefined
-      }
+        Args: { p_orig: string };
+        Returns: undefined;
+      };
       envelope_reconciliation: {
-        Args: { p_as_of: string }
+        Args: { p_as_of: string };
         Returns: {
-          accounts_total: number
-          expense_open: number
-          income_open: number
-          outstanding_reimbursements: number
-          residual: number
-          rollover_total: number
-          unallocated: number
-          unallocated_assigned: number
-          unallocated_openings: number
-          unallocated_plan_gap: number
-          unallocated_transfers: number
-          unallocated_uncategorized: number
-          unallocated_unswept: number
-        }[]
-      }
+          accounts_total: number;
+          expense_open: number;
+          income_open: number;
+          outstanding_reimbursements: number;
+          residual: number;
+          rollover_total: number;
+          unallocated: number;
+          unallocated_assigned: number;
+          unallocated_openings: number;
+          unallocated_plan_gap: number;
+          unallocated_transfers: number;
+          unallocated_uncategorized: number;
+          unallocated_unswept: number;
+        }[];
+      };
       save_split_group: {
         Args: {
-          p_group_id: string
-          p_location?: Json
-          p_occurred_on: string
-          p_slices: Json
-          p_source_account_id: string
-          p_type: string
-        }
-        Returns: string[]
-      }
+          p_group_id: string;
+          p_location?: Json;
+          p_occurred_on: string;
+          p_slices: Json;
+          p_source_account_id: string;
+          p_type: string;
+        };
+        Returns: string[];
+      };
       set_category_budgets_bulk: {
-        Args: { p_edits: Json }
-        Returns: number
-      }
+        Args: { p_edits: Json };
+        Returns: number;
+      };
       set_month_budgets: {
-        Args: { p_amounts: Json; p_month: string; p_scope: string }
-        Returns: undefined
-      }
+        Args: { p_amounts: Json; p_month: string; p_scope: string };
+        Returns: undefined;
+      };
       set_category_budget: {
         Args: {
-          p_amount: number
-          p_category_id: string
-          p_month: string
-          p_scope?: string
-        }
-        Returns: undefined
-      }
+          p_amount: number;
+          p_category_id: string;
+          p_month: string;
+          p_scope?: string;
+        };
+        Returns: undefined;
+      };
       series_step: {
         Args: {
-          p_anchor: string
-          p_dom: number
-          p_interval_months: number
-          p_n: number
-          p_rule: Database["public"]["Enums"]["day_rule"]
-        }
-        Returns: string
-      }
+          p_anchor: string;
+          p_dom: number;
+          p_interval_months: number;
+          p_n: number;
+          p_rule: Database["public"]["Enums"]["day_rule"];
+        };
+        Returns: string;
+      };
       weekend_shift: {
         Args: {
-          p_adj: Database["public"]["Enums"]["weekend_adjust"]
-          p_date: string
-        }
-        Returns: string
-      }
-    }
+          p_adj: Database["public"]["Enums"]["weekend_adjust"];
+          p_date: string;
+        };
+        Returns: string;
+      };
+    };
     Enums: {
-      account_type: "asset" | "liability"
-      app_role: "admin" | "user"
-      category_group_kind: "income" | "expense" | "savings"
-      day_rule: "FixedDay" | "LastDay" | "FirstDay"
-      occurrence_status: "pending" | "posted" | "skipped"
-      pending_transaction_status: "pending" | "confirmed" | "rejected"
-      transaction_link_kind: "purchase" | "event" | "trip" | "other"
-      transaction_type: "expense" | "income" | "transfer"
-      weekend_adjust: "None" | "PreviousBusinessDay" | "NextBusinessDay"
-    }
+      account_type: "asset" | "liability";
+      app_role: "admin" | "user";
+      category_group_kind: "income" | "expense" | "savings";
+      day_rule: "FixedDay" | "LastDay" | "FirstDay";
+      occurrence_status: "pending" | "posted" | "skipped";
+      pending_transaction_status: "pending" | "confirmed" | "rejected";
+      transaction_link_kind: "purchase" | "event" | "trip" | "other";
+      transaction_type: "expense" | "income" | "transfer";
+      weekend_adjust: "None" | "PreviousBusinessDay" | "NextBusinessDay";
+    };
     CompositeTypes: {
-      [_ in never]: never
-    }
-  }
-}
+      [_ in never]: never;
+    };
+  };
+};
 
-type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">;
 
-type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">];
 
 export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
       DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
-      Row: infer R
+      Row: infer R;
     }
     ? R
     : never
-  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])
-    ? (DefaultSchema["Tables"] &
-        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-        Row: infer R
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] & DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R;
       }
       ? R
       : never
-    : never
+    : never;
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Insert: infer I
+      Insert: infer I;
     }
     ? I
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
     ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Insert: infer I
+        Insert: infer I;
       }
       ? I
       : never
-    : never
+    : never;
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends (DefaultSchemaTableNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaTableNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
-      Update: infer U
+      Update: infer U;
     }
     ? U
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
     ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-        Update: infer U
+        Update: infer U;
       }
       ? U
       : never
-    : never
+    : never;
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never) = never,
+    : never = never,
 > = DefaultSchemaEnumNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
     ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-    : never
+    : never;
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
-    schema: keyof DatabaseWithoutInternals
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals;
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never) = never,
+    : never = never,
 > = PublicCompositeTypeNameOrOptions extends {
-  schema: keyof DatabaseWithoutInternals
+  schema: keyof DatabaseWithoutInternals;
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-    : never
+    : never;
 
 export const Constants = {
   public: {
@@ -2301,4 +2293,4 @@ export const Constants = {
       weekend_adjust: ["None", "PreviousBusinessDay", "NextBusinessDay"],
     },
   },
-} as const
+} as const;

@@ -17,8 +17,7 @@ import { createFileRoute } from "@tanstack/react-router";
 const SWAGGER_UI_VERSION = "5.33.0";
 const SWAGGER_UI_CSS_SRI =
   "sha384-Ov4/wv3j2bmct8cDc5X4ngJZohVPzEmc6uDPH8WeljUxO5vtoykvMEfbu9Vh6RaW";
-const SWAGGER_UI_JS_SRI =
-  "sha384-YDALVcy8kj8yltLBVi1vBiBAUqdxvus673gM8XKwiy6aDUJFXivF/KCufekjYbVf";
+const SWAGGER_UI_JS_SRI = "sha384-YDALVcy8kj8yltLBVi1vBiBAUqdxvus673gM8XKwiy6aDUJFXivF/KCufekjYbVf";
 
 const HTML = `<!doctype html>
 <html lang="en">

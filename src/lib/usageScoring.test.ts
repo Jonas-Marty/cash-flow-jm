@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { scoreAccounts, scoreCategories, scoreTags, rankCounterparties, sortByPinAndScore, monogram, colorFromName } from "./usageScoring";
+import {
+  scoreAccounts,
+  scoreCategories,
+  scoreTags,
+  rankCounterparties,
+  sortByPinAndScore,
+  monogram,
+  colorFromName,
+} from "./usageScoring";
 import type { Transaction } from "./finance";
 
 const NOW = new Date("2024-06-01T00:00:00Z").getTime();
@@ -44,7 +52,14 @@ describe("scoreAccounts", () => {
 
   it("credits both source and destination accounts on a transfer", () => {
     const s = scoreAccounts(
-      [make({ type: "transfer", source_account_id: "a", destination_account_id: "b", occurred_on: "2024-06-01" })],
+      [
+        make({
+          type: "transfer",
+          source_account_id: "a",
+          destination_account_id: "b",
+          occurred_on: "2024-06-01",
+        }),
+      ],
       {},
       NOW,
     );
@@ -55,11 +70,7 @@ describe("scoreAccounts", () => {
 
 describe("scoreCategories", () => {
   it("ignores transactions without a category", () => {
-    const s = scoreCategories(
-      [make({ category_id: null, occurred_on: "2024-06-01" })],
-      {},
-      NOW,
-    );
+    const s = scoreCategories([make({ category_id: null, occurred_on: "2024-06-01" })], {}, NOW);
     expect(s.size).toBe(0);
   });
 
@@ -86,7 +97,10 @@ describe("sortByPinAndScore", () => {
       { id: "3", name: "C", pinned: true, pin_order: 1 },
       { id: "4", name: "D", pinned: false },
     ];
-    const scores = new Map([["1", 5], ["4", 5]]);
+    const scores = new Map([
+      ["1", 5],
+      ["4", 5],
+    ]);
     const out = sortByPinAndScore(items, scores).map((i) => i.id);
     // pinned by pin_order: 3, 2 — then unpinned tied on score, sorted by name: B (id 1), D (id 4)
     expect(out).toEqual(["3", "2", "1", "4"]);
@@ -108,10 +122,20 @@ describe("context-aware scoring", () => {
   it("biases categories toward the selected source account", () => {
     const txs = [
       ...Array.from({ length: 5 }, () =>
-        make({ type: "expense", source_account_id: "coop", category_id: "groceries", occurred_on: "2024-06-01" }),
+        make({
+          type: "expense",
+          source_account_id: "coop",
+          category_id: "groceries",
+          occurred_on: "2024-06-01",
+        }),
       ),
       ...Array.from({ length: 8 }, () =>
-        make({ type: "expense", source_account_id: "bank", category_id: "rent", occurred_on: "2024-06-01" }),
+        make({
+          type: "expense",
+          source_account_id: "bank",
+          category_id: "rent",
+          occurred_on: "2024-06-01",
+        }),
       ),
     ];
     const global = scoreCategories(txs, {}, NOW);
@@ -123,11 +147,31 @@ describe("context-aware scoring", () => {
 
   it("biases tags toward the selected category", () => {
     const txs = [
-      make({ type: "expense", category_id: "groceries", note: "#migros lunch", occurred_on: "2024-06-01" }),
-      make({ type: "expense", category_id: "groceries", note: "#coop dinner", occurred_on: "2024-06-01" }),
-      make({ type: "expense", category_id: "groceries", note: "#migros snack", occurred_on: "2024-06-01" }),
+      make({
+        type: "expense",
+        category_id: "groceries",
+        note: "#migros lunch",
+        occurred_on: "2024-06-01",
+      }),
+      make({
+        type: "expense",
+        category_id: "groceries",
+        note: "#coop dinner",
+        occurred_on: "2024-06-01",
+      }),
+      make({
+        type: "expense",
+        category_id: "groceries",
+        note: "#migros snack",
+        occurred_on: "2024-06-01",
+      }),
       ...Array.from({ length: 6 }, () =>
-        make({ type: "expense", category_id: "transport", note: "#sbb", occurred_on: "2024-06-01" }),
+        make({
+          type: "expense",
+          category_id: "transport",
+          note: "#sbb",
+          occurred_on: "2024-06-01",
+        }),
       ),
     ];
     const global = scoreTags(txs, {}, NOW);
@@ -153,7 +197,11 @@ describe("rankCounterparties", () => {
 
   it("puts the name used most often first", () => {
     const out = rankCounterparties(
-      [r("Anna", "2026-11-01"), r("Fabienne Fässler", "2026-11-02"), r("Fabienne Fässler", "2026-11-03")],
+      [
+        r("Anna", "2026-11-01"),
+        r("Fabienne Fässler", "2026-11-02"),
+        r("Fabienne Fässler", "2026-11-03"),
+      ],
       now,
     );
     expect(out).toEqual(["Fabienne Fässler", "Anna"]);
@@ -161,10 +209,15 @@ describe("rankCounterparties", () => {
 
   it("lets recent use outweigh many old entries", () => {
     const old = Array.from({ length: 5 }, () => r("KaLa", "2025-11-01"));
-    expect(rankCounterparties([...old, r("Jolanda", "2026-11-08")], now)).toEqual(["Jolanda", "KaLa"]);
+    expect(rankCounterparties([...old, r("Jolanda", "2026-11-08")], now)).toEqual([
+      "Jolanda",
+      "KaLa",
+    ]);
   });
 
   it("merges spellings that differ only in case or spaces, keeping the latest", () => {
-    expect(rankCounterparties([r("anna ", "2026-01-01"), r("Anna", "2026-11-01")], now)).toEqual(["Anna"]);
+    expect(rankCounterparties([r("anna ", "2026-01-01"), r("Anna", "2026-11-01")], now)).toEqual([
+      "Anna",
+    ]);
   });
 });

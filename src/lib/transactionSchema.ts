@@ -17,21 +17,17 @@ import * as z from "zod";
 export const txTypeSchema = z.enum(["expense", "income", "transfer"]);
 
 // Accept a number, or a string like "12.34" / "12,34" — mirrors UI parsing.
-const amountSchema = z
-  .union([z.number(), z.string()])
-  .transform((v, ctx) => {
-    const n = typeof v === "number" ? v : Number(String(v).replace(",", "."));
-    if (!Number.isFinite(n) || n <= 0) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Amount must be greater than zero" });
-      return z.NEVER;
-    }
-    // Round to 2 decimals to match currency precision used in the UI.
-    return Math.round(n * 100) / 100;
-  });
+const amountSchema = z.union([z.number(), z.string()]).transform((v, ctx) => {
+  const n = typeof v === "number" ? v : Number(String(v).replace(",", "."));
+  if (!Number.isFinite(n) || n <= 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Amount must be greater than zero" });
+    return z.NEVER;
+  }
+  // Round to 2 decimals to match currency precision used in the UI.
+  return Math.round(n * 100) / 100;
+});
 
-const isoDate = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format");
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format");
 
 const trimmedNullable = (max: number) =>
   z
@@ -104,11 +100,10 @@ export function normalizeTransactionInput(input: TransactionInput) {
     type: input.type,
     source_account_id: input.source_account_id,
     destination_account_id:
-      input.type === "transfer" ? input.destination_account_id ?? null : null,
-    category_id: input.type === "transfer" ? null : input.category_id ?? null,
+      input.type === "transfer" ? (input.destination_account_id ?? null) : null,
+    category_id: input.type === "transfer" ? null : (input.category_id ?? null),
     description: input.description,
     note: input.note,
-    destination_amount:
-      input.type === "transfer" ? input.destination_amount ?? null : null,
+    destination_amount: input.type === "transfer" ? (input.destination_amount ?? null) : null,
   };
 }

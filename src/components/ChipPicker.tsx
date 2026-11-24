@@ -1,7 +1,14 @@
 import * as React from "react";
 import { MoreHorizontal, X, Search } from "lucide-react";
 import { Popover, PopoverContent, PopoverAnchor } from "@/components/ui/popover";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { EntityChip, type EntityVisual } from "./EntityChip";
 import { cn } from "@/lib/utils";
 
@@ -28,10 +35,18 @@ interface Props {
 }
 
 export function ChipPicker({
-  items, value, onChange, disabledIds, placeholder, moreLabel = "More",
-  searchPlaceholder = "Search…", emptyLabel = "No matches",
-  allowClear, clearLabel = "None",
-  mobileTopN = 8, desktopTopN = Infinity,
+  items,
+  value,
+  onChange,
+  disabledIds,
+  placeholder,
+  moreLabel = "More",
+  searchPlaceholder = "Search…",
+  emptyLabel = "No matches",
+  allowClear,
+  clearLabel = "None",
+  mobileTopN = 8,
+  desktopTopN = Infinity,
 }: Props) {
   const [open, setOpen] = React.useState(false);
   const groupRef = React.useRef<HTMLDivElement | null>(null);
@@ -61,8 +76,8 @@ export function ChipPicker({
   );
   // Track which chip is "active" for tab order. Updated on focus/selection so
   // arrow navigation always reads the latest position even if `value` lags.
-  const [activeId, setActiveId] = React.useState<string | undefined>(
-    () => (value && focusableIds.includes(value) ? value : focusableIds[0]),
+  const [activeId, setActiveId] = React.useState<string | undefined>(() =>
+    value && focusableIds.includes(value) ? value : focusableIds[0],
   );
   React.useEffect(() => {
     // When the externally-selected value changes (or the list of focusable ids
@@ -80,7 +95,9 @@ export function ChipPicker({
     if (!root) return;
     // The chip is rendered in BOTH the mobile and desktop rows; focus the one
     // currently visible (offsetParent !== null) so arrow keys keep working.
-    const els = root.querySelectorAll<HTMLButtonElement>(`button[data-chip-id="${CSS.escape(id)}"]`);
+    const els = root.querySelectorAll<HTMLButtonElement>(
+      `button[data-chip-id="${CSS.escape(id)}"]`,
+    );
     const visible = Array.from(els).find((el) => el.offsetParent !== null) ?? els[0];
     visible?.focus();
   };
@@ -107,23 +124,43 @@ export function ChipPicker({
     if (e.key === "ArrowRight" || e.key === "ArrowDown") {
       e.preventDefault();
       const next = list[(idx + 1) % list.length];
-      if (next) { setActiveId(next); onChange(next); requestAnimationFrame(() => focusChip(next)); }
+      if (next) {
+        setActiveId(next);
+        onChange(next);
+        requestAnimationFrame(() => focusChip(next));
+      }
     } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
       e.preventDefault();
       const prev = list[(idx - 1 + list.length) % list.length];
-      if (prev) { setActiveId(prev); onChange(prev); requestAnimationFrame(() => focusChip(prev)); }
+      if (prev) {
+        setActiveId(prev);
+        onChange(prev);
+        requestAnimationFrame(() => focusChip(prev));
+      }
     } else if (e.key === "Home") {
       e.preventDefault();
-      const first = list[0]; if (first) { setActiveId(first); onChange(first); requestAnimationFrame(() => focusChip(first)); }
+      const first = list[0];
+      if (first) {
+        setActiveId(first);
+        onChange(first);
+        requestAnimationFrame(() => focusChip(first));
+      }
     } else if (e.key === "End") {
       e.preventDefault();
-      const last = list[list.length - 1]; if (last) { setActiveId(last); onChange(last); requestAnimationFrame(() => focusChip(last)); }
+      const last = list[list.length - 1];
+      if (last) {
+        setActiveId(last);
+        onChange(last);
+        requestAnimationFrame(() => focusChip(last));
+      }
     } else if (e.key === "/" || (e.key.toLowerCase() === "k" && (e.ctrlKey || e.metaKey))) {
       e.preventDefault();
       openSearch();
     } else if (
       e.key.length === 1 &&
-      !e.ctrlKey && !e.metaKey && !e.altKey &&
+      !e.ctrlKey &&
+      !e.metaKey &&
+      !e.altKey &&
       /[a-zA-Z0-9]/.test(e.key)
     ) {
       // Type-ahead: open search popover with first character pre-filled
@@ -135,13 +172,17 @@ export function ChipPicker({
   };
 
   const [search, setSearch] = React.useState("");
-  React.useEffect(() => { if (!open) setSearch(""); }, [open]);
+  React.useEffect(() => {
+    if (!open) setSearch("");
+  }, [open]);
 
   // Confirm the currently highlighted cmdk item (if any) and select it.
   const commitHighlighted = (): boolean => {
     const root = commandRef.current;
     if (!root) return false;
-    const el = root.querySelector<HTMLElement>('[cmdk-item][data-selected="true"]:not([data-disabled="true"])');
+    const el = root.querySelector<HTMLElement>(
+      '[cmdk-item][data-selected="true"]:not([data-disabled="true"])',
+    );
     const id = el?.getAttribute("data-chip-pick-id");
     if (!id) return false;
     onChange(id);
@@ -159,7 +200,9 @@ export function ChipPicker({
           onClick={() => onChange("")}
           className={cn(
             "inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1 text-sm transition-colors",
-            !value ? "border-primary bg-primary/10 ring-1 ring-primary" : "border-dashed border-border text-muted-foreground hover:bg-accent",
+            !value
+              ? "border-primary bg-primary/10 ring-1 ring-primary"
+              : "border-dashed border-border text-muted-foreground hover:bg-accent",
           )}
         >
           <X className="h-3 w-3" /> {clearLabel}
@@ -209,13 +252,17 @@ export function ChipPicker({
         <div ref={groupRef} role="radiogroup" aria-label={selectedLabel ?? placeholder ?? "Picker"}>
           {/* Mobile: horizontal scroll */}
           <div className="flex gap-2 overflow-x-auto pb-1 md:hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {items.length === 0 && <span className="text-sm text-muted-foreground">{placeholder}</span>}
+            {items.length === 0 && (
+              <span className="text-sm text-muted-foreground">{placeholder}</span>
+            )}
             {renderRow(mobileVisible, hasMobileOverflow)}
           </div>
 
           {/* Desktop: wrap */}
           <div className="hidden flex-wrap gap-2 md:flex">
-            {items.length === 0 && <span className="text-sm text-muted-foreground">{placeholder}</span>}
+            {items.length === 0 && (
+              <span className="text-sm text-muted-foreground">{placeholder}</span>
+            )}
             {renderRow(desktopVisible, hasDesktopOverflow)}
           </div>
         </div>
@@ -247,7 +294,11 @@ export function ChipPicker({
                   value={it.name}
                   disabled={disabledSet.has(it.id)}
                   data-chip-pick-id={it.id}
-                  onSelect={() => { onChange(it.id); setActiveId(it.id); setOpen(false); }}
+                  onSelect={() => {
+                    onChange(it.id);
+                    setActiveId(it.id);
+                    setOpen(false);
+                  }}
                 >
                   <EntityChip entity={it} showLabel={false} size="sm" tabIndex={-1} />
                   <span className="ml-2">{it.name}</span>

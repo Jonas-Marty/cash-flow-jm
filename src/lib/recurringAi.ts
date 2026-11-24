@@ -225,7 +225,8 @@ export function suggestionToDraft(raw: unknown, ctx: SuggestionContext): Suggest
   if (d.type === "transfer") {
     const dst = matchRow(ctx.accounts, toStr(s.destination_account));
     if (dst && dst.id !== d.source_account_id) d.destination_account_id = dst.id;
-    else if (toStr(s.destination_account)) warnings.push(`account_unknown:${toStr(s.destination_account)}`);
+    else if (toStr(s.destination_account))
+      warnings.push(`account_unknown:${toStr(s.destination_account)}`);
   } else {
     const cat = matchRow(ctx.categories, toStr(s.category));
     if (cat) d.category_id = cat.id;
@@ -246,7 +247,8 @@ export function suggestionToDraft(raw: unknown, ctx: SuggestionContext): Suggest
   d.execution_day_rule = pickEnum(s.execution_day_rule, DAY_RULES) ?? d.execution_day_rule;
   const execDay = clampInt(toNum(s.execution_day_of_month), 1, 31);
   if (execDay !== undefined) d.execution_day_of_month = String(execDay);
-  d.execution_weekend_adjustment = pickEnum(s.execution_weekend_adjustment, WEEKEND) ?? d.execution_weekend_adjustment;
+  d.execution_weekend_adjustment =
+    pickEnum(s.execution_weekend_adjustment, WEEKEND) ?? d.execution_weekend_adjustment;
 
   const starts = toIsoDate(s.starts_on);
   if (starts) {
@@ -355,8 +357,11 @@ function firstPeriodOf(r: Pick<GuideRule, "starts_on" | "period_offset_months">)
 }
 
 /** One line per rule, cheap enough to send every rule the user has. */
-export function describeRules(ctx: Pick<GuideContext, "rules" | "accounts" | "categories" | "today">): string {
-  const name = (rows: NamedRow[], id: string | null) => (id ? rows.find((r) => r.id === id)?.name ?? "?" : null);
+export function describeRules(
+  ctx: Pick<GuideContext, "rules" | "accounts" | "categories" | "today">,
+): string {
+  const name = (rows: NamedRow[], id: string | null) =>
+    id ? (rows.find((r) => r.id === id)?.name ?? "?") : null;
   const active = ctx.rules.filter((r) => !r.archived && (!r.ends_on || r.ends_on >= ctx.today));
   if (active.length === 0) return "(the user has no recurring rules yet)";
   return active

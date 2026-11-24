@@ -13,13 +13,21 @@ import { BreakdownTab, type ChartKind } from "@/components/insights/BreakdownTab
 import { TrendsTab } from "@/components/insights/TrendsTab";
 import { ProjectionTab } from "@/components/insights/ProjectionTab";
 import { RecurringDetectorCard } from "@/components/insights/RecurringDetectorCard";
-import { PeriodPicker, periodToRange, type PeriodKey } from "@/components/insights/PeriodPicker";
+import { PeriodPicker } from "@/components/insights/PeriodPicker";
+import { periodToRange, type PeriodKey } from "@/lib/period";
 import type { GroupKey, TxFilter } from "@/lib/insights";
 
 const searchSchema = z.object({
-  tab: fallback(z.enum(["overview", "breakdown", "trends", "projection"]), "overview").default("overview"),
-  period: fallback(z.enum(["this_month", "last_month", "ytd", "last_12mo", "last_24mo", "all"]), "last_12mo").default("last_12mo"),
-  group: fallback(z.enum(["category", "group", "tag", "account", "type"]), "category").default("category"),
+  tab: fallback(z.enum(["overview", "breakdown", "trends", "projection"]), "overview").default(
+    "overview",
+  ),
+  period: fallback(
+    z.enum(["this_month", "last_month", "ytd", "last_12mo", "last_24mo", "all"]),
+    "last_12mo",
+  ).default("last_12mo"),
+  group: fallback(z.enum(["category", "group", "tag", "account", "type"]), "category").default(
+    "category",
+  ),
   txFilter: fallback(z.enum(["expense", "income", "both"]), "expense").default("expense"),
   chart: fallback(z.enum(["pie", "bar", "treemap"]), "pie").default("pie"),
 });
@@ -58,13 +66,23 @@ function InsightsPage() {
           <h1 className="text-xl font-semibold">{t("nav.insights")}</h1>
           <PeriodPicker
             value={search.period as PeriodKey}
-            onChange={(p) => navigate({ search: (prev: InsightsSearch) => ({ ...prev, period: p }), replace: true })}
+            onChange={(p) =>
+              navigate({
+                search: (prev: InsightsSearch) => ({ ...prev, period: p }),
+                replace: true,
+              })
+            }
           />
         </div>
 
         <Tabs
           value={search.tab}
-          onValueChange={(v) => navigate({ search: (prev: InsightsSearch) => ({ ...prev, tab: v as InsightsSearch["tab"] }), replace: true })}
+          onValueChange={(v) =>
+            navigate({
+              search: (prev: InsightsSearch) => ({ ...prev, tab: v as InsightsSearch["tab"] }),
+              replace: true,
+            })
+          }
         >
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">{t("insights.tab.overview")}</TabsTrigger>
@@ -84,11 +102,26 @@ function InsightsPage() {
               to={range.to}
               symbol={symbol}
               group={search.group as GroupKey}
-              onGroupChange={(g) => navigate({ search: (prev: InsightsSearch) => ({ ...prev, group: g }), replace: true })}
+              onGroupChange={(g) =>
+                navigate({
+                  search: (prev: InsightsSearch) => ({ ...prev, group: g }),
+                  replace: true,
+                })
+              }
               txFilter={search.txFilter as TxFilter}
-              onTxFilterChange={(f) => navigate({ search: (prev: InsightsSearch) => ({ ...prev, txFilter: f }), replace: true })}
+              onTxFilterChange={(f) =>
+                navigate({
+                  search: (prev: InsightsSearch) => ({ ...prev, txFilter: f }),
+                  replace: true,
+                })
+              }
               chart={search.chart as ChartKind}
-              onChartChange={(c) => navigate({ search: (prev: InsightsSearch) => ({ ...prev, chart: c }), replace: true })}
+              onChartChange={(c) =>
+                navigate({
+                  search: (prev: InsightsSearch) => ({ ...prev, chart: c }),
+                  replace: true,
+                })
+              }
             />
           </TabsContent>
 

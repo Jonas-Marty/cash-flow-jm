@@ -15,6 +15,14 @@ import type {
 } from "@/lib/ai/types";
 import { AI_ACTIONS } from "@/lib/ai/types";
 
+/** What ai_messages.content holds for user and assistant turns. */
+interface StoredMessageContent {
+  text?: string;
+  action?: AssistantAction | null;
+  attachments?: ChatAttachmentRef[];
+  notices?: ChatNotice[];
+}
+
 /**
  * A connection that was just switched on or assigned may be the one that was
  * missing while pending rows piled up unplaced. Drain them now rather than
@@ -40,7 +48,7 @@ async function readEndpoints(userId: string): Promise<AIEndpoint[]> {
     .order("priority", { ascending: true })
     .order("created_at", { ascending: true });
   if (error) throw new Error(error.message);
-  return (data || []).map((r: any) => ({
+  return (data || []).map((r) => ({
     id: r.id,
     name: r.name,
     base_url: r.base_url,
@@ -53,7 +61,9 @@ async function readEndpoints(userId: string): Promise<AIEndpoint[]> {
     health_mode: (r.health_mode ?? "real") as AIEndpoint["health_mode"],
     has_token: !!r.api_token,
     capabilities:
-      r.capabilities && typeof r.capabilities === "object" && !Array.isArray(r.capabilities) ? r.capabilities : {},
+      r.capabilities && typeof r.capabilities === "object" && !Array.isArray(r.capabilities)
+        ? (r.capabilities as unknown as AIEndpoint["capabilities"])
+        : {},
   }));
 }
 
@@ -77,7 +87,9 @@ async function probeAndStore(userId: string, endpointId: string, model?: string 
 export const probeAIEndpointCapabilities = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
-    z.object({ id: z.string().uuid(), model: z.string().trim().max(120).nullable().optional() }).parse(d),
+    z
+      .object({ id: z.string().uuid(), model: z.string().trim().max(120).nullable().optional() })
+      .parse(d),
   )
   .handler(async ({ data, context }): Promise<{ endpoints: AIEndpoint[]; errors: string[] }> => {
     const res = await probeAndStore(context.userId, data.id, data.model ?? null);
@@ -86,24 +98,26 @@ export const probeAIEndpointCapabilities = createServerFn({ method: "POST" })
 
 export const listAIEndpoints = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<{ endpoints: AIEndpoint[]; bindings: AIActionBinding[] }> => {
-    const { userId } = context;
-    const endpoints = await readEndpoints(userId);
-    const { data: rows } = await supabaseAdmin
-      .from("ai_action_endpoints")
-      .select("action, endpoint_id, allow_fallback, model")
-      .eq("user_id", userId);
-    const bindings: AIActionBinding[] = AI_ACTIONS.map((action) => {
-      const row = (rows || []).find((r: any) => r.action === action);
-      return {
-        action,
-        endpoint_id: row?.endpoint_id ?? null,
-        allow_fallback: row ? row.allow_fallback !== false : true,
-        model: row?.model ?? null,
-      };
-    });
-    return { endpoints, bindings };
-  });
+  .handler(
+    async ({ context }): Promise<{ endpoints: AIEndpoint[]; bindings: AIActionBinding[] }> => {
+      const { userId } = context;
+      const endpoints = await readEndpoints(userId);
+      const { data: rows } = await supabaseAdmin
+        .from("ai_action_endpoints")
+        .select("action, endpoint_id, allow_fallback, model")
+        .eq("user_id", userId);
+      const bindings: AIActionBinding[] = AI_ACTIONS.map((action) => {
+        const row = (rows || []).find((r) => r.action === action);
+        return {
+          action,
+          endpoint_id: row?.endpoint_id ?? null,
+          allow_fallback: row ? row.allow_fallback !== false : true,
+          model: row?.model ?? null,
+        };
+      });
+      return { endpoints, bindings };
+    },
+  );
 
 const endpointSchema = z.object({
   id: z.string().uuid().nullable().optional(),
@@ -143,7 +157,9 @@ export const saveAIEndpoint = createServerFn({ method: "POST" })
       ...(data.extra_models === undefined
         ? {}
         : { extra_models: Array.from(new Set(data.extra_models)).filter((m) => m !== data.model) }),
-      ...(data.api_token === undefined ? {} : { api_token: data.api_token === "" ? null : data.api_token }),
+      ...(data.api_token === undefined
+        ? {}
+        : { api_token: data.api_token === "" ? null : data.api_token }),
     };
     let savedId: string;
     let needsProbe = true;
@@ -156,9 +172,16 @@ export const saveAIEndpoint = createServerFn({ method: "POST" })
         .maybeSingle();
       const caps = before?.capabilities;
       const known =
-        caps && typeof caps === "object" && !Array.isArray(caps) ? (caps as Record<string, unknown>)[base.model] : undefined;
-      needsProbe = !before || before.model !== base.model || before.base_url !== base.base_url || !known;
-      const { error } = await supabaseAdmin.from("ai_endpoints").update(base).eq("id", data.id).eq("user_id", userId);
+        caps && typeof caps === "object" && !Array.isArray(caps)
+          ? (caps as Record<string, unknown>)[base.model]
+          : undefined;
+      needsProbe =
+        !before || before.model !== base.model || before.base_url !== base.base_url || !known;
+      const { error } = await supabaseAdmin
+        .from("ai_endpoints")
+        .update(base)
+        .eq("id", data.id)
+        .eq("user_id", userId);
       if (error) throw new Error(error.message);
       savedId = data.id;
     } else {
@@ -240,10 +263,17 @@ export const saveAIActionBinding = createServerFn({ method: "POST" })
 /** Availability probe for every configured connection (or a single one). */
 export const checkAIEndpoints = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: unknown) => z.object({ id: z.string().uuid().optional() }).optional().parse(d ?? {}))
+  .inputValidator((d: unknown) =>
+    z
+      .object({ id: z.string().uuid().optional() })
+      .optional()
+      .parse(d ?? {}),
+  )
   .handler(async ({ data, context }): Promise<{ health: AIEndpointHealth[] }> => {
     const { loadEndpointRows, pingEndpoint } = await import("./ai.server");
-    const rows = (await loadEndpointRows(context.userId)).filter((r) => !data?.id || r.id === data.id);
+    const rows = (await loadEndpointRows(context.userId)).filter(
+      (r) => !data?.id || r.id === data.id,
+    );
     const health = await Promise.all(
       rows.map(async (r): Promise<AIEndpointHealth> => {
         const res = await pingEndpoint(r.base_url, r.api_token, r.model, r.health_mode);
@@ -282,7 +312,8 @@ export const testAIConnection = createServerFn({ method: "POST" })
     const { testConnection, loadEndpointRows } = await import("./ai.server");
     let token = data.api_token && data.api_token.length > 0 ? data.api_token : null;
     if (!token && data.id) {
-      token = (await loadEndpointRows(context.userId)).find((r) => r.id === data.id)?.api_token ?? null;
+      token =
+        (await loadEndpointRows(context.userId)).find((r) => r.id === data.id)?.api_token ?? null;
     }
     return testConnection(data.base_url, token ?? "", data.model);
   });
@@ -299,14 +330,17 @@ export const listAIModels = createServerFn({ method: "POST" })
       })
       .parse(d),
   )
-  .handler(async ({ data, context }): Promise<{ ok: boolean; models: string[]; error?: string }> => {
-    const { listModels, loadEndpointRows } = await import("./ai.server");
-    let token = data.api_token && data.api_token.length > 0 ? data.api_token : null;
-    if (!token && data.id) {
-      token = (await loadEndpointRows(context.userId)).find((r) => r.id === data.id)?.api_token ?? null;
-    }
-    return listModels(data.base_url, token);
-  });
+  .handler(
+    async ({ data, context }): Promise<{ ok: boolean; models: string[]; error?: string }> => {
+      const { listModels, loadEndpointRows } = await import("./ai.server");
+      let token = data.api_token && data.api_token.length > 0 ? data.api_token : null;
+      if (!token && data.id) {
+        token =
+          (await loadEndpointRows(context.userId)).find((r) => r.id === data.id)?.api_token ?? null;
+      }
+      return listModels(data.base_url, token);
+    },
+  );
 
 // ---------- Conversations ----------
 
@@ -333,16 +367,21 @@ export const getConversation = createServerFn({ method: "POST" })
       .order("created_at", { ascending: true });
     if (error) throw new Error(error.message);
     const messages: ChatMessage[] = (rows || [])
-      .filter((r: any) => r.role === "user" || r.role === "assistant")
-      .map((r: any) => ({
-        id: r.id,
-        role: r.role,
-        text: (r.content && typeof r.content === "object" ? r.content.text : "") || "",
-        action: (r.content && typeof r.content === "object" ? r.content.action ?? null : null) as AssistantAction | null,
-        attachments: (Array.isArray(r.content?.attachments) ? r.content.attachments : []) as ChatAttachmentRef[],
-        notices: (Array.isArray(r.content?.notices) ? r.content.notices : []) as ChatNotice[],
-        created_at: r.created_at,
-      }));
+      .filter((r) => r.role === "user" || r.role === "assistant")
+      .map((r) => {
+        const c = (
+          r.content && typeof r.content === "object" && !Array.isArray(r.content) ? r.content : {}
+        ) as StoredMessageContent;
+        return {
+          id: r.id,
+          role: r.role as ChatMessage["role"],
+          text: c.text || "",
+          action: c.action ?? null,
+          attachments: Array.isArray(c.attachments) ? c.attachments : [],
+          notices: Array.isArray(c.notices) ? c.notices : [],
+          created_at: r.created_at,
+        };
+      });
     return { messages };
   });
 
@@ -431,15 +470,20 @@ export const transcribeAudio = createServerFn({ method: "POST" })
       })
       .parse(d),
   )
-  .handler(async ({ data, context }): Promise<{ text: string; endpoint: { id: string; name: string; fell_back: boolean } }> => {
-    const { runTranscription } = await import("./ai.server");
-    const binary = Uint8Array.from(atob(data.audio_base64), (c) => c.charCodeAt(0));
-    const r = await runTranscription(context.userId, binary, {
-      file_name: data.file_name,
-      mime_type: data.mime_type,
-      language: data.language ?? null,
-      duration_ms: data.duration_ms ?? null,
-      endpoint_id: data.endpoint_id ?? null,
-    });
-    return { text: r.text, endpoint: r.endpoint };
-  });
+  .handler(
+    async ({
+      data,
+      context,
+    }): Promise<{ text: string; endpoint: { id: string; name: string; fell_back: boolean } }> => {
+      const { runTranscription } = await import("./ai.server");
+      const binary = Uint8Array.from(atob(data.audio_base64), (c) => c.charCodeAt(0));
+      const r = await runTranscription(context.userId, binary, {
+        file_name: data.file_name,
+        mime_type: data.mime_type,
+        language: data.language ?? null,
+        duration_ms: data.duration_ms ?? null,
+        endpoint_id: data.endpoint_id ?? null,
+      });
+      return { text: r.text, endpoint: r.endpoint };
+    },
+  );

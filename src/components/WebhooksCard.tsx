@@ -46,7 +46,10 @@ export function WebhooksCard() {
           auth_header_value: headerValue || null,
         },
       });
-      setName(""); setUrl(""); setHeaderName(""); setHeaderValue("");
+      setName("");
+      setUrl("");
+      setHeaderName("");
+      setHeaderValue("");
       qc.invalidateQueries({ queryKey: ["webhooks"] });
       toast.success(t("webhooks.created"));
     } catch (e) {
@@ -58,21 +61,35 @@ export function WebhooksCard() {
 
   return (
     <Card>
-      <CardHeader><CardTitle className="text-base">{t("webhooks.title")}</CardTitle></CardHeader>
+      <CardHeader>
+        <CardTitle className="text-base">{t("webhooks.title")}</CardTitle>
+      </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-xs text-muted-foreground">{t("webhooks.intro")}</p>
         <div className="grid gap-2 sm:grid-cols-2">
           <div>
             <Label className="text-xs">{t("webhooks.name")}</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="n8n flatastic" />
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="n8n flatastic"
+            />
           </div>
           <div>
             <Label className="text-xs">{t("webhooks.url")}</Label>
-            <Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://n8n.example.com/webhook/…" />
+            <Input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="https://n8n.example.com/webhook/…"
+            />
           </div>
           <div>
             <Label className="text-xs">{t("webhooks.header_name")}</Label>
-            <Input value={headerName} onChange={(e) => setHeaderName(e.target.value)} placeholder="X-API-Key" />
+            <Input
+              value={headerName}
+              onChange={(e) => setHeaderName(e.target.value)}
+              placeholder="X-API-Key"
+            />
           </div>
           <div>
             <Label className="text-xs">{t("webhooks.header_value")}</Label>

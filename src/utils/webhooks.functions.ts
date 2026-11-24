@@ -87,8 +87,7 @@ export const updateWebhook = createServerFn({ method: "POST" })
     if (p.url !== undefined) update.url = p.url;
     if (p.auth_header_name !== undefined)
       update.auth_header_name = p.auth_header_name?.trim() || null;
-    if (p.auth_header_value !== undefined)
-      update.auth_header_value = p.auth_header_value || null;
+    if (p.auth_header_value !== undefined) update.auth_header_value = p.auth_header_value || null;
     if (p.active !== undefined) update.active = p.active;
     const { error } = await supabase.from("webhooks").update(update).eq("id", data.id);
     if (error) throw new Error(error.message);

@@ -18,7 +18,14 @@ interface Props {
 
 /** Locale-aware date input. Parses on blur/Enter; supports keyboard stepping:
  *  +/-, ArrowUp/ArrowDown, j/k → ±1 day · PageUp/PageDown → ±1 month. */
-export function DateInput({ value, onChange, formatStr, locale: localeProp, className, id }: Props) {
+export function DateInput({
+  value,
+  onChange,
+  formatStr,
+  locale: localeProp,
+  className,
+  id,
+}: Props) {
   const settingFmt = useDateFormat();
   const { locale: uiLocale } = useI18n();
   const locale = localeProp ?? uiLocale;
@@ -30,7 +37,7 @@ export function DateInput({ value, onChange, formatStr, locale: localeProp, clas
   React.useEffect(() => {
     setText(format(value, fmtStr, { locale }));
     setInvalid(false);
-  }, [value, fmtStr]);
+  }, [value, fmtStr, locale]);
 
   const commit = () => {
     const parsed = parse(text, fmtStr, new Date(), { locale });
@@ -67,20 +74,31 @@ export function DateInput({ value, onChange, formatStr, locale: localeProp, clas
     <Input
       id={id}
       value={text}
-      onChange={(e) => { setText(e.target.value); setInvalid(false); }}
+      onChange={(e) => {
+        setText(e.target.value);
+        setInvalid(false);
+      }}
       onBlur={commit}
       onKeyDown={onKeyDown}
       placeholder={fmtStr}
       inputMode="numeric"
       autoComplete="off"
       spellCheck={false}
-      className={cn("tabular-nums", invalid && "border-destructive focus-visible:ring-destructive", className)}
+      className={cn(
+        "tabular-nums",
+        invalid && "border-destructive focus-visible:ring-destructive",
+        className,
+      )}
       aria-invalid={invalid || undefined}
     />
   );
 }
 /** DateInput for a "yyyy-MM-dd" string, as dates are stored. */
-export function IsoDateInput({ value, onChange, ...rest }: Omit<Props, "value" | "onChange"> & { value: string; onChange: (iso: string) => void }) {
+export function IsoDateInput({
+  value,
+  onChange,
+  ...rest
+}: Omit<Props, "value" | "onChange"> & { value: string; onChange: (iso: string) => void }) {
   const date = React.useMemo(() => {
     const d = value ? parseISO(value) : new Date();
     return isValid(d) ? d : new Date();

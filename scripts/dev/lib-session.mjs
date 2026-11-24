@@ -24,7 +24,9 @@ export function devConfig() {
   const serviceKey = sup.SERVICE_ROLE_KEY;
   const anonKey = sup.ANON_KEY || app.VITE_SUPABASE_PUBLISHABLE_KEY;
   if (!supabaseUrl || !serviceKey || !anonKey) {
-    throw new Error("need VITE_SUPABASE_URL (.env.dev-app), SERVICE_ROLE_KEY and ANON_KEY (.env.dev-supabase)");
+    throw new Error(
+      "need VITE_SUPABASE_URL (.env.dev-app), SERVICE_ROLE_KEY and ANON_KEY (.env.dev-supabase)",
+    );
   }
   const host = new URL(supabaseUrl).hostname;
   if (!host.includes("dev")) throw new Error(`refusing: ${host} does not look like the dev stack`);
@@ -38,18 +40,29 @@ export function devConfig() {
  */
 export async function mintDevSession(email = process.env.DEV_LOGIN_EMAIL ?? null) {
   const { supabaseUrl, serviceKey, anonKey, host } = devConfig();
-  const admin = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, "Content-Type": "application/json" };
+  const admin = {
+    apikey: serviceKey,
+    Authorization: `Bearer ${serviceKey}`,
+    "Content-Type": "application/json",
+  };
   const call = async (url, init) => {
     const r = await fetch(url, init);
     const text = await r.text();
-    if (!r.ok) throw new Error(`${init?.method ?? "GET"} ${url.replace(supabaseUrl, "")}: ${r.status} ${text.slice(0, 200)}`);
+    if (!r.ok)
+      throw new Error(
+        `${init?.method ?? "GET"} ${url.replace(supabaseUrl, "")}: ${r.status} ${text.slice(0, 200)}`,
+      );
     return text ? JSON.parse(text) : null;
   };
   if (!email) {
-    const { users } = await call(`${supabaseUrl}/auth/v1/admin/users?per_page=50`, { headers: admin });
+    const { users } = await call(`${supabaseUrl}/auth/v1/admin/users?per_page=50`, {
+      headers: admin,
+    });
     const real = users.filter((u) => u.email);
     if (real.length !== 1) {
-      throw new Error(`dev has ${real.length} users; pick one with --email (${real.map((u) => u.email).join(", ")})`);
+      throw new Error(
+        `dev has ${real.length} users; pick one with --email (${real.map((u) => u.email).join(", ")})`,
+      );
     }
     email = real[0].email;
   }
@@ -65,8 +78,10 @@ export async function mintDevSession(email = process.env.DEV_LOGIN_EMAIL ?? null
     headers: { apikey: anonKey, "Content-Type": "application/json" },
     body: JSON.stringify({ type: "magiclink", token_hash: tokenHash }),
   });
-  if (!session?.access_token || !session?.refresh_token) throw new Error("verify returned no session");
-  if (!session.expires_at) session.expires_at = Math.floor(Date.now() / 1000) + (session.expires_in ?? 3600);
+  if (!session?.access_token || !session?.refresh_token)
+    throw new Error("verify returned no session");
+  if (!session.expires_at)
+    session.expires_at = Math.floor(Date.now() / 1000) + (session.expires_in ?? 3600);
   // supabase-js' default key: sb-<first label of the Supabase host>-auth-token.
   return { email, session, storageKey: `sb-${host.split(".")[0]}-auth-token` };
 }

@@ -35,9 +35,14 @@ export function AssistantBubble() {
       <SheetContent side="right" className="flex w-full flex-col gap-2 sm:max-w-md">
         <SheetHeader>
           <SheetTitle className="flex items-center justify-between gap-2">
-            <span className="flex items-center gap-2"><Sparkles className="h-4 w-4" /> {t("ai.title")}</span>
+            <span className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4" /> {t("ai.title")}
+            </span>
             <Button asChild variant="ghost" size="sm" onClick={() => setOpen(false)}>
-              <Link to="/assistant"><ExternalLink className="mr-1 h-3 w-3" />{t("ai.open_full")}</Link>
+              <Link to="/assistant">
+                <ExternalLink className="mr-1 h-3 w-3" />
+                {t("ai.open_full")}
+              </Link>
             </Button>
           </SheetTitle>
         </SheetHeader>
@@ -48,7 +53,12 @@ export function AssistantBubble() {
             </div>
           }
         >
-          <AssistantChat conversationId={convId} onConversationChange={setConvId} persist={false} compact />
+          <AssistantChat
+            conversationId={convId}
+            onConversationChange={setConvId}
+            persist={false}
+            compact
+          />
         </React.Suspense>
       </SheetContent>
     </Sheet>

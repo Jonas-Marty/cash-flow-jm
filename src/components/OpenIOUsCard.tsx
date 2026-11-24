@@ -6,17 +6,21 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Popover, PopoverContent, PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import {
@@ -106,7 +110,9 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
       await invalidateReimbursables();
       setCancelTx(null);
       setCancelReason("");
-    } catch (e) { toast.error((e as Error).message); }
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   };
   const onWriteOffConfirm = async () => {
     if (!writeOffTx || !writeOffCategoryId) return;
@@ -117,7 +123,9 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
         note: writeOffNote.trim() || null,
       });
       if (skippedSettlingIds.length > 0) {
-        toast.warning(tr("iou.writeoff.toast.shared_skipped", { n: String(skippedSettlingIds.length) }));
+        toast.warning(
+          tr("iou.writeoff.toast.shared_skipped", { n: String(skippedSettlingIds.length) }),
+        );
       } else {
         toast.success(tr("iou.writeoff.toast"));
       }
@@ -167,7 +175,10 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
       reimburse_for: rows.map((x) => x.id).join(","),
       type: dir === "owed_to_me" ? "income" : "expense",
       amount: total.toFixed(2),
-      description: tr(dir === "owed_to_me" ? "iou.repayment.group_from" : "iou.repayment.group_to", { name }),
+      description: tr(
+        dir === "owed_to_me" ? "iou.repayment.group_from" : "iou.repayment.group_to",
+        { name },
+      ),
       note: `${tr("iou.repayment.group_note")}\n${lines.join("\n")}`,
       counterparty: name,
     });
@@ -217,12 +228,16 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
                 </a>
               </Button>
             </TooltipTrigger>
-            <TooltipContent className="max-w-xs"><p>{tr("iou.help.add_repayment")}</p></TooltipContent>
+            <TooltipContent className="max-w-xs">
+              <p>{tr("iou.help.add_repayment")}</p>
+            </TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground"
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs text-muted-foreground"
                 onClick={() => {
                   setWriteOffTx(tx);
                   setWriteOffCategoryId(tx.category_id ?? "");
@@ -233,22 +248,39 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
                 <MinusCircle className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent className="max-w-xs"><p>{tr("iou.help.writeoff")}</p></TooltipContent>
+            <TooltipContent className="max-w-xs">
+              <p>{tr("iou.help.writeoff")}</p>
+            </TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
-                size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground"
-                onClick={() => { setCancelTx(tx); setCancelReason(""); }}
+                size="sm"
+                variant="ghost"
+                className="h-7 px-2 text-xs text-muted-foreground"
+                onClick={() => {
+                  setCancelTx(tx);
+                  setCancelReason("");
+                }}
                 aria-label={tr("dash.reimb.mark_cancelled")}
               >
                 <Ban className="h-3.5 w-3.5" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent className="max-w-xs"><p>{tr("iou.help.cancel")}</p></TooltipContent>
+            <TooltipContent className="max-w-xs">
+              <p>{tr("iou.help.cancel")}</p>
+            </TooltipContent>
           </Tooltip>
-          <Button asChild size="sm" variant="ghost" className="h-7 px-2 text-xs" aria-label={tr("common.edit")}>
-            <Link to="/edit/$id" params={{ id: tx.id }}><Pencil className="h-3.5 w-3.5" /></Link>
+          <Button
+            asChild
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-xs"
+            aria-label={tr("common.edit")}
+          >
+            <Link to="/edit/$id" params={{ id: tx.id }}>
+              <Pencil className="h-3.5 w-3.5" />
+            </Link>
           </Button>
         </div>
       </li>
@@ -271,7 +303,11 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
       groups.set(key, g);
     }
     return [...groups.values()].sort((a, b) =>
-      a.name === null ? 1 : b.name === null ? -1 : b.total - a.total || a.name.localeCompare(b.name),
+      a.name === null
+        ? 1
+        : b.name === null
+          ? -1
+          : b.total - a.total || a.name.localeCompare(b.name),
     );
   };
 
@@ -290,7 +326,9 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
           <div key={g.name ?? ""} className="overflow-hidden rounded-md border border-border/60">
             <div className="flex items-baseline justify-between gap-2 bg-muted/40 px-3 py-1.5">
               <div className="min-w-0 truncate text-sm font-medium">
-                {g.name ?? <span className="text-muted-foreground">{tr("iou.no_counterparty")}</span>}
+                {g.name ?? (
+                  <span className="text-muted-foreground">{tr("iou.no_counterparty")}</span>
+                )}
                 <span className="ml-2 text-xs font-normal text-muted-foreground">
                   {tr("iou.group.count", { n: String(g.rows.length) })}
                 </span>
@@ -351,7 +389,9 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
                 </div>
               </div>
               <Button
-                size="sm" variant="outline" className="h-7 px-2 text-xs"
+                size="sm"
+                variant="outline"
+                className="h-7 px-2 text-xs"
                 onClick={() => {
                   setWriteOffTx(tx);
                   setWriteOffCategoryId(tx.category_id ?? "");
@@ -379,7 +419,12 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
         </TooltipProvider>
       )}
 
-      <Dialog open={!!cancelTx} onOpenChange={(v) => { if (!v) setCancelTx(null); }}>
+      <Dialog
+        open={!!cancelTx}
+        onOpenChange={(v) => {
+          if (!v) setCancelTx(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{tr("dash.reimb.mark_cancelled")}</DialogTitle>
@@ -387,16 +432,27 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">{tr("iou.help.cancel")}</p>
             <p className="text-sm text-muted-foreground">{tr("dash.reimb.cancel.prompt")}</p>
-            <Textarea rows={3} value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} />
+            <Textarea
+              rows={3}
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+            />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCancelTx(null)}>{tr("common.cancel")}</Button>
+            <Button variant="outline" onClick={() => setCancelTx(null)}>
+              {tr("common.cancel")}
+            </Button>
             <Button onClick={onCancelConfirm}>{tr("common.save")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!writeOffTx} onOpenChange={(v) => { if (!v) setWriteOffTx(null); }}>
+      <Dialog
+        open={!!writeOffTx}
+        onOpenChange={(v) => {
+          if (!v) setWriteOffTx(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{tr("iou.writeoff.dialog.title")}</DialogTitle>
@@ -410,17 +466,27 @@ export function OpenIOUsCard({ symbol, headless = false }: { symbol: string; hea
             <div className="space-y-1">
               <Label>{tr("iou.writeoff.category")}</Label>
               <Select value={writeOffCategoryId} onValueChange={setWriteOffCategoryId}>
-                <SelectTrigger><SelectValue placeholder="…" /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="…" />
+                </SelectTrigger>
                 <SelectContent>
-                  {(categoriesQ.data ?? []).filter((c) => !c.archived).map((c) => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
+                  {(categoriesQ.data ?? [])
+                    .filter((c) => !c.archived)
+                    .map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1">
               <Label>{tr("iou.writeoff.note")}</Label>
-              <Textarea rows={2} value={writeOffNote} onChange={(e) => setWriteOffNote(e.target.value)} />
+              <Textarea
+                rows={2}
+                value={writeOffNote}
+                onChange={(e) => setWriteOffNote(e.target.value)}
+              />
             </div>
           </div>
           <DialogFooter>

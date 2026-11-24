@@ -18,7 +18,10 @@ import type { Category, CategoryGroup } from "@/lib/finance";
  * at close time and do not participate in the monthly plan.
  */
 export function BudgetBalanceCard({
-  categories, groups, symbol, amounts,
+  categories,
+  groups,
+  symbol,
+  amounts,
 }: {
   categories: Category[];
   groups: CategoryGroup[];
@@ -39,16 +42,23 @@ export function BudgetBalanceCard({
   else verdictKey = "ok";
 
   const tone =
-    verdictKey === "over" ? "text-destructive"
-    : verdictKey === "balanced" ? "text-success"
-    : verdictKey === "buffer" ? "text-primary"
-    : "text-muted-foreground";
+    verdictKey === "over"
+      ? "text-destructive"
+      : verdictKey === "balanced"
+        ? "text-success"
+        : verdictKey === "buffer"
+          ? "text-primary"
+          : "text-muted-foreground";
 
   const denom = Math.max(totals.income, totals.expense + totals.savings, 1);
   const expW = Math.min(100, (totals.expense / denom) * 100);
   const savW = Math.min(100 - expW, (totals.savings / denom) * 100);
-  const bufW = Math.max(0, 100 - expW - savW - (totals.unallocated < 0 ? Math.abs(totals.unallocated) / denom * 100 : 0));
-  const overW = totals.unallocated < 0 ? Math.min(100, Math.abs(totals.unallocated) / denom * 100) : 0;
+  const bufW = Math.max(
+    0,
+    100 - expW - savW - (totals.unallocated < 0 ? (Math.abs(totals.unallocated) / denom) * 100 : 0),
+  );
+  const overW =
+    totals.unallocated < 0 ? Math.min(100, (Math.abs(totals.unallocated) / denom) * 100) : 0;
 
   const verdictLabel =
     verdictKey === "over"
@@ -70,9 +80,24 @@ export function BudgetBalanceCard({
         </div>
 
         <div className="grid gap-2 text-sm sm:grid-cols-4">
-          <PlanRow label={t("settings.kind_income")} value={totals.income} symbol={symbol} sign="+" />
-          <PlanRow label={t("settings.kind_expense")} value={totals.expense} symbol={symbol} sign="−" />
-          <PlanRow label={t("settings.kind_savings")} value={totals.savings} symbol={symbol} sign="−" />
+          <PlanRow
+            label={t("settings.kind_income")}
+            value={totals.income}
+            symbol={symbol}
+            sign="+"
+          />
+          <PlanRow
+            label={t("settings.kind_expense")}
+            value={totals.expense}
+            symbol={symbol}
+            sign="−"
+          />
+          <PlanRow
+            label={t("settings.kind_savings")}
+            value={totals.savings}
+            symbol={symbol}
+            sign="−"
+          />
           <PlanRow
             label={t("settings.balance.unallocated")}
             value={totals.unallocated}
@@ -85,24 +110,43 @@ export function BudgetBalanceCard({
         <div className="h-2 w-full overflow-hidden rounded-full bg-muted flex" aria-hidden>
           {expW > 0 && <div className="h-full bg-destructive/80" style={{ width: `${expW}%` }} />}
           {savW > 0 && <div className="h-full bg-primary/70" style={{ width: `${savW}%` }} />}
-          {bufW > 0 && verdictKey !== "over" && <div className="h-full bg-success/40" style={{ width: `${bufW}%` }} />}
+          {bufW > 0 && verdictKey !== "over" && (
+            <div className="h-full bg-success/40" style={{ width: `${bufW}%` }} />
+          )}
           {overW > 0 && <div className="h-full bg-destructive" style={{ width: `${overW}%` }} />}
         </div>
 
         <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
           <LegendDot className="bg-destructive/80" label={t("settings.kind_expense")} />
           <LegendDot className="bg-primary/70" label={t("settings.kind_savings")} />
-          {verdictKey !== "over"
-            ? <LegendDot className="bg-success/40" label={t("settings.balance.unallocated")} />
-            : <LegendDot className="bg-destructive" label={t("settings.balance.over_segment")} />}
+          {verdictKey !== "over" ? (
+            <LegendDot className="bg-success/40" label={t("settings.balance.unallocated")} />
+          ) : (
+            <LegendDot className="bg-destructive" label={t("settings.balance.over_segment")} />
+          )}
         </div>
       </CardContent>
     </Card>
   );
 }
 
-function PlanRow({ label, value, symbol, sign, tone }: { label: string; value: number; symbol: string; sign: "+" | "−" | ""; tone?: string }) {
-  const display = sign === "" ? fmtMoney(value, symbol) : `${sign} ${fmtMoney(Math.abs(value), symbol).replace("-", "")}`;
+function PlanRow({
+  label,
+  value,
+  symbol,
+  sign,
+  tone,
+}: {
+  label: string;
+  value: number;
+  symbol: string;
+  sign: "+" | "−" | "";
+  tone?: string;
+}) {
+  const display =
+    sign === ""
+      ? fmtMoney(value, symbol)
+      : `${sign} ${fmtMoney(Math.abs(value), symbol).replace("-", "")}`;
   return (
     <div className="rounded-md border bg-card/50 p-2">
       <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>

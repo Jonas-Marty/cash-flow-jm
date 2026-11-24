@@ -22,8 +22,12 @@ function bestEffortUserIdFromAuth(authHeader: string | null): string | undefined
   try {
     const payload = parts[1];
     // base64url -> base64
-    const b64 = payload.replace(/-/g, "+").replace(/_/g, "/").padEnd(payload.length + ((4 - (payload.length % 4)) % 4), "=");
-    const json = typeof atob === "function" ? atob(b64) : Buffer.from(b64, "base64").toString("utf8");
+    const b64 = payload
+      .replace(/-/g, "+")
+      .replace(/_/g, "/")
+      .padEnd(payload.length + ((4 - (payload.length % 4)) % 4), "=");
+    const json =
+      typeof atob === "function" ? atob(b64) : Buffer.from(b64, "base64").toString("utf8");
     const obj = JSON.parse(json) as { sub?: string };
     return typeof obj.sub === "string" ? obj.sub : undefined;
   } catch {
@@ -46,7 +50,10 @@ const requestLogger = createMiddleware().server(async ({ next, request }) => {
   const userId = bestEffortUserIdFromAuth(request.headers.get("authorization"));
 
   // Skip noisy assets — keep logs focused on app traffic.
-  const noisy = path.startsWith("/_build/") || path.startsWith("/assets/") || /\.(js|css|map|png|jpg|svg|ico|woff2?|webp)$/i.test(path);
+  const noisy =
+    path.startsWith("/_build/") ||
+    path.startsWith("/assets/") ||
+    /\.(js|css|map|png|jpg|svg|ico|woff2?|webp)$/i.test(path);
 
   try {
     const result = await next();

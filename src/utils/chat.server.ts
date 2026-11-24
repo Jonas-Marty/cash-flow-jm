@@ -36,14 +36,22 @@ export interface ChatResponse {
   endpoint: { id: string; name: string; fell_back: boolean };
 }
 
-export async function handleChat(supabase: SupabaseClient, userId: string, data: ChatRequest): Promise<ChatResponse> {
-
+export async function handleChat(
+  supabase: SupabaseClient,
+  userId: string,
+  data: ChatRequest,
+): Promise<ChatResponse> {
   // Prefer a connection whose model is not known to lack tool calling;
   // when every one does, still answer (without tools) rather than fail.
   let resolved: Awaited<ReturnType<typeof resolveEndpoint>> | null = null;
   if (!data.endpoint_id) {
     try {
-      resolved = await resolveEndpoint(userId, "chat", null, (r, m) => capsFor(r, m ?? r.model).tools !== false);
+      resolved = await resolveEndpoint(
+        userId,
+        "chat",
+        null,
+        (r, m) => capsFor(r, m ?? r.model).tools !== false,
+      );
     } catch (e) {
       if (!(e instanceof Error) || !/No AI connection configured/.test(e.message)) throw e;
     }
@@ -110,24 +118,38 @@ export async function handleChat(supabase: SupabaseClient, userId: string, data:
         .select("role, content")
         .eq("conversation_id", conversationId)
         .order("created_at", { ascending: true });
-      for (const r of (rows || []) as any[]) {
+      for (const r of rows || []) {
         if (r.role !== "user" && r.role !== "assistant") continue;
-        const c = r.content && typeof r.content === "object" ? r.content : {};
-        const ids = Array.isArray(c.attachments) ? c.attachments.map((a: any) => a?.id).filter(Boolean) : [];
+        const c = (
+          r.content && typeof r.content === "object" && !Array.isArray(r.content) ? r.content : {}
+        ) as { text?: string; attachments?: Array<{ id?: string } | null> };
+        const ids = Array.isArray(c.attachments)
+          ? c.attachments.map((a) => a?.id).filter((id): id is string => !!id)
+          : [];
         past.push({ role: r.role, text: c.text || "", attachment_ids: ids });
       }
     }
   } else {
-    past = (data.history ?? []).map((h) => ({ role: h.role, text: h.text, attachment_ids: h.attachment_ids ?? [] }));
+    past = (data.history ?? []).map((h) => ({
+      role: h.role,
+      text: h.text,
+      attachment_ids: h.attachment_ids ?? [],
+    }));
   }
   past = past.slice(-40);
 
   // New files: read and store first, so a scanned PDF fails before the model is asked.
   const current = [];
   for (const f of data.attachments ?? []) {
-    current.push({ row: await storeAttachment(supabase, userId, f, data.persist ? conversationId : null), base64: f.file_base64 });
+    current.push({
+      row: await storeAttachment(supabase, userId, f, data.persist ? conversationId : null),
+      base64: f.file_base64,
+    });
   }
-  const earlier = await loadAttachments(supabase, past.flatMap((p) => p.attachment_ids));
+  const earlier = await loadAttachments(
+    supabase,
+    past.flatMap((p) => p.attachment_ids),
+  );
 
   let imageBudget = caps.vision === false ? 0 : MAX_IMAGES_PER_REQUEST;
   const imageParts: { type: "image_url"; image_url: { url: string } }[] = [];
@@ -135,7 +157,10 @@ export async function handleChat(supabase: SupabaseClient, userId: string, data:
     const show = row.text == null && imageBudget > 0;
     if (show) {
       imageBudget--;
-      imageParts.push({ type: "image_url", image_url: { url: `data:${row.mime};base64,${base64}` } });
+      imageParts.push({
+        type: "image_url",
+        image_url: { url: `data:${row.mime};base64,${base64}` },
+      });
     }
     return formatAttachmentBlock(row, ATTACHMENT_CHARS_CURRENT, show);
   });
@@ -156,14 +181,25 @@ export async function handleChat(supabase: SupabaseClient, userId: string, data:
   }
 
   const history: ChatTurn[] = past.map((p) => {
-    if (p.role !== "user" || p.attachment_ids.length === 0) return { role: p.role, content: p.text };
-    const atts = p.attachment_ids.map((id) => earlier.find((e) => e.id === id)).filter(Boolean) as typeof earlier;
-    const blocks = atts.map((a) => formatAttachmentBlock(a, ATTACHMENT_CHARS_HISTORY, earlierImages.has(a.id)));
+    if (p.role !== "user" || p.attachment_ids.length === 0)
+      return { role: p.role, content: p.text };
+    const atts = p.attachment_ids
+      .map((id) => earlier.find((e) => e.id === id))
+      .filter(Boolean) as typeof earlier;
+    const blocks = atts.map((a) =>
+      formatAttachmentBlock(a, ATTACHMENT_CHARS_HISTORY, earlierImages.has(a.id)),
+    );
     const text = userTurnText(p.text, blocks);
     const imgs = atts
       .filter((a) => earlierImages.has(a.id))
-      .map((a) => ({ type: "image_url" as const, image_url: { url: `data:${a.mime};base64,${earlierImages.get(a.id)}` } }));
-    return { role: "user", content: imgs.length ? [{ type: "text" as const, text }, ...imgs] : text };
+      .map((a) => ({
+        type: "image_url" as const,
+        image_url: { url: `data:${a.mime};base64,${earlierImages.get(a.id)}` },
+      }));
+    return {
+      role: "user",
+      content: imgs.length ? [{ type: "text" as const, text }, ...imgs] : text,
+    };
   });
   const turnText = userTurnText(data.message, currentBlocks);
   history.push({
@@ -195,7 +231,10 @@ export async function handleChat(supabase: SupabaseClient, userId: string, data:
       role: "assistant",
       content: { text: result.text, action: result.action, notices: result.notices } as never,
     });
-    await supabase.from("ai_conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
+    await supabase
+      .from("ai_conversations")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", conversationId);
   }
 
   return {
@@ -208,6 +247,10 @@ export async function handleChat(supabase: SupabaseClient, userId: string, data:
       usage: result.usage ?? null,
       notices: result.notices,
     },
-    endpoint: { id: resolved.endpoint.id, name: resolved.endpoint.name, fell_back: resolved.fell_back },
+    endpoint: {
+      id: resolved.endpoint.id,
+      name: resolved.endpoint.name,
+      fell_back: resolved.fell_back,
+    },
   };
 }

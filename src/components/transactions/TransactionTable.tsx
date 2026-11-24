@@ -26,18 +26,46 @@ interface Props {
 function Markers({ t, ctx }: { t: Transaction; ctx: RowContext }) {
   return (
     <>
-      {t.split_group_id && <Layers className="h-3 w-3 shrink-0 text-muted-foreground" aria-label={ctx.tr("tx.split.label")} />}
-      {t.recurring_rule_id && <Repeat className="h-3 w-3 shrink-0 text-muted-foreground" aria-label={ctx.tr("tx.from_rule")} />}
-      {ctx.reimbursementIds.has(t.id) && <Undo2 className="h-3 w-3 shrink-0 text-success" aria-label={ctx.tr("tx.reimbursement")} />}
+      {t.split_group_id && (
+        <Layers
+          className="h-3 w-3 shrink-0 text-muted-foreground"
+          aria-label={ctx.tr("tx.split.label")}
+        />
+      )}
+      {t.recurring_rule_id && (
+        <Repeat
+          className="h-3 w-3 shrink-0 text-muted-foreground"
+          aria-label={ctx.tr("tx.from_rule")}
+        />
+      )}
+      {ctx.reimbursementIds.has(t.id) && (
+        <Undo2 className="h-3 w-3 shrink-0 text-success" aria-label={ctx.tr("tx.reimbursement")} />
+      )}
     </>
   );
 }
 
-function AmountCell({ t, ctx, stack = false }: { t: Transaction; ctx: RowContext; stack?: boolean }) {
+function AmountCell({
+  t,
+  ctx,
+  stack = false,
+}: {
+  t: Transaction;
+  ctx: RowContext;
+  stack?: boolean;
+}) {
   const sym = ctx.accountById.get(t.source_account_id)?.currency_symbol ?? ctx.symbol;
-  const tone = t.type === "expense" ? "text-destructive" : t.type === "income" ? "text-success" : "text-muted-foreground";
+  const tone =
+    t.type === "expense"
+      ? "text-destructive"
+      : t.type === "income"
+        ? "text-success"
+        : "text-muted-foreground";
   const sign = t.type === "expense" ? "-" : t.type === "income" ? "+" : "";
-  const dst = t.type === "transfer" && t.destination_account_id ? ctx.accountById.get(t.destination_account_id) : undefined;
+  const dst =
+    t.type === "transfer" && t.destination_account_id
+      ? ctx.accountById.get(t.destination_account_id)
+      : undefined;
   // Another currency, or a gift card bought at a discount: more (or less) arrives.
   const arrives =
     dst && t.destination_amount != null && Number(t.destination_amount) !== Number(t.amount)
@@ -73,7 +101,10 @@ function TransferLabel({ ctx }: { ctx: RowContext }) {
 
 function AccountCell({ t, ctx, visuals }: { t: Transaction; ctx: RowContext; visuals: boolean }) {
   const src = ctx.accountById.get(t.source_account_id) ?? null;
-  const dst = t.type === "transfer" && t.destination_account_id ? ctx.accountById.get(t.destination_account_id) ?? null : null;
+  const dst =
+    t.type === "transfer" && t.destination_account_id
+      ? (ctx.accountById.get(t.destination_account_id) ?? null)
+      : null;
   return (
     <span className="inline-flex min-w-0 items-center gap-1">
       {visuals && src && <EntityVisual entity={src} size="xs" />}
@@ -92,7 +123,11 @@ function AccountCell({ t, ctx, visuals }: { t: Transaction; ctx: RowContext; vis
 function rowTitle(t: Transaction, ctx: RowContext) {
   return (
     t.description ||
-    (t.type === "transfer" ? ctx.tr("tx.transfer_label") : t.type === "income" ? ctx.tr("add.income") : ctx.tr("add.expense"))
+    (t.type === "transfer"
+      ? ctx.tr("tx.transfer_label")
+      : t.type === "income"
+        ? ctx.tr("add.income")
+        : ctx.tr("add.expense"))
   );
 }
 
@@ -100,7 +135,12 @@ function TitleLink({ t, ctx, className }: { t: Transaction; ctx: RowContext; cla
   const link = ctx.linkByTx.get(t.id);
   return (
     <div className="flex min-w-0 items-center gap-1">
-      <Link to="/edit/$id" params={{ id: t.id }} search={{ back: ctx.backSearch }} className={className}>
+      <Link
+        to="/edit/$id"
+        params={{ id: t.id }}
+        search={{ back: ctx.backSearch }}
+        className={className}
+      >
         <Markers t={t} ctx={ctx} />
         <span className="truncate">{rowTitle(t, ctx)}</span>
       </Link>
@@ -109,13 +149,25 @@ function TitleLink({ t, ctx, className }: { t: Transaction; ctx: RowContext; cla
   );
 }
 
-const TableRow = React.memo(function TableRow({ t, selected, ctx }: { t: Transaction; selected: boolean; ctx: RowContext }) {
-  const cat = t.category_id ? ctx.categoryById.get(t.category_id) ?? null : null;
+const TableRow = React.memo(function TableRow({
+  t,
+  selected,
+  ctx,
+}: {
+  t: Transaction;
+  selected: boolean;
+  ctx: RowContext;
+}) {
+  const cat = t.category_id ? (ctx.categoryById.get(t.category_id) ?? null) : null;
   const tags = ctx.tagsByTx.get(t.id) ?? [];
   return (
     <tr className={cn("border-b hover:bg-muted/40", selected && "bg-primary/5")}>
       <td className="px-2 py-1.5 align-middle">
-        <Checkbox checked={selected} onCheckedChange={(v) => ctx.onToggle(t.id, v === true)} aria-label={rowTitle(t, ctx)} />
+        <Checkbox
+          checked={selected}
+          onCheckedChange={(v) => ctx.onToggle(t.id, v === true)}
+          aria-label={rowTitle(t, ctx)}
+        />
       </td>
       <td className="whitespace-nowrap px-2 py-1.5 align-middle text-xs text-muted-foreground tabular-nums">
         {format(new Date(t.occurred_on), ctx.dateFmt, { locale: ctx.locale })}
@@ -159,8 +211,16 @@ const TableRow = React.memo(function TableRow({ t, selected, ctx }: { t: Transac
   );
 });
 
-const ListRow = React.memo(function ListRow({ t, selected, ctx }: { t: Transaction; selected: boolean; ctx: RowContext }) {
-  const cat = t.category_id ? ctx.categoryById.get(t.category_id) ?? null : null;
+const ListRow = React.memo(function ListRow({
+  t,
+  selected,
+  ctx,
+}: {
+  t: Transaction;
+  selected: boolean;
+  ctx: RowContext;
+}) {
+  const cat = t.category_id ? (ctx.categoryById.get(t.category_id) ?? null) : null;
   const tags = ctx.tagsByTx.get(t.id) ?? [];
   return (
     <li className={cn("flex items-start gap-2 px-3 py-2", selected && "bg-primary/5")}>
@@ -176,7 +236,9 @@ const ListRow = React.memo(function ListRow({ t, selected, ctx }: { t: Transacti
           <AmountCell t={t} ctx={ctx} stack />
         </div>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] text-muted-foreground">
-          <span className="tabular-nums">{format(new Date(t.occurred_on), ctx.dateFmt, { locale: ctx.locale })}</span>
+          <span className="tabular-nums">
+            {format(new Date(t.occurred_on), ctx.dateFmt, { locale: ctx.locale })}
+          </span>
           <span>·</span>
           <AccountCell t={t} ctx={ctx} visuals={false} />
           {cat && (
@@ -225,7 +287,11 @@ export function TransactionTable({ rows, ctx, selected, allChecked, onToggleAll,
         <thead className="sticky top-0 z-10 bg-card shadow-sm">
           <tr className="border-b text-xs uppercase tracking-wide text-muted-foreground">
             <th className="w-9 px-2 py-2">
-              <Checkbox checked={allChecked} onCheckedChange={(v) => onToggleAll(v === true)} aria-label={tr("tx.bulk.select_all")} />
+              <Checkbox
+                checked={allChecked}
+                onCheckedChange={(v) => onToggleAll(v === true)}
+                aria-label={tr("tx.bulk.select_all")}
+              />
             </th>
             <th className="px-2 py-2 text-left font-medium">{tr("add.date")}</th>
             <th className="px-2 py-2 text-left font-medium">{tr("add.description")}</th>

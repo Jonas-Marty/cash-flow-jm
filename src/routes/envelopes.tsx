@@ -208,7 +208,7 @@ function EnvelopesPage() {
 
   const symbol = settingsQ.data?.currency_symbol ?? "CHF";
   const mainCode = settingsQ.data?.currency_code ?? "CHF";
-  const rows = rowsQ.data ?? [];
+  const rows = React.useMemo(() => rowsQ.data ?? [], [rowsQ.data]);
   const savingsBalanceMap = React.useMemo(
     () => new Map((savingsBalanceQ.data ?? []).map((s) => [s.category_id, s])),
     [savingsBalanceQ.data],
@@ -220,7 +220,12 @@ function EnvelopesPage() {
   const defaultSweepId = settingsQ.data?.default_sweep_category_id ?? null;
   const groupSweepById = React.useMemo(() => {
     const m = new Map<string, string | null>();
-    for (const g of groupsQ.data ?? []) m.set(g.id, (g as unknown as { sweep_target_category_id: string | null }).sweep_target_category_id ?? null);
+    for (const g of groupsQ.data ?? [])
+      m.set(
+        g.id,
+        (g as unknown as { sweep_target_category_id: string | null }).sweep_target_category_id ??
+          null,
+      );
     return m;
   }, [groupsQ.data]);
 
@@ -251,8 +256,11 @@ function EnvelopesPage() {
     () => (monthLedgerQ.data ? buildMonthMoves(monthLedgerQ.data, incomeIds, m) : []),
     [monthLedgerQ.data, incomeIds, m],
   );
-  const pendingMap = React.useMemo(() => buildPendingMap(pendingImpactQ.data ?? []), [pendingImpactQ.data]);
-  const txs = txQ.data ?? [];
+  const pendingMap = React.useMemo(
+    () => buildPendingMap(pendingImpactQ.data ?? []),
+    [pendingImpactQ.data],
+  );
+  const txs = React.useMemo(() => txQ.data ?? [], [txQ.data]);
   const accountById = React.useMemo(
     () => new Map((accountsQ.data ?? []).map((a) => [a.id, a])),
     [accountsQ.data],
@@ -361,7 +369,10 @@ function EnvelopesPage() {
     [groupsQ.data],
   );
   const balanceById = React.useMemo(
-    () => new Map((savingsBalanceQ.data ?? []).map((b) => [b.category_id, Number(b.cumulative_balance)])),
+    () =>
+      new Map(
+        (savingsBalanceQ.data ?? []).map((b) => [b.category_id, Number(b.cumulative_balance)]),
+      ),
     [savingsBalanceQ.data],
   );
   // Archived budgets drop out of the month's figures, but their bookings in the
@@ -424,7 +435,7 @@ function EnvelopesPage() {
   const sweepTargetName = React.useCallback(
     (id: string) => {
       const cat = categoriesById.get(id);
-      const groupOverride = cat?.group_id ? groupSweepById.get(cat.group_id) ?? null : null;
+      const groupOverride = cat?.group_id ? (groupSweepById.get(cat.group_id) ?? null) : null;
       const override = cat?.sweep_target_category_id ?? groupOverride;
       return override ? (categoriesById.get(override)?.name ?? null) : null;
     },
@@ -473,10 +484,16 @@ function EnvelopesPage() {
     enabled: historyWanted,
   });
   const history = React.useMemo(() => {
-    if (!historyBudgetsQ.data || !historyTxQ.data || !historySavingsQ.data || !categoriesQ.data) return undefined;
-    const plans = resolveCells(categoriesQ.data, historyBudgetsQ.data, historyMonths.map((k) => parseISO(k)));
+    if (!historyBudgetsQ.data || !historyTxQ.data || !historySavingsQ.data || !categoriesQ.data)
+      return undefined;
+    const plans = resolveCells(
+      categoriesQ.data,
+      historyBudgetsQ.data,
+      historyMonths.map((k) => parseISO(k)),
+    );
     const savings = new Map<string, number>();
-    for (const p of historySavingsQ.data) savings.set(`${p.category_id}:${p.as_of.slice(0, 7)}`, Number(p.cumulative_balance));
+    for (const p of historySavingsQ.data)
+      savings.set(`${p.category_id}:${p.as_of.slice(0, 7)}`, Number(p.cumulative_balance));
     return buildHistory({
       months: historyMonths,
       categories: overviewGroups.flatMap((g) =>
@@ -485,12 +502,23 @@ function EnvelopesPage() {
       planOf: (id, month) => plans.get(cellId(id, month))?.amount,
       txs: historyTxQ.data.map((t) => {
         const code = accountById.get(t.source_account_id)?.currency_code ?? mainCode;
-        const amount = code === mainCode ? t.amount : (convert(t.amount, code, mainCode, fxQ.data) ?? t.amount);
+        const amount =
+          code === mainCode ? t.amount : (convert(t.amount, code, mainCode, fxQ.data) ?? t.amount);
         return { category_id: t.category_id, type: t.type, amount, occurred_on: t.occurred_on };
       }),
       savingsBalance: (id, ym) => savings.get(`${id}:${ym}`),
     });
-  }, [historyBudgetsQ.data, historyTxQ.data, historySavingsQ.data, categoriesQ.data, historyMonths, overviewGroups, accountById, mainCode, fxQ.data]);
+  }, [
+    historyBudgetsQ.data,
+    historyTxQ.data,
+    historySavingsQ.data,
+    categoriesQ.data,
+    historyMonths,
+    overviewGroups,
+    accountById,
+    mainCode,
+    fxQ.data,
+  ]);
 
   return (
     <AppShell wide={gridView}>
@@ -534,7 +562,11 @@ function EnvelopesPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => { setReallocFrom(null); setReallocAmount(null); setReallocOpen(true); }}
+              onClick={() => {
+                setReallocFrom(null);
+                setReallocAmount(null);
+                setReallocOpen(true);
+              }}
             >
               <ArrowLeftRight className="h-4 w-4 mr-1" />
               {tr("envelopes.reallocate")}
@@ -574,7 +606,10 @@ function EnvelopesPage() {
               </div>
               <PrivacyValue className="text-lg font-bold tabular-nums">
                 {fmtMoney(
-                  (savingsBalanceQ.data ?? []).reduce((s, r) => s + Number(r.cumulative_balance), 0),
+                  (savingsBalanceQ.data ?? []).reduce(
+                    (s, r) => s + Number(r.cumulative_balance),
+                    0,
+                  ),
                   symbol,
                 )}
               </PrivacyValue>
@@ -603,20 +638,30 @@ function EnvelopesPage() {
         {rowsQ.isLoading ? (
           <Skeleton className="h-32 w-full" />
         ) : rows.length === 0 ? (
-          <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">
-            {tr("env.no_envelopes")} <Link to="/settings" className="text-primary underline-offset-2 hover:underline">{tr("dashboard.create_in_settings")}</Link>.
-          </CardContent></Card>
+          <Card>
+            <CardContent className="py-8 text-center text-sm text-muted-foreground">
+              {tr("env.no_envelopes")}{" "}
+              <Link to="/settings" className="text-primary underline-offset-2 hover:underline">
+                {tr("dashboard.create_in_settings")}
+              </Link>
+              .
+            </CardContent>
+          </Card>
         ) : (
           <>
-            {view !== "cards" && <MonthBudgetSummary
-              rows={effectiveRows}
-              pendingMap={pendingMap}
-              symbol={symbol}
-              monthLabel={format(month, "MMMM yyyy", { locale })}
-            />}
+            {view !== "cards" && (
+              <MonthBudgetSummary
+                rows={effectiveRows}
+                pendingMap={pendingMap}
+                symbol={symbol}
+                monthLabel={format(month, "MMMM yyyy", { locale })}
+              />
+            )}
             {gridView && (
               <>
-                <p className="text-xs leading-snug text-muted-foreground">{tr("budget.grid.hint")}</p>
+                <p className="text-xs leading-snug text-muted-foreground">
+                  {tr("budget.grid.hint")}
+                </p>
                 {budgetRangeQ.isLoading ? (
                   <Skeleton className="h-64 w-full" />
                 ) : (
@@ -633,8 +678,8 @@ function EnvelopesPage() {
                 )}
               </>
             )}
-            {view === "allocations" && (
-              monthLedgerQ.isLoading ? (
+            {view === "allocations" &&
+              (monthLedgerQ.isLoading ? (
                 <Skeleton className="h-64 w-full" />
               ) : (
                 <AllocationsView
@@ -644,8 +689,7 @@ function EnvelopesPage() {
                   onEditReallocation={setEditReallocId}
                   onOpenTransaction={openTransaction}
                 />
-              )
-            )}
+              ))}
             {view === "cards" && (
               <BudgetOverview
                 groups={overviewGroups}
@@ -659,7 +703,9 @@ function EnvelopesPage() {
                 onNeedHistory={() => setHistoryWanted(true)}
                 renderEntries={(r) => (
                   <MonthEntries
-                    rowKind={r.type === "income" ? "income" : r.type === "savings" ? "savings" : "expense"}
+                    rowKind={
+                      r.type === "income" ? "income" : r.type === "savings" ? "savings" : "expense"
+                    }
                     items={byCategory.get(r.id) ?? []}
                     reallocs={reallocByCategory.get(r.id) ?? []}
                     ledger={monthLedgerQ.data?.get(r.id) ?? []}
@@ -678,7 +724,11 @@ function EnvelopesPage() {
                   setEditorOpen(true);
                   setHistoryWanted(true);
                 }}
-                onReallocate={(id) => { setReallocFrom(id); setReallocAmount(null); setReallocOpen(true); }}
+                onReallocate={(id) => {
+                  setReallocFrom(id);
+                  setReallocAmount(null);
+                  setReallocOpen(true);
+                }}
                 onOpenDetail={(id) => setDetailCat({ id })}
                 onAllTransactions={(id) =>
                   navigate({
@@ -723,8 +773,13 @@ function EnvelopesPage() {
       />
       <ReallocationEditDialog
         reallocationId={editReallocId}
-        onOpenTransaction={(id) => { setEditReallocId(null); openTransaction(id); }}
-        onOpenChange={(v) => { if (!v) setEditReallocId(null); }}
+        onOpenTransaction={(id) => {
+          setEditReallocId(null);
+          openTransaction(id);
+        }}
+        onOpenChange={(v) => {
+          if (!v) setEditReallocId(null);
+        }}
       />
       <EnvelopeDetailSheet
         onEditReallocation={setEditReallocId}
@@ -734,7 +789,9 @@ function EnvelopesPage() {
         asOf={asOf}
         symbol={symbol}
         open={!!detailCat}
-        onOpenChange={(v) => { if (!v) setDetailCat(null); }}
+        onOpenChange={(v) => {
+          if (!v) setDetailCat(null);
+        }}
       />
     </AppShell>
   );

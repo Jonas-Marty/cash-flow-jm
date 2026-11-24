@@ -88,7 +88,10 @@ export function AuthPage() {
         </CardHeader>
         <CardContent>
           {oauthError && (
-            <div role="alert" className="mb-3 rounded-md border border-destructive/60 bg-destructive/10 p-3 text-sm">
+            <div
+              role="alert"
+              className="mb-3 rounded-md border border-destructive/60 bg-destructive/10 p-3 text-sm"
+            >
               <div className="font-medium">{t("auth.provider_failed")}</div>
               <div className="break-words text-muted-foreground">{oauthError}</div>
             </div>
@@ -103,11 +106,25 @@ export function AuthPage() {
               <form onSubmit={onSignIn} className="space-y-3 pt-3">
                 <div className="space-y-1">
                   <Label htmlFor="email-in">{t("auth.email")}</Label>
-                  <Input id="email-in" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+                  <Input
+                    id="email-in"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="pw-in">{t("auth.password")}</Label>
-                  <Input id="pw-in" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+                  <Input
+                    id="pw-in"
+                    type="password"
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
                 </div>
                 <Button type="submit" className="w-full" disabled={busy}>
                   {busy ? "…" : t("auth.signin")}
@@ -119,11 +136,26 @@ export function AuthPage() {
               <form onSubmit={onSignUp} className="space-y-3 pt-3">
                 <div className="space-y-1">
                   <Label htmlFor="email-up">{t("auth.email")}</Label>
-                  <Input id="email-up" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+                  <Input
+                    id="email-up"
+                    type="email"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-1">
                   <Label htmlFor="pw-up">{t("auth.password")}</Label>
-                  <Input id="pw-up" type="password" autoComplete="new-password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
+                  <Input
+                    id="pw-up"
+                    type="password"
+                    autoComplete="new-password"
+                    required
+                    minLength={6}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
                 </div>
                 <div className="flex items-start gap-2 rounded-md border bg-muted/30 p-3">
                   <Checkbox
@@ -148,9 +180,11 @@ export function AuthPage() {
             </TabsContent>
           </Tabs>
 
-          {!!(providersQ.data?.length) && (
+          {!!providersQ.data?.length && (
             <div className="mt-4 space-y-2">
-              <div className="text-center text-xs uppercase text-muted-foreground">{t("auth.or")}</div>
+              <div className="text-center text-xs uppercase text-muted-foreground">
+                {t("auth.or")}
+              </div>
               {providersQ.data.map((p) => (
                 <Button
                   key={p.provider}

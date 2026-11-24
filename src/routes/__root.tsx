@@ -1,12 +1,21 @@
 import * as React from "react";
-import { Link, Outlet, createRootRouteWithContext, HeadContent, Scripts, useLocation } from "@tanstack/react-router";
+import {
+  Link,
+  Outlet,
+  createRootRouteWithContext,
+  HeadContent,
+  Scripts,
+  useLocation,
+} from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Loader2 } from "lucide-react";
 import { Toaster } from "@/components/ui/sonner";
-import { I18nProvider, type Lang } from "@/i18n";
+import { type Lang } from "@/i18n";
+import { I18nProvider } from "@/i18n/I18nProvider";
 import { fetchSettings } from "@/lib/finance";
 import { supabase } from "@/integrations/supabase/client";
-import { AuthProvider, useAuth } from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
+import { AuthProvider } from "@/lib/AuthProvider";
 import { AuthPage } from "@/components/AuthPage";
 import { ThemeApplier, type ThemeMode } from "@/lib/theme";
 import { LinkIdentityPrompt } from "@/components/LinkIdentityPrompt";
@@ -134,11 +143,20 @@ export const Route = createRootRouteWithContext<RouterContext>()({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: IS_DEV_ENV ? "DEV · Cashflow" : "Cashflow — Personal Finance" },
-      { name: "description", content: "Track daily cash flow, envelope budgets, and credit-card liabilities." },
+      {
+        name: "description",
+        content: "Track daily cash flow, envelope budgets, and credit-card liabilities.",
+      },
       { property: "og:title", content: "Cashflow — Personal Finance" },
       { name: "twitter:title", content: "Cashflow — Personal Finance" },
-      { property: "og:description", content: "Track daily cash flow, envelope budgets, and credit-card liabilities." },
-      { name: "twitter:description", content: "Track daily cash flow, envelope budgets, and credit-card liabilities." },
+      {
+        property: "og:description",
+        content: "Track daily cash flow, envelope budgets, and credit-card liabilities.",
+      },
+      {
+        name: "twitter:description",
+        content: "Track daily cash flow, envelope budgets, and credit-card liabilities.",
+      },
       // No og:image. The one that used to sit here was a Lovable preview
       // screenshot on a bucket we do not control — an outdated picture of a
       // different app, which its owner could replace at any time. A card with

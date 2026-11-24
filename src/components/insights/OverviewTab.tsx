@@ -23,15 +23,7 @@ import {
 } from "@/lib/finance";
 import { aggregateMonthly, normalizeMerchant } from "@/lib/insights";
 
-export function OverviewTab({
-  from,
-  to,
-  symbol,
-}: {
-  from: string;
-  to: string;
-  symbol: string;
-}) {
+export function OverviewTab({ from, to, symbol }: { from: string; to: string; symbol: string }) {
   const { t } = useI18n();
   const txQ = useQuery({
     queryKey: ["insights", "tx_range", from, to],
@@ -40,9 +32,9 @@ export function OverviewTab({
   const tagsQ = useQuery({ queryKey: ["transaction_tags"], queryFn: fetchTransactionTags });
   const catsQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
 
-  const tx = txQ.data ?? [];
-  const tags = tagsQ.data ?? [];
-  const cats = catsQ.data ?? [];
+  const tx = React.useMemo(() => txQ.data ?? [], [txQ.data]);
+  const tags = React.useMemo(() => tagsQ.data ?? [], [tagsQ.data]);
+  const cats = React.useMemo(() => catsQ.data ?? [], [catsQ.data]);
 
   const totals = React.useMemo(() => {
     let income = 0;
@@ -122,15 +114,32 @@ export function OverviewTab({
     <div className="space-y-4">
       {/* KPI strip */}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <KpiCard label={t("insights.kpi.income")} value={fmtMoney(totals.income, symbol)} tone="success" />
-        <KpiCard label={t("insights.kpi.expense")} value={fmtMoney(totals.expense, symbol)} tone="destructive" />
-        <KpiCard label={t("insights.kpi.net")} value={fmtMoney(totals.net, symbol)} tone={totals.net >= 0 ? "success" : "destructive"} />
-        <KpiCard label={t("insights.kpi.savings_rate")} value={`${(totals.savingsRate * 100).toFixed(0)}%`} />
+        <KpiCard
+          label={t("insights.kpi.income")}
+          value={fmtMoney(totals.income, symbol)}
+          tone="success"
+        />
+        <KpiCard
+          label={t("insights.kpi.expense")}
+          value={fmtMoney(totals.expense, symbol)}
+          tone="destructive"
+        />
+        <KpiCard
+          label={t("insights.kpi.net")}
+          value={fmtMoney(totals.net, symbol)}
+          tone={totals.net >= 0 ? "success" : "destructive"}
+        />
+        <KpiCard
+          label={t("insights.kpi.savings_rate")}
+          value={`${(totals.savingsRate * 100).toFixed(0)}%`}
+        />
       </div>
 
       {/* 12mo stacked bar */}
       <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">{t("insights.overview.monthly_title")}</CardTitle></CardHeader>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">{t("insights.overview.monthly_title")}</CardTitle>
+        </CardHeader>
         <CardContent>
           <div className="h-64 w-full">
             <ResponsiveContainer>
@@ -139,7 +148,11 @@ export function OverviewTab({
                 <XAxis dataKey="month" fontSize={11} tickLine={false} />
                 <YAxis fontSize={11} tickLine={false} width={50} />
                 <Tooltip
-                  contentStyle={{ background: "var(--popover)", border: "1px solid var(--border)", borderRadius: 6 }}
+                  contentStyle={{
+                    background: "var(--popover)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 6,
+                  }}
                   formatter={(v: number) => fmtMoney(v, symbol)}
                 />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
@@ -152,33 +165,71 @@ export function OverviewTab({
       </Card>
 
       <div className="grid gap-3 md:grid-cols-3">
-        <TopList title={t("insights.overview.top_categories")} items={topCats.map((c) => ({ label: c.label, v: c.v }))} symbol={symbol} />
-        <TopList title={t("insights.overview.top_tags")} items={topTags.map((c) => ({ label: `#${c.k}`, v: c.v }))} symbol={symbol} />
-        <TopList title={t("insights.overview.top_merchants")} items={topMerchants} symbol={symbol} />
+        <TopList
+          title={t("insights.overview.top_categories")}
+          items={topCats.map((c) => ({ label: c.label, v: c.v }))}
+          symbol={symbol}
+        />
+        <TopList
+          title={t("insights.overview.top_tags")}
+          items={topTags.map((c) => ({ label: `#${c.k}`, v: c.v }))}
+          symbol={symbol}
+        />
+        <TopList
+          title={t("insights.overview.top_merchants")}
+          items={topMerchants}
+          symbol={symbol}
+        />
       </div>
     </div>
   );
 }
 
-function KpiCard({ label, value, tone }: { label: string; value: string; tone?: "success" | "destructive" }) {
+function KpiCard({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "success" | "destructive";
+}) {
   return (
     <Card>
       <CardContent className="p-3">
         <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{label}</div>
-        <div className={
-          "mt-1 text-lg font-semibold tabular-nums " +
-          (tone === "success" ? "text-success" : tone === "destructive" ? "text-destructive" : "text-foreground")
-        }>{value}</div>
+        <div
+          className={
+            "mt-1 text-lg font-semibold tabular-nums " +
+            (tone === "success"
+              ? "text-success"
+              : tone === "destructive"
+                ? "text-destructive"
+                : "text-foreground")
+          }
+        >
+          {value}
+        </div>
       </CardContent>
     </Card>
   );
 }
 
-function TopList({ title, items, symbol }: { title: string; items: { label: string; v: number }[]; symbol: string }) {
+function TopList({
+  title,
+  items,
+  symbol,
+}: {
+  title: string;
+  items: { label: string; v: number }[];
+  symbol: string;
+}) {
   const max = items.reduce((a, b) => Math.max(a, b.v), 0);
   return (
     <Card>
-      <CardHeader className="pb-2"><CardTitle className="text-sm">{title}</CardTitle></CardHeader>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm">{title}</CardTitle>
+      </CardHeader>
       <CardContent className="space-y-1.5">
         {items.length === 0 && <div className="text-xs text-muted-foreground">—</div>}
         {items.map((it, i) => (
@@ -188,7 +239,10 @@ function TopList({ title, items, symbol }: { title: string; items: { label: stri
               <span className="tabular-nums text-muted-foreground">{fmtMoney(it.v, symbol)}</span>
             </div>
             <div className="h-1.5 w-full overflow-hidden rounded bg-muted">
-              <div className="h-full bg-primary" style={{ width: `${max > 0 ? (it.v / max) * 100 : 0}%` }} />
+              <div
+                className="h-full bg-primary"
+                style={{ width: `${max > 0 ? (it.v / max) * 100 : 0}%` }}
+              />
             </div>
           </div>
         ))}

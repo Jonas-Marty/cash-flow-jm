@@ -1,7 +1,10 @@
 import * as React from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-interface Row { keys: string; label: string }
+interface Row {
+  keys: string;
+  label: string;
+}
 
 interface Props {
   open: boolean;

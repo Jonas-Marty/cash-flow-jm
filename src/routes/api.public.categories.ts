@@ -55,7 +55,12 @@ export const Route = createFileRoute("/api/public/categories")({
         if (!includeArchived) catQ = catQ.eq("archived", false);
         const { data: cats, error: catErr } = await catQ;
         if (catErr) {
-          log.error({ event: "api.public.categories.db_error", err: catErr.message, userId: auth.userId, scope: "categories" });
+          log.error({
+            event: "api.public.categories.db_error",
+            err: catErr.message,
+            userId: auth.userId,
+            scope: "categories",
+          });
           return json({ error: "Internal server error" }, 500);
         }
 
@@ -66,7 +71,12 @@ export const Route = createFileRoute("/api/public/categories")({
           .order("sort_order")
           .order("name");
         if (gErr) {
-          log.error({ event: "api.public.categories.db_error", err: gErr.message, userId: auth.userId, scope: "groups" });
+          log.error({
+            event: "api.public.categories.db_error",
+            err: gErr.message,
+            userId: auth.userId,
+            scope: "groups",
+          });
           return json({ error: "Internal server error" }, 500);
         }
 

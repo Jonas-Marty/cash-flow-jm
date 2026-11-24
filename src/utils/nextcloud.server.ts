@@ -140,7 +140,12 @@ async function redeemRefreshToken(conn: NextcloudConnRow): Promise<NextcloudConn
     if (refreshRefused(res.status)) throw new RefreshRefusedError(text.slice(0, 200));
     throw new Error(`Nextcloud token refresh failed [${res.status}]: ${text.slice(0, 300)}`);
   }
-  const j = (await res.json()) as { access_token: string; refresh_token: string; expires_in: number; user_id?: string };
+  const j = (await res.json()) as {
+    access_token: string;
+    refresh_token: string;
+    expires_in: number;
+    user_id?: string;
+  };
   const next = {
     access_token: j.access_token,
     refresh_token: j.refresh_token,
@@ -149,7 +154,10 @@ async function redeemRefreshToken(conn: NextcloudConnRow): Promise<NextcloudConn
   };
   let lastError: string | null = null;
   for (let attempt = 0; attempt < 2; attempt++) {
-    const { error } = await supabaseAdmin.from("nextcloud_connections").update(next).eq("user_id", conn.user_id);
+    const { error } = await supabaseAdmin
+      .from("nextcloud_connections")
+      .update(next)
+      .eq("user_id", conn.user_id);
     if (!error) return { ...conn, ...next };
     lastError = error.message;
   }
@@ -166,7 +174,12 @@ function renew(conn: NextcloudConnRow): Promise<NextcloudConnRow> {
     // Another request, or another instance of the app, may have renewed since
     // `conn` was read. Its fresh pair is good; redeeming ours would be refused.
     const fresh = await getConnection(conn.user_id);
-    if (fresh?.access_token && fresh.refresh_token && fresh.refresh_token !== sent && !isExpired(fresh.token_expires_at)) {
+    if (
+      fresh?.access_token &&
+      fresh.refresh_token &&
+      fresh.refresh_token !== sent &&
+      !isExpired(fresh.token_expires_at)
+    ) {
       return fresh;
     }
     try {
@@ -184,7 +197,8 @@ function renew(conn: NextcloudConnRow): Promise<NextcloudConnRow> {
 export async function getValidConnection(userId: string): Promise<NextcloudConnRow> {
   const conn = await getConnection(userId);
   if (!conn) throw new NextcloudReconnectError("not configured");
-  if (!conn.access_token || !conn.nextcloud_user) throw new NextcloudReconnectError("not connected");
+  if (!conn.access_token || !conn.nextcloud_user)
+    throw new NextcloudReconnectError("not connected");
   if (isExpired(conn.token_expires_at)) return await renew(conn);
   return conn;
 }
@@ -245,25 +259,37 @@ export async function searchFiles(
     ({ conn, res } = await run("getlastmodified"));
     text = await res.text();
   }
-  if (res.status !== 207) throw new Error(`Nextcloud search failed [${res.status}]: ${text.slice(0, 300)}`);
-  const files = parseMultistatus(text, trimBaseUrl(conn.base_url), conn.nextcloud_user).filter((e) => !e.is_dir);
+  if (res.status !== 207)
+    throw new Error(`Nextcloud search failed [${res.status}]: ${text.slice(0, 300)}`);
+  const files = parseMultistatus(text, trimBaseUrl(conn.base_url), conn.nextcloud_user).filter(
+    (e) => !e.is_dir,
+  );
   return sortEntries(files, order);
 }
 
 /** One folder's contents: subfolders first, then usable files, each by name. */
-export async function listFolder(userId: string, folder: string, kind: NcKind): Promise<{ path: string; entries: NcEntry[] }> {
+export async function listFolder(
+  userId: string,
+  folder: string,
+  kind: NcKind,
+): Promise<{ path: string; entries: NcEntry[] }> {
   const path = cleanFolder(folder);
   const { conn, res } = await davFetch(userId, (c) => [
     `${davFileUrl(trimBaseUrl(c.base_url), c.nextcloud_user, path)}/`,
     {
       method: "PROPFIND",
-      headers: { Depth: "1", "Content-Type": "application/xml; charset=utf-8", Accept: "application/xml" },
+      headers: {
+        Depth: "1",
+        "Content-Type": "application/xml; charset=utf-8",
+        Accept: "application/xml",
+      },
       body: PROPFIND_XML,
     },
   ]);
   const text = await res.text();
   if (res.status === 404) throw new Error(`Folder not found: ${path}`);
-  if (res.status !== 207) throw new Error(`Nextcloud listing failed [${res.status}]: ${text.slice(0, 300)}`);
+  if (res.status !== 207)
+    throw new Error(`Nextcloud listing failed [${res.status}]: ${text.slice(0, 300)}`);
   const entries = parseMultistatus(text, trimBaseUrl(conn.base_url), conn.nextcloud_user);
   return { path, entries: folderView(entries, path, kind) };
 }
@@ -282,7 +308,8 @@ export async function downloadFile(
     const text = await res.text();
     throw new Error(`Nextcloud download failed [${res.status}]: ${text.slice(0, 300)}`);
   }
-  const tooBig = () => new Error(`File is too large (max ${Math.round(maxBytes / 1024 / 1024)} MB)`);
+  const tooBig = () =>
+    new Error(`File is too large (max ${Math.round(maxBytes / 1024 / 1024)} MB)`);
   const declared = Number(res.headers.get("content-length"));
   if (Number.isFinite(declared) && declared > maxBytes) {
     await res.body?.cancel();

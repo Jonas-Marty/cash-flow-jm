@@ -32,7 +32,12 @@ export function DayPreview({ date, txs, accounts, categories, symbol, locale, la
       <div className="flex items-baseline justify-between gap-3 border-b pb-1.5">
         <div className="font-medium">{dateLabel}</div>
         {txs.length > 0 && (
-          <div className={cn("text-xs tabular-nums", net > 0 ? "text-success" : net < 0 ? "text-destructive" : "text-muted-foreground")}>
+          <div
+            className={cn(
+              "text-xs tabular-nums",
+              net > 0 ? "text-success" : net < 0 ? "text-destructive" : "text-muted-foreground",
+            )}
+          >
             {labels.net}: {fmtMoney(net, symbol)}
           </div>
         )}
@@ -42,9 +47,15 @@ export function DayPreview({ date, txs, accounts, categories, symbol, locale, la
       ) : (
         <ul className="max-h-64 space-y-1.5 overflow-y-auto">
           {txs.map((t) => {
-            const Icon = t.type === "income" ? ArrowUp : t.type === "expense" ? ArrowDown : ArrowLeftRight;
+            const Icon =
+              t.type === "income" ? ArrowUp : t.type === "expense" ? ArrowDown : ArrowLeftRight;
             const sign = t.type === "income" ? "+" : t.type === "expense" ? "−" : "";
-            const tone = t.type === "income" ? "text-success" : t.type === "expense" ? "text-destructive" : "text-muted-foreground";
+            const tone =
+              t.type === "income"
+                ? "text-success"
+                : t.type === "expense"
+                  ? "text-destructive"
+                  : "text-muted-foreground";
             const acc = accById.get(t.source_account_id);
             const cat = t.category_id ? catById.get(t.category_id) : null;
             const sub = [cat?.name, acc?.name].filter(Boolean).join(" · ");
@@ -53,12 +64,15 @@ export function DayPreview({ date, txs, accounts, categories, symbol, locale, la
                 <div className="flex min-w-0 items-start gap-1.5">
                   <Icon className={cn("mt-0.5 h-3.5 w-3.5 shrink-0", tone)} />
                   <div className="min-w-0">
-                    <div className="truncate font-medium">{t.description || t.note || sub || "—"}</div>
+                    <div className="truncate font-medium">
+                      {t.description || t.note || sub || "—"}
+                    </div>
                     {sub && <div className="truncate text-xs text-muted-foreground">{sub}</div>}
                   </div>
                 </div>
                 <div className={cn("shrink-0 tabular-nums", tone)}>
-                  {sign}{fmtMoney(Number(t.amount), symbol).replace(/^-/, "")}
+                  {sign}
+                  {fmtMoney(Number(t.amount), symbol).replace(/^-/, "")}
                 </div>
               </li>
             );

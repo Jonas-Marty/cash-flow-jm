@@ -1,7 +1,10 @@
 import * as React from "react";
 
 export const normalize = (s: string): string =>
-  s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+  s
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
 
 export function tokenize(query: string): string[] {
   return query
@@ -42,7 +45,10 @@ export function highlightTokens(text: string, tokens: string[]): React.ReactNode
   merged.forEach(([start, end], i) => {
     if (cursor < start) out.push(text.slice(cursor, start));
     out.push(
-      <mark key={i} className="rounded-sm bg-yellow-200/70 px-0.5 text-foreground dark:bg-yellow-500/30">
+      <mark
+        key={i}
+        className="rounded-sm bg-yellow-200/70 px-0.5 text-foreground dark:bg-yellow-500/30"
+      >
         {text.slice(start, end)}
       </mark>,
     );
@@ -60,7 +66,7 @@ export function textMatchesAll(text: string, tokens: string[]): boolean {
 
 /** Parse a localized number like "1.234,56" or "1,234.56" or "80". */
 export function parseLooseNumber(s: string): number | null {
-  const cleaned = s.trim().replace(/[^\d,.\-]/g, "");
+  const cleaned = s.trim().replace(/[^\d,.-]/g, "");
   if (!cleaned) return null;
   const lastComma = cleaned.lastIndexOf(",");
   const lastDot = cleaned.lastIndexOf(".");

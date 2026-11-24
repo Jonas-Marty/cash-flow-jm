@@ -2,10 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { hashToken } from "@/utils/api-tokens.server";
 import { log } from "@/lib/logger";
-import {
-  transactionInputSchema,
-  normalizeTransactionInput,
-} from "@/lib/transactionSchema";
+import { transactionInputSchema, normalizeTransactionInput } from "@/lib/transactionSchema";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -71,7 +68,11 @@ export const Route = createFileRoute("/api/public/transactions")({
           .select("id, user_id")
           .in("id", accountIds);
         if (accErr) return json({ error: "Database error" }, 500);
-        if (!accs || accs.length !== accountIds.length || accs.some((a) => a.user_id !== auth.userId)) {
+        if (
+          !accs ||
+          accs.length !== accountIds.length ||
+          accs.some((a) => a.user_id !== auth.userId)
+        ) {
           return json({ error: "Account not found" }, 404);
         }
         if (payload.category_id) {
@@ -94,7 +95,11 @@ export const Route = createFileRoute("/api/public/transactions")({
           )
           .single();
         if (insErr) {
-          log.error({ event: "api.public.transactions.db_error", err: insErr.message, userId: auth.userId });
+          log.error({
+            event: "api.public.transactions.db_error",
+            err: insErr.message,
+            userId: auth.userId,
+          });
           return json({ error: "Internal server error" }, 500);
         }
         // Fire-and-forget webhook dispatch.
@@ -102,7 +107,10 @@ export const Route = createFileRoute("/api/public/transactions")({
           const { dispatchTransactionCreated } = await import("@/lib/notifiers/dispatch.server");
           void dispatchTransactionCreated(auth.userId, "api", ins.id);
         } catch (e) {
-          log.error({ event: "api.public.transactions.dispatch_failed", err: e instanceof Error ? e.message : String(e) });
+          log.error({
+            event: "api.public.transactions.dispatch_failed",
+            err: e instanceof Error ? e.message : String(e),
+          });
         }
         return json({ transaction: ins }, 201);
       },

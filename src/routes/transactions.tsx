@@ -7,8 +7,16 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { format, startOfMonth, endOfMonth, subMonths, subDays, startOfYear } from "date-fns";
 import {
-  Trash2, ChevronDown, X,
-  LayoutList, Table as TableIcon, Tag, TagsIcon, FolderTree, Link2, SlidersHorizontal,
+  Trash2,
+  ChevronDown,
+  X,
+  LayoutList,
+  Table as TableIcon,
+  Tag,
+  TagsIcon,
+  FolderTree,
+  Link2,
+  SlidersHorizontal,
 } from "lucide-react";
 
 import { AppShell } from "@/components/AppShell";
@@ -17,10 +25,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -28,17 +45,33 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useI18n } from "@/i18n";
 import {
-  fetchAccounts, fetchCategories, fetchSettings, fetchTransactions, fetchTransactionTags,
-  fetchRecurringRules, fetchReimbursementLinks,
-  bulkSetCategory, bulkAddTags, bulkRemoveTags, bulkDeleteTransactions, parseTagInput,
-  type TxType, type Transaction, type BulkResult,
+  fetchAccounts,
+  fetchCategories,
+  fetchSettings,
+  fetchTransactions,
+  fetchTransactionTags,
+  fetchRecurringRules,
+  fetchReimbursementLinks,
+  bulkSetCategory,
+  bulkAddTags,
+  bulkRemoveTags,
+  bulkDeleteTransactions,
+  parseTagInput,
+  type TxType,
+  type Transaction,
+  type BulkResult,
 } from "@/lib/finance";
 import { MultiSelectCombobox, type MSCOption } from "@/components/MultiSelectCombobox";
 import { DatePicker } from "@/components/DatePicker";
 import { EntityVisual } from "@/components/EntityVisual";
 import { TransactionTable } from "@/components/transactions/TransactionTable";
 import {
-  CardRow, SplitGroupRow, type LinkSummary, type ReimbBook, type RowContext, type StatementRef,
+  CardRow,
+  SplitGroupRow,
+  type LinkSummary,
+  type ReimbBook,
+  type RowContext,
+  type StatementRef,
 } from "@/components/transactions/rows";
 import { useIsDesktop, useMediaQuery } from "@/hooks/use-media-query";
 import { useProgressiveCount } from "@/hooks/use-progressive-count";
@@ -47,11 +80,16 @@ import { buildCardUnits, groupUnitsByDate } from "@/lib/transactionsView";
 import { SearchBox } from "@/components/transactions/SearchBox";
 import { tokenize, normalize, parseLooseNumber } from "@/lib/highlight";
 import { matchesAmount, type AmountOp } from "@/lib/amountFilter";
-import { fetchTransactionLinks, fetchTransactionLinkMembers, attachTransactionsToLink, createTransactionLink, linkTotals } from "@/lib/links";
+import {
+  fetchTransactionLinks,
+  fetchTransactionLinkMembers,
+  attachTransactionsToLink,
+  createTransactionLink,
+  linkTotals,
+} from "@/lib/links";
 import { TransactionLinkSheet } from "@/components/TransactionLinkSheet";
 import { LocationPeekDialog } from "@/components/LocationPeekDialog";
 import type { TxLocation } from "@/lib/location";
-
 
 const SORT_VALUES = ["date_desc", "date_asc", "created_desc", "amount_desc", "amount_asc"] as const;
 const OP_VALUES = ["any", "lt", "lte", "eq", "gte", "gt", "around"] as const;
@@ -79,13 +117,21 @@ const searchSchema = z.object({
 });
 
 const SEARCH_DEFAULTS = {
-  q: "", types: [] as TxType[], accts: [] as string[], cats: [] as string[], tags: [] as string[],
+  q: "",
+  types: [] as TxType[],
+  accts: [] as string[],
+  cats: [] as string[],
+  tags: [] as string[],
   rules: [] as string[],
-  from: "", to: "", op: "any" as AmountOp, val: "", tol: 0.15,
-  sort: "date_desc" as SortKey, reimb: "any" as (typeof REIMB_VALUES)[number],
+  from: "",
+  to: "",
+  op: "any" as AmountOp,
+  val: "",
+  tol: 0.15,
+  sort: "date_desc" as SortKey,
+  reimb: "any" as (typeof REIMB_VALUES)[number],
   view: "",
 };
-
 
 export const Route = createFileRoute("/transactions")({
   validateSearch: zodValidator(searchSchema),
@@ -109,7 +155,10 @@ function TransactionsPage() {
   const s = Route.useSearch();
   const patchSearch = React.useCallback(
     (patch: Partial<typeof SEARCH_DEFAULTS>) => {
-      navigate({ search: ((prev: typeof SEARCH_DEFAULTS) => ({ ...prev, ...patch })) as never, replace: true });
+      navigate({
+        search: ((prev: typeof SEARCH_DEFAULTS) => ({ ...prev, ...patch })) as never,
+        replace: true,
+      });
     },
     [navigate],
   );
@@ -118,10 +167,21 @@ function TransactionsPage() {
   const categoriesQ = useQuery({ queryKey: ["categories"], queryFn: fetchCategories });
   // The full lists are big; every mutation invalidates them explicitly, so a
   // refetch on each return to the tab (the 10 s default) only re-downloads them.
-  const txQ = useQuery({ queryKey: ["transactions", "all"], queryFn: () => fetchTransactions(), staleTime: HEAVY_STALE_MS });
-  const tagsQ = useQuery({ queryKey: ["transaction_tags"], queryFn: fetchTransactionTags, staleTime: HEAVY_STALE_MS });
+  const txQ = useQuery({
+    queryKey: ["transactions", "all"],
+    queryFn: () => fetchTransactions(),
+    staleTime: HEAVY_STALE_MS,
+  });
+  const tagsQ = useQuery({
+    queryKey: ["transaction_tags"],
+    queryFn: fetchTransactionTags,
+    staleTime: HEAVY_STALE_MS,
+  });
   const rulesQ = useQuery({ queryKey: ["recurring_rules"], queryFn: fetchRecurringRules });
-  const reimbLinksQ = useQuery({ queryKey: ["reimbursement_links"], queryFn: fetchReimbursementLinks });
+  const reimbLinksQ = useQuery({
+    queryKey: ["reimbursement_links"],
+    queryFn: fetchReimbursementLinks,
+  });
   const linksQ = useQuery({ queryKey: ["transaction_links"], queryFn: fetchTransactionLinks });
   const linkMembersQ = useQuery({
     queryKey: ["transaction_link_members"],
@@ -136,11 +196,13 @@ function TransactionsPage() {
     queryFn: async (): Promise<Record<string, StatementRef>> => {
       const { data, error } = await supabase
         .from("statement_import_lines")
-        .select("matched_transaction_id, line_no, statement_imports!inner(id, file_name, file_source)")
+        .select(
+          "matched_transaction_id, line_no, statement_imports!inner(id, file_name, file_source)",
+        )
         .not("matched_transaction_id", "is", null);
       if (error) throw error;
       const m: Record<string, StatementRef> = {};
-      for (const r of (data ?? []) as any[]) {
+      for (const r of data ?? []) {
         const imp = r.statement_imports;
         if (!imp || m[r.matched_transaction_id]) continue;
         m[r.matched_transaction_id] = {
@@ -169,7 +231,10 @@ function TransactionsPage() {
     () => new Map((categoriesQ.data ?? []).map((c) => [c.id, c])),
     [categoriesQ.data],
   );
-  const ruleById = React.useMemo(() => new Map((rulesQ.data ?? []).map((r) => [r.id, r])), [rulesQ.data]);
+  const ruleById = React.useMemo(
+    () => new Map((rulesQ.data ?? []).map((r) => [r.id, r])),
+    [rulesQ.data],
+  );
 
   // What the table's 🔗 marker shows: per transaction, its link with the
   // member count and total (computed once per data change, not per row).
@@ -260,13 +325,16 @@ function TransactionsPage() {
   // Collapsed by default: search, view switch and active-filter pills stay visible.
   const [filtersOpen, setFiltersOpen] = React.useState(false);
 
-
   const searchRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tgt = e.target as HTMLElement | null;
-      const inField = tgt && (tgt.tagName === "INPUT" || tgt.tagName === "TEXTAREA" || (tgt as HTMLElement).isContentEditable);
+      const inField =
+        tgt &&
+        (tgt.tagName === "INPUT" ||
+          tgt.tagName === "TEXTAREA" ||
+          (tgt as HTMLElement).isContentEditable);
       if (e.key === "/" && !inField) {
         e.preventDefault();
         searchRef.current?.focus();
@@ -295,24 +363,37 @@ function TransactionsPage() {
   const searchIndex = React.useMemo(() => {
     const m = new Map<string, { haystack: string; amtAbs: number; groupAbs: number | null }>();
     if (!searching) return m;
-    const nf = new Intl.NumberFormat(lang === "de" ? "de-CH" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const nf = new Intl.NumberFormat(lang === "de" ? "de-CH" : "en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
     for (const t of txQ.data ?? []) {
       const desc = t.description ?? "";
       const note = t.note ?? "";
-      const cat = t.category_id ? categoryById.get(t.category_id)?.name ?? "" : "";
+      const cat = t.category_id ? (categoryById.get(t.category_id)?.name ?? "") : "";
       const src = accountById.get(t.source_account_id)?.name ?? "";
-      const dst = t.destination_account_id ? accountById.get(t.destination_account_id)?.name ?? "" : "";
+      const dst = t.destination_account_id
+        ? (accountById.get(t.destination_account_id)?.name ?? "")
+        : "";
       const tags = tagsByTx.get(t.id) ?? [];
       const amtAbs = Math.abs(Number(t.amount));
-      const groupAbs = t.split_group_id ? Math.abs(splitGroupTotals.get(t.split_group_id) ?? 0) : null;
+      const groupAbs = t.split_group_id
+        ? Math.abs(splitGroupTotals.get(t.split_group_id) ?? 0)
+        : null;
       const amtStrs = [amtAbs.toFixed(2), String(Math.round(amtAbs)), nf.format(amtAbs)];
-      if (groupAbs != null) amtStrs.push(groupAbs.toFixed(2), String(Math.round(groupAbs)), nf.format(groupAbs));
-      const haystack = normalize([desc, note, cat, src, dst, tags.join(" "), amtStrs.join(" ")].join("  "));
+      if (groupAbs != null)
+        amtStrs.push(groupAbs.toFixed(2), String(Math.round(groupAbs)), nf.format(groupAbs));
+      const haystack = normalize(
+        [desc, note, cat, src, dst, tags.join(" "), amtStrs.join(" ")].join("  "),
+      );
       m.set(t.id, { haystack, amtAbs, groupAbs });
     }
     return m;
   }, [searching, txQ.data, categoryById, accountById, tagsByTx, splitGroupTotals, lang]);
-  const normTokens = React.useMemo(() => tokens.map((tok) => ({ n: normalize(tok), num: parseLooseNumber(tok) })), [tokens]);
+  const normTokens = React.useMemo(
+    () => tokens.map((tok) => ({ n: normalize(tok), num: parseLooseNumber(tok) })),
+    [tokens],
+  );
 
   const matchesSearch = (t: Transaction) => {
     if (normTokens.length === 0) return true;
@@ -338,21 +419,24 @@ function TransactionsPage() {
     return (txQ.data ?? []).filter((t) => {
       if (filterTypes.length && !filterTypes.includes(t.type)) return false;
       if (filterAccounts.length) {
-        const hit = filterAccounts.includes(t.source_account_id) ||
+        const hit =
+          filterAccounts.includes(t.source_account_id) ||
           (t.destination_account_id != null && filterAccounts.includes(t.destination_account_id));
         if (!hit) return false;
       }
       if (filterCategories.length) {
         const wantNone = filterCategories.includes(NO_CATEGORY);
         const ids = filterCategories.filter((x) => x !== NO_CATEGORY);
-        const hit = (wantNone && !t.category_id) || (t.category_id != null && ids.includes(t.category_id));
+        const hit =
+          (wantNone && !t.category_id) || (t.category_id != null && ids.includes(t.category_id));
         if (!hit) return false;
       }
       if (filterTags.length) {
         const txTags = tagsByTx.get(t.id) ?? [];
         if (!filterTags.some((tg) => txTags.includes(tg))) return false;
       }
-      if (filterRules.length && !(t.recurring_rule_id && filterRules.includes(t.recurring_rule_id))) return false;
+      if (filterRules.length && !(t.recurring_rule_id && filterRules.includes(t.recurring_rule_id)))
+        return false;
       if (filterReimb !== "any") {
         if (!t.is_reimbursable) return false;
         if (filterReimb !== "all" && t.reimbursable_status !== filterReimb) return false;
@@ -362,31 +446,63 @@ function TransactionsPage() {
       if (amountOp !== "any" && amountTarget != null) {
         const ownMatch = matchesAmount(Number(t.amount), amountOp, amountTarget, tolerance);
         const groupTotal = t.split_group_id ? splitGroupTotals.get(t.split_group_id) : undefined;
-        const groupMatch = groupTotal != null && matchesAmount(groupTotal, amountOp, amountTarget, tolerance);
+        const groupMatch =
+          groupTotal != null && matchesAmount(groupTotal, amountOp, amountTarget, tolerance);
         if (!ownMatch && !groupMatch) return false;
       }
       if (!matchesSearch(t)) return false;
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [txQ.data, filterTypes, filterAccounts, filterCategories, filterTags, filterRules, filterReimb, fromStr, toStr,
-      amountOp, amountTarget, tolerance, normTokens, searchIndex, tagsByTx, splitGroupTotals]);
+  }, [
+    txQ.data,
+    filterTypes,
+    filterAccounts,
+    filterCategories,
+    filterTags,
+    filterRules,
+    filterReimb,
+    fromStr,
+    toStr,
+    amountOp,
+    amountTarget,
+    tolerance,
+    normTokens,
+    searchIndex,
+    tagsByTx,
+    splitGroupTotals,
+  ]);
 
   const sorted = React.useMemo(() => {
     const arr = filtered.slice();
     switch (sort) {
-      case "date_asc": arr.sort((a, b) => (a.occurred_on < b.occurred_on ? -1 : a.occurred_on > b.occurred_on ? 1 : 0)); break;
-      case "created_desc": arr.sort((a, b) => b.created_at.localeCompare(a.created_at)); break;
-      case "amount_desc": arr.sort((a, b) => Math.abs(Number(b.amount)) - Math.abs(Number(a.amount))); break;
-      case "amount_asc": arr.sort((a, b) => Math.abs(Number(a.amount)) - Math.abs(Number(b.amount))); break;
-      default: arr.sort((a, b) => (a.occurred_on > b.occurred_on ? -1 : a.occurred_on < b.occurred_on ? 1 : 0));
+      case "date_asc":
+        arr.sort((a, b) =>
+          a.occurred_on < b.occurred_on ? -1 : a.occurred_on > b.occurred_on ? 1 : 0,
+        );
+        break;
+      case "created_desc":
+        arr.sort((a, b) => b.created_at.localeCompare(a.created_at));
+        break;
+      case "amount_desc":
+        arr.sort((a, b) => Math.abs(Number(b.amount)) - Math.abs(Number(a.amount)));
+        break;
+      case "amount_asc":
+        arr.sort((a, b) => Math.abs(Number(a.amount)) - Math.abs(Number(b.amount)));
+        break;
+      default:
+        arr.sort((a, b) =>
+          a.occurred_on > b.occurred_on ? -1 : a.occurred_on < b.occurred_on ? 1 : 0,
+        );
     }
     return arr;
   }, [filtered, sort]);
 
   // ----- Bulk selection -----
   const [selected, setSelected] = React.useState<Set<string>>(new Set());
-  const [bulkAction, setBulkAction] = React.useState<null | "category" | "add_tags" | "remove_tags" | "delete" | "link">(null);
+  const [bulkAction, setBulkAction] = React.useState<
+    null | "category" | "add_tags" | "remove_tags" | "delete" | "link"
+  >(null);
   const [bulkLinkId, setBulkLinkId] = React.useState<string>("");
   const [bulkLinkTitle, setBulkLinkTitle] = React.useState("");
   const [bulkCategory, setBulkCategory] = React.useState<string>(NO_CATEGORY);
@@ -408,18 +524,25 @@ function TransactionsPage() {
     () => sorted.filter((t) => selected.has(t.id)),
     [sorted, selected],
   );
-  const toggleSelect = React.useCallback((id: string, checked: boolean) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (checked) next.add(id); else next.delete(id);
-      return next;
-    }), []);
-  const toggleSelectMany = React.useCallback((ids: string[], checked: boolean) =>
-    setSelected((prev) => {
-      const next = new Set(prev);
-      ids.forEach((id) => (checked ? next.add(id) : next.delete(id)));
-      return next;
-    }), []);
+  const toggleSelect = React.useCallback(
+    (id: string, checked: boolean) =>
+      setSelected((prev) => {
+        const next = new Set(prev);
+        if (checked) next.add(id);
+        else next.delete(id);
+        return next;
+      }),
+    [],
+  );
+  const toggleSelectMany = React.useCallback(
+    (ids: string[], checked: boolean) =>
+      setSelected((prev) => {
+        const next = new Set(prev);
+        ids.forEach((id) => (checked ? next.add(id) : next.delete(id)));
+        return next;
+      }),
+    [],
+  );
   const toggleSelectAll = (checked: boolean) =>
     setSelected(checked ? new Set(sorted.map((t) => t.id)) : new Set());
   const clearSelection = () => setSelected(new Set());
@@ -463,7 +586,10 @@ function TransactionsPage() {
         linkId = created.id;
       }
       if (!linkId) return;
-      const n = await attachTransactionsToLink(selectedTxs.map((t) => t.id), linkId);
+      const n = await attachTransactionsToLink(
+        selectedTxs.map((t) => t.id),
+        linkId,
+      );
       toast.success(tr("tx.bulk.link.done", { n }));
       setBulkAction(null);
       setBulkLinkId("");
@@ -498,8 +624,6 @@ function TransactionsPage() {
     return { bySettler, byOriginal, txById };
   }, [reimbLinksQ.data, txQ.data]);
 
-
-
   // Deleting a booking on a closed scope reopens it in the database; say so.
   const noticeReopenedScope = (categoryIds: (string | null | undefined)[]) => {
     for (const id of new Set(categoryIds)) {
@@ -510,8 +634,15 @@ function TransactionsPage() {
 
   const del = useStableCallback(async (id: string) => {
     if (!confirm(tr("confirm.delete_transaction"))) return;
-    const { data: gone, error } = await supabase.from("transactions").delete().eq("id", id).select("category_id");
-    if (error) { toast.error(error.message); return; }
+    const { data: gone, error } = await supabase
+      .from("transactions")
+      .delete()
+      .eq("id", id)
+      .select("category_id");
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success(tr("toast.deleted"));
     noticeReopenedScope((gone ?? []).map((r) => r.category_id));
     qc.invalidateQueries();
@@ -519,15 +650,25 @@ function TransactionsPage() {
 
   const delGroup = useStableCallback(async (groupId: string) => {
     if (!confirm(tr("confirm.delete_transaction"))) return;
-    const { data: gone, error } = await supabase.from("transactions").delete().eq("split_group_id", groupId).select("category_id");
-    if (error) { toast.error(error.message); return; }
+    const { data: gone, error } = await supabase
+      .from("transactions")
+      .delete()
+      .eq("split_group_id", groupId)
+      .select("category_id");
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success(tr("toast.deleted"));
     noticeReopenedScope((gone ?? []).map((r) => r.category_id));
     qc.invalidateQueries();
   });
 
   const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>({});
-  const toggleGroup = React.useCallback((gid: string) => setOpenGroups((p) => ({ ...p, [gid]: !p[gid] })), []);
+  const toggleGroup = React.useCallback(
+    (gid: string) => setOpenGroups((p) => ({ ...p, [gid]: !p[gid] })),
+    [],
+  );
 
   // ----- Dropdown options -----
   const typeOptions: MSCOption[] = [
@@ -541,7 +682,11 @@ function TransactionsPage() {
     visual: <EntityVisual entity={a} size="xs" />,
   }));
   const categoryOptions: MSCOption[] = [
-    { value: NO_CATEGORY, label: `— ${tr("add.split.no_category")} —`, keywords: "none uncategorized" },
+    {
+      value: NO_CATEGORY,
+      label: `— ${tr("add.split.no_category")} —`,
+      keywords: "none uncategorized",
+    },
     ...(categoriesQ.data ?? []).map((c) => ({
       value: c.id,
       label: c.name,
@@ -564,11 +709,23 @@ function TransactionsPage() {
   const setRange = (preset: "this_month" | "last_month" | "last_7" | "last_30" | "this_year") => {
     const now = new Date();
     let f: Date, t: Date;
-    if (preset === "this_month") { f = startOfMonth(now); t = endOfMonth(now); }
-    else if (preset === "last_month") { const lm = subMonths(now, 1); f = startOfMonth(lm); t = endOfMonth(lm); }
-    else if (preset === "last_7") { f = subDays(now, 7); t = now; }
-    else if (preset === "last_30") { f = subDays(now, 30); t = now; }
-    else { f = startOfYear(now); t = now; }
+    if (preset === "this_month") {
+      f = startOfMonth(now);
+      t = endOfMonth(now);
+    } else if (preset === "last_month") {
+      const lm = subMonths(now, 1);
+      f = startOfMonth(lm);
+      t = endOfMonth(lm);
+    } else if (preset === "last_7") {
+      f = subDays(now, 7);
+      t = now;
+    } else if (preset === "last_30") {
+      f = subDays(now, 30);
+      t = now;
+    } else {
+      f = startOfYear(now);
+      t = now;
+    }
     patchSearch({ from: format(f, "yyyy-MM-dd"), to: format(t, "yyyy-MM-dd") });
   };
 
@@ -579,25 +736,41 @@ function TransactionsPage() {
 
   // Filters that live in the collapsible panel (everything but the search box).
   const hiddenFilterCount =
-    filterTypes.length + filterAccounts.length + filterCategories.length + filterTags.length +
+    filterTypes.length +
+    filterAccounts.length +
+    filterCategories.length +
+    filterTags.length +
     filterRules.length +
-    (fromStr ? 1 : 0) + (toStr ? 1 : 0) + (amountOp !== "any" && amountTarget != null ? 1 : 0) +
+    (fromStr ? 1 : 0) +
+    (toStr ? 1 : 0) +
+    (amountOp !== "any" && amountTarget != null ? 1 : 0) +
     (filterReimb !== "any" ? 1 : 0);
   const activeFilterCount = hiddenFilterCount + (search.trim() ? 1 : 0);
 
   // Did-you-mean hint: numeric search with no exact-match results
-  const showAroundHint = filtered.length === 0 && tokens.length === 1 && numericTokens.length === 1 &&
+  const showAroundHint =
+    filtered.length === 0 &&
+    tokens.length === 1 &&
+    numericTokens.length === 1 &&
     amountOp === "any";
 
   // amount-match flag for highlighting
-  const amountMatchedFor = React.useCallback((amt: number): boolean => {
-    if (amountOp !== "any" && amountTarget != null && matchesAmount(amt, amountOp, amountTarget, tolerance)) return true;
-    if (numericTokens.length > 0) {
-      const a = Math.abs(amt);
-      return numericTokens.some((n) => Math.abs(a - Math.abs(n)) < 0.005);
-    }
-    return false;
-  }, [amountOp, amountTarget, tolerance, numericTokens]);
+  const amountMatchedFor = React.useCallback(
+    (amt: number): boolean => {
+      if (
+        amountOp !== "any" &&
+        amountTarget != null &&
+        matchesAmount(amt, amountOp, amountTarget, tolerance)
+      )
+        return true;
+      if (numericTokens.length > 0) {
+        const a = Math.abs(amt);
+        return numericTokens.some((n) => Math.abs(a - Math.abs(n)) < 0.005);
+      }
+      return false;
+    },
+    [amountOp, amountTarget, tolerance, numericTokens],
+  );
 
   // ----- Rows: shared context, window -----
   const isSm = useMediaQuery("(min-width: 640px)");
@@ -606,43 +779,71 @@ function TransactionsPage() {
   const windowKey = JSON.stringify(s);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const backSearch = React.useMemo(() => s as Record<string, unknown>, [windowKey]);
-  const rowCtx = React.useMemo<RowContext>(() => ({
-    accountById,
-    categoryById,
-    tagsByTx,
-    reimbursementIds,
-    reimb: reimbBook,
-    stmtRefs: stmtRefsQ.data ?? NO_STATEMENT_REFS,
-    linkByTx: linkSummaryByTx,
-    ruleById,
-    tokens,
-    amountMatched: amountMatchedFor,
-    symbol,
-    showDate: sort !== "date_desc" && sort !== "date_asc",
-    dateFmt: dateFmt || "dd.MM.yyyy",
-    locale,
-    tr,
-    backSearch,
-    isSm,
-    today: new Date().toISOString().slice(0, 10),
-    onToggle: toggleSelect,
-    onToggleMany: toggleSelectMany,
-    onDelete: del,
-    onDeleteGroup: delGroup,
-    onOpenLink: setOpenLinkId,
-    onPeekLocation: setPeekLoc,
-    onToggleGroup: toggleGroup,
-  }), [accountById, categoryById, tagsByTx, reimbursementIds, reimbBook, stmtRefsQ.data, linkSummaryByTx, ruleById, tokens,
-      amountMatchedFor, symbol, sort, dateFmt, locale, tr, backSearch, isSm, toggleSelect, toggleSelectMany, del,
-      delGroup, toggleGroup]);
+  const rowCtx = React.useMemo<RowContext>(
+    () => ({
+      accountById,
+      categoryById,
+      tagsByTx,
+      reimbursementIds,
+      reimb: reimbBook,
+      stmtRefs: stmtRefsQ.data ?? NO_STATEMENT_REFS,
+      linkByTx: linkSummaryByTx,
+      ruleById,
+      tokens,
+      amountMatched: amountMatchedFor,
+      symbol,
+      showDate: sort !== "date_desc" && sort !== "date_asc",
+      dateFmt: dateFmt || "dd.MM.yyyy",
+      locale,
+      tr,
+      backSearch,
+      isSm,
+      today: new Date().toISOString().slice(0, 10),
+      onToggle: toggleSelect,
+      onToggleMany: toggleSelectMany,
+      onDelete: del,
+      onDeleteGroup: delGroup,
+      onOpenLink: setOpenLinkId,
+      onPeekLocation: setPeekLoc,
+      onToggleGroup: toggleGroup,
+    }),
+    [
+      accountById,
+      categoryById,
+      tagsByTx,
+      reimbursementIds,
+      reimbBook,
+      stmtRefsQ.data,
+      linkSummaryByTx,
+      ruleById,
+      tokens,
+      amountMatchedFor,
+      symbol,
+      sort,
+      dateFmt,
+      locale,
+      tr,
+      backSearch,
+      isSm,
+      toggleSelect,
+      toggleSelectMany,
+      del,
+      delGroup,
+      toggleGroup,
+    ],
+  );
 
   // Only a window of rows is in the DOM; it grows while scrolling and starts
   // over when the filters, sort, search or view change.
   const cardUnits = React.useMemo(() => buildCardUnits(sorted), [sorted]);
-  const win = useProgressiveCount({ total: view === "table" ? sorted.length : cardUnits.length, resetKey: windowKey });
+  const win = useProgressiveCount({
+    total: view === "table" ? sorted.length : cardUnits.length,
+    resetKey: windowKey,
+  });
   const tableRows = React.useMemo(() => sorted.slice(0, win.count), [sorted, win.count]);
   const cardSections = React.useMemo(
-    () => groupUnitsByDate(cardUnits.slice(0, win.count), sort === "date_desc" || sort === "date_asc"),
+    () =>
+      groupUnitsByDate(cardUnits.slice(0, win.count), sort === "date_desc" || sort === "date_asc"),
     [cardUnits, win.count, sort],
   );
   const showMoreFooter = win.hasMore ? (
@@ -658,330 +859,418 @@ function TransactionsPage() {
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold tracking-tight">{tr("tx.title")}</h1>
 
-        <Card><CardContent className="space-y-3 py-4">
-          <SearchBox ref={searchRef} value={search} onCommit={commitSearch} placeholder={tr("tx.search_placeholder")} />
+        <Card>
+          <CardContent className="space-y-3 py-4">
+            <SearchBox
+              ref={searchRef}
+              value={search}
+              onCommit={commitSearch}
+              placeholder={tr("tx.search_placeholder")}
+            />
 
-          {/* Always visible: filter toggle, layout switch, result count, reset. */}
-          <div className="flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8"
-              onClick={() => setFiltersOpen((o) => !o)}
-              aria-expanded={filtersOpen}
-              aria-controls="tx-filters"
-            >
-              <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
-              {tr("tx.filters")}
-              {hiddenFilterCount > 0 && (
-                <span className="ml-1.5 rounded-full bg-primary px-1.5 text-[10px] font-semibold leading-4 text-primary-foreground">
-                  {hiddenFilterCount}
-                </span>
-              )}
-              <ChevronDown className={cn("ml-1 h-3.5 w-3.5 transition-transform", filtersOpen && "rotate-180")} />
-            </Button>
-            <div className="inline-flex rounded-md border border-border p-0.5" role="group" aria-label={tr("tx.view.label")}>
-              <button
+            {/* Always visible: filter toggle, layout switch, result count, reset. */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
                 type="button"
-                onClick={() => setView("cards")}
-                aria-pressed={view === "cards"}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded px-2 py-1 text-xs",
-                  view === "cards" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground",
+                variant="outline"
+                size="sm"
+                className="h-8"
+                onClick={() => setFiltersOpen((o) => !o)}
+                aria-expanded={filtersOpen}
+                aria-controls="tx-filters"
+              >
+                <SlidersHorizontal className="mr-1.5 h-3.5 w-3.5" />
+                {tr("tx.filters")}
+                {hiddenFilterCount > 0 && (
+                  <span className="ml-1.5 rounded-full bg-primary px-1.5 text-[10px] font-semibold leading-4 text-primary-foreground">
+                    {hiddenFilterCount}
+                  </span>
                 )}
-              >
-                <LayoutList className="h-3.5 w-3.5" /> {tr("tx.view.cards")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setView("table")}
-                aria-pressed={view === "table"}
-                className={cn(
-                  "inline-flex items-center gap-1 rounded px-2 py-1 text-xs",
-                  view === "table" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <TableIcon className="h-3.5 w-3.5" /> {tr("tx.view.table")}
-              </button>
-            </div>
-            <span className="text-xs text-muted-foreground">{tr("tx.results_count", { n: filtered.length })}</span>
-            {activeFilterCount > 0 && (
-              <Button type="button" variant="ghost" size="sm" className="ml-auto h-8" onClick={clearAll}>
-                <X className="mr-1 h-3.5 w-3.5" /> {tr("tx.clear_all")}
-              </Button>
-            )}
-          </div>
-
-          {filtersOpen && (
-          <div id="tx-filters" className="space-y-3">
-          <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-            <MultiSelectCombobox
-              options={typeOptions}
-              value={filterTypes}
-              onChange={(v) => setFilterTypes(v as TxType[])}
-              placeholder={tr("tx.all_types")}
-              searchPlaceholder={tr("msc.search")}
-              emptyText={tr("msc.empty")}
-              selectedLabel={(n) => tr("msc.n_selected", { n })}
-            />
-            <MultiSelectCombobox
-              options={accountOptions}
-              value={filterAccounts}
-              onChange={setFilterAccounts}
-              placeholder={tr("tx.all_accounts")}
-              searchPlaceholder={tr("msc.search")}
-              emptyText={tr("msc.empty")}
-              selectedLabel={(n) => tr("msc.n_selected", { n })}
-            />
-            <MultiSelectCombobox
-              options={categoryOptions}
-              value={filterCategories}
-              onChange={setFilterCategories}
-              placeholder={tr("tx.all_categories")}
-              searchPlaceholder={tr("msc.search")}
-              emptyText={tr("msc.empty")}
-              selectedLabel={(n) => tr("msc.n_selected", { n })}
-            />
-            <MultiSelectCombobox
-              options={tagOptions}
-              value={filterTags}
-              onChange={setFilterTags}
-              placeholder={tr("tx.all_tags")}
-              searchPlaceholder={tr("msc.search")}
-              emptyText={tr("msc.empty")}
-              selectedLabel={(n) => tr("msc.n_selected", { n })}
-            />
-            <MultiSelectCombobox
-              options={ruleOptions}
-              value={filterRules}
-              onChange={setFilterRules}
-              placeholder={tr("tx.all_rules")}
-              searchPlaceholder={tr("msc.search")}
-              emptyText={tr("msc.empty")}
-              selectedLabel={(n) => tr("msc.n_selected", { n })}
-            />
-          </div>
-
-          {/* Date range */}
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-            <div>
-              <Label className="text-xs text-muted-foreground">{tr("common.from")}</Label>
-              <DatePicker
-                value={from}
-                onChange={setFrom}
-                locale={locale}
-                placeholder={tr("common.set")}
-                clearLabel={tr("common.clear")}
-              />
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">{tr("common.to")}</Label>
-              <DatePicker
-                value={to}
-                onChange={setTo}
-                locale={locale}
-                placeholder={tr("common.set")}
-                clearLabel={tr("common.clear")}
-              />
-            </div>
-          </div>
-
-          {/* Quick range chips */}
-          <div className="flex flex-wrap gap-1.5">
-            {([
-              ["this_month", tr("tx.range.this_month")],
-              ["last_month", tr("tx.range.last_month")],
-              ["last_7", tr("tx.range.last_7")],
-              ["last_30", tr("tx.range.last_30")],
-              ["this_year", tr("tx.range.this_year")],
-            ] as const).map(([k, label]) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => setRange(k)}
-                className="rounded-full border border-border bg-background px-2.5 py-0.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {/* Reimbursable filter */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs text-muted-foreground">{tr("tx.reimb.filter")}:</span>
-            {(["any", "open", "settled", "written_off", "cancelled", "all"] as const).map((k) => (
-              <button
-                key={k}
-                type="button"
-                onClick={() => setFilterReimb(k)}
-                className={cn(
-                  "rounded-full border px-2.5 py-0.5 text-xs",
-                  filterReimb === k
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
-                )}
-              >
-                {k === "any" ? tr("tx.amount_op.any") : tr(`tx.reimb.filter.${k}` as never)}
-              </button>
-            ))}
-          </div>
-
-          {/* Amount filter + sort */}
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-            <div>
-              <Label className="text-xs text-muted-foreground">{tr("tx.amount")}</Label>
-              <div className="flex items-center gap-1">
-                <Select value={amountOp} onValueChange={(v) => setAmountOp(v as AmountOp)}>
-                  <SelectTrigger className="w-[44%]"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="any">{tr("tx.amount_op.any")}</SelectItem>
-                    <SelectItem value="lt">{tr("tx.amount_op.lt")}</SelectItem>
-                    <SelectItem value="lte">{tr("tx.amount_op.lte")}</SelectItem>
-                    <SelectItem value="eq">{tr("tx.amount_op.eq")}</SelectItem>
-                    <SelectItem value="gte">{tr("tx.amount_op.gte")}</SelectItem>
-                    <SelectItem value="gt">{tr("tx.amount_op.gt")}</SelectItem>
-                    <SelectItem value="around">{tr("tx.amount_op.around")}</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Input
-                  inputMode="decimal"
-                  placeholder="0.00"
-                  value={amountVal}
-                  disabled={amountOp === "any"}
-                  onChange={(e) => setAmountVal(e.target.value)}
-                  onBlur={() => amountVal.trim() && setAmountVal(formatAmountInput(amountVal))}
-                  className="flex-1"
+                <ChevronDown
+                  className={cn(
+                    "ml-1 h-3.5 w-3.5 transition-transform",
+                    filtersOpen && "rotate-180",
+                  )}
                 />
+              </Button>
+              <div
+                className="inline-flex rounded-md border border-border p-0.5"
+                role="group"
+                aria-label={tr("tx.view.label")}
+              >
+                <button
+                  type="button"
+                  onClick={() => setView("cards")}
+                  aria-pressed={view === "cards"}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded px-2 py-1 text-xs",
+                    view === "cards"
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <LayoutList className="h-3.5 w-3.5" /> {tr("tx.view.cards")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setView("table")}
+                  aria-pressed={view === "table"}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded px-2 py-1 text-xs",
+                    view === "table"
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  <TableIcon className="h-3.5 w-3.5" /> {tr("tx.view.table")}
+                </button>
               </div>
-              {amountOp === "around" && (
-                <div className="mt-1 flex gap-1">
-                  {[0.1, 0.15, 0.25, 0.5].map((p) => (
+              <span className="text-xs text-muted-foreground">
+                {tr("tx.results_count", { n: filtered.length })}
+              </span>
+              {activeFilterCount > 0 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="ml-auto h-8"
+                  onClick={clearAll}
+                >
+                  <X className="mr-1 h-3.5 w-3.5" /> {tr("tx.clear_all")}
+                </Button>
+              )}
+            </div>
+
+            {filtersOpen && (
+              <div id="tx-filters" className="space-y-3">
+                <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                  <MultiSelectCombobox
+                    options={typeOptions}
+                    value={filterTypes}
+                    onChange={(v) => setFilterTypes(v as TxType[])}
+                    placeholder={tr("tx.all_types")}
+                    searchPlaceholder={tr("msc.search")}
+                    emptyText={tr("msc.empty")}
+                    selectedLabel={(n) => tr("msc.n_selected", { n })}
+                  />
+                  <MultiSelectCombobox
+                    options={accountOptions}
+                    value={filterAccounts}
+                    onChange={setFilterAccounts}
+                    placeholder={tr("tx.all_accounts")}
+                    searchPlaceholder={tr("msc.search")}
+                    emptyText={tr("msc.empty")}
+                    selectedLabel={(n) => tr("msc.n_selected", { n })}
+                  />
+                  <MultiSelectCombobox
+                    options={categoryOptions}
+                    value={filterCategories}
+                    onChange={setFilterCategories}
+                    placeholder={tr("tx.all_categories")}
+                    searchPlaceholder={tr("msc.search")}
+                    emptyText={tr("msc.empty")}
+                    selectedLabel={(n) => tr("msc.n_selected", { n })}
+                  />
+                  <MultiSelectCombobox
+                    options={tagOptions}
+                    value={filterTags}
+                    onChange={setFilterTags}
+                    placeholder={tr("tx.all_tags")}
+                    searchPlaceholder={tr("msc.search")}
+                    emptyText={tr("msc.empty")}
+                    selectedLabel={(n) => tr("msc.n_selected", { n })}
+                  />
+                  <MultiSelectCombobox
+                    options={ruleOptions}
+                    value={filterRules}
+                    onChange={setFilterRules}
+                    placeholder={tr("tx.all_rules")}
+                    searchPlaceholder={tr("msc.search")}
+                    emptyText={tr("msc.empty")}
+                    selectedLabel={(n) => tr("msc.n_selected", { n })}
+                  />
+                </div>
+
+                {/* Date range */}
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">{tr("common.from")}</Label>
+                    <DatePicker
+                      value={from}
+                      onChange={setFrom}
+                      locale={locale}
+                      placeholder={tr("common.set")}
+                      clearLabel={tr("common.clear")}
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">{tr("common.to")}</Label>
+                    <DatePicker
+                      value={to}
+                      onChange={setTo}
+                      locale={locale}
+                      placeholder={tr("common.set")}
+                      clearLabel={tr("common.clear")}
+                    />
+                  </div>
+                </div>
+
+                {/* Quick range chips */}
+                <div className="flex flex-wrap gap-1.5">
+                  {(
+                    [
+                      ["this_month", tr("tx.range.this_month")],
+                      ["last_month", tr("tx.range.last_month")],
+                      ["last_7", tr("tx.range.last_7")],
+                      ["last_30", tr("tx.range.last_30")],
+                      ["this_year", tr("tx.range.this_year")],
+                    ] as const
+                  ).map(([k, label]) => (
                     <button
-                      key={p}
+                      key={k}
                       type="button"
-                      onClick={() => setTolerance(p)}
-                      className={cn(
-                        "rounded-full border px-2 py-0.5 text-[11px]",
-                        tolerance === p
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border text-muted-foreground hover:bg-accent",
-                      )}
+                      onClick={() => setRange(k)}
+                      className="rounded-full border border-border bg-background px-2.5 py-0.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
                     >
-                      {tr("tx.amount.tolerance", { x: Math.round(p * 100) })}
+                      {label}
                     </button>
                   ))}
                 </div>
-              )}
-              {/* Amount range presets */}
-              <div className="mt-1 flex flex-wrap gap-1">
-                {([["lt", "20"], ["lt", "100"], ["gte", "100"], ["gte", "500"]] as const).map(([op, v], i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => { setAmountOp(op); setAmountVal(v); }}
-                    className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground"
-                  >
-                    {op === "lt" ? `< ${v}` : `≥ ${v}`}
-                  </button>
-                ))}
+
+                {/* Reimbursable filter */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">{tr("tx.reimb.filter")}:</span>
+                  {(["any", "open", "settled", "written_off", "cancelled", "all"] as const).map(
+                    (k) => (
+                      <button
+                        key={k}
+                        type="button"
+                        onClick={() => setFilterReimb(k)}
+                        className={cn(
+                          "rounded-full border px-2.5 py-0.5 text-xs",
+                          filterReimb === k
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border bg-background text-muted-foreground hover:bg-accent hover:text-foreground",
+                        )}
+                      >
+                        {k === "any" ? tr("tx.amount_op.any") : tr(`tx.reimb.filter.${k}` as never)}
+                      </button>
+                    ),
+                  )}
+                </div>
+
+                {/* Amount filter + sort */}
+                <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">{tr("tx.amount")}</Label>
+                    <div className="flex items-center gap-1">
+                      <Select value={amountOp} onValueChange={(v) => setAmountOp(v as AmountOp)}>
+                        <SelectTrigger className="w-[44%]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="any">{tr("tx.amount_op.any")}</SelectItem>
+                          <SelectItem value="lt">{tr("tx.amount_op.lt")}</SelectItem>
+                          <SelectItem value="lte">{tr("tx.amount_op.lte")}</SelectItem>
+                          <SelectItem value="eq">{tr("tx.amount_op.eq")}</SelectItem>
+                          <SelectItem value="gte">{tr("tx.amount_op.gte")}</SelectItem>
+                          <SelectItem value="gt">{tr("tx.amount_op.gt")}</SelectItem>
+                          <SelectItem value="around">{tr("tx.amount_op.around")}</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        inputMode="decimal"
+                        placeholder="0.00"
+                        value={amountVal}
+                        disabled={amountOp === "any"}
+                        onChange={(e) => setAmountVal(e.target.value)}
+                        onBlur={() =>
+                          amountVal.trim() && setAmountVal(formatAmountInput(amountVal))
+                        }
+                        className="flex-1"
+                      />
+                    </div>
+                    {amountOp === "around" && (
+                      <div className="mt-1 flex gap-1">
+                        {[0.1, 0.15, 0.25, 0.5].map((p) => (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() => setTolerance(p)}
+                            className={cn(
+                              "rounded-full border px-2 py-0.5 text-[11px]",
+                              tolerance === p
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-border text-muted-foreground hover:bg-accent",
+                            )}
+                          >
+                            {tr("tx.amount.tolerance", { x: Math.round(p * 100) })}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {/* Amount range presets */}
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      {(
+                        [
+                          ["lt", "20"],
+                          ["lt", "100"],
+                          ["gte", "100"],
+                          ["gte", "500"],
+                        ] as const
+                      ).map(([op, v], i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => {
+                            setAmountOp(op);
+                            setAmountVal(v);
+                          }}
+                          className="rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground"
+                        >
+                          {op === "lt" ? `< ${v}` : `≥ ${v}`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">{tr("tx.sort")}</Label>
+                    <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="date_desc">{tr("tx.sort.newest")}</SelectItem>
+                        <SelectItem value="date_asc">{tr("tx.sort.oldest")}</SelectItem>
+                        <SelectItem value="created_desc">{tr("tx.sort.created_desc")}</SelectItem>
+                        <SelectItem value="amount_desc">{tr("tx.sort.amount_desc")}</SelectItem>
+                        <SelectItem value="amount_asc">{tr("tx.sort.amount_asc")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div>
-              <Label className="text-xs text-muted-foreground">{tr("tx.sort")}</Label>
-              <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="date_desc">{tr("tx.sort.newest")}</SelectItem>
-                  <SelectItem value="date_asc">{tr("tx.sort.oldest")}</SelectItem>
-                  <SelectItem value="created_desc">{tr("tx.sort.created_desc")}</SelectItem>
-                  <SelectItem value="amount_desc">{tr("tx.sort.amount_desc")}</SelectItem>
-                  <SelectItem value="amount_asc">{tr("tx.sort.amount_asc")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          </div>
-          )}
-
-          {/* Active filter pills: visible even while the filters are collapsed. */}
-          {hiddenFilterCount > 0 && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            {filterTypes.map((v) => (
-              <FilterPill key={`t-${v}`} onRemove={() => setFilterTypes(filterTypes.filter((x) => x !== v))}>
-                {tr(`add.${v}` as never)}
-              </FilterPill>
-            ))}
-            {filterAccounts.map((v) => (
-              <FilterPill key={`a-${v}`} onRemove={() => setFilterAccounts(filterAccounts.filter((x) => x !== v))}>
-                {tr("tx.search.label.account")}: {accountById.get(v)?.name ?? v}
-              </FilterPill>
-            ))}
-            {filterCategories.map((v) => (
-              <FilterPill key={`c-${v}`} onRemove={() => setFilterCategories(filterCategories.filter((x) => x !== v))}>
-                {tr("tx.search.label.category")}: {v === NO_CATEGORY ? `— ${tr("add.split.no_category")} —` : (categoryById.get(v)?.name ?? v)}
-              </FilterPill>
-            ))}
-            {filterTags.map((v) => (
-              <FilterPill key={`tg-${v}`} onRemove={() => setFilterTags(filterTags.filter((x) => x !== v))}>
-                {`#${v}`}
-              </FilterPill>
-            ))}
-            {filterRules.map((v) => (
-              <FilterPill key={`r-${v}`} onRemove={() => setFilterRules(filterRules.filter((x) => x !== v))}>
-                {tr("tx.search.label.rule")}: {ruleById.get(v)?.name ?? v}
-              </FilterPill>
-            ))}
-            {amountOp !== "any" && amountTarget != null && (
-              <FilterPill onRemove={() => { setAmountOp("any"); setAmountVal(""); }}>
-                {tr(`tx.amount_op.${amountOp}` as never)} {amountVal}
-              </FilterPill>
             )}
-            {fromStr && <FilterPill onRemove={() => setFrom(null)}>{tr("common.from")}: {format(from!, dateFmt || "yyyy-MM-dd")}</FilterPill>}
-            {toStr && <FilterPill onRemove={() => setTo(null)}>{tr("common.to")}: {format(to!, dateFmt || "yyyy-MM-dd")}</FilterPill>}
-            {filterReimb !== "any" && (
-              <FilterPill onRemove={() => setFilterReimb("any")}>
-                {tr("tx.reimb.filter")}: {tr(`tx.reimb.filter.${filterReimb}` as never)}
-              </FilterPill>
-            )}
-          </div>
-          )}
 
-          {showAroundHint && (
-            <div className="rounded-md border border-dashed border-border bg-muted/30 p-2 text-xs text-muted-foreground">
-              {tr("tx.search_amount_hint", { x: search.trim() })}{" "}
-              <button
-                type="button"
-                className="font-medium text-primary hover:underline"
-                onClick={() => {
-                  setAmountOp("around");
-                  setAmountVal(String(numericTokens[0]));
-                  patchSearch({ q: "" });
-                }}
-              >
-                {tr("tx.amount_op.around")} ({tr("tx.amount.tolerance", { x: Math.round(tolerance * 100) })})
-              </button>
-            </div>
-          )}
-        </CardContent></Card>
+            {/* Active filter pills: visible even while the filters are collapsed. */}
+            {hiddenFilterCount > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                {filterTypes.map((v) => (
+                  <FilterPill
+                    key={`t-${v}`}
+                    onRemove={() => setFilterTypes(filterTypes.filter((x) => x !== v))}
+                  >
+                    {tr(`add.${v}` as never)}
+                  </FilterPill>
+                ))}
+                {filterAccounts.map((v) => (
+                  <FilterPill
+                    key={`a-${v}`}
+                    onRemove={() => setFilterAccounts(filterAccounts.filter((x) => x !== v))}
+                  >
+                    {tr("tx.search.label.account")}: {accountById.get(v)?.name ?? v}
+                  </FilterPill>
+                ))}
+                {filterCategories.map((v) => (
+                  <FilterPill
+                    key={`c-${v}`}
+                    onRemove={() => setFilterCategories(filterCategories.filter((x) => x !== v))}
+                  >
+                    {tr("tx.search.label.category")}:{" "}
+                    {v === NO_CATEGORY
+                      ? `— ${tr("add.split.no_category")} —`
+                      : (categoryById.get(v)?.name ?? v)}
+                  </FilterPill>
+                ))}
+                {filterTags.map((v) => (
+                  <FilterPill
+                    key={`tg-${v}`}
+                    onRemove={() => setFilterTags(filterTags.filter((x) => x !== v))}
+                  >
+                    {`#${v}`}
+                  </FilterPill>
+                ))}
+                {filterRules.map((v) => (
+                  <FilterPill
+                    key={`r-${v}`}
+                    onRemove={() => setFilterRules(filterRules.filter((x) => x !== v))}
+                  >
+                    {tr("tx.search.label.rule")}: {ruleById.get(v)?.name ?? v}
+                  </FilterPill>
+                ))}
+                {amountOp !== "any" && amountTarget != null && (
+                  <FilterPill
+                    onRemove={() => {
+                      setAmountOp("any");
+                      setAmountVal("");
+                    }}
+                  >
+                    {tr(`tx.amount_op.${amountOp}` as never)} {amountVal}
+                  </FilterPill>
+                )}
+                {fromStr && (
+                  <FilterPill onRemove={() => setFrom(null)}>
+                    {tr("common.from")}: {format(from!, dateFmt || "yyyy-MM-dd")}
+                  </FilterPill>
+                )}
+                {toStr && (
+                  <FilterPill onRemove={() => setTo(null)}>
+                    {tr("common.to")}: {format(to!, dateFmt || "yyyy-MM-dd")}
+                  </FilterPill>
+                )}
+                {filterReimb !== "any" && (
+                  <FilterPill onRemove={() => setFilterReimb("any")}>
+                    {tr("tx.reimb.filter")}: {tr(`tx.reimb.filter.${filterReimb}` as never)}
+                  </FilterPill>
+                )}
+              </div>
+            )}
+
+            {showAroundHint && (
+              <div className="rounded-md border border-dashed border-border bg-muted/30 p-2 text-xs text-muted-foreground">
+                {tr("tx.search_amount_hint", { x: search.trim() })}{" "}
+                <button
+                  type="button"
+                  className="font-medium text-primary hover:underline"
+                  onClick={() => {
+                    setAmountOp("around");
+                    setAmountVal(String(numericTokens[0]));
+                    patchSearch({ q: "" });
+                  }}
+                >
+                  {tr("tx.amount_op.around")} (
+                  {tr("tx.amount.tolerance", { x: Math.round(tolerance * 100) })})
+                </button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {txQ.isLoading ? (
           <Skeleton className="h-64 w-full" />
         ) : sorted.length === 0 ? (
-          <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">
-            {tr("tx.no_match")} <Link to="/add" className="text-primary underline-offset-2 hover:underline">{tr("tx.add_one")}</Link>.
-          </CardContent></Card>
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              {tr("tx.no_match")}{" "}
+              <Link to="/add" className="text-primary underline-offset-2 hover:underline">
+                {tr("tx.add_one")}
+              </Link>
+              .
+            </CardContent>
+          </Card>
         ) : view === "table" ? (
-          <Card><CardContent className="p-0">
-            <TransactionTable
-              rows={tableRows}
-              ctx={rowCtx}
-              selected={selected}
-              allChecked={selected.size > 0 && selected.size === sorted.length}
-              onToggleAll={toggleSelectAll}
-              footer={showMoreFooter}
-            />
-          </CardContent></Card>
+          <Card>
+            <CardContent className="p-0">
+              <TransactionTable
+                rows={tableRows}
+                ctx={rowCtx}
+                selected={selected}
+                allChecked={selected.size > 0 && selected.size === sorted.length}
+                onToggleAll={toggleSelectAll}
+                footer={showMoreFooter}
+              />
+            </CardContent>
+          </Card>
         ) : (
           <>
             {cardSections.map(([date, units]) => (
@@ -991,22 +1280,29 @@ function TransactionsPage() {
                     {format(new Date(date), "EEE, MMM d, yyyy", { locale })}
                   </div>
                 )}
-                <Card><CardContent className="divide-y p-0">
-                  {units.map((u) =>
-                    u.kind === "single" ? (
-                      <CardRow key={u.key} tx={u.tx} selected={selected.has(u.tx.id)} ctx={rowCtx} />
-                    ) : (
-                      <SplitGroupRow
-                        key={u.key}
-                        groupId={u.groupId}
-                        txs={u.txs}
-                        selected={u.txs.every((x) => selected.has(x.id))}
-                        open={!!openGroups[u.groupId]}
-                        ctx={rowCtx}
-                      />
-                    ),
-                  )}
-                </CardContent></Card>
+                <Card>
+                  <CardContent className="divide-y p-0">
+                    {units.map((u) =>
+                      u.kind === "single" ? (
+                        <CardRow
+                          key={u.key}
+                          tx={u.tx}
+                          selected={selected.has(u.tx.id)}
+                          ctx={rowCtx}
+                        />
+                      ) : (
+                        <SplitGroupRow
+                          key={u.key}
+                          groupId={u.groupId}
+                          txs={u.txs}
+                          selected={u.txs.every((x) => selected.has(x.id))}
+                          open={!!openGroups[u.groupId]}
+                          ctx={rowCtx}
+                        />
+                      ),
+                    )}
+                  </CardContent>
+                </Card>
               </div>
             ))}
             {showMoreFooter}
@@ -1020,20 +1316,32 @@ function TransactionsPage() {
       {selected.size > 0 && (
         <div className="fixed inset-x-0 bottom-16 z-40 px-3 sm:bottom-4">
           <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-2 rounded-lg border border-border bg-card/95 p-2 shadow-lg backdrop-blur">
-            <span className="px-1 text-sm font-medium">{tr("tx.bulk.n_selected", { n: selected.size })}</span>
+            <span className="px-1 text-sm font-medium">
+              {tr("tx.bulk.n_selected", { n: selected.size })}
+            </span>
             <Button size="sm" variant="outline" onClick={() => setBulkAction("category")}>
               <FolderTree className="mr-1 h-3.5 w-3.5" /> {tr("tx.bulk.set_category")}
             </Button>
             <Button size="sm" variant="outline" onClick={() => setBulkAction("add_tags")}>
               <Tag className="mr-1 h-3.5 w-3.5" /> {tr("tx.bulk.add_tags")}
             </Button>
-            <Button size="sm" variant="outline" onClick={() => setBulkAction("remove_tags")} disabled={selectedTagPool.length === 0}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setBulkAction("remove_tags")}
+              disabled={selectedTagPool.length === 0}
+            >
               <TagsIcon className="mr-1 h-3.5 w-3.5" /> {tr("tx.bulk.remove_tags")}
             </Button>
             <Button size="sm" variant="outline" onClick={() => setBulkAction("link")}>
               <Link2 className="mr-1 h-3.5 w-3.5" /> {tr("tx.bulk.link")}
             </Button>
-            <Button size="sm" variant="outline" className="text-destructive" onClick={() => setBulkAction("delete")}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="text-destructive"
+              onClick={() => setBulkAction("delete")}
+            >
               <Trash2 className="mr-1 h-3.5 w-3.5" /> {tr("common.delete")}
             </Button>
             <Button size="sm" variant="ghost" onClick={clearSelection}>
@@ -1044,7 +1352,12 @@ function TransactionsPage() {
       )}
 
       {/* Link together */}
-      <Dialog open={bulkAction === "link"} onOpenChange={(o) => { if (!o) setBulkAction(null); }}>
+      <Dialog
+        open={bulkAction === "link"}
+        onOpenChange={(o) => {
+          if (!o) setBulkAction(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{tr("tx.bulk.link")}</DialogTitle>
@@ -1053,11 +1366,21 @@ function TransactionsPage() {
           <div className="space-y-3">
             <div className="space-y-1">
               <Label>{tr("tx.bulk.link.existing")}</Label>
-              <Select value={bulkLinkId} onValueChange={(v) => { setBulkLinkId(v); setBulkLinkTitle(""); }}>
-                <SelectTrigger><SelectValue placeholder={tr("tx.bulk.link.existing")} /></SelectTrigger>
+              <Select
+                value={bulkLinkId}
+                onValueChange={(v) => {
+                  setBulkLinkId(v);
+                  setBulkLinkTitle("");
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder={tr("tx.bulk.link.existing")} />
+                </SelectTrigger>
                 <SelectContent>
                   {(linksQ.data ?? []).map((l) => (
-                    <SelectItem key={l.id} value={l.id}>{l.title}</SelectItem>
+                    <SelectItem key={l.id} value={l.id}>
+                      {l.title}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -1066,13 +1389,21 @@ function TransactionsPage() {
               <Label>{tr("tx.bulk.link.new")}</Label>
               <Input
                 value={bulkLinkTitle}
-                onChange={(e) => { setBulkLinkTitle(e.target.value); if (e.target.value) setBulkLinkId(""); }}
+                onChange={(e) => {
+                  setBulkLinkTitle(e.target.value);
+                  if (e.target.value) setBulkLinkId("");
+                }}
               />
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setBulkAction(null)}>{tr("common.cancel")}</Button>
-            <Button disabled={bulkBusy || (!bulkLinkId && !bulkLinkTitle.trim())} onClick={runBulkLink}>
+            <Button variant="ghost" onClick={() => setBulkAction(null)}>
+              {tr("common.cancel")}
+            </Button>
+            <Button
+              disabled={bulkBusy || (!bulkLinkId && !bulkLinkTitle.trim())}
+              onClick={runBulkLink}
+            >
               {tr("tx.bulk.link")}
             </Button>
           </DialogFooter>
@@ -1080,26 +1411,47 @@ function TransactionsPage() {
       </Dialog>
 
       {/* Set category */}
-      <Dialog open={bulkAction === "category"} onOpenChange={(o) => { if (!o) setBulkAction(null); }}>
+      <Dialog
+        open={bulkAction === "category"}
+        onOpenChange={(o) => {
+          if (!o) setBulkAction(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{tr("tx.bulk.set_category")}</DialogTitle>
-            <DialogDescription>{tr("tx.bulk.set_category.help", { n: selectedTxs.filter((t) => t.type !== "transfer").length })}</DialogDescription>
+            <DialogDescription>
+              {tr("tx.bulk.set_category.help", {
+                n: selectedTxs.filter((t) => t.type !== "transfer").length,
+              })}
+            </DialogDescription>
           </DialogHeader>
           <Select value={bulkCategory} onValueChange={setBulkCategory}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
               <SelectItem value={NO_CATEGORY}>{`— ${tr("add.split.no_category")} —`}</SelectItem>
-              {(categoriesQ.data ?? []).filter((c) => !c.archived).map((c) => (
-                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-              ))}
+              {(categoriesQ.data ?? [])
+                .filter((c) => !c.archived)
+                .map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
             </SelectContent>
           </Select>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setBulkAction(null)}>{tr("common.cancel")}</Button>
+            <Button variant="outline" onClick={() => setBulkAction(null)}>
+              {tr("common.cancel")}
+            </Button>
             <Button
               disabled={bulkBusy}
-              onClick={() => runBulk(() => bulkSetCategory(selectedTxs, bulkCategory === NO_CATEGORY ? null : bulkCategory))}
+              onClick={() =>
+                runBulk(() =>
+                  bulkSetCategory(selectedTxs, bulkCategory === NO_CATEGORY ? null : bulkCategory),
+                )
+              }
             >
               {tr("common.save")}
             </Button>
@@ -1108,11 +1460,18 @@ function TransactionsPage() {
       </Dialog>
 
       {/* Add tags */}
-      <Dialog open={bulkAction === "add_tags"} onOpenChange={(o) => { if (!o) setBulkAction(null); }}>
+      <Dialog
+        open={bulkAction === "add_tags"}
+        onOpenChange={(o) => {
+          if (!o) setBulkAction(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{tr("tx.bulk.add_tags")}</DialogTitle>
-            <DialogDescription>{tr("tx.bulk.add_tags.help", { n: selected.size })}</DialogDescription>
+            <DialogDescription>
+              {tr("tx.bulk.add_tags.help", { n: selected.size })}
+            </DialogDescription>
           </DialogHeader>
           <Input
             autoFocus
@@ -1122,11 +1481,17 @@ function TransactionsPage() {
           />
           <div className="flex flex-wrap gap-1">
             {parseTagInput(bulkTagInput).map((tg) => (
-              <Badge key={tg} variant="secondary" className="rounded-full text-[11px]">{`#${tg}`}</Badge>
+              <Badge
+                key={tg}
+                variant="secondary"
+                className="rounded-full text-[11px]"
+              >{`#${tg}`}</Badge>
             ))}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setBulkAction(null)}>{tr("common.cancel")}</Button>
+            <Button variant="outline" onClick={() => setBulkAction(null)}>
+              {tr("common.cancel")}
+            </Button>
             <Button
               disabled={bulkBusy || parseTagInput(bulkTagInput).length === 0}
               onClick={() => runBulk(() => bulkAddTags(selectedTxs, parseTagInput(bulkTagInput)))}
@@ -1138,11 +1503,18 @@ function TransactionsPage() {
       </Dialog>
 
       {/* Remove tags */}
-      <Dialog open={bulkAction === "remove_tags"} onOpenChange={(o) => { if (!o) setBulkAction(null); }}>
+      <Dialog
+        open={bulkAction === "remove_tags"}
+        onOpenChange={(o) => {
+          if (!o) setBulkAction(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{tr("tx.bulk.remove_tags")}</DialogTitle>
-            <DialogDescription>{tr("tx.bulk.remove_tags.help", { n: selected.size })}</DialogDescription>
+            <DialogDescription>
+              {tr("tx.bulk.remove_tags.help", { n: selected.size })}
+            </DialogDescription>
           </DialogHeader>
           <div className="flex flex-wrap gap-1.5">
             {selectedTagPool.map((tg) => {
@@ -1151,10 +1523,14 @@ function TransactionsPage() {
                 <button
                   key={tg}
                   type="button"
-                  onClick={() => setBulkRemoveSel((p) => (on ? p.filter((x) => x !== tg) : [...p, tg]))}
+                  onClick={() =>
+                    setBulkRemoveSel((p) => (on ? p.filter((x) => x !== tg) : [...p, tg]))
+                  }
                   className={cn(
                     "rounded-full border px-2.5 py-0.5 text-xs",
-                    on ? "border-destructive bg-destructive/10 text-destructive" : "border-border text-muted-foreground hover:bg-accent",
+                    on
+                      ? "border-destructive bg-destructive/10 text-destructive"
+                      : "border-border text-muted-foreground hover:bg-accent",
                   )}
                 >
                   {`#${tg}`}
@@ -1163,7 +1539,9 @@ function TransactionsPage() {
             })}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setBulkAction(null)}>{tr("common.cancel")}</Button>
+            <Button variant="outline" onClick={() => setBulkAction(null)}>
+              {tr("common.cancel")}
+            </Button>
             <Button
               disabled={bulkBusy || bulkRemoveSel.length === 0}
               onClick={() => runBulk(() => bulkRemoveTags(selectedTxs, bulkRemoveSel))}
@@ -1175,14 +1553,21 @@ function TransactionsPage() {
       </Dialog>
 
       {/* Delete */}
-      <Dialog open={bulkAction === "delete"} onOpenChange={(o) => { if (!o) setBulkAction(null); }}>
+      <Dialog
+        open={bulkAction === "delete"}
+        onOpenChange={(o) => {
+          if (!o) setBulkAction(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{tr("common.delete")}</DialogTitle>
             <DialogDescription>{tr("tx.bulk.delete.help", { n: selected.size })}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setBulkAction(null)}>{tr("common.cancel")}</Button>
+            <Button variant="outline" onClick={() => setBulkAction(null)}>
+              {tr("common.cancel")}
+            </Button>
             <Button
               variant="destructive"
               disabled={bulkBusy}
@@ -1197,11 +1582,15 @@ function TransactionsPage() {
       <TransactionLinkSheet
         linkId={openLinkId}
         open={openLinkId !== null}
-        onOpenChange={(o) => { if (!o) setOpenLinkId(null); }}
+        onOpenChange={(o) => {
+          if (!o) setOpenLinkId(null);
+        }}
       />
       <LocationPeekDialog
         location={peekLoc}
-        onOpenChange={(o) => { if (!o) setPeekLoc(null); }}
+        onOpenChange={(o) => {
+          if (!o) setPeekLoc(null);
+        }}
       />
     </AppShell>
   );
@@ -1211,7 +1600,12 @@ function FilterPill({ children, onRemove }: { children: React.ReactNode; onRemov
   return (
     <span className="inline-flex items-center gap-1 rounded-full border border-border bg-accent/40 px-2 py-0.5 text-xs">
       {children}
-      <button type="button" onClick={onRemove} className="text-muted-foreground hover:text-foreground" aria-label="remove">
+      <button
+        type="button"
+        onClick={onRemove}
+        className="text-muted-foreground hover:text-foreground"
+        aria-label="remove"
+      >
         <X className="h-3 w-3" />
       </button>
     </span>

@@ -8,18 +8,23 @@ export function useActiveScopeId(): [string | null, (id: string | null) => Promi
   const queryClient = useQueryClient();
   const settingsQ = useQuery({ queryKey: ["settings"], queryFn: fetchSettings });
 
-  const setId = React.useCallback(async (id: string | null) => {
-    const previous = queryClient.getQueryData<Awaited<ReturnType<typeof fetchSettings>>>(["settings"]);
-    if (previous) queryClient.setQueryData(["settings"], { ...previous, active_scope_id: id });
-    try {
-      await updateActiveScope(id);
-    } catch (error) {
-      if (previous) queryClient.setQueryData(["settings"], previous);
-      throw error;
-    } finally {
-      await queryClient.invalidateQueries({ queryKey: ["settings"] });
-    }
-  }, [queryClient]);
+  const setId = React.useCallback(
+    async (id: string | null) => {
+      const previous = queryClient.getQueryData<Awaited<ReturnType<typeof fetchSettings>>>([
+        "settings",
+      ]);
+      if (previous) queryClient.setQueryData(["settings"], { ...previous, active_scope_id: id });
+      try {
+        await updateActiveScope(id);
+      } catch (error) {
+        if (previous) queryClient.setQueryData(["settings"], previous);
+        throw error;
+      } finally {
+        await queryClient.invalidateQueries({ queryKey: ["settings"] });
+      }
+    },
+    [queryClient],
+  );
 
   return [settingsQ.data?.active_scope_id ?? null, setId];
 }

@@ -43,23 +43,25 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
-  Tabs, TabsList, TabsTrigger, TabsContent,
-} from "@/components/ui/tabs";
-import {
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
 } from "@/components/ui/select";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { useI18n } from "@/i18n";
 import { isToday, locationFromRow, type TxLocation } from "@/lib/location";
 import { rankLocationCandidates } from "@/lib/locationSuggest";
-import {
-  hasSuggestion,
-  withSuggestion,
-  type SuggestionDraft,
-} from "@/lib/pendingSuggestView";
+import { hasSuggestion, withSuggestion, type SuggestionDraft } from "@/lib/pendingSuggestView";
 import { enrichPendingTransactions } from "@/utils/pending.functions";
 import {
   addTagsToNote,
@@ -212,9 +214,17 @@ function PendingRoute() {
             {tab === "ious" ? (
               <OpenIOUsCard symbol={sym} headless />
             ) : pendingQ.isLoading ? (
-              <Card><CardContent className="py-6 text-center text-sm text-muted-foreground">{t("common.loading")}</CardContent></Card>
+              <Card>
+                <CardContent className="py-6 text-center text-sm text-muted-foreground">
+                  {t("common.loading")}
+                </CardContent>
+              </Card>
             ) : items.length === 0 ? (
-              <Card><CardContent className="py-6 text-center text-sm text-muted-foreground">{t("pending.empty")}</CardContent></Card>
+              <Card>
+                <CardContent className="py-6 text-center text-sm text-muted-foreground">
+                  {t("pending.empty")}
+                </CardContent>
+              </Card>
             ) : tableView ? (
               <PendingLineTable
                 items={items}
@@ -410,60 +420,62 @@ function PendingRow({
     <Card>
       <CardHeader className="pb-2">
         <div className="flex items-start gap-1">
-        <button
-          type="button"
-          className="flex min-w-0 flex-1 items-start justify-between gap-3 text-left"
-          onClick={() => setOpen((o) => !o)}
-        >
-          <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 items-center gap-2">
-              {open ? (
-                <ChevronDown className="h-4 w-4 shrink-0" />
-              ) : (
-                <ChevronRight className="h-4 w-4 shrink-0" />
-              )}
-              <CardTitle className="min-w-0 truncate text-base">
-                {pending.description || t("pending.row.untitled")}
-              </CardTitle>
-              {pending.external_source && (
-                <Badge variant="outline" className="shrink-0 text-[10px]">
-                  {pending.external_source}
-                </Badge>
-              )}
-              {pending.status === "rejected" && (
-                <Badge variant="secondary" className="shrink-0">
-                  {t("pending.tab.rejected")}
-                </Badge>
-              )}
-              {pending.status === "confirmed" && (
-                <Badge variant="secondary" className="shrink-0">
-                  {t("pending.tab.confirmed")}
-                </Badge>
-              )}
-            </div>
-            {/* Account names and the raw type can be long: let the line wrap
+          <button
+            type="button"
+            className="flex min-w-0 flex-1 items-start justify-between gap-3 text-left"
+            onClick={() => setOpen((o) => !o)}
+          >
+            <div className="min-w-0 flex-1">
+              <div className="flex min-w-0 items-center gap-2">
+                {open ? (
+                  <ChevronDown className="h-4 w-4 shrink-0" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 shrink-0" />
+                )}
+                <CardTitle className="min-w-0 truncate text-base">
+                  {pending.description || t("pending.row.untitled")}
+                </CardTitle>
+                {pending.external_source && (
+                  <Badge variant="outline" className="shrink-0 text-[10px]">
+                    {pending.external_source}
+                  </Badge>
+                )}
+                {pending.status === "rejected" && (
+                  <Badge variant="secondary" className="shrink-0">
+                    {t("pending.tab.rejected")}
+                  </Badge>
+                )}
+                {pending.status === "confirmed" && (
+                  <Badge variant="secondary" className="shrink-0">
+                    {t("pending.tab.confirmed")}
+                  </Badge>
+                )}
+              </div>
+              {/* Account names and the raw type can be long: let the line wrap
                 and break rather than push the amount off a phone screen. */}
-            <div className="mt-0.5 break-words text-xs text-muted-foreground">
-              {format(parseISO(pending.occurred_on), dateFmt, { locale })}
-              {" · "}{acc?.name ?? "?"}
-              {" · "}{t(`add.${pending.type}`)}
+              <div className="mt-0.5 break-words text-xs text-muted-foreground">
+                {format(parseISO(pending.occurred_on), dateFmt, { locale })}
+                {" · "}
+                {acc?.name ?? "?"}
+                {" · "}
+                {t(`add.${pending.type}`)}
+              </div>
             </div>
-          </div>
-          <span className="shrink-0 tabular-nums text-sm font-semibold">
-            {fmtMoney(Number(pending.amount), sym)}
-          </span>
-        </button>
-        {isPending && (
-          <PendingOriginalPopover
-            p={pending}
-            current={current}
-            accounts={accounts}
-            categories={categories}
-            symbol={sym}
-            onRestore={(orig) => edit(orig)}
-            className="mt-0.5"
-          />
-        )}
+            <span className="shrink-0 tabular-nums text-sm font-semibold">
+              {fmtMoney(Number(pending.amount), sym)}
+            </span>
+          </button>
+          {isPending && (
+            <PendingOriginalPopover
+              p={pending}
+              current={current}
+              accounts={accounts}
+              categories={categories}
+              symbol={sym}
+              onRestore={(orig) => edit(orig)}
+              className="mt-0.5"
+            />
+          )}
         </div>
       </CardHeader>
       {open && (
@@ -472,10 +484,16 @@ function PendingRow({
             <div className="break-words rounded-md border bg-muted/30 p-3 text-xs">
               <div className="mb-1 font-medium">{t("pending.external.title")}</div>
               {pending.external_source && (
-                <div><span className="text-muted-foreground">{t("pending.external.source")}: </span>{pending.external_source}</div>
+                <div>
+                  <span className="text-muted-foreground">{t("pending.external.source")}: </span>
+                  {pending.external_source}
+                </div>
               )}
               {pending.external_ref && (
-                <div><span className="text-muted-foreground">{t("pending.external.ref")}: </span>{pending.external_ref}</div>
+                <div>
+                  <span className="text-muted-foreground">{t("pending.external.ref")}: </span>
+                  {pending.external_ref}
+                </div>
               )}
               {pending.external_info && (
                 <div className="mt-1 whitespace-pre-wrap break-words">{pending.external_info}</div>
@@ -529,7 +547,9 @@ function PendingRow({
               <div className="space-y-1">
                 <Label>{t("common.type")}</Label>
                 <Select value={type} onValueChange={(v) => edit({ type: v as TxType })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="expense">{t("add.expense")}</SelectItem>
                     <SelectItem value="income">{t("add.income")}</SelectItem>
@@ -539,7 +559,12 @@ function PendingRow({
               </div>
               <div className="space-y-1">
                 <Label>{t("add.split.amount")}</Label>
-                <Input value={amount} onChange={(e) => edit({ amount: e.target.value }, { debounce: true })} onBlur={() => edit({ amount: formatAmountInput(amount) })} inputMode="decimal" />
+                <Input
+                  value={amount}
+                  onChange={(e) => edit({ amount: e.target.value }, { debounce: true })}
+                  onBlur={() => edit({ amount: formatAmountInput(amount) })}
+                  inputMode="decimal"
+                />
               </div>
               <div className="space-y-1">
                 <Label>{t("add.date")}</Label>
@@ -548,11 +573,17 @@ function PendingRow({
               <div className="space-y-1">
                 <Label>{t("add.account")}</Label>
                 <Select value={sourceId} onValueChange={(v) => edit({ source_account_id: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
                   <SelectContent>
-                    {accounts.filter((a) => !a.archived).map((a) => (
-                      <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                    ))}
+                    {accounts
+                      .filter((a) => !a.archived)
+                      .map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -560,31 +591,59 @@ function PendingRow({
                 <>
                   <div className="space-y-1">
                     <Label>{t("add.account")}</Label>
-                    <Select value={destId} onValueChange={(v) => edit({ destination_account_id: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                    <Select
+                      value={destId}
+                      onValueChange={(v) => edit({ destination_account_id: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        {accounts.filter((a) => !a.archived && a.id !== sourceId).map((a) => (
-                          <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                        ))}
+                        {accounts
+                          .filter((a) => !a.archived && a.id !== sourceId)
+                          .map((a) => (
+                            <SelectItem key={a.id} value={a.id}>
+                              {a.name}
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-1">
-                    <Label>{t("add.dest_amount.label", { sym: acc?.currency_symbol ?? "" })} {t("common.optional")}</Label>
-                    <Input value={destAmount} onChange={(e) => edit({ destination_amount: e.target.value }, { debounce: true })} onBlur={() => edit({ destination_amount: formatAmountInput(destAmount) })} inputMode="decimal" />
+                    <Label>
+                      {t("add.dest_amount.label", { sym: acc?.currency_symbol ?? "" })}{" "}
+                      {t("common.optional")}
+                    </Label>
+                    <Input
+                      value={destAmount}
+                      onChange={(e) =>
+                        edit({ destination_amount: e.target.value }, { debounce: true })
+                      }
+                      onBlur={() => edit({ destination_amount: formatAmountInput(destAmount) })}
+                      inputMode="decimal"
+                    />
                   </div>
                 </>
               )}
               {type !== "transfer" && (
                 <div className="space-y-1 sm:col-span-2">
                   <Label>{t("add.category")}</Label>
-                  <Select value={categoryId || "__none__"} onValueChange={(v) => edit({ category_id: v === "__none__" ? "" : v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                  <Select
+                    value={categoryId || "__none__"}
+                    onValueChange={(v) => edit({ category_id: v === "__none__" ? "" : v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">{t("common.none")}</SelectItem>
-                      {categories.filter((c) => !c.archived).map((c) => (
-                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                      ))}
+                      {categories
+                        .filter((c) => !c.archived)
+                        .map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -631,7 +690,12 @@ function PendingRow({
           <div className="flex flex-wrap items-center justify-end gap-2">
             {isPending && (
               <>
-                <Button variant="outline" size="sm" onClick={() => setRejectOpen(true)} disabled={busy}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setRejectOpen(true)}
+                  disabled={busy}
+                >
                   <Ban className="mr-1 h-3.5 w-3.5" /> {t("pending.action.reject")}
                 </Button>
                 <Button asChild variant="outline" size="sm" disabled={busy}>
@@ -657,18 +721,33 @@ function PendingRow({
         </CardContent>
       )}
 
-      <Dialog open={rejectOpen} onOpenChange={(v) => { if (!v) setRejectOpen(false); }}>
+      <Dialog
+        open={rejectOpen}
+        onOpenChange={(v) => {
+          if (!v) setRejectOpen(false);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("pending.action.reject")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
-            <Label>{t("pending.reject.reason_label")} {t("common.optional")}</Label>
-            <Textarea rows={3} value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} />
+            <Label>
+              {t("pending.reject.reason_label")} {t("common.optional")}
+            </Label>
+            <Textarea
+              rows={3}
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+            />
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRejectOpen(false)}>{t("common.cancel")}</Button>
-            <Button onClick={onReject} disabled={busy}>{t("pending.action.reject")}</Button>
+            <Button variant="outline" onClick={() => setRejectOpen(false)}>
+              {t("common.cancel")}
+            </Button>
+            <Button onClick={onReject} disabled={busy}>
+              {t("pending.action.reject")}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

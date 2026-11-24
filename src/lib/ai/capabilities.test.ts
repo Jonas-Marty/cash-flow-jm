@@ -13,17 +13,28 @@ const reply = (message: unknown) => JSON.stringify({ choices: [{ message }] });
 
 describe("parseToolProbe", () => {
   it("true when the model emits the ping call", () => {
-    expect(parseToolProbe(200, reply({ tool_calls: [{ function: { name: "ping", arguments: "{}" } }] }))).toBe(true);
+    expect(
+      parseToolProbe(200, reply({ tool_calls: [{ function: { name: "ping", arguments: "{}" } }] })),
+    ).toBe(true);
   });
   it("false when it answers in text instead", () => {
     expect(parseToolProbe(200, reply({ content: '{"name": "ping"}' }))).toBe(false);
   });
   it("false on an explicit tools rejection (Ollama, vLLM wording)", () => {
-    expect(parseToolProbe(400, '{"error":"registry.ollama.ai/library/gemma:2b does not support tools"}')).toBe(false);
-    expect(parseToolProbe(400, '{"message":"\\"auto\\" tool choice requires --enable-auto-tool-choice"}')).toBe(false);
+    expect(
+      parseToolProbe(400, '{"error":"registry.ollama.ai/library/gemma:2b does not support tools"}'),
+    ).toBe(false);
+    expect(
+      parseToolProbe(
+        400,
+        '{"message":"\\"auto\\" tool choice requires --enable-auto-tool-choice"}',
+      ),
+    ).toBe(false);
   });
   it("unknown when a reasoning model ran out of tokens before calling", () => {
-    const cut = JSON.stringify({ choices: [{ finish_reason: "length", message: { content: "" } }] });
+    const cut = JSON.stringify({
+      choices: [{ finish_reason: "length", message: { content: "" } }],
+    });
     expect(parseToolProbe(200, cut)).toBeNull();
     expect(parseVisionProbe(200, cut)).toBeNull();
   });
@@ -43,7 +54,12 @@ describe("parseVisionProbe", () => {
     expect(parseVisionProbe(200, reply({ content: "I cannot see images." }))).toBe(false);
   });
   it("false on an image rejection, unknown otherwise", () => {
-    expect(parseVisionProbe(400, '{"error":{"message":"Invalid content type. image_url is only supported by certain models."}}')).toBe(false);
+    expect(
+      parseVisionProbe(
+        400,
+        '{"error":{"message":"Invalid content type. image_url is only supported by certain models."}}',
+      ),
+    ).toBe(false);
     expect(parseVisionProbe(503, "overloaded")).toBeNull();
   });
 });
@@ -58,7 +74,9 @@ describe("error classifiers", () => {
 
 describe("looksLikeRawJson", () => {
   it("spots invented JSON replies", () => {
-    expect(looksLikeRawJson('{"type": "action", "elements": {"label": "Transaction saved"}}')).toBe(true);
+    expect(looksLikeRawJson('{"type": "action", "elements": {"label": "Transaction saved"}}')).toBe(
+      true,
+    );
     expect(looksLikeRawJson('```json\n[{"a":1}]\n```')).toBe(true);
   });
   it("leaves prose and prose with JSON inside alone", () => {
@@ -71,18 +89,30 @@ describe("looksLikeRawJson", () => {
 describe("looksLikeTextToolCall", () => {
   const names = ["list_recurring_rules", "prepare_recurring_rule"];
   it("spots JSON and tag-style calls", () => {
-    expect(looksLikeTextToolCall('{"name": "list_recurring_rules", "arguments": {}}', names)).toBe(true);
-    expect(looksLikeTextToolCall('```json\n{"function":"prepare_recurring_rule"}', names)).toBe(true);
+    expect(looksLikeTextToolCall('{"name": "list_recurring_rules", "arguments": {}}', names)).toBe(
+      true,
+    );
+    expect(looksLikeTextToolCall('```json\n{"function":"prepare_recurring_rule"}', names)).toBe(
+      true,
+    );
     expect(looksLikeTextToolCall("<tool_call>{...}</tool_call>", names)).toBe(true);
   });
   it("leaves normal answers alone", () => {
-    expect(looksLikeTextToolCall("Soll ich eine vierteljährliche Regel einrichten?", names)).toBe(false);
+    expect(looksLikeTextToolCall("Soll ich eine vierteljährliche Regel einrichten?", names)).toBe(
+      false,
+    );
     expect(looksLikeTextToolCall('Your rule "list_recurring_rules" …', names)).toBe(false);
   });
 });
 
 describe("attachment turns", () => {
-  const pdf = { id: "0f3c6b1e-aaaa-bbbb-cccc-000000000001", file_name: "rechnung.pdf", mime: "application/pdf", page_count: 2, text: "Rechnung Q3\nTotal CHF 1'350.00" };
+  const pdf = {
+    id: "0f3c6b1e-aaaa-bbbb-cccc-000000000001",
+    file_name: "rechnung.pdf",
+    mime: "application/pdf",
+    page_count: 2,
+    text: "Rechnung Q3\nTotal CHF 1'350.00",
+  };
 
   it("carries the id, name and full text when short", () => {
     const b = formatAttachmentBlock(pdf, 1000);
@@ -105,7 +135,9 @@ describe("attachment turns", () => {
   });
 
   it("an attachment without words gets the marker the system prompt reacts to", () => {
-    expect(userTurnText("  ", ["BLOCK"])).toBe("BLOCK\n\n(The user attached this without saying what to do with it.)");
+    expect(userTurnText("  ", ["BLOCK"])).toBe(
+      "BLOCK\n\n(The user attached this without saying what to do with it.)",
+    );
     expect(userTurnText("Import into UBS", ["BLOCK"])).toBe("BLOCK\n\nImport into UBS");
     expect(userTurnText("hi", [])).toBe("hi");
   });

@@ -96,7 +96,9 @@ describe("suggestsPlace", () => {
     // not. Comparing raw floats would call a pin different from itself and keep
     // the chip up forever.
     const p = row({ ...rawFix, latitude: 47.0502013333, longitude: 8.3095024444 });
-    const d = draft({ location: locationFromRow({ ...rawFix, latitude: 47.050201, longitude: 8.309502 }) });
+    const d = draft({
+      location: locationFromRow({ ...rawFix, latitude: 47.050201, longitude: 8.309502 }),
+    });
     expect(suggestsPlace(p, d)).toBe(true);
   });
 });
@@ -133,12 +135,18 @@ describe("suggestsTags", () => {
   });
 
   it("is taken once every suggested tag is in the note", () => {
-    expect(suggestsTags(row({ suggested_tags: ["kala", "ferien"] }), draft({ note: "x #Kala #ferien" }))).toBe(false);
+    expect(
+      suggestsTags(row({ suggested_tags: ["kala", "ferien"] }), draft({ note: "x #Kala #ferien" })),
+    ).toBe(false);
   });
 
   it("is its own offer, not part of the description", () => {
     // Taking the description must not count as taking the tags.
-    const p = row({ suggested_description: "Coop", suggested_tags: ["kala"], suggested_location: null });
+    const p = row({
+      suggested_description: "Coop",
+      suggested_tags: ["kala"],
+      suggested_location: null,
+    });
     const d = draft({ description: "Coop" });
     expect(suggestsDescription(p, d)).toBe(false);
     expect(suggestsTags(p, d)).toBe(true);

@@ -21,14 +21,22 @@ describe("buildCardUnits", () => {
 
   it("never splits a group across a window boundary", () => {
     // The second leg sorts far behind the first; the window of 1 unit still has both.
-    const sorted = [tx("s1", "2026-09-24", "g"), ...Array.from({ length: 50 }, (_, i) => tx(`x${i}`, "2026-09-20")), tx("s2", "2026-09-24", "g")];
+    const sorted = [
+      tx("s1", "2026-09-24", "g"),
+      ...Array.from({ length: 50 }, (_, i) => tx(`x${i}`, "2026-09-20")),
+      tx("s2", "2026-09-24", "g"),
+    ];
     const [first] = buildCardUnits(sorted).slice(0, 1);
     expect(first.kind === "group" && first.txs.length).toBe(2);
   });
 });
 
 describe("groupUnitsByDate", () => {
-  const units = buildCardUnits([tx("a", "2026-09-25"), tx("b", "2026-09-25"), tx("c", "2026-09-24")]);
+  const units = buildCardUnits([
+    tx("a", "2026-09-25"),
+    tx("b", "2026-09-25"),
+    tx("c", "2026-09-24"),
+  ]);
 
   it("one section per consecutive day", () => {
     expect(groupUnitsByDate(units, true).map(([d, us]) => [d, us.length])).toEqual([
@@ -38,7 +46,9 @@ describe("groupUnitsByDate", () => {
   });
 
   it("a single flat section for other sorts, none for no rows", () => {
-    expect(groupUnitsByDate(units, false).map(([d, us]) => [d, us.length])).toEqual([["__flat__", 3]]);
+    expect(groupUnitsByDate(units, false).map(([d, us]) => [d, us.length])).toEqual([
+      ["__flat__", 3],
+    ]);
     expect(groupUnitsByDate([], false)).toEqual([]);
   });
 });

@@ -37,7 +37,10 @@ const opt = (name, fallback) => {
 };
 const flag = (name) => args.includes(`--${name}`);
 
-const BASE = opt("url", process.env.DEV_APP_URL ?? "https://dev-cash-flow.wi-wo.ch").replace(/\/$/, "");
+const BASE = opt("url", process.env.DEV_APP_URL ?? "https://dev-cash-flow.wi-wo.ch").replace(
+  /\/$/,
+  "",
+);
 const SCALES = opt("scales", "1,4,10,20").split(",").map(Number);
 const VIEWS = opt("views", "table,cards").split(",");
 const RUNS = Number(opt("runs", "2"));
@@ -56,13 +59,19 @@ const INIT = () => {
   window.__ev = [];
   const obs = (type, fn, opts = {}) => {
     try {
-      new PerformanceObserver((l) => l.getEntries().forEach(fn)).observe({ type, buffered: true, ...opts });
+      new PerformanceObserver((l) => l.getEntries().forEach(fn)).observe({
+        type,
+        buffered: true,
+        ...opts,
+      });
     } catch {
       // Not supported in this browser: the metric stays empty.
     }
   };
   obs("longtask", (e) => window.__lt.push([Math.round(e.startTime), Math.round(e.duration)]));
-  obs("event", (e) => window.__ev.push([e.name, Math.round(e.duration)]), { durationThreshold: 16 });
+  obs("event", (e) => window.__ev.push([e.name, Math.round(e.duration)]), {
+    durationThreshold: 16,
+  });
   // Run `act`, then wait until `done` holds and one more frame has painted.
   window.__timed = async (act, done) => {
     const t0 = performance.now();
@@ -147,14 +156,23 @@ async function interactions(page, view) {
   I.checkbox = await T(async () => {
     const out = [];
     for (let i = 0; i < 3; i++) {
-      const boxes = [...document.querySelectorAll('[role="checkbox"]')].filter((b) => b.offsetParent !== null);
+      const boxes = [...document.querySelectorAll('[role="checkbox"]')].filter(
+        (b) => b.offsetParent !== null,
+      );
       const box = boxes[1 + i];
       const before = box.getAttribute("data-state");
-      out.push(await window.__timed(() => box.click(), () => box.getAttribute("data-state") !== before));
+      out.push(
+        await window.__timed(
+          () => box.click(),
+          () => box.getAttribute("data-state") !== before,
+        ),
+      );
     }
     // Leave nothing selected.
     for (let i = 0; i < 3; i++) {
-      const boxes = [...document.querySelectorAll('[role="checkbox"]')].filter((b) => b.offsetParent !== null);
+      const boxes = [...document.querySelectorAll('[role="checkbox"]')].filter(
+        (b) => b.offsetParent !== null,
+      );
       if (boxes[1 + i].getAttribute("data-state") === "checked") boxes[1 + i].click();
     }
     return Math.max(...out);
@@ -163,11 +181,14 @@ async function interactions(page, view) {
     const inp = document.querySelector("input[placeholder]");
     const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
     const c0 = window.__count();
-    return window.__timed(() => {
-      setValue.call(inp, "coop");
-      inp.dispatchEvent(new Event("input", { bubbles: true }));
-      inp.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
-    }, () => window.__count() !== c0);
+    return window.__timed(
+      () => {
+        setValue.call(inp, "coop");
+        inp.dispatchEvent(new Event("input", { bubbles: true }));
+        inp.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+      },
+      () => window.__count() !== c0,
+    );
   });
   I.clearSearch = await T(() => {
     const inp = document.querySelector("input[placeholder]");
@@ -179,29 +200,43 @@ async function interactions(page, view) {
   });
   I.openFilters = await T(() =>
     window.__timed(
-      () => [...document.querySelectorAll("button")].find((b) => /^(Filters|Filter)\b/.test(b.textContent.trim())).click(),
+      () =>
+        [...document.querySelectorAll("button")]
+          .find((b) => /^(Filters|Filter)\b/.test(b.textContent.trim()))
+          .click(),
       () => !!document.getElementById("tx-filters"),
     ),
   );
   I.thisMonth = await T(() => {
     const c0 = window.__count();
     return window.__timed(
-      () => [...document.querySelectorAll("button")].find((b) => /^(This month|Dieser Monat)$/.test(b.textContent.trim())).click(),
+      () =>
+        [...document.querySelectorAll("button")]
+          .find((b) => /^(This month|Dieser Monat)$/.test(b.textContent.trim()))
+          .click(),
       () => window.__count() !== c0,
     );
   });
   I.clearAll = await T(() => {
     const c0 = window.__count();
     return window.__timed(
-      () => [...document.querySelectorAll("button")].find((b) => /(Clear all|Alle zurücksetzen)/.test(b.textContent)).click(),
+      () =>
+        [...document.querySelectorAll("button")]
+          .find((b) => /(Clear all|Alle zurücksetzen)/.test(b.textContent))
+          .click(),
       () => window.__count() !== c0,
     );
   });
   I.showMore = await T(() => {
-    const btn = [...document.querySelectorAll("button")].find((b) => /^(Show more|Mehr anzeigen)/.test(b.textContent.trim()));
+    const btn = [...document.querySelectorAll("button")].find((b) =>
+      /^(Show more|Mehr anzeigen)/.test(b.textContent.trim()),
+    );
     if (!btn) return "n/a";
     const r0 = window.__rows();
-    return window.__timed(() => btn.click(), () => window.__rows() > r0);
+    return window.__timed(
+      () => btn.click(),
+      () => window.__rows() > r0,
+    );
   });
   const other = view === "table" ? "cards" : "table";
   I.switchView = await T((target) => {
@@ -209,7 +244,10 @@ async function interactions(page, view) {
     // Done when the switch shows the new view as pressed and rows are back
     // (the phone's table view is a list, not a <table>).
     return window.__timed(
-      () => [...document.querySelectorAll('[role="group"] button')].find((b) => re.test(b.textContent)).click(),
+      () =>
+        [...document.querySelectorAll('[role="group"] button')]
+          .find((b) => re.test(b.textContent))
+          .click(),
       () => {
         const pressed = document.querySelector('[role="group"] button[aria-pressed="true"]');
         return !!pressed && re.test(pressed.textContent) && window.__rows() > 1;
@@ -278,15 +316,21 @@ async function measure(view, factor, run, withInteractions) {
   }
   await page.goto(`${BASE}/transactions?view=${view}`, { waitUntil: "commit" });
   const rowsAt = await (
-    await page.waitForFunction(() => window.__rows() > 1 && window.__count() != null && performance.now(), null, {
-      timeout: 300_000,
-      polling: "raf",
-    })
+    await page.waitForFunction(
+      () => window.__rows() > 1 && window.__count() != null && performance.now(),
+      null,
+      {
+        timeout: 300_000,
+        polling: "raf",
+      },
+    )
   ).jsonValue();
   await page.waitForLoadState("networkidle", { timeout: 300_000 });
   await page.waitForTimeout(800);
   const m = await page.evaluate(() => {
-    const assets = performance.getEntriesByType("resource").filter((r) => r.name.includes("/assets/"));
+    const assets = performance
+      .getEntriesByType("resource")
+      .filter((r) => r.name.includes("/assets/"));
     const lt = window.__lt;
     return {
       jsDone: Math.round(Math.max(0, ...assets.map((r) => r.responseEnd))),
@@ -298,7 +342,9 @@ async function measure(view, factor, run, withInteractions) {
       count: window.__count(),
     };
   });
-  const perf = Object.fromEntries((await cdp.send("Performance.getMetrics")).metrics.map((x) => [x.name, x.value]));
+  const perf = Object.fromEntries(
+    (await cdp.send("Performance.getMetrics")).metrics.map((x) => [x.name, x.value]),
+  );
   const rec = {
     view,
     factor,

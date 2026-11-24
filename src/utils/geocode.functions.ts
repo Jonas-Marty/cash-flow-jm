@@ -69,15 +69,25 @@ export const searchPlaces = createServerFn({ method: "POST" })
       const feats = Array.isArray(json.features) ? json.features : [];
       const results = feats
         .map((f) => {
-          const o = f as { geometry?: { coordinates?: unknown }; properties?: Record<string, unknown> };
+          const o = f as {
+            geometry?: { coordinates?: unknown };
+            properties?: Record<string, unknown>;
+          };
           const c = o.geometry?.coordinates;
           if (!Array.isArray(c) || c.length < 2) return null;
           const lon = Number(c[0]);
           const lat = Number(c[1]);
           if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
           const p = o.properties ?? {};
-          const parts = [p.name, p.street, p.housenumber, p.postcode, p.city, p.state, p.country]
-            .filter((x): x is string => typeof x === "string" && x.length > 0);
+          const parts = [
+            p.name,
+            p.street,
+            p.housenumber,
+            p.postcode,
+            p.city,
+            p.state,
+            p.country,
+          ].filter((x): x is string => typeof x === "string" && x.length > 0);
           const label = parts.join(", ");
           if (!label) return null;
           return { label, latitude: lat, longitude: lon } as Hit;
@@ -143,9 +153,15 @@ export const reverseGeocode = createServerFn({ method: "POST" })
       const feats = Array.isArray(json.features) ? json.features : [];
       const first = feats[0] as { properties?: Record<string, unknown> } | undefined;
       const p = first?.properties ?? {};
-      const parts = [p.name, p.street, p.housenumber, p.postcode, p.city, p.state, p.country].filter(
-        (x): x is string => typeof x === "string" && x.length > 0,
-      );
+      const parts = [
+        p.name,
+        p.street,
+        p.housenumber,
+        p.postcode,
+        p.city,
+        p.state,
+        p.country,
+      ].filter((x): x is string => typeof x === "string" && x.length > 0);
       const label = parts.join(", ");
       return { label: label || null, error: label ? null : "No address found" };
     } catch (e) {

@@ -98,26 +98,39 @@ export function BudgetEditPopover({
             onBlur={() => setValue((v) => formatAmountInput(v))}
             onFocus={(e) => e.currentTarget.select()}
             onKeyDown={(e) => {
-              if (e.key === "Enter") { e.preventDefault(); void save(); }
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void save();
+              }
             }}
             className="text-right tabular-nums"
           />
         </div>
 
         <div>
-          <Label className="mb-1 block text-xs text-muted-foreground">{t("budget.edit.scope")}</Label>
+          <Label className="mb-1 block text-xs text-muted-foreground">
+            {t("budget.edit.scope")}
+          </Label>
           <ToggleGroup
             type="single"
             value={scope}
-            onValueChange={(v) => { if (v) setScope(v as BudgetScope); }}
+            onValueChange={(v) => {
+              if (v) setScope(v as BudgetScope);
+            }}
             variant="outline"
             size="sm"
             className="grid grid-cols-2 gap-1"
           >
-            <ToggleGroupItem value="month" className="h-auto whitespace-normal py-1.5 text-xs leading-tight">
+            <ToggleGroupItem
+              value="month"
+              className="h-auto whitespace-normal py-1.5 text-xs leading-tight"
+            >
               {t("budget.edit.scope.month", { month: monthLabel })}
             </ToggleGroupItem>
-            <ToggleGroupItem value="forward" className="h-auto whitespace-normal py-1.5 text-xs leading-tight">
+            <ToggleGroupItem
+              value="forward"
+              className="h-auto whitespace-normal py-1.5 text-xs leading-tight"
+            >
               {t("budget.edit.scope.forward")}
             </ToggleGroupItem>
           </ToggleGroup>

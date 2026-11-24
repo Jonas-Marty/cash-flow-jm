@@ -2,7 +2,8 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { readDocument } from "@/utils/documents.server";
 
-const pdf = () => new Uint8Array(readFileSync(new URL("./__fixtures__/invoice-quarterly.pdf", import.meta.url)));
+const pdf = () =>
+  new Uint8Array(readFileSync(new URL("./__fixtures__/invoice-quarterly.pdf", import.meta.url)));
 
 describe("readDocument", () => {
   it("extracts a PDF's text", async () => {
@@ -22,7 +23,12 @@ describe("readDocument", () => {
   });
 
   it("passes images through and rejects unknown types", async () => {
-    expect(await readDocument("foto.JPG", "", new Uint8Array([1, 2, 3]))).toEqual({ kind: "image", mime: "image/jpeg" });
-    await expect(readDocument("x.zip", "application/zip", new Uint8Array([1]))).rejects.toThrow(/Unsupported/);
+    expect(await readDocument("foto.JPG", "", new Uint8Array([1, 2, 3]))).toEqual({
+      kind: "image",
+      mime: "image/jpeg",
+    });
+    await expect(readDocument("x.zip", "application/zip", new Uint8Array([1]))).rejects.toThrow(
+      /Unsupported/,
+    );
   });
 });

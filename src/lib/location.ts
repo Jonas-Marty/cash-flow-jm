@@ -146,8 +146,9 @@ export function getCurrentLocation(timeoutMs = 10000): Promise<GeoFixResult> {
           location: {
             latitude: round6(pos.coords.latitude),
             longitude: round6(pos.coords.longitude),
-            accuracy_m:
-              Number.isFinite(pos.coords.accuracy) ? Math.round(pos.coords.accuracy) : null,
+            accuracy_m: Number.isFinite(pos.coords.accuracy)
+              ? Math.round(pos.coords.accuracy)
+              : null,
             label: null,
             source: "device",
           },

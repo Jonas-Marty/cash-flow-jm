@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Input } from "@/components/ui/input";
-import { SuggestionList, listKeyHandler } from "@/components/SuggestionList";
+import { SuggestionList } from "@/components/SuggestionList";
+import { listKeyHandler } from "@/lib/listKeyHandler";
 import type { Transaction } from "@/lib/finance";
 
 const HALF_LIFE_DAYS = 30;
@@ -79,7 +80,9 @@ export function DescriptionAutocomplete({
   }, [transactions, value, maxItems]);
 
   // Reset highlight when items change
-  React.useEffect(() => { setActive(0); }, [value, items.length]);
+  React.useEffect(() => {
+    setActive(0);
+  }, [value, items.length]);
 
   const commit = (v: string) => {
     onChange(v);
@@ -88,7 +91,9 @@ export function DescriptionAutocomplete({
   };
 
   // Nothing to suggest when the only match is what is already typed.
-  const showList = open && items.length > 0 &&
+  const showList =
+    open &&
+    items.length > 0 &&
     !(items.length === 1 && items[0].description.toLowerCase() === value.trim().toLowerCase());
 
   return (
@@ -107,7 +112,9 @@ export function DescriptionAutocomplete({
         <>
           <span className="truncate">{it.description}</span>
           {it.count > 1 && (
-            <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{it.count}×</span>
+            <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
+              {it.count}×
+            </span>
           )}
         </>
       )}
@@ -116,7 +123,10 @@ export function DescriptionAutocomplete({
           id={id}
           value={value}
           className={inputClassName}
-          onChange={(e) => { onChange(e.target.value); setOpen(true); }}
+          onChange={(e) => {
+            onChange(e.target.value);
+            setOpen(true);
+          }}
           onFocus={() => setOpen(true)}
           placeholder={placeholder}
           autoComplete="off"

@@ -22,6 +22,8 @@ describe("linkTotals", () => {
   });
 
   it("is empty for a link with only transfers", () => {
-    expect(linkTotals([{ type: "transfer", amount: 5, source_account_id: "chf" }], sym)).toEqual([]);
+    expect(linkTotals([{ type: "transfer", amount: 5, source_account_id: "chf" }], sym)).toEqual(
+      [],
+    );
   });
 });

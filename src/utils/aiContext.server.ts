@@ -1,4 +1,6 @@
 // Server-only: assembles the assistant's "context briefing" from real data.
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 import {
   buildContextBriefing,
   type AIContextLevel,
@@ -7,7 +9,7 @@ import {
   type BriefingTx,
 } from "@/lib/ai/contextBriefing";
 
-type Sb = { from: (t: string) => any; rpc: (fn: string, args?: Record<string, unknown>) => any };
+type Sb = SupabaseClient<Database>;
 
 const WINDOW_DAYS: Record<string, number> = { compact: 30, full: 30, xl: 180 };
 
@@ -22,7 +24,11 @@ function isoDaysAgo(days: number): string {
  * 30 days of transactions through the request-scoped client (RLS applies),
  * then renders a compact text block for the system prompt.
  */
-export async function buildBriefingForUser(sb: Sb, level: AIContextLevel, currencyCode: string): Promise<string> {
+export async function buildBriefingForUser(
+  sb: Sb,
+  level: AIContextLevel,
+  currencyCode: string,
+): Promise<string> {
   if (level === "off") return "";
 
   const monthStart = new Date();
@@ -33,7 +39,10 @@ export async function buildBriefingForUser(sb: Sb, level: AIContextLevel, curren
 
   const [accRes, catRes, spendRes, txRes] = await Promise.all([
     sb.from("accounts").select("id, name, currency_code, archived").order("name"),
-    sb.from("categories").select("id, name, rolls_over, archived, group_id, allocated_budget").order("sort_order"),
+    sb
+      .from("categories")
+      .select("id, name, rolls_over, archived, group_id, allocated_budget")
+      .order("sort_order"),
     sb.rpc("category_month_spending", { p_month: monthISO }),
     sb
       .from("transactions")
@@ -43,17 +52,17 @@ export async function buildBriefingForUser(sb: Sb, level: AIContextLevel, curren
       .limit(level === "xl" ? 1200 : 400),
   ]);
 
-  const accounts: BriefingAccount[] = (accRes.data || []).map((a: any) => ({
+  const accounts: BriefingAccount[] = (accRes.data || []).map((a) => ({
     id: a.id,
     name: a.name,
     currency_code: a.currency_code,
     archived: !!a.archived,
   }));
 
-  const spend = new Map<string, any>((spendRes.data || []).map((r: any) => [r.category_id, r]));
+  const spend = new Map((spendRes.data || []).map((r) => [r.category_id, r]));
   const categories: BriefingCategory[] = (catRes.data || [])
-    .filter((c: any) => !c.archived)
-    .map((c: any) => {
+    .filter((c) => !c.archived)
+    .map((c) => {
       const s = spend.get(c.id);
       return {
         id: c.id,
@@ -66,8 +75,8 @@ export async function buildBriefingForUser(sb: Sb, level: AIContextLevel, curren
       } satisfies BriefingCategory;
     });
 
-  const txRows = (txRes.data || []) as any[];
-  let tagsByTx = new Map<string, string[]>();
+  const txRows = txRes.data || [];
+  const tagsByTx = new Map<string, string[]>();
   if (txRows.length) {
     const { data: tagRows } = await sb
       .from("transaction_tags")
@@ -76,7 +85,7 @@ export async function buildBriefingForUser(sb: Sb, level: AIContextLevel, curren
         "transaction_id",
         txRows.map((t) => t.id),
       );
-    for (const r of (tagRows || []) as any[]) {
+    for (const r of tagRows || []) {
       const list = tagsByTx.get(r.transaction_id) ?? [];
       list.push(r.tag);
       tagsByTx.set(r.transaction_id, list);

@@ -56,7 +56,11 @@ export const Route = createFileRoute("/api/public/accounts")({
 
         const { data, error } = await q;
         if (error) {
-          log.error({ event: "api.public.accounts.db_error", err: error.message, userId: auth.userId });
+          log.error({
+            event: "api.public.accounts.db_error",
+            err: error.message,
+            userId: auth.userId,
+          });
           return json({ error: "Internal server error" }, 500);
         }
         return json({ accounts: data ?? [] });

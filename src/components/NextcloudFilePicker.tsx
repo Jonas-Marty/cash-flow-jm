@@ -1,6 +1,12 @@
 import * as React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -188,7 +194,9 @@ export function NextcloudFilePicker({
             <Input
               autoFocus
               placeholder={
-                scope === "/" ? t("attachments.picker.placeholder") : t("attachments.picker.placeholder_folder")
+                scope === "/"
+                  ? t("attachments.picker.placeholder")
+                  : t("attachments.picker.placeholder_folder")
               }
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -198,7 +206,9 @@ export function NextcloudFilePicker({
                 <span className="min-w-0 flex-1">
                   {scope === "/"
                     ? t("attachments.picker.searching_all")
-                    : t("attachments.picker.searching_in", { folder: scope.split("/").filter(Boolean).pop() ?? scope })}
+                    : t("attachments.picker.searching_in", {
+                        folder: scope.split("/").filter(Boolean).pop() ?? scope,
+                      })}
                 </span>
               ) : (
                 <nav
@@ -312,8 +322,18 @@ export function NextcloudFilePicker({
                     const meta = [
                       searching ? dir : null,
                       // The date the list is sorted by, when it is sorted by date.
-                      (order === "created_desc" || order === "created_asc" ? entryDate(e) : e.modified)
-                        ? dateFmt.format(new Date((order === "created_desc" || order === "created_asc" ? entryDate(e) : e.modified)!))
+                      (
+                        order === "created_desc" || order === "created_asc"
+                          ? entryDate(e)
+                          : e.modified
+                      )
+                        ? dateFmt.format(
+                            new Date(
+                              (order === "created_desc" || order === "created_asc"
+                                ? entryDate(e)
+                                : e.modified)!,
+                            ),
+                          )
                         : null,
                       e.is_dir ? null : fmtSize(e.size),
                     ].filter(Boolean);

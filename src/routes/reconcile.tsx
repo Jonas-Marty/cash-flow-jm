@@ -13,14 +13,29 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription,
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
 } from "@/components/ui/select";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { DateInput } from "@/components/DateInput";
@@ -107,7 +122,9 @@ function ReconcileRoute() {
             <SelectContent>
               <SelectItem value="all">{t("common.all")}</SelectItem>
               {accounts.map((a) => (
-                <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                <SelectItem key={a.id} value={a.id}>
+                  {a.name}
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -165,7 +182,14 @@ function ReconcileRoute() {
 }
 
 function StatementRow({
-  s, accountName, sym, computed, diff, isZero, loading, onChanged,
+  s,
+  accountName,
+  sym,
+  computed,
+  diff,
+  isZero,
+  loading,
+  onChanged,
 }: {
   s: AccountStatement;
   accountName: string;
@@ -188,18 +212,25 @@ function StatementRow({
       onChanged();
     } catch (e) {
       toast.error((e as Error).message);
-    } finally { setBusy(null); }
+    } finally {
+      setBusy(null);
+    }
   };
 
   const doCompensate = async () => {
     setBusy("comp");
     try {
       const res = await postCompensationForStatement(s.id);
-      toast.success(t("reconcile.toast.compensated", { amount: fmtMoney(Math.abs(res.diff), sym) }));
+      toast.success(
+        t("reconcile.toast.compensated", { amount: fmtMoney(Math.abs(res.diff), sym) }),
+      );
       onChanged();
     } catch (e) {
       toast.error((e as Error).message);
-    } finally { setBusy(null); setConfirmComp(false); }
+    } finally {
+      setBusy(null);
+      setConfirmComp(false);
+    }
   };
 
   const doDelete = async (deleteComp: boolean) => {
@@ -210,7 +241,9 @@ function StatementRow({
       onChanged();
     } catch (e) {
       toast.error((e as Error).message);
-    } finally { setBusy(null); }
+    } finally {
+      setBusy(null);
+    }
   };
 
   return (
@@ -222,12 +255,20 @@ function StatementRow({
           <span className="tabular-nums">{s.as_of}</span>
           <StatusBadge status={s.status} isZero={isZero} />
           {s.source !== "manual" && (
-            <Badge variant="outline" className="text-[10px]">{s.source}</Badge>
+            <Badge variant="outline" className="text-[10px]">
+              {s.source}
+            </Badge>
           )}
         </div>
         <div className="grid grid-cols-3 gap-3 text-xs">
-          <Field label={t("reconcile.col.statement")} value={fmtMoney(Number(s.statement_balance), sym)} />
-          <Field label={t("reconcile.col.computed")} value={loading ? "…" : fmtMoney(computed, sym)} />
+          <Field
+            label={t("reconcile.col.statement")}
+            value={fmtMoney(Number(s.statement_balance), sym)}
+          />
+          <Field
+            label={t("reconcile.col.computed")}
+            value={loading ? "…" : fmtMoney(computed, sym)}
+          />
           <Field
             label={t("reconcile.col.diff")}
             value={loading ? "…" : fmtMoney(diff, sym)}
@@ -245,7 +286,8 @@ function StatementRow({
       </div>
       <div className="flex flex-wrap items-center gap-1">
         <Button
-          size="sm" variant="outline"
+          size="sm"
+          variant="outline"
           disabled={!isZero || busy !== null || s.status === "matched"}
           onClick={doMatch}
         >
@@ -253,7 +295,8 @@ function StatementRow({
           {t("reconcile.action.match")}
         </Button>
         <Button
-          size="sm" variant="outline"
+          size="sm"
+          variant="outline"
           disabled={isZero || busy !== null}
           onClick={() => setConfirmComp(true)}
         >
@@ -303,7 +346,11 @@ function StatementRow({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmComp(false)} disabled={busy === "comp"}>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmComp(false)}
+              disabled={busy === "comp"}
+            >
               {t("common.cancel")}
             </Button>
             <Button onClick={doCompensate} disabled={busy === "comp"}>
@@ -316,11 +363,23 @@ function StatementRow({
   );
 }
 
-function Field({ label, value, tone }: { label: string; value: string; tone?: "ok" | "pos" | "neg" }) {
+function Field({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "ok" | "pos" | "neg";
+}) {
   const cls =
-    tone === "ok" ? "text-success" :
-    tone === "pos" ? "text-success" :
-    tone === "neg" ? "text-destructive" : "";
+    tone === "ok"
+      ? "text-success"
+      : tone === "pos"
+        ? "text-success"
+        : tone === "neg"
+          ? "text-destructive"
+          : "";
   return (
     <div>
       <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
@@ -332,20 +391,38 @@ function Field({ label, value, tone }: { label: string; value: string; tone?: "o
 function StatusBadge({ status, isZero }: { status: AccountStatement["status"]; isZero: boolean }) {
   const { t } = useI18n();
   if (status === "matched") {
-    return <Badge variant="secondary" className="text-[10px]">{t("reconcile.status.matched")}</Badge>;
+    return (
+      <Badge variant="secondary" className="text-[10px]">
+        {t("reconcile.status.matched")}
+      </Badge>
+    );
   }
   if (status === "compensated") {
-    return <Badge variant="secondary" className="text-[10px]">{t("reconcile.status.compensated")}</Badge>;
+    return (
+      <Badge variant="secondary" className="text-[10px]">
+        {t("reconcile.status.compensated")}
+      </Badge>
+    );
   }
   return (
     <Badge variant={isZero ? "secondary" : "destructive"} className="text-[10px]">
-      {isZero ? t("reconcile.status.matches") : <><AlertTriangle className="mr-1 inline h-3 w-3" />{t("reconcile.status.diff")}</>}
+      {isZero ? (
+        t("reconcile.status.matches")
+      ) : (
+        <>
+          <AlertTriangle className="mr-1 inline h-3 w-3" />
+          {t("reconcile.status.diff")}
+        </>
+      )}
     </Badge>
   );
 }
 
 function AddStatementDialog({
-  open, onOpenChange, accounts, onCreated,
+  open,
+  onOpenChange,
+  accounts,
+  onCreated,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
@@ -415,10 +492,14 @@ function AddStatementDialog({
           <div className="space-y-1">
             <Label>{t("reconcile.add.account")}</Label>
             <Select value={accountId} onValueChange={setAccountId}>
-              <SelectTrigger><SelectValue placeholder="—" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="—" />
+              </SelectTrigger>
               <SelectContent>
                 {accounts.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                  <SelectItem key={a.id} value={a.id}>
+                    {a.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>

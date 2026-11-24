@@ -1,5 +1,26 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { LayoutDashboard, Plus, ListOrdered, Settings as SettingsIcon, Wallet, PiggyBank, LogOut, LineChart, Inbox, MoreHorizontal, Scale, Sun, Moon, Monitor, Languages, Check, HelpCircle, Sparkles, Link2, FileText } from "lucide-react";
+import {
+  LayoutDashboard,
+  Plus,
+  ListOrdered,
+  Settings as SettingsIcon,
+  Wallet,
+  PiggyBank,
+  LogOut,
+  LineChart,
+  Inbox,
+  MoreHorizontal,
+  Scale,
+  Sun,
+  Moon,
+  Monitor,
+  Languages,
+  Check,
+  HelpCircle,
+  Sparkles,
+  Link2,
+  FileText,
+} from "lucide-react";
 import { AssistantBubble } from "@/components/AssistantBubble";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -9,7 +30,11 @@ import { helpUrl } from "@/lib/helpUrl";
 import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { fetchPendingTransactions, fetchSettings, processRecurringRulesIfStale } from "@/lib/finance";
+import {
+  fetchPendingTransactions,
+  fetchSettings,
+  processRecurringRulesIfStale,
+} from "@/lib/finance";
 import { supabase } from "@/integrations/supabase/client";
 import {
   DropdownMenu,
@@ -26,7 +51,19 @@ import {
 import { ActiveScopeChip } from "@/components/ActiveScopeChip";
 
 type Tab = {
-  to: "/" | "/transactions" | "/add" | "/envelopes" | "/insights" | "/settings" | "/pending" | "/reconcile" | "/statements" | "/help" | "/assistant" | "/links";
+  to:
+    | "/"
+    | "/transactions"
+    | "/add"
+    | "/envelopes"
+    | "/insights"
+    | "/settings"
+    | "/pending"
+    | "/reconcile"
+    | "/statements"
+    | "/help"
+    | "/assistant"
+    | "/links";
   labelKey: string;
   icon: typeof LayoutDashboard;
   exact?: boolean;
@@ -47,9 +84,7 @@ const tabs: Tab[] = [
   { to: "/settings", labelKey: "nav.settings", icon: SettingsIcon },
 ];
 
-type MobileTab =
-  | Tab
-  | { kind: "more"; labelKey: string; icon: typeof LayoutDashboard };
+type MobileTab = Tab | { kind: "more"; labelKey: string; icon: typeof LayoutDashboard };
 
 const mobileMoreItems: Tab[] = [
   { to: "/insights", labelKey: "nav.insights", icon: LineChart },
@@ -70,7 +105,13 @@ const mobileTabs: MobileTab[] = [
   { kind: "more", labelKey: "nav.more", icon: MoreHorizontal },
 ];
 
-export function AppShell({ children, wide = false }: { children: React.ReactNode; wide?: boolean }) {
+export function AppShell({
+  children,
+  wide = false,
+}: {
+  children: React.ReactNode;
+  wide?: boolean;
+}) {
   const loc = useLocation();
   const { t, lang } = useI18n();
   const { user } = useAuth();
@@ -106,7 +147,9 @@ export function AppShell({ children, wide = false }: { children: React.ReactNode
     };
     void sweep();
     // Long-lived tabs: re-check when the tab regains focus (day may have rolled over).
-    const onVisible = () => { if (document.visibilityState === "visible") void sweep(); };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void sweep();
+    };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       cancelled = true;
@@ -203,12 +246,7 @@ export function AppShell({ children, wide = false }: { children: React.ReactNode
                         )}
                       </button>
                     </PopoverTrigger>
-                    <PopoverContent
-                      side="top"
-                      align="end"
-                      sideOffset={8}
-                      className="w-48 p-1"
-                    >
+                    <PopoverContent side="top" align="end" sideOffset={8} className="w-48 p-1">
                       <ul className="flex flex-col">
                         {mobileMoreItems.map((item) => {
                           const active = item.external
@@ -269,7 +307,9 @@ export function AppShell({ children, wide = false }: { children: React.ReactNode
               );
             }
             const navTab = tab as Tab;
-            const active = navTab.exact ? loc.pathname === navTab.to : loc.pathname.startsWith(navTab.to);
+            const active = navTab.exact
+              ? loc.pathname === navTab.to
+              : loc.pathname.startsWith(navTab.to);
             const showBadge = navTab.to === "/pending" && pendingCount > 0;
             if (navTab.primary) {
               return (
@@ -434,7 +474,10 @@ function AccountMenu() {
 
   const setTheme = async (mode: "light" | "dark" | "system") => {
     if (!settingsQ.data) return;
-    const { error } = await supabase.from("settings").update({ theme: mode }).eq("id", settingsQ.data.id);
+    const { error } = await supabase
+      .from("settings")
+      .update({ theme: mode })
+      .eq("id", settingsQ.data.id);
     if (!error) qc.invalidateQueries({ queryKey: ["settings"] });
   };
 
@@ -466,14 +509,26 @@ function AccountMenu() {
         </DropdownMenuItem>
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>
-            {theme === "dark" ? <Moon className="h-4 w-4" /> : theme === "light" ? <Sun className="h-4 w-4" /> : <Monitor className="h-4 w-4" />}
+            {theme === "dark" ? (
+              <Moon className="h-4 w-4" />
+            ) : theme === "light" ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Monitor className="h-4 w-4" />
+            )}
             <span>{t("settings.theme")}</span>
           </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
             <DropdownMenuSubContent>
               {(["system", "light", "dark"] as const).map((m) => (
                 <DropdownMenuItem key={m} onClick={() => setTheme(m)}>
-                  {m === "system" ? <Monitor className="h-4 w-4" /> : m === "light" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                  {m === "system" ? (
+                    <Monitor className="h-4 w-4" />
+                  ) : m === "light" ? (
+                    <Sun className="h-4 w-4" />
+                  ) : (
+                    <Moon className="h-4 w-4" />
+                  )}
                   <span className="flex-1">{t(`settings.theme.${m}`)}</span>
                   {theme === m && <Check className="h-4 w-4" />}
                 </DropdownMenuItem>
@@ -498,7 +553,10 @@ function AccountMenu() {
           </DropdownMenuPortal>
         </DropdownMenuSub>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => signOut()} className="text-destructive focus:text-destructive">
+        <DropdownMenuItem
+          onClick={() => signOut()}
+          className="text-destructive focus:text-destructive"
+        >
           <LogOut className="h-4 w-4" />
           <span>{t("auth.signout")}</span>
         </DropdownMenuItem>

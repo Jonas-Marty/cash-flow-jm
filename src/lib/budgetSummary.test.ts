@@ -8,7 +8,9 @@ import {
 } from "./budgetSummary";
 import type { Category, CategoryGroup, CategoryMonthRow, PendingCategorySigned } from "./finance";
 
-function row(p: Partial<CategoryMonthRow> & { category_id: string; kind: CategoryMonthRow["kind"] }): CategoryMonthRow {
+function row(
+  p: Partial<CategoryMonthRow> & { category_id: string; kind: CategoryMonthRow["kind"] },
+): CategoryMonthRow {
   return {
     category_id: p.category_id,
     name: p.name ?? p.category_id,
@@ -18,7 +20,7 @@ function row(p: Partial<CategoryMonthRow> & { category_id: string; kind: Categor
     variance: p.variance ?? (p.allocated ?? 0) - (p.spent_or_received ?? 0),
     group_id: p.group_id ?? null,
     group_name: p.group_name ?? null,
-    rolls_over: p.rolls_over ?? (p.kind === "savings"),
+    rolls_over: p.rolls_over ?? p.kind === "savings",
     is_scope: p.is_scope ?? false,
     sort_order: p.sort_order ?? 0,
     group_sort_order: p.group_sort_order ?? 0,
@@ -43,7 +45,13 @@ describe("computeMonthTotals", () => {
     const rows = [
       row({ category_id: "salary", kind: "income", allocated: 5000, spent_or_received: 5000 }),
       row({ category_id: "rent", kind: "expense", allocated: 1500, spent_or_received: 1500 }),
-      row({ category_id: "holiday", kind: "savings", allocated: 1000, spent_or_received: 0, is_scope: true }),
+      row({
+        category_id: "holiday",
+        kind: "savings",
+        allocated: 1000,
+        spent_or_received: 0,
+        is_scope: true,
+      }),
     ];
     const t = computeMonthTotals(rows, noPending);
     expect(t.savingsTarget).toBe(0);
@@ -67,7 +75,13 @@ describe("computeMonthTotals", () => {
   it("ignores a scope's own spending as well as its plan", () => {
     const rows = [
       row({ category_id: "salary", kind: "income", allocated: 4000, spent_or_received: 4000 }),
-      row({ category_id: "holiday", kind: "expense", allocated: 800, spent_or_received: 750, is_scope: true }),
+      row({
+        category_id: "holiday",
+        kind: "expense",
+        allocated: 800,
+        spent_or_received: 750,
+        is_scope: true,
+      }),
     ];
     const t = computeMonthTotals(rows, noPending);
     expect(t.expenseAllocated).toBe(0);
@@ -114,9 +128,7 @@ describe("computeMonthTotals", () => {
       row({ category_id: "food", kind: "expense", allocated: 500, spent_or_received: 0 }),
     ];
     // pending refund of 200 on an expense category → delta is negative, clamped to 0
-    const pending = new Map<string, PendingCategorySigned>([
-      ["food", { expense: 0, income: 200 }],
-    ]);
+    const pending = new Map<string, PendingCategorySigned>([["food", { expense: 0, income: 200 }]]);
     const t = computeMonthTotals(rows, pending);
     expect(t.expensePending).toBe(0);
     expect(t.expenseProjected).toBe(0);
@@ -124,9 +136,17 @@ describe("computeMonthTotals", () => {
 });
 
 const totals = (over: Partial<MonthBudgetTotals> = {}): MonthBudgetTotals => ({
-  incomeAllocated: 0, incomeReceived: 0, incomePending: 0, incomeProjected: 0,
-  expenseAllocated: 0, expenseSpent: 0, expensePending: 0, expenseProjected: 0,
-  savingsTarget: 0, projectedNet: 0, plannedNet: 0,
+  incomeAllocated: 0,
+  incomeReceived: 0,
+  incomePending: 0,
+  incomeProjected: 0,
+  expenseAllocated: 0,
+  expenseSpent: 0,
+  expensePending: 0,
+  expenseProjected: 0,
+  savingsTarget: 0,
+  projectedNet: 0,
+  plannedNet: 0,
   ...over,
 });
 
@@ -169,8 +189,13 @@ describe("computePlanTotals", () => {
   ];
   const cat = (over: Partial<Category> & { id: string }): Category =>
     ({
-      name: over.id, allocated_budget: 0, archived: false, is_scope: false,
-      rolls_over: false, group_id: null, ...over,
+      name: over.id,
+      allocated_budget: 0,
+      archived: false,
+      is_scope: false,
+      rolls_over: false,
+      group_id: null,
+      ...over,
     }) as Category;
 
   const base = [
@@ -181,21 +206,26 @@ describe("computePlanTotals", () => {
 
   it("sums the template when no month amounts are given", () => {
     expect(computePlanTotals(base, groups)).toEqual({
-      income: 7000, expense: 600, savings: 320, unallocated: 6080,
+      income: 7000,
+      expense: 600,
+      savings: 320,
+      unallocated: 6080,
     });
   });
 
   it("prefers the month's amount over the template", () => {
     const amounts = new Map([["food", 900]]);
     expect(computePlanTotals(base, groups, amounts)).toMatchObject({
-      expense: 900, unallocated: 5780,
+      expense: 900,
+      unallocated: 5780,
     });
   });
 
   it("keeps a deliberate zero for the month rather than falling back", () => {
     const amounts = new Map([["food", 0]]);
     expect(computePlanTotals(base, groups, amounts)).toMatchObject({
-      expense: 0, unallocated: 6680,
+      expense: 0,
+      unallocated: 6680,
     });
   });
 

@@ -49,7 +49,12 @@ const postSchema = z.object({
     }
     return Math.round(n * 100) / 100;
   }),
-  source: z.string().min(1).max(64).regex(/^[a-zA-Z0-9_.:-]+$/).optional(),
+  source: z
+    .string()
+    .min(1)
+    .max(64)
+    .regex(/^[a-zA-Z0-9_.:-]+$/)
+    .optional(),
   external_ref: z.string().max(255).nullable().optional(),
   note: z.string().max(2000).nullable().optional(),
   auto_compensate: z.boolean().optional(),
@@ -120,7 +125,11 @@ export const Route = createFileRoute("/api/public/account-statements")({
         if (!auth) return json({ error: "Unauthorized" }, 401);
 
         let body: unknown;
-        try { body = await request.json(); } catch { return json({ error: "Invalid JSON body" }, 400); }
+        try {
+          body = await request.json();
+        } catch {
+          return json({ error: "Invalid JSON body" }, 400);
+        }
         const parsed = postSchema.safeParse(body);
         if (!parsed.success) {
           return json({ error: "Invalid input", details: parsed.error.flatten() }, 400);
@@ -163,7 +172,10 @@ export const Route = createFileRoute("/api/public/account-statements")({
         if (p.auto_compensate && Math.abs(diff) >= 0.005) {
           // Remove prior compensation if present, then post a fresh one.
           if (stmt.compensation_transaction_id) {
-            await supabaseAdmin.from("transactions").delete().eq("id", stmt.compensation_transaction_id);
+            await supabaseAdmin
+              .from("transactions")
+              .delete()
+              .eq("id", stmt.compensation_transaction_id);
           }
           const categoryId = await ensureReconcileCategory(auth.userId);
           const type = diff > 0 ? "income" : "expense";
@@ -223,7 +235,10 @@ export const Route = createFileRoute("/api/public/account-statements")({
         if (!stmt || stmt.user_id !== auth.userId) return json({ error: "Not found" }, 404);
 
         if (deleteComp && stmt.compensation_transaction_id) {
-          await supabaseAdmin.from("transactions").delete().eq("id", stmt.compensation_transaction_id);
+          await supabaseAdmin
+            .from("transactions")
+            .delete()
+            .eq("id", stmt.compensation_transaction_id);
         }
         const { error: delErr } = await supabaseAdmin
           .from("account_statements")

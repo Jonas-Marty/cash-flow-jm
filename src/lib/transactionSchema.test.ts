@@ -17,23 +17,42 @@ describe("transactionInputSchema", () => {
   });
 
   it("rejects non-positive amounts", () => {
-    expect(transactionInputSchema.safeParse({ type: "expense", amount: 0, source_account_id: UUID_A }).success).toBe(false);
-    expect(transactionInputSchema.safeParse({ type: "expense", amount: -1, source_account_id: UUID_A }).success).toBe(false);
-    expect(transactionInputSchema.safeParse({ type: "expense", amount: "abc", source_account_id: UUID_A }).success).toBe(false);
+    expect(
+      transactionInputSchema.safeParse({ type: "expense", amount: 0, source_account_id: UUID_A })
+        .success,
+    ).toBe(false);
+    expect(
+      transactionInputSchema.safeParse({ type: "expense", amount: -1, source_account_id: UUID_A })
+        .success,
+    ).toBe(false);
+    expect(
+      transactionInputSchema.safeParse({
+        type: "expense",
+        amount: "abc",
+        source_account_id: UUID_A,
+      }).success,
+    ).toBe(false);
   });
 
   it("requires destination_account_id on transfers and forbids equal accounts", () => {
-    expect(transactionInputSchema.safeParse({ type: "transfer", amount: 1, source_account_id: UUID_A }).success).toBe(false);
+    expect(
+      transactionInputSchema.safeParse({ type: "transfer", amount: 1, source_account_id: UUID_A })
+        .success,
+    ).toBe(false);
     expect(
       transactionInputSchema.safeParse({
-        type: "transfer", amount: 1,
-        source_account_id: UUID_A, destination_account_id: UUID_A,
+        type: "transfer",
+        amount: 1,
+        source_account_id: UUID_A,
+        destination_account_id: UUID_A,
       }).success,
     ).toBe(false);
     expect(
       transactionInputSchema.safeParse({
-        type: "transfer", amount: 1,
-        source_account_id: UUID_A, destination_account_id: UUID_B,
+        type: "transfer",
+        amount: 1,
+        source_account_id: UUID_A,
+        destination_account_id: UUID_B,
       }).success,
     ).toBe(true);
   });
@@ -41,13 +60,20 @@ describe("transactionInputSchema", () => {
   it("forbids destination_amount on non-transfer types", () => {
     expect(
       transactionInputSchema.safeParse({
-        type: "expense", amount: 10, source_account_id: UUID_A, destination_amount: 5,
+        type: "expense",
+        amount: 10,
+        source_account_id: UUID_A,
+        destination_amount: 5,
       }).success,
     ).toBe(false);
   });
 
   it("rounds amounts to two decimals", () => {
-    const r = transactionInputSchema.safeParse({ type: "income", amount: 12.345, source_account_id: UUID_A });
+    const r = transactionInputSchema.safeParse({
+      type: "income",
+      amount: 12.345,
+      source_account_id: UUID_A,
+    });
     expect(r.success).toBe(true);
     if (r.success) expect(r.data.amount).toBe(12.35);
   });
@@ -56,16 +82,21 @@ describe("transactionInputSchema", () => {
 describe("normalizeTransactionInput", () => {
   it("clears category_id on transfers and destination_account_id on non-transfers", () => {
     const transfer = transactionInputSchema.parse({
-      type: "transfer", amount: 100,
-      source_account_id: UUID_A, destination_account_id: UUID_B,
+      type: "transfer",
+      amount: 100,
+      source_account_id: UUID_A,
+      destination_account_id: UUID_B,
       category_id: UUID_C,
     });
     expect(normalizeTransactionInput(transfer).category_id).toBeNull();
     expect(normalizeTransactionInput(transfer).destination_account_id).toBe(UUID_B);
 
     const expense = transactionInputSchema.parse({
-      type: "expense", amount: 100, source_account_id: UUID_A,
-      destination_account_id: UUID_B, category_id: UUID_C,
+      type: "expense",
+      amount: 100,
+      source_account_id: UUID_A,
+      destination_account_id: UUID_B,
+      category_id: UUID_C,
     });
     expect(normalizeTransactionInput(expense).destination_account_id).toBeNull();
     expect(normalizeTransactionInput(expense).category_id).toBe(UUID_C);
@@ -85,7 +116,10 @@ describe("normalizeTransactionInput", () => {
   it("preserves explicit occurred_on", () => {
     const got = normalizeTransactionInput(
       transactionInputSchema.parse({
-        type: "income", amount: 1, source_account_id: UUID_A, occurred_on: "2024-03-15",
+        type: "income",
+        amount: 1,
+        source_account_id: UUID_A,
+        occurred_on: "2024-03-15",
       }),
     );
     expect(got.occurred_on).toBe("2024-03-15");

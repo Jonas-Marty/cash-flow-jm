@@ -1,11 +1,6 @@
 // Client-safe shared types for statement import.
 
-export type StatementLineMatchStatus =
-  | "exact"
-  | "probable"
-  | "unmatched"
-  | "ignored"
-  | "resolved";
+export type StatementLineMatchStatus = "exact" | "probable" | "unmatched" | "ignored" | "resolved";
 
 export interface StatementLine {
   id: string;

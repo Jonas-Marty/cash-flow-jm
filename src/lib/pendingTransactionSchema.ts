@@ -7,20 +7,16 @@ import * as z from "zod";
  * — the user fills it in during the confirmation step in the app.
  */
 
-export const amountSchema = z
-  .union([z.number(), z.string()])
-  .transform((v, ctx) => {
-    const n = typeof v === "number" ? v : Number(String(v).replace(",", "."));
-    if (!Number.isFinite(n) || n <= 0) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Amount must be greater than zero" });
-      return z.NEVER;
-    }
-    return Math.round(n * 100) / 100;
-  });
+export const amountSchema = z.union([z.number(), z.string()]).transform((v, ctx) => {
+  const n = typeof v === "number" ? v : Number(String(v).replace(",", "."));
+  if (!Number.isFinite(n) || n <= 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Amount must be greater than zero" });
+    return z.NEVER;
+  }
+  return Math.round(n * 100) / 100;
+});
 
-export const isoDate = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format");
+export const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format");
 
 export const trimmedNullable = (max: number) =>
   z
@@ -96,13 +92,11 @@ export function normalizePendingTransactionInput(input: PendingTransactionInput)
     amount: input.amount,
     type,
     occurred_on,
-    destination_account_id:
-      type === "transfer" ? input.destination_account_id ?? null : null,
-    category_id: type === "transfer" ? null : input.category_id ?? null,
+    destination_account_id: type === "transfer" ? (input.destination_account_id ?? null) : null,
+    category_id: type === "transfer" ? null : (input.category_id ?? null),
     description: input.description,
     note: input.note,
-    destination_amount:
-      type === "transfer" ? input.destination_amount ?? null : null,
+    destination_amount: type === "transfer" ? (input.destination_amount ?? null) : null,
     external_source: input.external_source,
     external_ref: input.external_ref,
     external_info: input.external_info,

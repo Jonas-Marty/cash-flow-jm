@@ -1,23 +1,11 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
-
-const STORAGE_KEY = "cashflow.dashboard.privacy-hidden";
-
-type DashboardPrivacyContextValue = {
-  hidden: boolean;
-  toggle: () => void;
-};
-
-const DashboardPrivacyContext = React.createContext<DashboardPrivacyContextValue | null>(null);
-
-export function readDashboardPrivacy(storage: Pick<Storage, "getItem"> | null): boolean {
-  if (!storage) return false;
-  try {
-    return storage.getItem(STORAGE_KEY) === "true";
-  } catch {
-    return false;
-  }
-}
+import {
+  DASHBOARD_PRIVACY_KEY,
+  DashboardPrivacyContext,
+  readDashboardPrivacy,
+  useDashboardPrivacy,
+} from "@/lib/dashboardPrivacy";
 
 export function DashboardPrivacyProvider({ children }: { children: React.ReactNode }) {
   // Start concealed on SSR and during hydration so a persisted private dashboard
@@ -32,7 +20,7 @@ export function DashboardPrivacyProvider({ children }: { children: React.ReactNo
     setHidden((current) => {
       const next = !current;
       try {
-        window.localStorage.setItem(STORAGE_KEY, String(next));
+        window.localStorage.setItem(DASHBOARD_PRIVACY_KEY, String(next));
       } catch {
         // Privacy mode remains usable for this visit when storage is unavailable.
       }
@@ -47,11 +35,13 @@ export function DashboardPrivacyProvider({ children }: { children: React.ReactNo
   );
 }
 
-export function useDashboardPrivacy() {
-  return React.useContext(DashboardPrivacyContext) ?? { hidden: false, toggle: () => {} };
-}
-
-export function PrivacyValue({ children, className }: { children: React.ReactNode; className?: string }) {
+export function PrivacyValue({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   const { hidden } = useDashboardPrivacy();
   return (
     <span

@@ -163,7 +163,7 @@ export async function loadEndpointRows(userId: string): Promise<EndpointRow[]> {
     .order("priority", { ascending: true })
     .order("created_at", { ascending: true });
   if (error) throw new Error(error.message);
-  return (data || []).map((r: any) => ({
+  return (data || []).map((r) => ({
     id: r.id,
     name: r.name,
     base_url: (r.base_url || "").trim().replace(/\/+$/, ""),
@@ -174,7 +174,11 @@ export async function loadEndpointRows(userId: string): Promise<EndpointRow[]> {
     context_level: (r.context_level ?? "compact") as EndpointRow["context_level"],
     transcribe_model: (r.transcribe_model || "").trim() || null,
     health_mode: (r.health_mode ?? "real") as AIHealthMode,
-    capabilities: r.capabilities && typeof r.capabilities === "object" ? r.capabilities : {},
+    capabilities: (r.capabilities &&
+    typeof r.capabilities === "object" &&
+    !Array.isArray(r.capabilities)
+      ? r.capabilities
+      : {}) as unknown as EndpointRow["capabilities"],
   }));
 }
 
@@ -198,6 +202,24 @@ function toCreds(
 // Model capabilities (tool calling, vision)
 // ---------------------------------------------------------------------------
 
+/** Model ids from an OpenAI-style /models answer ({data: [...]} or {models: [...]}). */
+function modelIdsFrom(json: unknown): string[] {
+  const body = (json ?? {}) as { data?: unknown; models?: unknown };
+  const raw: unknown[] = Array.isArray(body.data)
+    ? body.data
+    : Array.isArray(body.models)
+      ? body.models
+      : [];
+  return raw
+    .map((m) => {
+      if (typeof m === "string") return m;
+      const o = (m ?? {}) as { id?: unknown; name?: unknown; model?: unknown };
+      return o.id ?? o.name ?? o.model;
+    })
+    .filter((v): v is string => typeof v === "string")
+    .map((v) => v.trim());
+}
+
 const UNKNOWN_CAPS: AIModelCapabilities = { tools: null, vision: null, checked_at: null };
 
 export function capsFor(row: EndpointRow, model: string): AIModelCapabilities {
@@ -219,11 +241,15 @@ export async function saveCapabilities(
       .eq("user_id", userId)
       .maybeSingle();
     const raw = data?.capabilities;
-    const all = (raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {}) as unknown as Record<
-      string,
-      AIModelCapabilities
-    >;
-    all[model] = { ...UNKNOWN_CAPS, ...(all[model] ?? {}), ...patch, checked_at: new Date().toISOString() };
+    const all = (raw && typeof raw === "object" && !Array.isArray(raw)
+      ? raw
+      : {}) as unknown as Record<string, AIModelCapabilities>;
+    all[model] = {
+      ...UNKNOWN_CAPS,
+      ...(all[model] ?? {}),
+      ...patch,
+      checked_at: new Date().toISOString(),
+    };
     await supabaseAdmin
       .from("ai_endpoints")
       .update({ capabilities: all as unknown as Json })
@@ -309,7 +335,11 @@ export async function probeCapabilities(
     if (v === null) errors.push(`${r.status} ${r.text.slice(0, 160)}`);
     return v;
   };
-  return { tools: verdict(toolResp, parseToolProbe), vision: verdict(visionResp, parseVisionProbe), errors };
+  return {
+    tools: verdict(toolResp, parseToolProbe),
+    vision: verdict(visionResp, parseVisionProbe),
+    errors,
+  };
 }
 
 /**
@@ -351,12 +381,7 @@ export async function pingEndpoint(
     if (resp.ok) {
       listOk = true;
       try {
-        const json = (await resp.json()) as any;
-        const raw: any[] = Array.isArray(json?.data) ? json.data : Array.isArray(json?.models) ? json.models : [];
-        listed = raw
-          .map((m) => (typeof m === "string" ? m : (m?.id ?? m?.name ?? m?.model)))
-          .filter((v): v is string => typeof v === "string")
-          .map((v) => v.trim());
+        listed = modelIdsFrom(await resp.json());
       } catch {
         listed = [];
       }
@@ -376,7 +401,8 @@ export async function pingEndpoint(
   }
 
   if (mode === "model_listed") {
-    if (!listOk) return { ok: false, latency_ms: el(), probe: "models", error: listError ?? "unreachable" };
+    if (!listOk)
+      return { ok: false, latency_ms: el(), probe: "models", error: listError ?? "unreachable" };
     if (listed.length > 0 && !listed.includes(model)) {
       return {
         ok: false,
@@ -402,8 +428,13 @@ export async function pingEndpoint(
         fetch(`${healthBase}/health?model=${encodeURIComponent(model)}`, { headers, signal }),
       );
       if (resp.ok) {
-        const json = (await resp.json().catch(() => null)) as any;
-        const healthy = Array.isArray(json?.healthy_endpoints) ? json.healthy_endpoints.length : null;
+        const json = (await resp.json().catch(() => null)) as {
+          healthy_endpoints?: unknown;
+          unhealthy_endpoints?: unknown;
+        } | null;
+        const healthy = Array.isArray(json?.healthy_endpoints)
+          ? json.healthy_endpoints.length
+          : null;
         const unhealthy = Array.isArray(json?.unhealthy_endpoints) ? json.unhealthy_endpoints : [];
         if (healthy !== null || unhealthy.length > 0) {
           if (healthy === 0 || unhealthy.length > 0) {
@@ -430,7 +461,11 @@ export async function pingEndpoint(
         method: "POST",
         headers,
         signal,
-        body: JSON.stringify({ model, messages: [{ role: "user", content: "ping" }], max_tokens: 1 }),
+        body: JSON.stringify({
+          model,
+          messages: [{ role: "user", content: "ping" }],
+          max_tokens: 1,
+        }),
       }),
     );
     if (!resp.ok) {
@@ -505,7 +540,12 @@ export async function resolveEndpoint(
   // the UI can ask the user which connection to retry on.
   if (explicitId) {
     if (!preferred) throw new Error("The selected AI connection no longer exists.");
-    const health = await pingEndpoint(preferred.base_url, preferred.api_token, preferred.model, preferred.health_mode);
+    const health = await pingEndpoint(
+      preferred.base_url,
+      preferred.api_token,
+      preferred.model,
+      preferred.health_mode,
+    );
     if (health.ok)
       return {
         creds: toCreds(preferred, overrideFor(preferred)),
@@ -578,7 +618,12 @@ export interface ToolDef {
   name: string;
   description: string;
   parameters: Record<string, unknown>;
-  exec: (args: Record<string, unknown>, sb: Sb, userId: string, ctx: ToolCtx) => Promise<ToolResult>;
+  exec: (
+    args: Record<string, unknown>,
+    sb: Sb,
+    userId: string,
+    ctx: ToolCtx,
+  ) => Promise<ToolResult>;
 }
 
 export type ToolResult =
@@ -629,12 +674,31 @@ function fuzzyFind<T extends { name: string; id: string; archived?: boolean }>(
 }
 
 async function loadAccounts(sb: Sb) {
-  const { data } = await sb.from("accounts").select("id, name, type, archived, currency_code, currency_symbol").order("name");
-  return (data || []) as { id: string; name: string; type: string; archived: boolean; currency_code: string; currency_symbol: string }[];
+  const { data } = await sb
+    .from("accounts")
+    .select("id, name, type, archived, currency_code, currency_symbol")
+    .order("name");
+  return (data || []) as {
+    id: string;
+    name: string;
+    type: string;
+    archived: boolean;
+    currency_code: string;
+    currency_symbol: string;
+  }[];
 }
 async function loadCategories(sb: Sb) {
-  const { data } = await sb.from("categories").select("id, name, archived, is_scope, closed_at").order("name");
-  return (data || []) as { id: string; name: string; archived: boolean; is_scope?: boolean; closed_at?: string | null }[];
+  const { data } = await sb
+    .from("categories")
+    .select("id, name, archived, is_scope, closed_at")
+    .order("name");
+  return (data || []) as {
+    id: string;
+    name: string;
+    archived: boolean;
+    is_scope?: boolean;
+    closed_at?: string | null;
+  }[];
 }
 
 /** An attachment of this conversation by full id, id prefix or file name. */
@@ -654,9 +718,13 @@ export const TOOLS: ToolDef[] = [
     description: "List the user's accounts with current balances and currency.",
     parameters: { type: "object", properties: {}, additionalProperties: false },
     exec: async (_a, sb) => {
-      const { data, error } = await sb.from("account_balances").select("*").order("type").order("name");
+      const { data, error } = await sb
+        .from("account_balances")
+        .select("*")
+        .order("type")
+        .order("name");
       if (error) return { ok: false, error: error.message };
-      const rows = (data || []).map((r: any) => ({
+      const rows = (data || []).map((r) => ({
         name: r.name,
         type: r.type,
         balance: Number(r.balance),
@@ -699,7 +767,9 @@ export const TOOLS: ToolDef[] = [
       const limit = Math.min(num(a.limit) ?? 25, 100);
       let q = sb
         .from("transactions")
-        .select("id, occurred_on, type, amount, description, note, source_account_id, destination_account_id, category_id")
+        .select(
+          "id, occurred_on, type, amount, description, note, source_account_id, destination_account_id, category_id",
+        )
         .order("occurred_on", { ascending: false })
         .limit(limit);
       const df = dateStr(a.date_from);
@@ -712,14 +782,17 @@ export const TOOLS: ToolDef[] = [
       if (search) q = q.or(`description.ilike.%${search}%,note.ilike.%${search}%`);
       const { data, error } = await q;
       if (error) return { ok: false, error: error.message };
-      const rows = (data || []) as any[];
+      const rows = (data || []).map((r) => ({ ...r, tags: [] as string[] }));
       if (rows.length) {
         const { data: tagRows } = await sb
           .from("transaction_tags")
           .select("transaction_id, tag")
-          .in("transaction_id", rows.map((r) => r.id));
+          .in(
+            "transaction_id",
+            rows.map((r) => r.id),
+          );
         const byTx = new Map<string, string[]>();
-        for (const r of (tagRows || []) as any[]) {
+        for (const r of tagRows || []) {
           const list = byTx.get(r.transaction_id) ?? [];
           list.push(r.tag);
           byTx.set(r.transaction_id, list);
@@ -749,7 +822,8 @@ export const TOOLS: ToolDef[] = [
       const df = dateStr(a.date_from);
       const dt = dateStr(a.date_to);
       const groupBy = str(a.group_by) as "category" | "account" | "day" | "month" | undefined;
-      if (!df || !dt || !groupBy) return { ok: false, error: "date_from, date_to, group_by are required" };
+      if (!df || !dt || !groupBy)
+        return { ok: false, error: "date_from, date_to, group_by are required" };
       const type = (str(a.type) as "expense" | "income" | undefined) ?? "expense";
       const [{ data: txs, error }, cats, accs] = await Promise.all([
         sb
@@ -765,8 +839,11 @@ export const TOOLS: ToolDef[] = [
       if (error) return { ok: false, error: error.message };
       const catName = new Map(cats.map((c) => [c.id, c.name]));
       const accName = new Map(accs.map((a) => [a.id, a.name]));
-      const totals = new Map<string, { key: string; label: string; total: number; count: number }>();
-      for (const r of (txs as any[]) || []) {
+      const totals = new Map<
+        string,
+        { key: string; label: string; total: number; count: number }
+      >();
+      for (const r of txs || []) {
         let key = "—";
         let label = "—";
         if (groupBy === "category") {
@@ -800,7 +877,9 @@ export const TOOLS: ToolDef[] = [
     exec: async (_a, sb) => {
       const { data, error } = await sb
         .from("transactions")
-        .select("id, occurred_on, amount, description, reimbursable_counterparty, reimbursable_status")
+        .select(
+          "id, occurred_on, amount, description, reimbursable_counterparty, reimbursable_status",
+        )
         .eq("is_reimbursable", true)
         .eq("reimbursable_status", "open")
         .order("occurred_on", { ascending: false })
@@ -811,7 +890,8 @@ export const TOOLS: ToolDef[] = [
   },
   {
     name: "search_help",
-    description: "Search the user guide by keyword. Use this to answer 'how do I…' or privacy/GDPR questions. Returns whole pages from the published guide, German and English, each with its URL — cite that URL when you use one.",
+    description:
+      "Search the user guide by keyword. Use this to answer 'how do I…' or privacy/GDPR questions. Returns whole pages from the published guide, German and English, each with its URL — cite that URL when you use one.",
     parameters: {
       type: "object",
       properties: { query: { type: "string" } },
@@ -842,12 +922,18 @@ export const TOOLS: ToolDef[] = [
       properties: {
         type: { type: "string", enum: ["expense", "income", "transfer"] },
         amount: { type: "number" },
-        account_name: { type: "string", description: "Source account name (the one paying / receiving)." },
+        account_name: {
+          type: "string",
+          description: "Source account name (the one paying / receiving).",
+        },
         category_name: { type: "string" },
         description: { type: "string" },
         note: { type: "string" },
         occurred_on: { type: "string", description: "YYYY-MM-DD; defaults to today." },
-        iou_with: { type: "string", description: "Person who owes the user back, if part of the bill is reimbursable." },
+        iou_with: {
+          type: "string",
+          description: "Person who owes the user back, if part of the bill is reimbursable.",
+        },
         iou_amount: { type: "number", description: "Amount that person owes (NOT the full bill)." },
       },
       required: ["type", "amount"],
@@ -856,7 +942,8 @@ export const TOOLS: ToolDef[] = [
     exec: async (a, sb) => {
       const type = str(a.type);
       const amount = num(a.amount);
-      if (type !== "expense" && type !== "income" && type !== "transfer") return { ok: false, error: "type must be expense|income|transfer" };
+      if (type !== "expense" && type !== "income" && type !== "transfer")
+        return { ok: false, error: "type must be expense|income|transfer" };
       if (!amount || amount <= 0) return { ok: false, error: "amount must be > 0" };
       const [accs, cats, settingsRes] = await Promise.all([
         loadAccounts(sb),
@@ -868,7 +955,13 @@ export const TOOLS: ToolDef[] = [
       const activeScope =
         type === "transfer"
           ? null
-          : cats.find((c) => c.id === settingsRes.data?.active_scope_id && c.is_scope && !c.archived && !c.closed_at) ?? null;
+          : (cats.find(
+              (c) =>
+                c.id === settingsRes.data?.active_scope_id &&
+                c.is_scope &&
+                !c.archived &&
+                !c.closed_at,
+            ) ?? null);
       const search: Record<string, string> = {
         type,
         amount: String(amount),
@@ -895,7 +988,9 @@ export const TOOLS: ToolDef[] = [
         !!activeScope &&
         !!proposedCategoryName &&
         cat?.id !== activeScope.id &&
-        proposedCategoryName.localeCompare(activeScope.name, undefined, { sensitivity: "accent" }) !== 0;
+        proposedCategoryName.localeCompare(activeScope.name, undefined, {
+          sensitivity: "accent",
+        }) !== 0;
       const proposedSearch = scopeConflict ? { ...search, ignore_scope: "1" } : search;
       const scopeSearch = { ...search };
       delete scopeSearch.category;
@@ -954,28 +1049,51 @@ export const TOOLS: ToolDef[] = [
         type: { type: "string", enum: ["expense", "income", "transfer"] },
         amount: { type: "number", description: "Fixed amount. Leave out when is_variable_amount." },
         is_variable_amount: { type: "boolean" },
-        estimated_amount: { type: "number", description: "Typical amount when it varies (e.g. this invoice's total)." },
+        estimated_amount: {
+          type: "number",
+          description: "Typical amount when it varies (e.g. this invoice's total).",
+        },
         source_account: { type: "string" },
         destination_account: { type: "string", description: "Only for transfers." },
         category: { type: "string" },
-        description: { type: "string", description: "Transaction description template; may use placeholders." },
+        description: {
+          type: "string",
+          description: "Transaction description template; may use placeholders.",
+        },
         note: { type: "string" },
         recurrence_interval: { type: "integer", minimum: 1, maximum: 12 },
         execution_day_rule: { type: "string", enum: ["FixedDay", "LastDay", "FirstDay"] },
         execution_day_of_month: { type: "integer", minimum: 1, maximum: 31 },
-        execution_weekend_adjustment: { type: "string", enum: ["None", "PreviousBusinessDay", "NextBusinessDay"] },
+        execution_weekend_adjustment: {
+          type: "string",
+          enum: ["None", "PreviousBusinessDay", "NextBusinessDay"],
+        },
         period_day_rule: { type: "string", enum: ["FixedDay", "LastDay", "FirstDay"] },
         first_period_from: {
           type: "string",
-          description: "YYYY-MM-DD: first day of the billing period the FIRST payment covers (the invoice's Leistungszeitraum). Copy it; the app works out the offset.",
+          description:
+            "YYYY-MM-DD: first day of the billing period the FIRST payment covers (the invoice's Leistungszeitraum). Copy it; the app works out the offset.",
         },
         starts_on: { type: "string", description: "YYYY-MM-DD" },
-        ends_on: { type: "string", description: "YYYY-MM-DD, only for contracts with a known end." },
+        ends_on: {
+          type: "string",
+          description: "YYYY-MM-DD, only for contracts with a known end.",
+        },
         auto_post: { type: "boolean" },
         is_variable_date: { type: "boolean" },
-        similar_rule: { type: "string", description: "Id of an existing rule this bill belongs to, if any." },
-        notes: { type: "array", items: { type: "string" }, description: "What you were unsure about." },
-        source_attachment_id: { type: "string", description: "Attachment the rule was read from, if any." },
+        similar_rule: {
+          type: "string",
+          description: "Id of an existing rule this bill belongs to, if any.",
+        },
+        notes: {
+          type: "array",
+          items: { type: "string" },
+          description: "What you were unsure about.",
+        },
+        source_attachment_id: {
+          type: "string",
+          description: "Attachment the rule was read from, if any.",
+        },
       },
       required: ["name", "type"],
       additionalProperties: false,
@@ -986,7 +1104,8 @@ export const TOOLS: ToolDef[] = [
       const res = toSuggestionResult(a, guideCtx);
       const att = findAttachment(ctx, str(a.source_attachment_id));
       const d = res.draft;
-      const every = d.recurrence_interval === 1 ? "monthly" : `every ${d.recurrence_interval} months`;
+      const every =
+        d.recurrence_interval === 1 ? "monthly" : `every ${d.recurrence_interval} months`;
       const amount = d.is_variable_amount ? `~${d.estimated_amount || "?"} (variable)` : d.amount;
       return {
         ok: true,
@@ -1025,12 +1144,19 @@ export const TOOLS: ToolDef[] = [
     exec: async (a, _sb, _userId, ctx) => {
       const att = findAttachment(ctx, str(a.attachment_id));
       if (!att) return { ok: false, error: "No such attachment in this conversation." };
-      if (att.text == null) return { ok: false, error: "This attachment is an image; it has no text layer." };
+      if (att.text == null)
+        return { ok: false, error: "This attachment is an image; it has no text layer." };
       const from = Math.max(0, Math.floor(num(a.from_char) ?? 0));
       const chunk = att.text.slice(from, from + 20000);
       return {
         ok: true,
-        data: { file_name: att.file_name, from_char: from, total_chars: att.text.length, text: chunk, more: from + chunk.length < att.text.length },
+        data: {
+          file_name: att.file_name,
+          from_char: from,
+          total_chars: att.text.length,
+          text: chunk,
+          more: from + chunk.length < att.text.length,
+        },
       };
     },
   },
@@ -1042,8 +1168,14 @@ export const TOOLS: ToolDef[] = [
       type: "object",
       properties: {
         attachment_id: { type: "string" },
-        account_name: { type: "string", description: "Account name or id the statement belongs to." },
-        invert_amounts: { type: "boolean", description: "True for credit-card statements that list spending as positive." },
+        account_name: {
+          type: "string",
+          description: "Account name or id the statement belongs to.",
+        },
+        invert_amounts: {
+          type: "boolean",
+          description: "True for credit-card statements that list spending as positive.",
+        },
       },
       required: ["attachment_id", "account_name"],
       additionalProperties: false,
@@ -1054,9 +1186,14 @@ export const TOOLS: ToolDef[] = [
       const accs = await loadAccounts(sb);
       const query = str(a.account_name);
       const acc = accs.find((r) => r.id === query && !r.archived) ?? fuzzyFind(accs, query);
-      if (!acc) return { ok: false, error: `Unknown account "${query ?? ""}". Ask the user which account.` };
+      if (!acc)
+        return {
+          ok: false,
+          error: `Unknown account "${query ?? ""}". Ask the user which account.`,
+        };
       const { attachmentBase64 } = await import("./aiAttachments.server");
-      const { runStatementExtraction, buildImportDetail } = await import("./statements.detail.server");
+      const { runStatementExtraction, buildImportDetail } =
+        await import("./statements.detail.server");
       const { import_id } = await runStatementExtraction(sb, userId, {
         account_id: acc.id,
         file_name: att.file_name,
@@ -1092,7 +1229,6 @@ export const TOOLS: ToolDef[] = [
 // Help index (mirrors the static help.tsx sections)
 // ---------------------------------------------------------------------------
 
-
 // ---------------------------------------------------------------------------
 // OpenAI-compatible chat client (tool-calling loop)
 // ---------------------------------------------------------------------------
@@ -1114,12 +1250,16 @@ export interface ChatTurn {
   content: string | ContentPart[];
 }
 
-
 export interface ChatResult {
   text: string;
   action: AssistantAction | null;
   /** Summed token usage across all provider round-trips of this reply. */
-  usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number; steps: number } | null;
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+    steps: number;
+  } | null;
   notices: ChatNotice[];
 }
 
@@ -1139,13 +1279,18 @@ const RAW_JSON_CORRECTION =
 function stripImages(messages: OAIMessage[]): void {
   for (const m of messages) {
     if (!Array.isArray(m.content)) continue;
-    m.content = m.content
-      .map((p) => (p.type === "image_url" ? { type: "text" as const, text: "[image removed: this model cannot see images]" } : p));
+    m.content = m.content.map((p) =>
+      p.type === "image_url"
+        ? { type: "text" as const, text: "[image removed: this model cannot see images]" }
+        : p,
+    );
   }
 }
 
 function hasImages(messages: OAIMessage[]): boolean {
-  return messages.some((m) => Array.isArray(m.content) && m.content.some((p) => p.type === "image_url"));
+  return messages.some(
+    (m) => Array.isArray(m.content) && m.content.some((p) => p.type === "image_url"),
+  );
 }
 
 function lastUserText(history: ChatTurn[]): string {
@@ -1168,7 +1313,10 @@ export async function runChat(
   const notices = new Set<ChatNotice>();
   let useTools = opts.caps.tools !== false;
   if (!useTools) notices.add("tools_unsupported");
-  if (opts.caps.vision === false && history.some((h) => Array.isArray(h.content) && h.content.some((p) => p.type === "image_url")))
+  if (
+    opts.caps.vision === false &&
+    history.some((h) => Array.isArray(h.content) && h.content.some((p) => p.type === "image_url"))
+  )
     notices.add("vision_unsupported");
 
   const system = () => buildSystemPrompt({ ...systemPromptCtx, toolsAvailable: useTools });
@@ -1297,7 +1445,15 @@ export async function runChat(
     if (!msg.tool_calls || msg.tool_calls.length === 0) {
       // A model that writes its tool call out as text never gets a result
       // back; retry without tools so it answers from what it has instead.
-      if (useTools && retriesLeft > 0 && !toolsConfirmed && looksLikeTextToolCall(replyText, TOOLS.map((t) => t.name))) {
+      if (
+        useTools &&
+        retriesLeft > 0 &&
+        !toolsConfirmed &&
+        looksLikeTextToolCall(
+          replyText,
+          TOOLS.map((t) => t.name),
+        )
+      ) {
         retriesLeft--;
         useTools = false;
         messages[0] = { role: "system", content: system() };
@@ -1323,7 +1479,8 @@ export async function runChat(
 
     if (!toolsConfirmed) {
       toolsConfirmed = true;
-      if (opts.caps.tools === null) await saveCapabilities(userId, opts.endpointId, creds.model, { tools: true });
+      if (opts.caps.tools === null)
+        await saveCapabilities(userId, opts.endpointId, creds.model, { tools: true });
     }
 
     // Push the assistant turn (with its tool_calls) so the next request includes it.
@@ -1365,11 +1522,17 @@ export async function runChat(
           step,
           args: parsedArgs,
           result_preview: result.ok ? preview(result.data, 2000) : null,
-          action: result.ok ? (result.action ? { kind: result.action.kind, label: result.action.label } : null) : null,
+          action: result.ok
+            ? result.action
+              ? { kind: result.action.kind, label: result.action.label }
+              : null
+            : null,
         },
       });
       // The action (with its draft) goes to the client, not back to the model.
-      const forModel = result.ok ? { ok: true, data: result.data, button_shown: !!result.action } : result;
+      const forModel = result.ok
+        ? { ok: true, data: result.data, button_shown: !!result.action }
+        : result;
       messages.push({
         role: "tool",
         tool_call_id: call.id,
@@ -1404,15 +1567,8 @@ export async function listModels(
       const body = await resp.text();
       return { ok: false, models: [], error: `${resp.status} ${body.slice(0, 200)}` };
     }
-    const json = (await resp.json()) as any;
-    const raw: any[] = Array.isArray(json?.data) ? json.data : Array.isArray(json?.models) ? json.models : [];
     const models = Array.from(
-      new Set(
-        raw
-          .map((m) => (typeof m === "string" ? m : (m?.id ?? m?.name ?? m?.model)))
-          .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
-          .map((v) => v.trim()),
-      ),
+      new Set(modelIdsFrom(await resp.json()).filter((v) => v.length > 0)),
     ).sort((a, b) => a.localeCompare(b));
     return { ok: true, models };
   } catch (e) {
@@ -1422,7 +1578,11 @@ export async function listModels(
   }
 }
 
-export async function testConnection(baseUrl: string, token: string, model: string): Promise<{ ok: boolean; error?: string }> {
+export async function testConnection(
+  baseUrl: string,
+  token: string,
+  model: string,
+): Promise<{ ok: boolean; error?: string }> {
   const url = baseUrl.trim().replace(/\/+$/, "") + "/chat/completions";
   try {
     const resp = await fetch(url, {
@@ -1460,10 +1620,21 @@ export const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
 export async function runTranscription(
   userId: string,
   audio: Uint8Array,
-  opts: { file_name?: string; mime_type?: string; language?: string | null; endpoint_id?: string | null; duration_ms?: number | null },
-): Promise<{ text: string; endpoint: { id: string; name: string; fell_back: boolean }; model: string }> {
+  opts: {
+    file_name?: string;
+    mime_type?: string;
+    language?: string | null;
+    endpoint_id?: string | null;
+    duration_ms?: number | null;
+  },
+): Promise<{
+  text: string;
+  endpoint: { id: string; name: string; fell_back: boolean };
+  model: string;
+}> {
   if (audio.byteLength === 0) throw new Error("The recording is empty. Please try again.");
-  if (audio.byteLength > MAX_AUDIO_BYTES) throw new Error("The recording is too large (max 10 MB).");
+  if (audio.byteLength > MAX_AUDIO_BYTES)
+    throw new Error("The recording is too large (max 10 MB).");
 
   // A binding may name the speech-to-text model directly, which makes the
   // connection usable for voice even when it carries no transcribe_model.
@@ -1492,7 +1663,11 @@ export async function runTranscription(
 
   let resp: Response;
   try {
-    resp = await fetch(`${row.base_url}/audio/transcriptions`, { method: "POST", headers, body: form });
+    resp = await fetch(`${row.base_url}/audio/transcriptions`, {
+      method: "POST",
+      headers,
+      body: form,
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     await writeAudit({
@@ -1520,7 +1695,11 @@ export async function runTranscription(
       duration_ms: Date.now() - started,
       ok: false,
       error_message: `${resp.status} ${raw.slice(0, 200)}`,
-      payload: { bytes: audio.byteLength, audio_duration_ms: opts.duration_ms ?? null, status: resp.status },
+      payload: {
+        bytes: audio.byteLength,
+        audio_duration_ms: opts.duration_ms ?? null,
+        status: resp.status,
+      },
     });
     throw new Error(`Transcription error (${resp.status}): ${raw.slice(0, 500)}`);
   }
@@ -1549,7 +1728,8 @@ export async function runTranscription(
     ok: true,
     prompt_tokens: promptTokens,
     completion_tokens: completionTokens,
-    total_tokens: n(usage?.["total_tokens"]) ?? ((promptTokens ?? 0) + (completionTokens ?? 0) || null),
+    total_tokens:
+      n(usage?.["total_tokens"]) ?? ((promptTokens ?? 0) + (completionTokens ?? 0) || null),
     payload: {
       bytes: audio.byteLength,
       audio_duration_ms: opts.duration_ms ?? null,

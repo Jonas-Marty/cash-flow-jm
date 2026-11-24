@@ -7,9 +7,19 @@ import { Cloud, FileText, Loader2, Sparkles, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { NextcloudFilePicker, type PickedFile } from "@/components/NextcloudFilePicker";
-import { analyseRuleDocument, analyseRuleDocumentFromNextcloud } from "@/utils/recurringAi.functions";
+import {
+  analyseRuleDocument,
+  analyseRuleDocumentFromNextcloud,
+} from "@/utils/recurringAi.functions";
 import { getNextcloudStatus } from "@/utils/nextcloud.functions";
 import type { RuleHandoff } from "@/lib/ai/recurringHandoff";
 import { parseEndpointOffline } from "@/lib/ai/types";
@@ -50,13 +60,20 @@ export function RecurringAiDialog({
   const analyseFn = useServerFn(analyseRuleDocument);
   const analyseNcFn = useServerFn(analyseRuleDocumentFromNextcloud);
   const ncStatusFn = useServerFn(getNextcloudStatus);
-  const ncStatusQ = useQuery({ queryKey: ["nextcloud_status"], queryFn: () => ncStatusFn(), enabled: open });
+  const ncStatusQ = useQuery({
+    queryKey: ["nextcloud_status"],
+    queryFn: () => ncStatusFn(),
+    enabled: open,
+  });
   const [source, setSource] = React.useState<Source | null>(null);
   const [hint, setHint] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [dragging, setDragging] = React.useState(false);
   const [ncOpen, setNcOpen] = React.useState(false);
-  const [notInvoice, setNotInvoice] = React.useState<{ kind: "statement" | "other"; notes: string[] } | null>(null);
+  const [notInvoice, setNotInvoice] = React.useState<{
+    kind: "statement" | "other";
+    notes: string[];
+  } | null>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
@@ -89,7 +106,10 @@ export function RecurringAiDialog({
           : await analyseNcFn({ data: { path: source.picked.path, ...common } });
       if (r.endpoint.fell_back) toast.info(t("ai.conn.fell_back", { name: r.endpoint.name }));
       if (r.document_kind !== "invoice" || !r.draft) {
-        setNotInvoice({ kind: r.document_kind === "statement" ? "statement" : "other", notes: r.notes });
+        setNotInvoice({
+          kind: r.document_kind === "statement" ? "statement" : "other",
+          notes: r.notes,
+        });
         return;
       }
       onDraft({
@@ -121,7 +141,11 @@ export function RecurringAiDialog({
 
         {source ? (
           <div className="flex items-center gap-2 rounded-md border bg-muted/40 p-2 text-sm">
-            {source.kind === "nextcloud" ? <Cloud className="h-4 w-4 shrink-0" /> : <FileText className="h-4 w-4 shrink-0" />}
+            {source.kind === "nextcloud" ? (
+              <Cloud className="h-4 w-4 shrink-0" />
+            ) : (
+              <FileText className="h-4 w-4 shrink-0" />
+            )}
             <span className="min-w-0 flex-1 truncate font-medium">{sourceName}</span>
             <button
               type="button"
@@ -157,7 +181,12 @@ export function RecurringAiDialog({
             <Upload className="h-5 w-5" />
             <span>{t("recurring.ai.drop")}</span>
             <div className="flex flex-wrap justify-center gap-2">
-              <Button type="button" size="sm" variant="secondary" onClick={() => inputRef.current?.click()}>
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => inputRef.current?.click()}
+              >
                 {t("recurring.ai.choose")}
               </Button>
               {ncStatusQ.data?.connected && (
@@ -218,7 +247,11 @@ export function RecurringAiDialog({
             {t("common.cancel")}
           </Button>
           <Button onClick={() => void analyse()} disabled={!source || busy}>
-            {busy ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1 h-4 w-4" />}
+            {busy ? (
+              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="mr-1 h-4 w-4" />
+            )}
             {busy ? t("recurring.ai.reading") : t("recurring.ai.analyse")}
           </Button>
         </DialogFooter>

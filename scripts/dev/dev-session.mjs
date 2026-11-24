@@ -28,7 +28,8 @@ const opt = (name) => {
   const i = args.indexOf(`--${name}`);
   return i === -1 ? null : args[i + 1];
 };
-const all = (name) => args.reduce((acc, a, i) => (a === `--${name}` ? [...acc, args[i + 1]] : acc), []);
+const all = (name) =>
+  args.reduce((acc, a, i) => (a === `--${name}` ? [...acc, args[i + 1]] : acc), []);
 
 const origins = all("origin").length
   ? all("origin")
@@ -37,7 +38,11 @@ const outPath = opt("out") ?? path.join(REPO, "screenshots", ".auth-state.json")
 
 const minted = await mintDevSession(opt("email"));
 await mkdir(path.dirname(outPath), { recursive: true });
-await writeFile(outPath, JSON.stringify(storageStateFor(minted, origins), null, 2), { mode: 0o600 });
+await writeFile(outPath, JSON.stringify(storageStateFor(minted, origins), null, 2), {
+  mode: 0o600,
+});
 const { session } = minted;
 console.log(`signed in as ${minted.email} (user ${session.user?.id}) for ${origins.join(", ")}`);
-console.log(`session saved to ${path.relative(REPO, outPath)} (refreshable; access token valid until ${new Date(session.expires_at * 1000).toISOString()})`);
+console.log(
+  `session saved to ${path.relative(REPO, outPath)} (refreshable; access token valid until ${new Date(session.expires_at * 1000).toISOString()})`,
+);

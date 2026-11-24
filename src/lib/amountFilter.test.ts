@@ -35,7 +35,7 @@ describe("matchesAmount", () => {
   });
 
   it("around uses percentage tolerance", () => {
-    expect(matchesAmount(110, "around", 100, 0.1)).toBe(true);  // exactly 10%
+    expect(matchesAmount(110, "around", 100, 0.1)).toBe(true); // exactly 10%
     expect(matchesAmount(111, "around", 100, 0.1)).toBe(false);
     expect(matchesAmount(90, "around", 100, 0.1)).toBe(true);
   });
