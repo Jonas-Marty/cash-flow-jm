@@ -65,6 +65,8 @@ Eine Buchung, die markiert wurde, weil dir jemand Geld schuldet (oder umgekehrt)
 
 **Beispiel:** Du zahlst 120 CHF für ein Team-Abendessen mit deiner Kreditkarte; dein Kollege schuldet dir die Hälfte. Du buchst die Ausgabe als 120 CHF, aktivierst **Erstattungsfähig** und gibst *Kollegin Anna* als Gegenpartei an. Die vollen 120 belasten deinen *Restaurant*-Umschlag, aber eine offene IOU über 60 erscheint auf der Übersicht. Wenn Anna dir via TWINT zurückzahlt, erfasst du die Rückzahlung — die IOU schließt sich und dein *Restaurant*-Umschlag wird um 60 wieder aufgestockt.
 
+Du musst eine Ausgabe nicht vorher markieren: Beim Erfassen einer Einnahme kannst du unter **Zahlt Ausgaben zurück** jede Ausgabe wählen, die sie begleicht; sie wird dann zur IOU. Siehe [Gemeinsame Ausgabe und Rückzahlung](./05-workflows.md#shared-expense-and-getting-repaid).
+
 ## Offene Buchung [#pending-transaction]
 
 Ein Eintrag, der aus einem externen System (oder über die öffentliche API) importiert wurde und noch nicht gebucht ist. Du prüfst und bestätigst oder lehnst ab.

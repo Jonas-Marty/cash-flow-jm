@@ -32,13 +32,18 @@ import {
 } from "@/lib/finance";
 import { fetchSavingsBalances, type CategorySavingsBalance } from "@/lib/finance";
 import { markPendingConfirmed } from "@/lib/finance";
-import { fetchPreviewImpact, fetchTransactionsByIds, setReimbursementLinks, type PreviewImpactRow, type PreviewOp } from "@/lib/finance";
+import { fetchPreviewImpact, fetchTransactionsByIds, type PreviewImpactRow, type PreviewOp } from "@/lib/finance";
+import { applyRefundLinks, fetchRefundCandidates } from "@/lib/finance";
+import { RefundCard } from "@/components/RefundCard";
+import {
+  defaultDecision, pickIssue, planIncomeParts, refundLinksPayload, refundPreviewOps,
+  type PreviewExpense, type RefundPicks,
+} from "@/lib/refundPlan";
 import { ReimbursementPayments } from "@/components/ReimbursementPayments";
 import { EntityVisual } from "@/components/EntityVisual";
-import { AlertTriangle, Link as LinkIcon } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { StringAutocomplete } from "@/components/StringAutocomplete";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Toggle } from "@/components/ui/toggle";
 import { useI18n } from "@/i18n";
 import { useSuggestions } from "@/lib/suggestions/useSuggestions";
@@ -60,11 +65,8 @@ import { TransactionStatementRow } from "@/components/StatementDocLink";
 import { Markdown } from "@/components/Markdown";
 import { useFxRates, convert } from "@/lib/fx";
 import {
-  findSubsetSumMatch, defaultTolerance, REIMB_MATCH_MAX_CANDIDATES,
-  clampLinkAmounts, unallocatedSettlingAmount,
+  clampLinkAmounts,
 } from "@/lib/reimbMatch";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown } from "lucide-react";
 import type { FxRates } from "@/lib/fx";
 import { fetchScopes } from "@/lib/finance";
 import { useActiveScopeId } from "@/lib/activeScope";
@@ -307,6 +309,14 @@ export function TransactionForm({
   // For income transactions: which open reimbursable expenses the user
   // wants to link this income to. Map<originalTxId, amountToApply>.
   const [linkSelections, setLinkSelections] = React.useState<Record<string, number>>({});
+  // For incomes: the expenses it repays, with what the user decided about each
+  // (src/lib/refundPlan.ts). Split lines carry their own in Slice.refunds.
+  const [refundPicks, setRefundPicks] = React.useState<RefundPicks>({});
+  const [refundTouched, setRefundTouched] = React.useState(false);
+  const [refundQuery, setRefundQuery] = React.useState("");
+  const [refundCounterparty, setRefundCounterparty] = React.useState("");
+  // The split line whose "Zahlt Ausgaben zurück" card is open.
+  const [refundSliceOpen, setRefundSliceOpen] = React.useState<string | null>(null);
   // Set by the "Add refund" deep link from the dashboard so we can preselect
   // the original reimbursable expense once data has loaded.
   const reimburseForId = prefill?.reimburse_for ?? null;
@@ -395,6 +405,8 @@ export function TransactionForm({
     isReimbursable: boolean;
     reimbCounterparty: string;
     reimbReason: string;
+    /** Income lines: the expenses this line repays. */
+    refunds: RefundPicks;
   };
   const newSlice = (): Slice => ({
     id: Math.random().toString(36).slice(2),
@@ -405,6 +417,7 @@ export function TransactionForm({
     isReimbursable: false,
     reimbCounterparty: "",
     reimbReason: "",
+    refunds: {},
   });
   const [splitMode, setSplitMode] = React.useState(false);
   const [slices, setSlices] = React.useState<Slice[]>([newSlice(), newSlice()]);
@@ -521,6 +534,7 @@ export function TransactionForm({
           isReimbursable: !!g.is_reimbursable,
           reimbCounterparty: g.reimbursable_counterparty ?? "",
           reimbReason: g.reimbursable_reason ?? "",
+          refunds: {},
         })),
       );
     } else {
@@ -628,6 +642,259 @@ export function TransactionForm({
     return isFinite(n) && n > 0 ? n : null;
   }, [amount]);
 
+  // ───────── Expenses an income repays ("Zahlt Ausgaben zurück") ─────────
+  // The rows that make up the entry being edited; their links are this entry's
+  // own, everything else counts as already repaid elsewhere.
+  const entryRowIds = React.useMemo(() => {
+    const og = editQ.data;
+    if (!isEdit || !og) return new Set<string>();
+    return new Set((og.group && og.group.length > 0 ? og.group : [og.tx]).map((r) => r.id));
+  }, [isEdit, editQ.data]);
+  // Per expense: what other incomes already pay towards it.
+  const linkedElsewhere = React.useMemo(() => {
+    const m = new Map<string, number>();
+    for (const l of reimbLinksQ.data ?? []) {
+      if (entryRowIds.has(l.settling_transaction_id)) continue;
+      m.set(l.original_transaction_id, (m.get(l.original_transaction_id) ?? 0) + Number(l.amount));
+    }
+    return m;
+  }, [reimbLinksQ.data, entryRowIds]);
+  // Per income row of this entry: the expenses it repaid when the form opened.
+  const existingLinksByRow = React.useMemo(() => {
+    const m = new Map<string, Map<string, number>>();
+    for (const l of reimbLinksQ.data ?? []) {
+      if (!entryRowIds.has(l.settling_transaction_id)) continue;
+      const row = m.get(l.settling_transaction_id) ?? new Map<string, number>();
+      row.set(l.original_transaction_id, (row.get(l.original_transaction_id) ?? 0) + Number(l.amount));
+      m.set(l.settling_transaction_id, row);
+    }
+    return m;
+  }, [reimbLinksQ.data, entryRowIds]);
+
+  // The lines of the income that can repay expenses: the whole income, or
+  // each split line. `rowId` is the existing row when editing.
+  type RefundLine = { key: string; rowId: string | null; amount: number; categoryId: string | null; picks: RefundPicks };
+  const refundLines = React.useMemo<RefundLine[]>(() => {
+    if (type !== "income") return [];
+    if (splitMode) {
+      return slices.map((s) => ({
+        key: s.id,
+        rowId: entryRowIds.has(s.id) ? s.id : null,
+        amount: Number(s.amount.replace(",", ".")) || 0,
+        categoryId: s.categoryId || null,
+        picks: s.refunds,
+      }));
+    }
+    return [{ key: "single", rowId: isEdit && editId ? editId : null, amount: amountNum ?? 0, categoryId: categoryId || null, picks: refundPicks }];
+  }, [type, splitMode, slices, entryRowIds, isEdit, editId, amountNum, categoryId, refundPicks]);
+
+  // Expenses to show: search results in the income's currency, plus the ones
+  // ticked or linked already (which a search may not return).
+  const [refundQueryDebounced, setRefundQueryDebounced] = React.useState("");
+  React.useEffect(() => {
+    const timer = setTimeout(() => setRefundQueryDebounced(refundQuery.trim()), 300);
+    return () => clearTimeout(timer);
+  }, [refundQuery]);
+  const incomeCurrency = sourceAccount?.currency_code ?? null;
+  const refundAccountIds = React.useMemo(() => {
+    const all = accountsQ.data ?? [];
+    return {
+      same: all.filter((a) => a.currency_code === incomeCurrency).map((a) => a.id).sort(),
+      other: all.filter((a) => a.currency_code !== incomeCurrency).map((a) => a.id).sort(),
+    };
+  }, [accountsQ.data, incomeCurrency]);
+  const refundSearchQ = useQuery({
+    queryKey: ["refund_candidates", refundAccountIds.same, refundAccountIds.other, refundQueryDebounced],
+    queryFn: () => fetchRefundCandidates({
+      accountIds: refundAccountIds.same,
+      otherAccountIds: refundAccountIds.other,
+      query: refundQueryDebounced,
+    }),
+    enabled: type === "income" && !!incomeCurrency,
+    staleTime: 30_000,
+  });
+  const refundKnownIds = React.useMemo(() => {
+    const ids = new Set<string>();
+    for (const row of existingLinksByRow.values()) for (const id of row.keys()) ids.add(id);
+    for (const line of refundLines) for (const id of Object.keys(line.picks)) ids.add(id);
+    return [...ids].sort();
+  }, [existingLinksByRow, refundLines]);
+  const refundKnownQ = useQuery({
+    queryKey: ["transactions_by_ids", refundKnownIds],
+    queryFn: () => fetchTransactionsByIds(refundKnownIds),
+    enabled: type === "income" && refundKnownIds.length > 0,
+  });
+  const refundExpenseById = React.useMemo(() => {
+    const m = new Map<string, Transaction>();
+    for (const t of refundKnownQ.data ?? []) m.set(t.id, t);
+    for (const t of refundSearchQ.data?.rows ?? []) if (!m.has(t.id)) m.set(t.id, t);
+    return m;
+  }, [refundKnownQ.data, refundSearchQ.data]);
+  const refundCandidates = React.useMemo(() => [...refundExpenseById.values()], [refundExpenseById]);
+  // What each expense can still take from one line: its amount, less what
+  // other incomes and the other lines of this one pay towards it.
+  const refundOpenFor = React.useCallback((lineKey: string) => {
+    const m = new Map<string, number>();
+    for (const t of refundCandidates) {
+      let other = linkedElsewhere.get(t.id) ?? 0;
+      for (const line of refundLines) if (line.key !== lineKey) other += Number(line.picks[t.id]?.amount) || 0;
+      m.set(t.id, Math.max(0, Math.round((Number(t.amount) - other) * 100) / 100));
+    }
+    return m;
+  }, [refundCandidates, linkedElsewhere, refundLines]);
+  const refundExistingFor = React.useCallback(
+    (rowId: string | null) => new Set(rowId ? [...(existingLinksByRow.get(rowId)?.keys() ?? [])] : []),
+    [existingLinksByRow],
+  );
+  const refundLockedFor = React.useCallback((rowId: string | null) => {
+    const out = new Set<string>();
+    for (const id of refundExistingFor(rowId)) {
+      const st = refundExpenseById.get(id)?.reimbursable_status;
+      if (st === "written_off" || st === "cancelled") out.add(id);
+    }
+    return out;
+  }, [refundExistingFor, refundExpenseById]);
+
+  // The income's rows as they will be saved: each line in parts, one per
+  // category; the first part of a line keeps the line's row.
+  const refundPlan = React.useMemo(() => refundLines.map((line) => ({
+    line,
+    parts: planIncomeParts(line.amount, line.categoryId, line.picks, refundOpenFor(line.key)),
+  })), [refundLines, refundOpenFor]);
+  // Something that cannot be saved yet: an i18n key, or null.
+  const refundIssue = React.useMemo(() => {
+    for (const { line } of refundPlan) {
+      const open = refundOpenFor(line.key);
+      const locked = refundLockedFor(line.rowId);
+      for (const [id, pick] of Object.entries(line.picks)) {
+        if (locked.has(id)) continue;
+        const issue = pickIssue(open.get(id) ?? Number(pick.amount), pick);
+        if (issue) return issue;
+      }
+      const linked = Object.values(line.picks).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+      if (line.amount > 0 && linked > line.amount + 0.005) return "refund.issue.over";
+    }
+    return null;
+  }, [refundPlan, refundOpenFor, refundLockedFor]);
+  const hasNewRefundPick = refundLines.some((l) => Object.values(l.picks).some((p) => p.decision));
+  const refundBlocks = type === "income" && refundTouched && refundIssue != null;
+  // The category the booking shows: for an income whose picks decide it, the
+  // first of its parts (the impact card's figures come from the database).
+  const previewCategoryId =
+    type === "income" && !splitMode && hasNewRefundPick ? refundPlan[0]?.parts[0]?.categoryId ?? null : categoryId || null;
+  const refundCategoryOptions = React.useMemo(
+    () => categories.map((c) => ({ id: c.id, name: c.name })),
+    [categories],
+  );
+  /** The "Zahlt Ausgaben zurück" card for one line of the income. */
+  const renderRefundCard = (line: RefundLine, onChange: (next: RefundPicks) => void, extra: {
+    surplusCategoryId: string | null;
+    onSurplusCategoryChange: (id: string | null) => void;
+    onSplitSurplus?: () => void;
+  }) => (
+    <RefundCard
+      lineAmount={line.amount > 0 ? line.amount : null}
+      picks={line.picks}
+      onPicksChange={onChange}
+      candidates={refundCandidates}
+      openById={refundOpenFor(line.key)}
+      existingIds={refundExistingFor(line.rowId)}
+      lockedIds={refundLockedFor(line.rowId)}
+      loading={refundSearchQ.isLoading}
+      query={refundQuery}
+      onQueryChange={setRefundQuery}
+      otherCurrency={refundSearchQ.data?.otherCurrency ?? 0}
+      counterparty={refundCounterparty}
+      onCounterpartyChange={setRefundCounterparty}
+      counterpartyOptions={reimbCpQ.data ?? []}
+      categories={refundCategoryOptions}
+      surplusCategoryId={extra.surplusCategoryId}
+      onSurplusCategoryChange={extra.onSurplusCategoryChange}
+      onSplitSurplus={extra.onSplitSurplus}
+      incomeDate={date}
+      symbol={sourceAccount?.currency_symbol ?? mainSymbol}
+      dateFmt={dateFmt}
+    />
+  );
+  /** The income's category when picks decide it: one, or the split per category. */
+  const renderDerivedCategory = (parts: Array<{ categoryId: string | null; amount: number }>) => (
+    <div className="space-y-1 rounded-md bg-muted px-3 py-2 text-sm">
+      {parts.length <= 1 ? (
+        <div>
+          {parts[0]?.categoryId ? categoryById.get(parts[0].categoryId)?.name : tr("refund.no_category")}
+          <span className="text-xs text-muted-foreground"> · {tr("refund.derived")}</span>
+        </div>
+      ) : (
+        <>
+          <div className="font-medium">{tr("refund.derived.split", { n: parts.length })}</div>
+          {parts.map((p, i) => (
+            <div key={i} className="tabular-nums">
+              {fmtMoney(p.amount, sourceAccount?.currency_symbol ?? mainSymbol)} · {p.categoryId ? categoryById.get(p.categoryId)?.name : tr("refund.no_category")}
+            </div>
+          ))}
+          <div className="text-xs text-muted-foreground">{tr("refund.derived")}</div>
+        </>
+      )}
+    </div>
+  );
+  /** Whatever the single income brings beyond its expenses becomes its own split line. */
+  const splitOffSurplus = () => {
+    const linked = Object.values(refundPicks).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    const surplus = Math.round(((amountNum ?? 0) - linked) * 100) / 100;
+    if (surplus <= 0.005) return;
+    const first: Slice = {
+      ...newSlice(),
+      id: isEdit && editId ? editId : newSlice().id,
+      amount: (Math.round(linked * 100) / 100).toFixed(2),
+      categoryId,
+      description,
+      refunds: refundPicks,
+      isReimbursable, reimbCounterparty, reimbReason,
+    };
+    const second: Slice = { ...newSlice(), amount: surplus.toFixed(2), description, categoryId: "" };
+    setSlices([first, second]);
+    setRefundPicks({});
+    setRefundSliceOpen(first.id);
+    setRefundTouched(true);
+    setSplitMode(true);
+  };
+
+  // Editing an income: start from the expenses it repays today.
+  const refundHydratedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (!isEdit || refundHydratedRef.current || !editQ.data || !reimbLinksQ.data || !hydratedRef.current) return;
+    if (editQ.data.tx.type !== "income") return;
+    refundHydratedRef.current = true;
+    const picksOf = (rowId: string): RefundPicks => {
+      const out: RefundPicks = {};
+      for (const [id, a] of existingLinksByRow.get(rowId) ?? []) out[id] = { amount: Math.round(a * 100) / 100 };
+      return out;
+    };
+    if (editQ.data.group && editQ.data.group.length > 1) {
+      setSlices((cur) => cur.map((s) => ({ ...s, refunds: picksOf(s.id) })));
+    } else {
+      setRefundPicks(picksOf(editQ.data.tx.id));
+    }
+  }, [isEdit, editQ.data, reimbLinksQ.data, existingLinksByRow]);
+  // Changing picks marks the repayment as touched: saving then goes through
+  // apply_refund_links(). Untouched, an edit keeps the older behaviour, where
+  // a single link follows the income's amount.
+  const changeRefundPicks = (next: RefundPicks) => {
+    setRefundTouched(true);
+    setRefundPicks(next);
+    // Whatever the income brings beyond the expenses defaults to the first
+    // picked expense's category.
+    if (!categoryId && !touched.categoryId) {
+      const first = Object.entries(next).find(([, p]) => p.decision);
+      const cat = first ? refundExpenseById.get(first[0])?.category_id : null;
+      if (cat) setCategoryId(cat);
+    }
+  };
+  const changeSliceRefunds = (sliceId: string, next: RefundPicks) => {
+    setRefundTouched(true);
+    setSlices((cur) => cur.map((x) => (x.id === sliceId ? { ...x, refunds: next } : x)));
+  };
+
   // The change as the database would get it on save, for the exact preview:
   // inserts for a new booking, an update (plus fee changes) for an edit, and
   // for a split what save_split_group does: kept slices updated, new ones
@@ -661,6 +928,24 @@ export function TransactionForm({
       : null;
     const ops: PreviewOp[] = [];
     const og = editQ.data;
+    // An income repaying expenses: its rows per category, and what the picks
+    // change on the expenses (the links themselves are not part of it).
+    if (type === "income" && refundTouched) {
+      const kept = new Set<string>();
+      for (const { line, parts } of refundPlan) {
+        parts.forEach((part, i) => {
+          const row = { ...base, amount: part.amount, category_id: part.categoryId };
+          const id = i === 0 ? line.rowId : null;
+          if (id) { kept.add(id); ops.push({ op: "update", id, row }); }
+          else ops.push({ op: "insert", row });
+        });
+      }
+      for (const id of entryRowIds) if (!kept.has(id)) ops.push({ op: "delete", id });
+      for (const { line } of refundPlan) {
+        ops.push(...refundPreviewOps(line.picks, refundExpenseById as Map<string, PreviewExpense>, refundOpenFor(line.key)));
+      }
+      return ops.length > 0 ? ops : null;
+    }
     if (splitMode && type !== "transfer") {
       const existingIds = new Set(
         isEdit && og ? (og.group && og.group.length > 0 ? og.group : [og.tx]).map((r) => r.id) : [],
@@ -699,6 +984,7 @@ export function TransactionForm({
     sourceId, amountNum, type, destId, date, isCrossCurrency, diffOpen, received, destAmount,
     categoryId, diffCategoryId, isReimbursable, reimbCounterparty, feeOpen, feeAmount, feeCategoryId, editQ.data,
     splitMode, slices, isEdit, editId, existingFeeTxId,
+    refundTouched, refundPlan, entryRowIds, refundExpenseById, refundOpenFor,
   ]);
   // The rows that make up the entry being edited, so the preview can also show
   // it as if booked new: its slices, or the booking and its transfer fee.
@@ -736,8 +1022,9 @@ export function TransactionForm({
     return !Number.isFinite(n) || n <= amountNum;
   })();
   // More assigned to reimbursables than this income brings: saving waits.
+  // (Incomes go through the repayment card; see refundBlocks.)
   const linkOverAssigned =
-    type === "income" &&
+    type !== "income" &&
     amountNum != null &&
     Object.values(linkSelections).reduce((sum, v) => sum + (Number(v) || 0), 0) > amountNum + 0.005;
   // A refusal the app recognises blocks saving: the database would refuse it
@@ -792,95 +1079,6 @@ export function TransactionForm({
     return out;
   }, [openReimbQ.data, reimbLinksQ.data]);
 
-  // ───────── Editing the reimbursables an income covers ─────────
-  // The reimbursables this income covers today. They read "settled" (often
-  // because of this very income), so the open list does not have them.
-  const linkedOriginalIds = React.useMemo(
-    () => editAsSettlerLinks.map((l) => l.original_transaction_id).sort(),
-    [editAsSettlerLinks],
-  );
-  const linkedOriginalsQ = useQuery({
-    queryKey: ["transactions_by_ids", linkedOriginalIds],
-    queryFn: () => fetchTransactionsByIds(linkedOriginalIds),
-    enabled: linkedOriginalIds.length > 0,
-  });
-  // What each reimbursable can still take from this income: its amount minus
-  // what *other* incomes already pay towards it.
-  const availableByOrig = React.useMemo(() => {
-    const others = new Map<string, number>();
-    (reimbLinksQ.data ?? []).forEach((l: ReimbursementLink) => {
-      if (editId && l.settling_transaction_id === editId) return;
-      others.set(l.original_transaction_id, (others.get(l.original_transaction_id) ?? 0) + Number(l.amount));
-    });
-    const out = new Map<string, number>();
-    for (const t of [...(openReimbQ.data ?? []), ...(linkedOriginalsQ.data ?? [])]) {
-      out.set(t.id, Math.max(0, Number(t.amount) - (others.get(t.id) ?? 0)));
-    }
-    return out;
-  }, [reimbLinksQ.data, openReimbQ.data, linkedOriginalsQ.data, editId]);
-  // A write-off already moved this income; its link stays exactly as it is.
-  const isLockedOriginal = (t: Transaction) =>
-    t.reimbursable_status === "written_off" || t.reimbursable_status === "cancelled";
-
-  // Auto-link candidates: open reimbursables for the current source account
-  // (same currency) that this income could plausibly settle.
-  // Candidates for the reimbursable-link card: open reimbursables on a
-  // same-currency account, optionally filtered by counterparty ("From whom"
-  // on the income transaction). Sorted by most-recent first so the
-  // subset-sum search prefers recent items when there are too many.
-  const linkCandidates = React.useMemo<Transaction[]>(() => {
-    if (type !== "income" || !sourceId) return [];
-    const srcAcc = accountById.get(sourceId);
-    if (!srcAcc) return [];
-    const list = (openReimbQ.data ?? []).filter((t) => {
-      const tAcc = accountById.get(t.source_account_id);
-      if (!tAcc) return false;
-      if (tAcc.currency_code !== srcAcc.currency_code) return false;
-      if ((remainingByOrig.get(t.id) ?? 0) <= 0) return false;
-      return true;
-    });
-    list.sort((a, b) => (a.occurred_on < b.occurred_on ? 1 : a.occurred_on > b.occurred_on ? -1 : 0));
-    return list;
-  }, [type, sourceId, openReimbQ.data, accountById, remainingByOrig]);
-
-  // What the card lists: in edit mode the reimbursables covered now come first,
-  // then the open ones it could cover instead.
-  const cardCandidates = React.useMemo<Transaction[]>(() => {
-    if (!isEdit) return linkCandidates;
-    const linked = linkedOriginalsQ.data ?? [];
-    const ids = new Set(linked.map((t) => t.id));
-    return [...linked, ...linkCandidates.filter((t) => !ids.has(t.id))];
-  }, [isEdit, linkCandidates, linkedOriginalsQ.data]);
-
-  // Subset-sum suggestion: best subset of candidates whose remaining amounts
-  // sum to the income amount within a generous tolerance. Only computed when
-  // the user has typed a counterparty — otherwise we don't claim a "match".
-  const suggestedMatch = React.useMemo<{ ids: string[]; total: number; exact: boolean } | null>(() => {
-    if (type !== "income" || amountNum == null) return null;
-    const pool = linkCandidates.slice(0, REIMB_MATCH_MAX_CANDIDATES);
-    if (pool.length === 0) return null;
-    const amounts = pool.map((t) => remainingByOrig.get(t.id) ?? 0);
-    const m = findSubsetSumMatch(amounts, amountNum, defaultTolerance(amountNum));
-    if (!m) return null;
-    return {
-      ids: m.indices.map((i) => pool[i].id),
-      total: m.total,
-      exact: m.exact,
-    };
-  }, [type, amountNum, linkCandidates, remainingByOrig]);
-
-  // The subset-sum suggestion is only a *highlight* — we never auto-check
-  // the items because an amount match may be coincidental. The user must
-  // confirm explicitly by ticking the checkbox or clicking "Link suggested".
-  const linkSelectionsTouchedRef = React.useRef(false);
-  // Editing an income: start from the reimbursables it covers today.
-  React.useEffect(() => {
-    if (!isEdit || linkSelectionsTouchedRef.current) return;
-    const next: Record<string, number> = {};
-    for (const l of editAsSettlerLinks) next[l.original_transaction_id] = Number(l.amount);
-    setLinkSelections(next);
-  }, [isEdit, editAsSettlerLinks]);
-
   // When deep-linked from "Add refund", preselect the original reimbursable.
   const reimbForAppliedRef = React.useRef(false);
   React.useEffect(() => {
@@ -890,11 +1088,21 @@ export function TransactionForm({
     const txs = (openReimbQ.data ?? []).filter((t) => ids.has(t.id));
     if (txs.length === 0) return;
     reimbForAppliedRef.current = true;
+    if ((prefill?.type ?? type) === "income") {
+      const next: RefundPicks = {};
+      for (const tx of txs) {
+        next[tx.id] = { amount: remainingByOrig.get(tx.id) ?? Number(tx.amount), decision: defaultDecision(tx) };
+      }
+      setRefundTouched(true);
+      setRefundPicks(next);
+      return;
+    }
     setLinkSelections((cur) => {
       const next = { ...cur };
       for (const tx of txs) next[tx.id] = remainingByOrig.get(tx.id) ?? Number(tx.amount);
       return next;
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [reimburseForId, openReimbQ.data, remainingByOrig]);
 
   const { suggestions } = useSuggestions({
@@ -970,6 +1178,11 @@ export function TransactionForm({
     setReimbCounterparty("");
     setReimbReason("");
     setLinkSelections({});
+    setRefundPicks({});
+    setRefundTouched(false);
+    setRefundQuery("");
+    setRefundCounterparty("");
+    setRefundSliceOpen(null);
     setFeeOpen(false);
     setFeeAmount("");
     setFeeCategoryId("");
@@ -978,7 +1191,6 @@ export function TransactionForm({
     setReceived("");
     setDiffCategoryId("");
     setScopeSkipped(false);
-    linkSelectionsTouchedRef.current = false;
     setLocation(null);
     locationTouchedRef.current = false;
     autoLocRef.current = false;
@@ -1003,6 +1215,118 @@ export function TransactionForm({
       cancelled = true;
     };
   }, [isEdit, captureEnabled, isTodayDate]);
+
+  /**
+   * Save an income whose repaid expenses changed. Each line becomes one row per
+   * category (src/lib/refundPlan.ts): one row stays a plain booking, several
+   * are saved as a split group. Then every row that repays something, or did,
+   * gets its links and the expense changes in one apply_refund_links() call.
+   */
+  const saveIncomeWithRefunds = async (andNew: boolean) => {
+    if (refundIssue) { toast.error(tr(refundIssue)); return; }
+    const occurred_on = format(date, "yyyy-MM-dd");
+    const sharedNote = note.trim();
+    const sliceById = new Map(slices.map((x) => [x.id, x]));
+    const rows = refundPlan.flatMap(({ line, parts }) => {
+      const sl = splitMode ? sliceById.get(line.key) : undefined;
+      const lineNote = sl ? [sharedNote, sl.note.trim()].filter(Boolean).join(" ") : sharedNote;
+      const reimb = sl
+        ? { on: sl.isReimbursable, cp: sl.reimbCounterparty.trim(), reason: sl.reimbReason.trim() }
+        : { on: isReimbursable, cp: reimbCounterparty.trim(), reason: reimbReason.trim() };
+      return parts.map((part, i) => ({
+        id: i === 0 ? line.rowId : null,
+        amount: part.amount,
+        category_id: part.categoryId,
+        description: (sl ? sl.description : description).trim() || null,
+        note: lineNote || null,
+        is_reimbursable: reimb.on,
+        reimbursable_counterparty: reimb.on ? reimb.cp || null : null,
+        reimbursable_reason: reimb.on ? reimb.reason || null : null,
+        links: part.links,
+      }));
+    });
+    if (rows.length === 0 || rows.some((r) => !(r.amount > 0))) { toast.error(tr("add.split.toast.amounts")); return; }
+    const og = editQ.data;
+    const wasSplit = isEdit && !!og?.tx.split_group_id;
+    if (wasSplit && rows.length < 2) { toast.error(tr("add.split.toast.min")); return; }
+
+    setSaving(true);
+    let ids: string[];
+    if (rows.length === 1 && !wasSplit) {
+      const r = rows[0];
+      const payload = {
+        occurred_on, amount: r.amount, description: r.description, note: r.note, type,
+        source_account_id: sourceId, destination_account_id: null, category_id: r.category_id,
+        destination_amount: null, difference_category_id: null,
+        is_reimbursable: r.is_reimbursable, reimbursable_counterparty: r.reimbursable_counterparty,
+        reimbursable_reason: r.reimbursable_reason,
+        fee_amount: null, fee_category_id: null, fee_transaction_id: null,
+        ...locationToColumns(location),
+      };
+      if (isEdit && editId) {
+        const { error } = await supabase.from("transactions").update(payload).eq("id", editId);
+        if (error) { setSaving(false); toast.error(error.message); return; }
+        ids = [editId];
+      } else {
+        const { data, error } = await supabase.from("transactions").insert(payload).select("id").single();
+        if (error || !data) { setSaving(false); toast.error(error?.message ?? "insert failed"); return; }
+        ids = [data.id as string];
+      }
+    } else {
+      // Rows of the entry that are not kept lose their links with them.
+      const keptIds = new Set(rows.map((r) => r.id).filter(Boolean));
+      const lost = [...entryRowIds].filter((id) => !keptIds.has(id) && existingLinksByRow.has(id));
+      if (lost.length > 0 && !(typeof window !== "undefined" && window.confirm(tr("add.split.confirm_remove_linked")))) {
+        setSaving(false);
+        return;
+      }
+      const groupId = og?.tx.split_group_id ?? (globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2));
+      const { data, error } = await supabase.rpc("save_split_group", {
+        p_group_id: groupId,
+        p_occurred_on: occurred_on,
+        p_type: type,
+        p_source_account_id: sourceId,
+        p_slices: rows.map(({ links: _links, ...r }) => r),
+        p_location: locationToColumns(location),
+      });
+      if (error) { setSaving(false); toast.error(error.message); return; }
+      ids = (data ?? []) as string[];
+    }
+
+    const counterparty = refundCounterparty.trim() || null;
+    for (let i = 0; i < rows.length; i++) {
+      const id = ids[i];
+      if (!id) continue;
+      if (rows[i].links.length === 0 && !existingLinksByRow.has(id)) continue;
+      try {
+        await applyRefundLinks(id, refundLinksPayload(rows[i].links), counterparty);
+      } catch (e) {
+        toast.error(tr("refund.toast.link_failed", { msg: (e as Error).message }));
+      }
+    }
+
+    if (!isEdit) {
+      void notifyCreated({ data: { ids } }).catch(() => {});
+      if (draftAttachments.length > 0 && ids[0]) {
+        const att = draftAttachments.map((a) => ({
+          transaction_id: ids[0], statement_id: null, source: a.source, display_name: a.display_name,
+          link_url: a.link_url, external_id: a.external_id ?? null, external_path: a.external_path ?? null,
+        }));
+        const { error: aErr } = await supabase.from("transaction_attachments").insert(att);
+        if (aErr) toast.error(aErr.message);
+        else setDraftAttachments([]);
+      }
+    }
+    setSaving(false);
+    toast.success(tr("toast.saved"));
+    void noticeReopenedScopes();
+    qc.invalidateQueries();
+    if (isEdit) { goBack(); return; }
+    if (ids[0] && (await linkStatementLine(ids[0]))) return;
+    if (ids[0] && (await linkPendingRow(ids[0]))) return;
+    if (andNew) { setSplitMode(false); setSlices([newSlice(), newSlice()]); reset(); }
+    else navigate({ to: "/" });
+  };
 
   const save = async (andNew: boolean) => {
     const amt = Number(amount.replace(",", "."));
@@ -1057,6 +1381,12 @@ export function TransactionForm({
         toast.error(tr("add.reimb.cannot_unflag"));
         return;
       }
+    }
+
+    // An income whose repayments changed: its own path.
+    if (type === "income" && refundTouched) {
+      await saveIncomeWithRefunds(andNew);
+      return;
     }
 
     // Split path: insert N rows sharing a split_group_id
@@ -1295,20 +1625,8 @@ export function TransactionForm({
       // Reimbursables covered by this income: the card's list replaces the
       // current links in one step when it was changed. Otherwise a single
       // link follows the amount, so the original's status stays correct.
-      if (type === "income" && linkSelectionsTouchedRef.current) {
-        try {
-          await setReimbursementLinks(
-            editId,
-            Object.entries(linkSelections)
-              .map(([original_id, a]) => ({ original_id, amount: Math.round(Number(a) * 100) / 100 }))
-              .filter((x) => x.amount > 0),
-          );
-        } catch (e) {
-          setSaving(false);
-          toast.error((e as Error).message);
-          return;
-        }
-      } else if (editAsSettlerLinks.length === 1) {
+      // (A changed repayment of an income was saved by saveIncomeWithRefunds.)
+      if (editAsSettlerLinks.length === 1) {
         const link = editAsSettlerLinks[0];
         if (Math.abs(Number(link.amount) - amt) > 0.005) {
           const { error: lErr } = await supabase
@@ -1846,7 +2164,9 @@ export function TransactionForm({
                 pressed={splitMode}
                 onPressedChange={(v: boolean) => {
                   if (v) {
-                    if (isEdit && editAsSettlerLinks.length > 0) {
+                    // An income's repayments move to its first line
+                    // (saveIncomeWithRefunds); other settlers can't be split.
+                    if (isEdit && editAsSettlerLinks.length > 0 && type !== "income") {
                       toast.error(tr("add.split.cannot_split_settler"));
                       return;
                     }
@@ -1864,9 +2184,20 @@ export function TransactionForm({
                           isReimbursable: !!t0.is_reimbursable,
                           reimbCounterparty: t0.reimbursable_counterparty ?? "",
                           reimbReason: t0.reimbursable_reason ?? "",
+                          refunds: type === "income" ? refundPicks : {},
                         },
                         newSlice(),
                       ]);
+                      if (type === "income") { setRefundPicks({}); setRefundTouched(true); }
+                    } else if (!isEdit && type === "income" && Object.keys(refundPicks).length > 0) {
+                      // New income: what it repays stays with the first line.
+                      const first = { ...newSlice(), categoryId, description, refunds: refundPicks };
+                      const linkedSum = Object.values(refundPicks).reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+                      first.amount = (Math.round(linkedSum * 100) / 100).toFixed(2);
+                      setSlices([first, newSlice()]);
+                      setRefundPicks({});
+                      setRefundSliceOpen(first.id);
+                      setRefundTouched(true);
                     }
                     setSplitMode(true);
                     return;
@@ -1875,6 +2206,10 @@ export function TransactionForm({
                   if (isEdit && editQ.data?.tx.split_group_id) {
                     toast.error(tr("add.split.cannot_ungroup"));
                     return;
+                  }
+                  // The first line's repayments come back to the whole income.
+                  if (type === "income" && Object.keys(slices[0]?.refunds ?? {}).length > 0) {
+                    setRefundPicks(slices[0].refunds);
                   }
                   setSplitMode(false);
                 }}
@@ -1885,7 +2220,21 @@ export function TransactionForm({
             </div>
           )}
 
-          {type !== "transfer" && !splitMode && (
+          {type === "income" && !splitMode && refundLines[0] &&
+            renderRefundCard(refundLines[0], changeRefundPicks, {
+              surplusCategoryId: categoryId || null,
+              onSurplusCategoryChange: (v) => { setCategoryId(v ?? ""); mark("categoryId"); },
+              onSplitSurplus: splitOffSurplus,
+            })}
+
+          {type === "income" && !splitMode && hasNewRefundPick && refundPlan[0] && (
+            <div>
+              <Label className="mb-1.5 block">{tr("add.category")}</Label>
+              {renderDerivedCategory(refundPlan[0].parts)}
+            </div>
+          )}
+
+          {type !== "transfer" && !splitMode && !(type === "income" && hasNewRefundPick) && (
             <div>
               <Label className="mb-1.5 block">
                 {tr("add.category")} {type === "income" && <span className="text-xs font-normal text-muted-foreground">{tr("add.category_optional_reimb")}</span>}
@@ -1981,22 +2330,56 @@ export function TransactionForm({
                         />
                       </div>
                     </div>
-                    <div className="mt-2">
-                      <Label className="mb-1 block text-xs">{tr("add.split.category")}</Label>
-                      <ChipPicker
-                        items={categoryChips}
-                        value={s.categoryId || null}
-                        onChange={(v) =>
-                          setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, categoryId: v ?? "" } : x)))
-                        }
-                        allowClear
-                        clearLabel={tr("add.split.no_category")}
-                        placeholder={tr("add.select_category")}
-                        moreLabel={tr("picker.more")}
-                        searchPlaceholder={tr("picker.search")}
-                        emptyLabel={tr("picker.no_match")}
-                      />
-                    </div>
+                    {(() => {
+                      const line = refundLines.find((l) => l.key === s.id);
+                      const plan = refundPlan.find((pl) => pl.line.key === s.id);
+                      const hasNew = !!line && Object.values(line.picks).some((p) => p.decision);
+                      const open = refundSliceOpen === s.id || (!!line && Object.keys(line.picks).length > 0);
+                      return (
+                        <>
+                          <div className="mt-2">
+                            <Label className="mb-1 block text-xs">{tr("add.split.category")}</Label>
+                            {hasNew && plan ? renderDerivedCategory(plan.parts) : (
+                              <ChipPicker
+                                items={categoryChips}
+                                value={s.categoryId || null}
+                                onChange={(v) =>
+                                  setSlices((cur) => cur.map((x, i) => (i === idx ? { ...x, categoryId: v ?? "" } : x)))
+                                }
+                                allowClear
+                                clearLabel={tr("add.split.no_category")}
+                                placeholder={tr("add.select_category")}
+                                moreLabel={tr("picker.more")}
+                                searchPlaceholder={tr("picker.search")}
+                                emptyLabel={tr("picker.no_match")}
+                              />
+                            )}
+                          </div>
+                          {line && (
+                            <div className="mt-2">
+                              {open ? (
+                                <>
+                                  {renderRefundCard(line, (next) => changeSliceRefunds(s.id, next), {
+                                    surplusCategoryId: s.categoryId || null,
+                                    onSurplusCategoryChange: (v) =>
+                                      setSlices((cur) => cur.map((x) => (x.id === s.id ? { ...x, categoryId: v ?? "" } : x))),
+                                  })}
+                                  {Object.keys(line.picks).length === 0 && (
+                                    <Button type="button" variant="ghost" size="sm" className="mt-1" onClick={() => setRefundSliceOpen(null)}>
+                                      {tr("refund.slice_hide")}
+                                    </Button>
+                                  )}
+                                </>
+                              ) : (
+                                <Button type="button" variant="outline" size="sm" onClick={() => setRefundSliceOpen(s.id)}>
+                                  <Plus className="mr-1 h-4 w-4" /> {tr("refund.slice_add")}
+                                </Button>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                     <div className="mt-2">
                       <Label className="mb-1 block text-xs">{tr("add.split.note")}</Label>
                       <TagAutocompleteTextarea
@@ -2265,216 +2648,6 @@ export function TransactionForm({
           <ReimbursementPayments original={editQ.data.tx} links={editAsOriginalLinks} symbol={symbol} />
         )}
 
-        {/* Reimbursable-link card: subset-sum suggestion when we have a match,
-            otherwise collapsed manual-link list. */}
-        {type === "income" && cardCandidates.length > 0 && (() => {
-          // Suggestions help assign a new income; when editing they would only
-          // compete with the assignment that is there.
-          const matchedIds = new Set(isEdit ? [] : (suggestedMatch?.ids ?? []));
-          const selectedTotal = Object.values(linkSelections).reduce((s, v) => s + (Number(v) || 0), 0);
-          const hasSelection = Object.keys(linkSelections).length > 0;
-          const incomeAmt = amountNum ?? 0;
-          const diff = selectedTotal - incomeAmt;
-          const absDiff = Math.abs(diff);
-          const overAssigned = linkOverAssigned;
-          const summaryKey = absDiff < 0.005
-            ? "add.reimb.link.selected_summary.exact"
-            : diff < 0
-              ? "add.reimb.link.selected_summary.under"
-              : "add.reimb.link.selected_summary.over";
-          return (
-            <Collapsible defaultOpen={!!suggestedMatch || (isEdit && editAsSettlerLinks.length > 0)}>
-              <Card className={suggestedMatch && !isEdit ? "border-warning/60 bg-warning/5" : ""}>
-                <CardContent className="space-y-2 py-3">
-                  <CollapsibleTrigger asChild>
-                    <button
-                      type="button"
-                      className="flex w-full items-center justify-between gap-2 text-left"
-                    >
-                      <div className="flex items-center gap-2 text-sm font-medium">
-                        <LinkIcon className="h-4 w-4" />
-                        {isEdit
-                          ? (
-                            <>
-                              <span>{tr("add.reimb.link.edit_title")}</span>
-                              <span className="text-xs font-normal text-muted-foreground">
-                                {tr("add.reimb.link.assigned_count", { n: String(Object.keys(linkSelections).length) })}
-                              </span>
-                            </>
-                          )
-                          : suggestedMatch
-                          ? tr("add.reimb.link.suggested_title", {
-                              n: String(suggestedMatch.ids.length),
-                              amount: fmtMoney(suggestedMatch.total, symbol),
-                            })
-                          : (
-                            <>
-                              <span>{tr("add.reimb.link.section_title")}</span>
-                              <span className="text-xs font-normal text-muted-foreground">
-                                {tr("add.reimb.link.count_label", { n: String(linkCandidates.length) })}
-                              </span>
-                            </>
-                          )}
-                      </div>
-                      <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform [&[data-state=open]]:rotate-180" />
-                    </button>
-                  </CollapsibleTrigger>
-                  <CollapsibleContent className="space-y-2">
-                    {isEdit ? (
-                      <p className="text-xs text-muted-foreground">{tr("add.reimb.link.edit_hint")}</p>
-                    ) : !suggestedMatch && (
-                      <p className="text-xs text-muted-foreground">{tr("add.reimb.link.no_match_hint")}</p>
-                    )}
-                    <ul className="space-y-1">
-                      {cardCandidates.map((t) => {
-                        const rem = availableByOrig.get(t.id) ?? remainingByOrig.get(t.id) ?? 0;
-                        const checked = linkSelections[t.id] != null;
-                        const locked = isLockedOriginal(t);
-                        const coveredNow = isEdit && editAsSettlerLinks.some((l) => l.original_transaction_id === t.id);
-                        const acc = accountById.get(t.source_account_id);
-                        const sym = acc?.currency_symbol ?? symbol;
-                        const isMatched = matchedIds.has(t.id);
-                        return (
-                          <li
-                            key={t.id}
-                            className={cn(
-                              "flex items-start gap-2 rounded-md px-2 py-1.5",
-                              isMatched
-                                ? "bg-warning/15 ring-1 ring-warning/60"
-                                : "bg-background/60",
-                            )}
-                          >
-                            <Checkbox
-                              checked={checked}
-                              disabled={locked}
-                              onCheckedChange={(v) => {
-                                linkSelectionsTouchedRef.current = true;
-                                setLinkSelections((cur) => {
-                                  const next = { ...cur };
-                                  if (v) next[t.id] = Math.min(rem, unallocatedSettlingAmount(cur, incomeAmt));
-                                  else delete next[t.id];
-                                  return next;
-                                });
-                              }}
-                              className="mt-0.5"
-                            />
-                            <div className="min-w-0 flex-1 text-xs">
-                              <div className="truncate font-medium">
-                                {t.description || tr("add.expense")}
-                                {t.reimbursable_counterparty && (
-                                  <span className="ml-1 text-muted-foreground">
-                                    {tr("add.reimb.autolink.from", { who: t.reimbursable_counterparty })}
-                                  </span>
-                                )}
-                              </div>
-                              <div className="text-muted-foreground">
-                                {format(new Date(t.occurred_on + "T00:00:00"), dateFmt, { locale })} · {fmtMoney(rem, sym)}
-                                {coveredNow && !locked && (
-                                  <span className="ml-1.5 rounded bg-success/15 px-1 py-px text-[10px] font-medium text-success">
-                                    {tr("add.reimb.link.covered_now")}
-                                  </span>
-                                )}
-                              </div>
-                              {locked && (
-                                <div className="text-muted-foreground">
-                                  {tr(t.reimbursable_status === "written_off" ? "add.reimb.link.locked_written_off" : "add.reimb.link.locked_cancelled")}
-                                </div>
-                              )}
-                            </div>
-                            {checked && (
-                              <Input
-                                type="number"
-                                inputMode="decimal"
-                                step="0.01"
-                                min="0"
-                                aria-label={tr("add.reimb.link.amount_for", { name: t.description || tr("add.expense") })}
-                                disabled={locked}
-                                value={String(linkSelections[t.id])}
-                                onChange={(e) => {
-                                  linkSelectionsTouchedRef.current = true;
-                                  const v = Number(e.target.value);
-                                  setLinkSelections((cur) => ({ ...cur, [t.id]: Number.isFinite(v) && v > 0 ? Math.min(v, rem) : 0 }));
-                                }}
-                                className="h-7 w-24 shrink-0 text-right text-xs tabular-nums"
-                              />
-                            )}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                    {hasSelection && incomeAmt > 0 && (
-                      <p className={cn("text-xs", overAssigned ? "font-medium text-destructive" : "text-muted-foreground")} role={overAssigned ? "alert" : undefined}>
-                        {tr(summaryKey, {
-                          sel: fmtMoney(selectedTotal, symbol),
-                          inc: fmtMoney(incomeAmt, symbol),
-                          diff: fmtMoney(absDiff, symbol),
-                        })}
-                        {overAssigned && <> {tr("add.reimb.link.over_block")}</>}
-                      </p>
-                    )}
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      {suggestedMatch && !isEdit && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            linkSelectionsTouchedRef.current = true;
-                            const next: Record<string, number> = {};
-                            clampLinkAmounts(
-                              suggestedMatch.ids.map((id) => ({ id, amount: remainingByOrig.get(id) ?? 0 })),
-                              incomeAmt,
-                            ).forEach((x) => { next[x.id] = x.amount; });
-                            setLinkSelections(next);
-                          }}
-                        >
-                          {tr("add.reimb.link.link_suggested")}
-                        </Button>
-                      )}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          linkSelectionsTouchedRef.current = true;
-                          const next: Record<string, number> = {};
-                          clampLinkAmounts(
-                            cardCandidates
-                              .filter((t) => !isLockedOriginal(t))
-                              .map((t) => ({ id: t.id, amount: availableByOrig.get(t.id) ?? 0 })),
-                            incomeAmt,
-                          ).forEach((x) => { next[x.id] = x.amount; });
-                          setLinkSelections(next);
-                        }}
-                      >
-                        {tr("add.reimb.autolink.link_all")}
-                      </Button>
-                      {hasSelection && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            linkSelectionsTouchedRef.current = true;
-                            // Written-off ones keep their link; everything else goes.
-                            setLinkSelections((cur) => {
-                              const keep: Record<string, number> = {};
-                              for (const t of cardCandidates) if (isLockedOriginal(t) && cur[t.id] != null) keep[t.id] = cur[t.id];
-                              return keep;
-                            });
-                          }}
-                        >
-                          {tr("add.reimb.link.clear")}
-                        </Button>
-                      )}
-                    </div>
-                  </CollapsibleContent>
-                </CardContent>
-              </Card>
-            </Collapsible>
-          );
-        })()}
-
         <div className="pt-2">
           {isEdit && editId ? (
             <div className="space-y-2">
@@ -2508,7 +2681,7 @@ export function TransactionForm({
           isCrossCurrency={isCrossCurrency}
           source={sourceAccount ?? null}
           destination={destAccount ?? null}
-          category={categoryId ? categoryById.get(categoryId) ?? null : null}
+          category={previewCategoryId ? categoryById.get(previewCategoryId) ?? null : null}
           description={description}
           note={note}
           date={date}
@@ -2525,11 +2698,11 @@ export function TransactionForm({
           reimb={type !== "transfer" && isReimbursable ? { from: reimbCounterparty.trim() } : null}
           settles={
             type === "income"
-              ? Object.entries(linkSelections)
-                  .filter(([, a]) => Number(a) > 0)
-                  .map(([id, a]) => {
-                    const o = cardCandidates.find((c) => c.id === id);
-                    return `${o?.description || tr("add.expense")} (${fmtMoney(Number(a), symbol).replace(/^\S+\s/, "")})`;
+              ? refundLines.flatMap((l) => Object.entries(l.picks))
+                  .filter(([, p]) => Number(p.amount) > 0)
+                  .map(([id, p]) => {
+                    const o = refundExpenseById.get(id);
+                    return `${o?.description || tr("add.expense")} (${fmtMoney(Number(p.amount), symbol).replace(/^\S+\s/, "")})`;
                   })
               : []
           }
@@ -2559,7 +2732,7 @@ export function TransactionForm({
           feeCategoryId={type === "transfer" && feeOpen ? feeCategoryId || null : null}
           source={sourceAccount ?? null}
           destination={destAccount ?? null}
-          category={categoryId ? categoryById.get(categoryId) ?? null : null}
+          category={previewCategoryId ? categoryById.get(previewCategoryId) ?? null : null}
           date={date}
           splitMode={splitMode}
           slices={splitMode ? slices.map((s) => ({
@@ -2604,16 +2777,20 @@ export function TransactionForm({
           <div className="pt-2 text-xs text-muted-foreground">{tr("statements.linking_hint")}</div>
         )}
 
+        {refundBlocks && refundIssue && (
+          <p role="alert" className="text-sm text-destructive">{tr(refundIssue)}</p>
+        )}
+
         <div className="flex gap-2 pt-2">
           {isEdit ? (
             <>
               <Button variant="outline" className="flex-1" disabled={saving} onClick={() => goBack()}>{tr("common.cancel")}</Button>
-              <Button className="flex-1" disabled={saving || receivedTooLow || linkOverAssigned || refusalBlocks} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("edit.save_changes")}</Button>
+              <Button className="flex-1" disabled={saving || receivedTooLow || linkOverAssigned || refundBlocks || refusalBlocks} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("edit.save_changes")}</Button>
             </>
           ) : (
             <>
-              <Button variant="outline" className="flex-1" disabled={saving || receivedTooLow || linkOverAssigned || refusalBlocks} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("common.save")}</Button>
-              <Button className="flex-1" disabled={saving || receivedTooLow || linkOverAssigned || refusalBlocks} onClick={() => save(true)}>{tr("add.save_new")}</Button>
+              <Button variant="outline" className="flex-1" disabled={saving || receivedTooLow || linkOverAssigned || refundBlocks || refusalBlocks} onClick={() => save(false)}>{saving ? tr("common.saving") : tr("common.save")}</Button>
+              <Button className="flex-1" disabled={saving || receivedTooLow || linkOverAssigned || refundBlocks || refusalBlocks} onClick={() => save(true)}>{tr("add.save_new")}</Button>
             </>
           )}
         </div>

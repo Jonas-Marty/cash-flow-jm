@@ -66,6 +66,8 @@ A transaction flagged because someone owes you (or you owe someone). Open IOUs s
 
 **Example:** You pay CHF 120 for a team dinner with your credit card and your colleague owes you half. You record the expense as CHF 120, toggle **Reimbursable**, enter *Colleague Anna* as counterparty. The full 120 hits your *Restaurant* budget, but an open IOU of 60 shows up on your dashboard. When Anna pays you back via TWINT, you record a repayment — the IOU closes and your *Restaurant* envelope gets credited back 60.
 
+You don't have to flag an expense in advance: when you record an income, **Repays expenses** lets you pick any expense it settles, which then becomes an IOU. See [Shared expense and getting repaid](./05-workflows.md#shared-expense-and-getting-repaid).
+
 ## Pending transaction [#pending-transaction]
 
 An entry imported from outside the app (via the public API or another source) that has not yet been booked. You review it and then confirm or reject.

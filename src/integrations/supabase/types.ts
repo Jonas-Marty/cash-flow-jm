@@ -1565,6 +1565,8 @@ export type Database = {
           recurring_rule_id: string | null
           reimbursable_cancel_reason: string | null
           reimbursable_counterparty: string | null
+          reimbursable_flagged_by_link: boolean
+          reimbursable_prior_category_id: string | null
           reimbursable_reason: string | null
           reimbursable_status: string | null
           reimbursable_writeoff_category_id: string | null
@@ -1598,6 +1600,8 @@ export type Database = {
           recurring_rule_id?: string | null
           reimbursable_cancel_reason?: string | null
           reimbursable_counterparty?: string | null
+          reimbursable_flagged_by_link?: boolean
+          reimbursable_prior_category_id?: string | null
           reimbursable_reason?: string | null
           reimbursable_status?: string | null
           reimbursable_writeoff_category_id?: string | null
@@ -1631,6 +1635,8 @@ export type Database = {
           recurring_rule_id?: string | null
           reimbursable_cancel_reason?: string | null
           reimbursable_counterparty?: string | null
+          reimbursable_flagged_by_link?: boolean
+          reimbursable_prior_category_id?: string | null
           reimbursable_reason?: string | null
           reimbursable_status?: string | null
           reimbursable_writeoff_category_id?: string | null
@@ -1864,6 +1870,10 @@ export type Database = {
         Returns: { amount: number; reallocation_id: string | null }[]
       }
       reopen_scope: { Args: { p_scope_id: string }; Returns: undefined }
+      apply_refund_links: {
+        Args: { p_counterparty?: string; p_links: Json; p_settling_id: string }
+        Returns: undefined
+      }
       set_reimbursement_links: {
         Args: { p_links: Json; p_settling_id: string }
         Returns: undefined

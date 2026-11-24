@@ -12,6 +12,16 @@ sidebar:
 3. When you receive the money, click **Add repayment** — the form is pre-filled, just save.
 4. The IOU auto-closes once fully covered. If you get back less than you paid — or more, say 20.00 against an outlay of 19.50 — **write off the rest**: the difference is charged to or credited to your envelope instead of landing nowhere.
 
+**Didn't know beforehand that you'd be repaid?** Just record the income and, under **Repays expenses**, search for the expense or expenses it settles. The search covers every open expense in the income's currency, including parts of a split, and suggests combinations that add up. Picking an expense makes it reimbursable; it takes the counterparty from **From whom** if it has none. Untick it later and it becomes a normal expense again, with its earlier category.
+
+For each expense you decide:
+
+- **Rest** (when the income doesn't cover all of it): *still to come* keeps it open. *My share* keeps it with you — either **write it off** (expense and income both go to the chosen category) or **split the expense** (your share stays in the category; the repaid part and the income have none).
+- **Budget** (when it is repaid in full, or the rest is still coming): the default is **Remove the expense's category** — the expense no longer counts in any envelope, and neither does the income. Or **book the income to a category**, such as the expense's.
+- **Surplus** (the income brings more): credit it to a budget, or split it off as its own line.
+
+The income's category follows from these choices; if they involve different categories, the income is split automatically. A split income has its own picks per line.
+
 ## Importing transactions via the API [#importing-transactions-via-the-api]
 
 1. In **Settings → API tokens**, create a token.

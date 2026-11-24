@@ -177,6 +177,9 @@ export interface Transaction {
   reimbursable_cancel_reason?: string | null;
   reimbursable_writeoff_category_id?: string | null;
   reimbursable_writeoff_transaction_id?: string | null;
+  /** Marked reimbursable by an income that repays it; unmarked when unlinked. */
+  reimbursable_flagged_by_link?: boolean;
+  reimbursable_prior_category_id?: string | null;
   fee_amount?: number | null;
   fee_transaction_id?: string | null;
   fee_category_id?: string | null;
@@ -1656,6 +1659,70 @@ export async function setReimbursementLinks(
     p_links: links as unknown as Json,
   });
   if (error) throw error;
+}
+
+/**
+ * Apply what one income row repays: links for expenses it already had, and for
+ * ones picked just now with the user's choices (mark reimbursable, remove the
+ * category, write off or split off your share). One database call; see
+ * apply_refund_links() and src/lib/refundPlan.ts.
+ */
+export async function applyRefundLinks(
+  settlingId: string,
+  links: Array<Record<string, unknown>>,
+  counterparty: string | null,
+): Promise<void> {
+  const { error } = await supabase.rpc("apply_refund_links", {
+    p_settling_id: settlingId,
+    p_links: links as unknown as Json,
+    p_counterparty: counterparty ?? undefined,
+  });
+  if (error) throw error;
+}
+
+/** Characters that would break a PostgREST or() filter. */
+const orFilterSafe = (s: string) => s.replace(/[,()*\\%]/g, " ").trim();
+
+/**
+ * Expenses an income could repay: any expense, reimbursable or not, on the
+ * given accounts (the income's currency), except ones already settled, written
+ * off or cancelled. Without a search the newest 300; with one, matches in
+ * description, note, person or amount. `otherCurrency` counts matches on the
+ * remaining accounts, which the list leaves out.
+ */
+export async function fetchRefundCandidates(opts: {
+  accountIds: string[];
+  otherAccountIds: string[];
+  query: string;
+}): Promise<{ rows: Transaction[]; otherCurrency: number }> {
+  if (opts.accountIds.length === 0) return { rows: [], otherCurrency: 0 };
+  const q = orFilterSafe(opts.query);
+  const amountQ = Number(q.replace(/['’\s]/g, "").replace(",", "."));
+  const textFilter = q
+    ? [
+        `description.ilike.*${q}*`,
+        `note.ilike.*${q}*`,
+        `reimbursable_counterparty.ilike.*${q}*`,
+        ...(Number.isFinite(amountQ) && amountQ > 0 && /^[\d'’.,\s]+$/.test(q) ? [`amount.eq.${amountQ}`] : []),
+      ].join(",")
+    : null;
+  const base = (accountIds: string[], head: boolean) => {
+    let b = supabase
+      .from("transactions")
+      .select("*", head ? { count: "exact", head: true } : undefined)
+      .eq("type", "expense")
+      .in("source_account_id", accountIds)
+      .or("is_reimbursable.eq.false,reimbursable_status.eq.open");
+    if (textFilter) b = b.or(textFilter);
+    return b;
+  };
+  const [rowsRes, otherRes] = await Promise.all([
+    base(opts.accountIds, false).order("occurred_on", { ascending: false }).limit(q ? 200 : 300),
+    q && opts.otherAccountIds.length > 0 ? base(opts.otherAccountIds, true) : Promise.resolve({ count: 0, error: null }),
+  ]);
+  if (rowsRes.error) throw rowsRes.error;
+  if (otherRes.error) throw otherRes.error;
+  return { rows: (rowsRes.data ?? []) as Transaction[], otherCurrency: otherRes.count ?? 0 };
 }
 
 /** Transactions by id, for the other side of reimbursement links. */

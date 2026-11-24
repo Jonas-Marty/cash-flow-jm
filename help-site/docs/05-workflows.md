@@ -12,6 +12,16 @@ sidebar:
 3. Wenn das Geld kommt: **Rückzahlung hinzufügen** — Formular ist vorbelegt, nur speichern.
 4. Die IOU schließt automatisch, sobald sie voll gedeckt ist. Bekommst du weniger zurück als ausgelegt — oder mehr, etwa 20.00 für eine Auslage von 19.50 — dann **schreib den Rest ab**: die Differenz wird deinem Umschlag belastet bzw. gutgeschrieben, statt nirgends zu landen.
 
+**Nicht vorher gewusst, dass du etwas zurückbekommst?** Erfasse einfach die Einnahme und such unter **Zahlt Ausgaben zurück** die Ausgabe oder Ausgaben, die sie begleicht. Die Suche umfasst alle offenen Ausgaben in der Währung der Einnahme, auch Teile einer Aufteilung, und schlägt passende Kombinationen vor. Eine gewählte Ausgabe wird dabei zur Auslage; die Gegenpartei kommt aus **Von wem**, falls sie noch keine hat. Hebst du die Auswahl später wieder auf, wird sie wieder eine normale Ausgabe mit ihrer früheren Kategorie.
+
+Pro Ausgabe entscheidest du:
+
+- **Rest** (wenn die Einnahme nicht alles deckt): *noch ausstehend* lässt ihn offen. *Mein Anteil* behält ihn bei dir — entweder **abschreiben** (Ausgabe und Einnahme gehen auf die gewählte Kategorie) oder **Ausgabe aufteilen** (dein Anteil bleibt in der Kategorie, der erstattete Teil und die Einnahme haben keine).
+- **Budget** (bei voller Erstattung oder wenn der Rest noch kommt): Standard ist **Kategorie der Ausgabe entfernen** — die Ausgabe zählt in keinem Umschlag mehr, die Einnahme auch nicht. Alternativ **Einnahme auf Kategorie buchen**, zum Beispiel auf die Kategorie der Ausgabe.
+- **Überschuss** (die Einnahme bringt mehr): einem Budget gutschreiben oder als eigene Zeile abteilen.
+
+Die Kategorie der Einnahme ergibt sich aus diesen Entscheidungen; betreffen sie verschiedene Kategorien, wird die Einnahme automatisch aufgeteilt. Eine aufgeteilte Einnahme hat pro Zeile eine eigene Auswahl.
+
 ## Buchungen per API importieren [#importing-transactions-via-the-api]
 
 1. In **Einstellungen → API-Tokens** ein Token erstellen.

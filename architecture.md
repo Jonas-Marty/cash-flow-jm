@@ -514,6 +514,28 @@ including the SQL/app inventory, performance estimate and phased plan, lives in
 > anything. Sections 1–6 are the maintained description; if the two disagree,
 > the sections above win. The same goes for the design records under `docs/`.
 
+### 2026-11-24 — An income picks the expenses it repays
+
+- The income form's link card gave way to **Repays expenses**
+  (`RefundCard`, plan in `src/lib/refundPlan.ts`): it searches every expense in
+  the income's currency that is not reimbursable or still open (split lines
+  individually; settled, written-off and cancelled hidden), ranked by amount,
+  then counterparty, then date, with the subset-sum suggestion kept.
+- Per picked expense the user decides the rest (still coming, or my share —
+  written off, or the expense split into my share and a reimbursable part
+  without category), the budget for a full refund (default: remove the
+  expense's category, the income has none; or book the income to a category)
+  and any surplus (credit a category, or split it off). The income's category
+  is derived; different categories split the income via `save_split_group`.
+- Migration `20261121100000_refund_links_any_expense`: `transactions` gains
+  `reimbursable_flagged_by_link` and `reimbursable_prior_category_id`.
+  `apply_refund_links(p_settling_id, p_links, p_counterparty)` flags the
+  expense, applies the decision and the links in one call. Removing the last
+  link of an expense flagged this way unflags it and restores its category
+  (`release_link_flag`, from the link trigger).
+- The impact preview shows the category and split changes on the expenses,
+  not the links themselves.
+
 ### 2026-11-02 — AI usage, and an AI log that keeps its figures
 
 - `ai_audit_logs` gains `endpoint_id`, `endpoint_name` (the name at the time;
